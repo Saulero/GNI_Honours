@@ -1,7 +1,9 @@
+package pin;
+
 /**
  * Created by noel on 5-2-17.
  *
  */
-class PinService {
+public class PinService {
     //TODO fill class.
 }

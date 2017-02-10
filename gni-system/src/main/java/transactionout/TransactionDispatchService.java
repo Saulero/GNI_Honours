@@ -1,4 +1,9 @@
+package transactionout;
+
 import io.advantageous.qbit.annotation.Listen;
+import ledger.Transaction;
+import queue.ServiceManager;
+
 import static io.advantageous.qbit.service.ServiceContext.serviceContext;
 
 /**
@@ -7,7 +12,7 @@ import static io.advantageous.qbit.service.ServiceContext.serviceContext;
  * Sends these requests to the ledger for processing.
  * Handles the response from the ledger and sends the transaction to its respective receiving bank.
  */
-class TransactionDispatchService {
+public class TransactionDispatchService {
     //TODO setup socket to receive external traffic and parse it.
 
     /**
@@ -17,9 +22,9 @@ class TransactionDispatchService {
      */
     //TODO rewrite for outgoing json requests.
     @Listen(value = ServiceManager.TRANSACTION_REQUEST_CHANNEL, consume = true)
-    void process_transaction_request(final Transaction transaction) {
+    public void process_transaction_request(final Transaction transaction) {
         //Send request to ledger to check if customer has correct balance.
-        System.out.printf("Dispatch: Processing transaction request number %s\n", transaction.getTransactionNumber());
+        System.out.printf("Dispatch: Processing transaction request number %s\n", transaction.getTransactionID());
         serviceContext().send(ServiceManager.TRANSACTION_PROCESSING_CHANNEL, transaction);
     }
 
@@ -30,15 +35,15 @@ class TransactionDispatchService {
      * @param transaction the transaction reply from the ledger
      */
     @Listen(ServiceManager.TRANSACTION_VERIFICATION_CHANNEL)
-    void execute_transaction(final Transaction transaction) {
-        if (transaction.getProcessed()) {
-            if(transaction.getSuccessfull()) {
+    public void execute_transaction(final Transaction transaction) {
+        if (transaction.isProcessed()) {
+            if(transaction.isSuccessfull()) {
                 //TODO generate outgoing json and send it.
                 System.out.printf("Dispatch: Sent transaction %s to respective bank.\n",
-                        transaction.getTransactionNumber());
+                        transaction.getTransactionID());
             } else {
                 //TODO code to process payment failure
-                System.out.printf("Dispatch: Transaction %s failed.\n\n", transaction.getTransactionNumber());
+                System.out.printf("Dispatch: ledger.Transaction %s failed.\n\n", transaction.getTransactionID());
             }
         }
     }

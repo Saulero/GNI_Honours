@@ -1,4 +1,11 @@
+package users;
+
 import io.advantageous.qbit.annotation.Listen;
+import queue.ServiceManager;
+import ui.DataReply;
+import ui.DataRequest;
+import ui.RequestType;
+
 import static io.advantageous.qbit.service.ServiceContext.serviceContext;
 
 /**
@@ -7,14 +14,14 @@ import static io.advantageous.qbit.service.ServiceContext.serviceContext;
  * Creates customer accounts.
  * Initiates transactions for customers
  */
-class UserService {
+public class UserService {
 
     /**
      * Listens on USER_CREATION_CHANNEL for new customer creation requests and adds these to the database.
      * @param customer customer to add to the databse.
      */
     @Listen(ServiceManager.USER_CREATION_CHANNEL)
-    void enrollCustomer(final Customer customer) {
+    public void enrollCustomer(final Customer customer) {
         //TODO write code to enroll customer in database.
         System.out.printf("Users: Enrolled new customer: %s %s\n", customer.getName(), customer.getSurname());
     }
@@ -26,31 +33,13 @@ class UserService {
      * @param dataRequest request objects containing the request type, and the account number the request is for
      */
     @Listen(ServiceManager.DATA_REQUEST_CHANNEL)
-    void process_data_request(final DataRequest dataRequest) {
-        DataRequest.requestType requestType = dataRequest.getType();
-        if (requestType == DataRequest.requestType.CUSTOMERDATA) {
+    public void process_data_request(final DataRequest dataRequest) {
+        RequestType requestType = dataRequest.getType();
+        if (requestType == RequestType.CUSTOMERDATA) {
             //TODO fetch customer information form database
             String customerInformation = "freekje";
             DataReply dataReply = new DataReply(dataRequest.getAccountNumber(), requestType, customerInformation);
             serviceContext().send(ServiceManager.DATA_REPLY_CHANNEL, dataReply);
         }
     }
-}
-
-class Customer {
-    private String name;
-    private String surname;
-    private String accountNumber;
-
-    Customer(String name, String surname, String accountNumber) {
-        this.name = name;
-        this.surname = surname;
-        this.accountNumber = accountNumber;
-    }
-
-    String getName(){return this.name;}
-
-    String getSurname(){return this.surname;}
-
-    String getAccountNumber(){return this.accountNumber;}
 }

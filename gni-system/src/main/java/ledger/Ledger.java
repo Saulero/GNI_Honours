@@ -1,18 +1,25 @@
+package ledger;
+
 import io.advantageous.qbit.annotation.Listen;
 import io.advantageous.qbit.annotation.OnEvent;
+import queue.ServiceManager;
+import ui.DataReply;
+import ui.DataRequest;
+import ui.RequestType;
+import users.Customer;
 
 import java.util.HashMap;
 
 import static io.advantageous.qbit.service.ServiceContext.serviceContext;
 
 /**
- * Created by noel on 4-2-17.
- * Keeps track of account numbers and their respective account holder and balance.
+ * @author Saul
  */
-class LedgerService {
+public class Ledger {
+
     private HashMap<String, Double> ledger;
 
-    LedgerService() {
+    public Ledger() {
         //TODO make ledger database and convert functions using hashmap
         this.ledger = new HashMap<String, Double>();
     }
@@ -22,7 +29,7 @@ class LedgerService {
      * @param customer customer object containing the customers name and accountnumber
      */
     @Listen(ServiceManager.USER_CREATION_CHANNEL)
-    void process_new_user(final Customer customer) {
+    public void process_new_user(final Customer customer) {
         if (!this.ledger.keySet().contains(customer.getAccountNumber())){
             this.ledger.put(customer.getAccountNumber(), 0.0);
             System.out.printf("Ledger: Added user %s %s to ledger\n\n", customer.getName(), customer.getSurname());
@@ -40,7 +47,7 @@ class LedgerService {
      * @param transaction Transaction object to perform the transaction
      */
     @OnEvent(value = ServiceManager.TRANSACTION_PROCESSING_CHANNEL, consume = true)
-    void process_transaction(final Transaction transaction) {
+    public void process_transaction(final Transaction transaction) {
         String accountNumber = transaction.getSourceAccountNumber();
         if(this.ledger.keySet().contains(accountNumber)) {
             //TODO implement database function for spending limit
@@ -48,7 +55,7 @@ class LedgerService {
             if (spendingLimit - transaction.getTransactionAmount() < 0) {
                 transaction.setProcessed(true);
                 System.out.printf("Ledger: Transaction number %s failed due to insufficient balance.\n",
-                        transaction.getTransactionNumber());
+                        transaction.getTransactionID());
                 serviceContext().send(ServiceManager.TRANSACTION_VERIFICATION_CHANNEL, transaction);
             } else {
                 double new_balance = this.ledger.get(accountNumber) - transaction.getTransactionAmount();
@@ -69,14 +76,14 @@ class LedgerService {
      * @param dataRequest DataRequest object containing the customer data request
      */
     @Listen(ServiceManager.DATA_REQUEST_CHANNEL)
-    void process_data_request(final DataRequest dataRequest) {
-        DataRequest.requestType requestType = dataRequest.getType();
-        if (requestType == DataRequest.requestType.BALANCE) {
+    public void process_data_request(final DataRequest dataRequest) {
+        RequestType requestType = dataRequest.getType();
+        if (requestType == RequestType.BALANCE) {
             String accountNumber = dataRequest.getAccountNumber();
             DataReply dataReply = new DataReply(accountNumber, requestType, "" + this.ledger.get(accountNumber));
             serviceContext().send(ServiceManager.DATA_REPLY_CHANNEL,  dataReply);
         }
-        else if (requestType == DataRequest.requestType.TRANSACTIONHISTORY) {
+        else if (requestType == RequestType.TRANSACTIONHISTORY) {
             //TODO fetch transaction history
             String transactionHistory = "Dummy history";
             String accountNumber = dataRequest.getAccountNumber();
@@ -85,48 +92,9 @@ class LedgerService {
         }
     }
 
-    void printLedger() {
+    public void printLedger() {
         for (String key : this.ledger.keySet()) {
             System.out.printf("Account: %s Balance: %f", key, this.ledger.get(key));
         }
     }
-}
-
-class Transaction {
-    private String sourceAccountNumber;
-    private double transactionAmount;
-    private String destinationAccountNumber;
-    private String destinationAccountHolderName;
-    private String transactionNumber;
-    private boolean processed;
-    private boolean successfull;
-
-    Transaction(String sourceAccountNumber, double transactionAmount, String destinationAccountNumber,
-                String destinationAccountHolderName, String transactionNumber) {
-        this.sourceAccountNumber = sourceAccountNumber;
-        this.transactionAmount = transactionAmount;
-        this.destinationAccountNumber = destinationAccountNumber;
-        this.destinationAccountHolderName = destinationAccountHolderName;
-        this.transactionNumber = transactionNumber;
-        this.processed = false;
-        this.successfull = false;
-    }
-
-    String getSourceAccountNumber() { return this.sourceAccountNumber; }
-
-    double getTransactionAmount() { return this.transactionAmount; }
-
-    String getDestinationAccountNumber() { return this.destinationAccountNumber; }
-
-    String getDestinationAccountHolderName() { return this.destinationAccountHolderName; }
-
-    String getTransactionNumber() { return this.transactionNumber; }
-
-    boolean getProcessed() { return this.processed; }
-
-    void setProcessed(boolean processed) { this.processed = processed; }
-
-    boolean getSuccessfull() { return this.successfull; }
-
-    void setSuccessfull(boolean successfull) { this.successfull = successfull; }
 }

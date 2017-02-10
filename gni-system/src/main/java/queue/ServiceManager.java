@@ -1,18 +1,27 @@
+package queue;
+
 import io.advantageous.qbit.QBit;
 import io.advantageous.qbit.events.EventManager;
+import ledger.Ledger;
+import ledger.Transaction;
+import transactionin.TransactionReceiveService;
+import transactionout.TransactionDispatchService;
+import ui.UIService;
+import users.UserService;
+
 import static io.advantageous.boon.core.Sys.sleep;
 
 /**
  * Created by noel on 4-2-17.
  * Microservices manager, handles the event queue and starts the microservices.
  */
-class ServiceManager {
-    static final String USER_CREATION_CHANNEL = "org.gni.user.new";
-    static final String TRANSACTION_REQUEST_CHANNEL = "org.gni.transaction.request";
-    static final String TRANSACTION_PROCESSING_CHANNEL = "org.gni.transaction.process";
-    static final String TRANSACTION_VERIFICATION_CHANNEL = "org.gni.transaction.verify";
-    static final String DATA_REQUEST_CHANNEL = "org.gni.data.request";
-    static final String DATA_REPLY_CHANNEL = "org.gni.data.reply";
+public class ServiceManager {
+    public static final String USER_CREATION_CHANNEL = "org.gni.user.new";
+    public static final String TRANSACTION_REQUEST_CHANNEL = "org.gni.transaction.request";
+    public static final String TRANSACTION_PROCESSING_CHANNEL = "org.gni.transaction.process";
+    public static final String TRANSACTION_VERIFICATION_CHANNEL = "org.gni.transaction.verify";
+    public static final String DATA_REQUEST_CHANNEL = "org.gni.data.request";
+    public static final String DATA_REPLY_CHANNEL = "org.gni.data.reply";
 
     public static void main(String[] args) {
         //test variables
@@ -22,14 +31,14 @@ class ServiceManager {
         //Create eventmanager and start microservices
         EventManager eventManager = QBit.factory().systemEventManager();
         UserService userService = new UserService();
-        LedgerService ledgerService = new LedgerService();
+        Ledger ledger = new Ledger();
         UIService uiService = new UIService();
         TransactionDispatchService dispatchService = new TransactionDispatchService();
         TransactionReceiveService receiveService = new TransactionReceiveService();
 
         //Set listener on microservices
         eventManager.listen(userService);
-        eventManager.listen(ledgerService);
+        eventManager.listen(ledger);
         eventManager.listen(uiService);
         eventManager.listen(dispatchService);
         eventManager.listen(receiveService);
@@ -53,12 +62,12 @@ class ServiceManager {
         sleep(200);
 
         System.out.println("Manager: Creating transaction");
-        Transaction transaction = new Transaction(testAccountNumber, 250, testDestinationNumber,  "de wilde", "112");
+        Transaction transaction = new Transaction(112, testAccountNumber, testDestinationNumber, "de wilde", 250);
         eventManager.send(TRANSACTION_REQUEST_CHANNEL, transaction);
         sleep(200);
 
         System.out.println("Manager: Creating transaction");
-        Transaction transaction2 = new Transaction(testAccountNumber, -250, testDestinationNumber,  "de wilde", "112");
+        Transaction transaction2 = new Transaction(113, testAccountNumber, testDestinationNumber, "de wilde", 250);
         eventManager.send(TRANSACTION_REQUEST_CHANNEL, transaction2);
         sleep(200);
 
@@ -68,6 +77,6 @@ class ServiceManager {
 
         //Test method.
         System.out.println("Manager: Printing ledger:");
-        ledgerService.printLedger();
+        ledger.printLedger();
     }
 }
