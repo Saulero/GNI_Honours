@@ -6,19 +6,20 @@ package users;
  * Databean used to send customer data over queues.
  */
 public final class Customer {
-    /** First name of the customer */
+    /** First name of the customer. */
     private String name;
-    /** Surname of the customer */
+    /** Surname of the customer. */
     private String surname;
-    /** accountNumber of the customer */
+    /** accountNumber of the customer. */
     private String accountNumber;
 
-    /** Initializes customer object and assigns its variables
+    /** Initializes customer object and assigns its variables.
      * @param newName first name of the customer.
      * @param newSurname surname of the customer.
      * @param newAccountNumber Account number to be assigned to the customer.
      * */
-    public Customer(final String newName, final String newSurname, final String newAccountNumber) {
+    public Customer(final String newName, final String newSurname,
+                    final String newAccountNumber) {
         this.name = newName;
         this.surname = newSurname;
         this.accountNumber = newAccountNumber;
@@ -26,7 +27,7 @@ public final class Customer {
 
     public String getName() { return name; }
 
-    public void setName(String newName) {
+    public void setName(final String newName) {
         this.name = newName;
     }
 
@@ -34,7 +35,7 @@ public final class Customer {
         return surname;
     }
 
-    public void setSurname(String newSurname) {
+    public void setSurname(final String newSurname) {
         this.surname = newSurname;
     }
 
@@ -42,7 +43,7 @@ public final class Customer {
         return accountNumber;
     }
 
-    public void setAccountNumber(String newAccountNumber) {
+    public void setAccountNumber(final String newAccountNumber) {
         this.accountNumber = newAccountNumber;
     }
 }
