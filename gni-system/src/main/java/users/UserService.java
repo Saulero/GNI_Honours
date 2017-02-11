@@ -9,7 +9,8 @@ import ui.RequestType;
 import static io.advantageous.qbit.service.ServiceContext.serviceContext;
 
 /**
- * Created by noel on 4-2-17.
+ * @author Noel
+ * @version 1
  * The User microservice, handles customer information.
  * Creates customer accounts.
  * Initiates transactions for customers
