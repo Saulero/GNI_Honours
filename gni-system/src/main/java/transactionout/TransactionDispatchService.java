@@ -8,6 +8,8 @@ import static io.advantageous.qbit.service.ServiceContext.serviceContext;
 
 /**
  * Created by noel on 5-2-17.
+ * @author Noel
+ * @version 1
  * Receives outgoing transaction requests.
  * Sends these requests to the ledger for processing.
  * Handles the response from the ledger and sends the transaction to its respective receiving bank.
