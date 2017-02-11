@@ -29,8 +29,8 @@ public class Ledger {
      * @param customer customer object containing the customers name and accountnumber
      */
     @Listen(ServiceManager.USER_CREATION_CHANNEL)
-    public void process_new_user(final Customer customer) {
-        if (!this.ledger.keySet().contains(customer.getAccountNumber())){
+    public void processNewUser(final Customer customer) {
+        if (!this.ledger.keySet().contains(customer.getAccountNumber())) {
             this.ledger.put(customer.getAccountNumber(), 0.0);
             System.out.printf("Ledger: Added user %s %s to ledger\n\n", customer.getName(), customer.getSurname());
         }
@@ -47,7 +47,7 @@ public class Ledger {
      * @param transaction Transaction object to perform the transaction
      */
     @OnEvent(value = ServiceManager.TRANSACTION_PROCESSING_CHANNEL, consume = true)
-    public void process_transaction(final Transaction transaction) {
+    public void processTransaction(final Transaction transaction) {
         String accountNumber = transaction.getSourceAccountNumber();
         if(this.ledger.keySet().contains(accountNumber)) {
             //TODO implement database function for spending limit
@@ -76,7 +76,7 @@ public class Ledger {
      * @param dataRequest DataRequest object containing the customer data request
      */
     @Listen(ServiceManager.DATA_REQUEST_CHANNEL)
-    public void process_data_request(final DataRequest dataRequest) {
+    public void processDataRequest(final DataRequest dataRequest) {
         RequestType requestType = dataRequest.getType();
         if (requestType == RequestType.BALANCE) {
             String accountNumber = dataRequest.getAccountNumber();
