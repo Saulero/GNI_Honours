@@ -7,16 +7,12 @@ import static database.Variables.AMOUNT_OF_CONNECTIONS;
 /**
  * @author Saul
  */
-public class ConnectionPool implements Runnable {
+public class ConnectionPool {
 
     private LinkedBlockingQueue<SQLConnection> pool;
 
     public ConnectionPool() {
         this.pool = new LinkedBlockingQueue<SQLConnection>();
-    }
-
-    public void run() {
-
     }
 
     private void generateConnections() {

@@ -6,8 +6,9 @@ import queue.ServiceManager;
 import ui.DataReply;
 import ui.DataRequest;
 import ui.RequestType;
-import users.Customer;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 
 import static io.advantageous.qbit.service.ServiceContext.serviceContext;
@@ -25,16 +26,54 @@ public class Ledger {
     }
 
     /**
-     * Listens to USER_CREATION_CHANNEL for new customers and adds their account number to the ledger.
-     * @param customer customer object containing the customers name and accountnumber
+     * Listens to USER_CREATION_CHANNEL for new accounts that have to be gernated,
+     * generates them and adds their information to the ledger.
+     * @param newAccount object containing the account holder name and other information
      */
     @Listen(ServiceManager.USER_CREATION_CHANNEL)
-    public void processNewUser(final Customer customer) {
-        if (!this.ledger.keySet().contains(customer.getAccountNumber())) {
+    public void createNewAccount(final NewAccount newAccount) {
+        // TODO generate account number and process the data in the database
+        /* if (!this.ledger.keySet().contains(customer.getAccountNumber())) {
             this.ledger.put(customer.getAccountNumber(), 0.0);
             System.out.printf("Ledger: Added user %s %s to ledger\n\n", customer.getName(), customer.getSurname());
+        } /*
+        //TODO communicate the generated information back to users
+    }
+
+    public String generateNewAccountNumber(final NewAccount newAccount) {
+        int modifier = 0;
+        String accountNumber = attemptAccountNumberGeneration(newAccount.getAccountHolderName(), modifier);
+        while (modifier < 100 && accountNumberExists(accountNumber)) {
+            modifier++;
+            accountNumber = attemptAccountNumberGeneration(newAccount.getAccountHolderName(), modifier);
         }
-        //TODO code to process what happens when the accountnumber already exists in the ledger.
+        return accountNumber;
+    }
+
+    public String attemptAccountNumberGeneration(final String name, final int modifier) {
+        String accountNumber = "NL";
+        if (modifier < 10) {
+            accountNumber += "0";
+        }
+        accountNumber += modifier + "GNIB";
+
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            md.update((name + modifier).getBytes());
+            byte[] digest = md.digest();
+            for (int i = 0; i < 10; i++) {
+                accountNumber += Math.abs(digest[i] % 10);
+            }
+            return accountNumber;
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public boolean accountNumberExists(final String accountNumber) {
+        // TODO Return true if it exists, using getAccountInformation statement
+        return accountNumber == null;
     }
 
     /**
