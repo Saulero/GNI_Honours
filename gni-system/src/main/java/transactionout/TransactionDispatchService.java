@@ -22,7 +22,7 @@ public class TransactionDispatchService {
      */
     //TODO rewrite for outgoing json requests.
     @Listen(value = ServiceManager.TRANSACTION_REQUEST_CHANNEL, consume = true)
-    public void process_transaction_request(final Transaction transaction) {
+    private void processTransactionRequest(final Transaction transaction) {
         //Send request to ledger to check if customer has correct balance.
         System.out.printf("Dispatch: Processing transaction request number %s\n", transaction.getTransactionID());
         serviceContext().send(ServiceManager.TRANSACTION_PROCESSING_CHANNEL, transaction);
@@ -35,9 +35,9 @@ public class TransactionDispatchService {
      * @param transaction the transaction reply from the ledger
      */
     @Listen(ServiceManager.TRANSACTION_VERIFICATION_CHANNEL)
-    public void execute_transaction(final Transaction transaction) {
+    private void executeTransaction(final Transaction transaction) {
         if (transaction.isProcessed()) {
-            if(transaction.isSuccessfull()) {
+            if (transaction.isSuccessfull()) {
                 //TODO generate outgoing json and send it.
                 System.out.printf("Dispatch: Sent transaction %s to respective bank.\n",
                         transaction.getTransactionID());
