@@ -1,41 +1,48 @@
 package users;
 
 /**
- * @author Saul
+ * @author Noel
+ * @version 1
+ * Databean used to send customer data over queues.
  */
-public class Customer {
-
+public final class Customer {
+    /** First name of the customer */
     private String name;
+    /** Surname of the customer */
     private String surname;
+    /** accountNumber of the customer */
     private String accountNumber;
 
-    public Customer(String name, String surname, String accountNumber) {
-        this.name = name;
-        this.surname = surname;
-        this.accountNumber = accountNumber;
+    /** Initializes customer object and assigns its variables
+     * @param newName first name of the customer.
+     * @param newSurname surname of the customer.
+     * @param newAccountNumber Account number to be assigned to the customer.
+     * */
+    public Customer(final String newName, final String newSurname, final String newAccountNumber) {
+        this.name = newName;
+        this.surname = newSurname;
+        this.accountNumber = newAccountNumber;
     }
 
-    public String getName() {
-        return name;
-    }
+    public String getName() { return name; }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setName(String newName) {
+        this.name = newName;
     }
 
     public String getSurname() {
         return surname;
     }
 
-    public void setSurname(String surname) {
-        this.surname = surname;
+    public void setSurname(String newSurname) {
+        this.surname = newSurname;
     }
 
     public String getAccountNumber() {
         return accountNumber;
     }
 
-    public void setAccountNumber(String accountNumber) {
-        this.accountNumber = accountNumber;
+    public void setAccountNumber(String newAccountNumber) {
+        this.accountNumber = newAccountNumber;
     }
 }

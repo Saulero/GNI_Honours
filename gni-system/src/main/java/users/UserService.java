@@ -33,7 +33,7 @@ public class UserService {
      * @param dataRequest request objects containing the request type, and the account number the request is for
      */
     @Listen(ServiceManager.DATA_REQUEST_CHANNEL)
-    public void process_data_request(final DataRequest dataRequest) {
+    public void processDataRequest(final DataRequest dataRequest) {
         RequestType requestType = dataRequest.getType();
         if (requestType == RequestType.CUSTOMERDATA) {
             //TODO fetch customer information form database
