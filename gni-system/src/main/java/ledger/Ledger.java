@@ -31,13 +31,10 @@ public class Ledger {
      * @param newAccount object containing the account holder name and other information
      */
     @Listen(ServiceManager.USER_CREATION_CHANNEL)
-    public void createNewAccount(final NewAccount newAccount) {
-        // TODO generate account number and process the data in the database
-        /* if (!this.ledger.keySet().contains(customer.getAccountNumber())) {
-            this.ledger.put(customer.getAccountNumber(), 0.0);
-            System.out.printf("Ledger: Added user %s %s to ledger\n\n", customer.getName(), customer.getSurname());
-        } /*
-        //TODO communicate the generated information back to users
+    private void createNewAccount(final NewAccount newAccount) {
+        newAccount.setAccountNumber(generateNewAccountNumber(newAccount));
+        // TODO Query to insert into database
+        // TODO communicate the generated information back to users
     }
 
     public String generateNewAccountNumber(final NewAccount newAccount) {
@@ -121,8 +118,7 @@ public class Ledger {
             String accountNumber = dataRequest.getAccountNumber();
             DataReply dataReply = new DataReply(accountNumber, requestType, "" + this.ledger.get(accountNumber));
             serviceContext().send(ServiceManager.DATA_REPLY_CHANNEL,  dataReply);
-        }
-        else if (requestType == RequestType.TRANSACTIONHISTORY) {
+        } else if (requestType == RequestType.TRANSACTIONHISTORY) {
             //TODO fetch transaction history
             String transactionHistory = "Dummy history";
             String accountNumber = dataRequest.getAccountNumber();
