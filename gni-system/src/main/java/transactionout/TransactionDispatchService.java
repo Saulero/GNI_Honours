@@ -28,10 +28,8 @@ public class TransactionDispatchService {
     @Listen(value = ServiceManager.TRANSACTION_REQUEST_CHANNEL, consume = true)
     private void processTransactionRequest(final Transaction transaction) {
         //Send request to ledger to check if customer has correct balance.
-        System.out.printf("Dispatch: Processing transaction request #%s\n",
-                        transaction.getTransactionID());
-        serviceContext().send(ServiceManager.TRANSACTION_PROCESSING_CHANNEL,
-                            transaction);
+        System.out.printf("Dispatch: Processing transaction request #%s\n", transaction.getTransactionID());
+        serviceContext().send(ServiceManager.OUTGOING_TRANSACTION_CHANNEL, transaction);
     }
 
     /**
@@ -42,18 +40,15 @@ public class TransactionDispatchService {
      * If the transaction fails processes the transaction failure accordingly.
      * @param transaction the transaction reply from the ledger.
      */
-    @Listen(ServiceManager.TRANSACTION_VERIFICATION_CHANNEL)
+    @Listen(ServiceManager.OUTGOING_TRANSACTION_CHANNEL)
     private void executeTransaction(final Transaction transaction) {
         if (transaction.isProcessed()) {
-            if (transaction.isSuccessfull()) {
+            if (transaction.isSuccessful()) {
                 //TODO generate outgoing json and send it.
-                System.out.printf("Dispatch: Sent transaction %s"
-                                + " to respective bank.\n",
-                                transaction.getTransactionID());
+                System.out.printf("Dispatch: Sent transaction %s to respective bank.\n", transaction.getTransactionID());
             } else {
                 //TODO code to process payment failure
-                System.out.printf("Dispatch: ledger.Transaction %s failed.\n\n",
-                                transaction.getTransactionID());
+                System.out.printf("Dispatch: ledger.Transaction %s failed.\n\n", transaction.getTransactionID());
             }
         }
     }

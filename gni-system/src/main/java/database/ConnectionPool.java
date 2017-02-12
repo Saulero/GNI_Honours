@@ -1,5 +1,6 @@
 package database;
 
+import java.sql.SQLException;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import static database.Variables.AMOUNT_OF_CONNECTIONS;
@@ -13,6 +14,7 @@ public class ConnectionPool {
 
     public ConnectionPool() {
         this.pool = new LinkedBlockingQueue<SQLConnection>();
+        generateConnections();
     }
 
     private void generateConnections() {
@@ -26,15 +28,22 @@ public class ConnectionPool {
             return new SQLConnection();
         } else {
             try {
-                return pool.take();
+                SQLConnection connection = pool.take();
+                if (!connection.getConnection().isClosed()) {
+                    return connection;
+                } else {
+                    return new SQLConnection();
+                }
             } catch (InterruptedException e) {
+                e.printStackTrace();
+            } catch (SQLException e) {
                 e.printStackTrace();
             }
         }
         return new SQLConnection();
     }
 
-    public void returnConnection(SQLConnection sqlConnection) {
+    public void returnConnection(final SQLConnection sqlConnection) {
         if (pool.size() < AMOUNT_OF_CONNECTIONS) {
             pool.add(sqlConnection);
         } else {

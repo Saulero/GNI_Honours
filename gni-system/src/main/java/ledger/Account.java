@@ -16,6 +16,20 @@ public class Account {
         this.balance = newBalance;
     }
 
+    public boolean withdrawTransactionIsAllowed(final Transaction transaction) {
+        return transaction.getTransactionAmount() <= spendingLimit;
+    }
+
+    public void processWithdraw(final Transaction transaction) {
+        this.spendingLimit -= transaction.getTransactionAmount();
+        this.balance -= transaction.getTransactionAmount();
+    }
+
+    public void processDeposit(final Transaction transaction) {
+        this.spendingLimit += transaction.getTransactionAmount();
+        this.balance += transaction.getTransactionAmount();
+    }
+
     public String getAccountNumber() {
         return accountNumber;
     }

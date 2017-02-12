@@ -60,7 +60,7 @@ public class Ledger {
     public String generateNewAccountNumber(final Account newAccount) {
         int modifier = 0;
         String accountNumber = attemptAccountNumberGeneration(newAccount.getAccountHolderName(), modifier);
-        while (modifier < 100 && accountNumberExists(accountNumber)) {
+        while (modifier < 100 && getAccountInfo(accountNumber) != null) {
             modifier++;
             accountNumber = attemptAccountNumberGeneration(newAccount.getAccountHolderName(), modifier);
         }
@@ -88,56 +88,111 @@ public class Ledger {
         return null;
     }
 
-    public boolean accountNumberExists(final String accountNumber) {
+    public Account getAccountInfo(final String accountNumber) {
         try {
             SQLConnection connection = db.getConnection();
             PreparedStatement ps = connection.getConnection().prepareStatement(getAccountInformation);
             ps.setString(1, accountNumber);     // account_number
             ResultSet rs = ps.executeQuery();
 
-            boolean res = rs.next();
-            rs.close();
-            ps.close();
-            db.returnConnection(connection);
-            return res;
+            if (rs.next()) {
+                String name = rs.getString("name");
+                double spendingLimit = rs.getDouble("spending_limit");
+                double balance = rs.getDouble("balance");
+                Account account = new Account(name, spendingLimit, balance);
+                account.setAccountNumber(accountNumber);
+
+                rs.close();
+                ps.close();
+                db.returnConnection(connection);
+                return account;
+            } else {
+                rs.close();
+                ps.close();
+                db.returnConnection(connection);
+                return null;
+            }
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return true;
+        return null;
     }
 
-    /**
-     * Listens for transactions on TRANSACTION_PROCESSING_CHANNEL when a transaction requires processing
+    public void updateBalance(final Account account) {
+        try {
+            SQLConnection connection = db.getConnection();
+            PreparedStatement ps = connection.getConnection().prepareStatement(updateBalance);
+            ps.setDouble(1, account.getSpendingLimit());    // spending_limit
+            ps.setDouble(2, account.getBalance());          // balance
+            ps.setString(3, account.getAccountNumber());    // account_number
+            ps.executeUpdate();
+
+            ps.close();
+            db.returnConnection(connection);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+        /**
+     * Listens for transactions on INCOMING_TRANSACTION_CHANNEL when a transaction requires processing
      * the ledger checks if the accounts spending limit is not exceeded by the transaction, if it is not
      * the transaction variable successfull will be set to true and the ledger will apply the transaction.
      * If the spending limit is exceeded the ledger will not apply the transaction and the successfull variable
      * will be set to false. The transaction is then sent back to TransactionDispatchService
-     * through TRANSACTION_VERIFICATION_CHANNEL.
+     * through INCOMING_TRANSACTION_VERIFICATION_CHANNEL.
      * @param transaction Transaction object to perform the transaction
      */
-    @OnEvent(value = ServiceManager.TRANSACTION_PROCESSING_CHANNEL, consume = true)
-    public void processTransaction(final Transaction transaction) {
-        // TODO Discuss ths method
-        /*
-        String accountNumber = transaction.getSourceAccountNumber();
-        if(this.ledger.keySet().contains(accountNumber)) {
-            //TODO implement database function for spending limit
-            double spendingLimit = this.ledger.get(accountNumber);
-            if (spendingLimit - transaction.getTransactionAmount() < 0) {
-                transaction.setProcessed(true);
-                System.out.printf("Ledger: Transaction number %s failed due to insufficient balance.\n",
-                        transaction.getTransactionID());
-                serviceContext().send(ServiceManager.TRANSACTION_VERIFICATION_CHANNEL, transaction);
-            } else {
-                double new_balance = this.ledger.get(accountNumber) - transaction.getTransactionAmount();
-                this.ledger.put(accountNumber, new_balance);
-                System.out.printf("Ledger: Processed transaction, Account number: %s, new balance: %f\n\n",
-                        accountNumber, new_balance);
-                transaction.setProcessed(true);
-                transaction.setSuccessfull(true);
-                serviceContext().send(ServiceManager.TRANSACTION_VERIFICATION_CHANNEL, transaction);
-            }
-        }*/
+    @OnEvent(value = ServiceManager.INCOMING_TRANSACTION_CHANNEL, consume = true)
+    public void processIncomingTransaction(final Transaction transaction) {
+        // Check if account info is correct
+        Account account = getAccountInfo(transaction.getDestinationAccountNumber());
+        if (account != null) {
+            // Update the object
+            account.processDeposit(transaction);
+
+            // Update the database
+            updateBalance(account);
+
+            transaction.setProcessed(true);
+            transaction.setSuccessful(true);
+            serviceContext().send(ServiceManager.INCOMING_TRANSACTION_VERIFICATION_CHANNEL, transaction);
+        } else {
+            transaction.setProcessed(true);
+            transaction.setSuccessful(false);
+            serviceContext().send(ServiceManager.INCOMING_TRANSACTION_VERIFICATION_CHANNEL, transaction);
+        }
+    }
+
+    /**
+     * Listens for transactions on OUTGOING_TRANSACTION_CHANNEL when a transaction requires processing
+     * the ledger checks if the accounts spending limit is not exceeded by the transaction, if it is not
+     * the transaction variable successfull will be set to true and the ledger will apply the transaction.
+     * If the spending limit is exceeded the ledger will not apply the transaction and the successfull variable
+     * will be set to false. The transaction is then sent back to TransactionDispatchService
+     * through OUTGOING_TRANSACTION_VERIFICATION_CHANNEL.
+     * @param transaction Transaction object to perform the transaction
+     */
+    @OnEvent(value = ServiceManager.OUTGOING_TRANSACTION_CHANNEL, consume = true)
+    public void processOutgoingTransaction(final Transaction transaction) {
+        // Check if spending_limit allows for the transaction
+        Account account = getAccountInfo(transaction.getSourceAccountNumber());
+
+        if (account.withdrawTransactionIsAllowed(transaction)) {
+            // Update the object
+            account.processWithdraw(transaction);
+
+            // Update the database
+            updateBalance(account);
+
+            transaction.setProcessed(true);
+            transaction.setSuccessful(true);
+            serviceContext().send(ServiceManager.INCOMING_TRANSACTION_VERIFICATION_CHANNEL, transaction);
+        } else {
+            transaction.setProcessed(true);
+            transaction.setSuccessful(false);
+            serviceContext().send(ServiceManager.INCOMING_TRANSACTION_VERIFICATION_CHANNEL, transaction);
+        }
     }
 
     /**

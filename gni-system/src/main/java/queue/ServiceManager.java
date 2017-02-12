@@ -26,14 +26,20 @@ public final class ServiceManager {
                                                 = "org.gni.transaction.request";
 
     /** Channel used by transaction dispatch services to send
-     * Transaction objects to the ledger. */
-    public static final String TRANSACTION_PROCESSING_CHANNEL
-                                                = "org.gni.transaction.process";
+     * incoming Transaction objects to the ledger. */
+    public static final String INCOMING_TRANSACTION_CHANNEL = "org.gni.transaction.incoming";
 
-    /** Channel used by the ledger to send processed Transaction
+    /** Channel used by transaction dispatch services to send
+     * outgoing Transaction objects to the ledger. */
+    public static final String OUTGOING_TRANSACTION_CHANNEL = "org.gni.transaction.outgoing";
+
+    /** Channel used by the ledger to send processed incoming Transaction
      * objects back to the dispatch services. */
-    public static final String TRANSACTION_VERIFICATION_CHANNEL
-                                                = "org.gni.transaction.verify";
+    public static final String INCOMING_TRANSACTION_VERIFICATION_CHANNEL = "org.gni.transaction.verify.incoming";
+
+    /** Channel used by the ledger to send processed outgoing Transaction
+     * objects back to the dispatch services. */
+    public static final String OUTGOING_TRANSACTION_VERIFICATION_CHANNEL = "org.gni.transaction.verify.outgoing";
 
     /** Channel to request data over using DataRequest objects. */
     public static final String DATA_REQUEST_CHANNEL = "org.gni.data.request";
@@ -54,9 +60,6 @@ public final class ServiceManager {
      * @param args empty argument
      */
     public static void main(final String[] args) {
-        //test variables
-        String testAccountNumber = "NL52INGB0987890998";
-        String testDestinationNumber = "NL52RABO0987890998";
 
         //Create eventmanager and start microservices
         EventManager eventManager = QBit.factory().systemEventManager();
@@ -64,9 +67,9 @@ public final class ServiceManager {
         Ledger ledger = new Ledger();
         UIService uiService = new UIService();
         TransactionDispatchService dispatchService
-                                            = new TransactionDispatchService();
+                = new TransactionDispatchService();
         TransactionReceiveService receiveService
-                                            = new TransactionReceiveService();
+                = new TransactionReceiveService();
 
         //Set listener on microservices
         eventManager.listen(userService);
@@ -74,52 +77,5 @@ public final class ServiceManager {
         eventManager.listen(uiService);
         eventManager.listen(dispatchService);
         eventManager.listen(receiveService);
-
-        //Emulate user using the uiService
-        //TODO move Service calls to the services themselves.
-        // Does not work at the moment because there is no code to call the
-        // methods.
-        System.out.println("Manager: Creating customer");
-        uiService.createCustomer("freek", "de wilde",
-                                "NL52INGB0987890998");
-        sleep(200);
-
-        System.out.println("Manager: Requesting customer info");
-        uiService.requestCustomerData(testAccountNumber);
-        sleep(200);
-
-        System.out.println("Manager: Requesting customer balance");
-        uiService.requestBalance(testAccountNumber);
-        sleep(200);
-
-        System.out.println("Manager: Requesting transaction history");
-        uiService.requestTransactionHistory(testAccountNumber);
-        sleep(200);
-
-        System.out.println("Manager: Creating transaction");
-        Transaction transaction = new Transaction(112,
-                                        testAccountNumber,
-                                        testDestinationNumber,
-                                        "de wilde",
-                                        250);
-        eventManager.send(TRANSACTION_REQUEST_CHANNEL, transaction);
-        sleep(200);
-
-        System.out.println("Manager: Creating transaction");
-        Transaction transaction2 = new Transaction(113,
-                                        testAccountNumber,
-                                        testDestinationNumber,
-                                        "de wilde",
-                                        250);
-        eventManager.send(TRANSACTION_REQUEST_CHANNEL, transaction2);
-        sleep(200);
-
-        System.out.println("Manager: Requesting customer balance");
-        uiService.requestBalance(testAccountNumber);
-        sleep(200);
-
-        //Test method.
-        System.out.println("Manager: Printing ledger:");
-        ledger.printLedger();
     }
 }
