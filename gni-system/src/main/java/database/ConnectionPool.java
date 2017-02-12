@@ -22,10 +22,14 @@ public class ConnectionPool {
     }
 
     public SQLConnection getConnection() {
-        try {
-            return pool.take();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        if (pool.isEmpty()) {
+            return new SQLConnection();
+        } else {
+            try {
+                return pool.take();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
         return new SQLConnection();
     }

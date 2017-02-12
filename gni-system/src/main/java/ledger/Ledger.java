@@ -1,5 +1,7 @@
 package ledger;
 
+import database.ConnectionPool;
+import database.SQLConnection;
 import io.advantageous.qbit.annotation.Listen;
 import io.advantageous.qbit.annotation.OnEvent;
 import queue.ServiceManager;
@@ -9,8 +11,12 @@ import ui.RequestType;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.HashMap;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.LinkedList;
 
+import static database.SQLStatements.*;
 import static io.advantageous.qbit.service.ServiceContext.serviceContext;
 
 /**
@@ -18,11 +24,10 @@ import static io.advantageous.qbit.service.ServiceContext.serviceContext;
  */
 public class Ledger {
 
-    private HashMap<String, Double> ledger;
+    private ConnectionPool db;
 
     public Ledger() {
-        //TODO make ledger database and convert functions using hashmap
-        this.ledger = new HashMap<String, Double>();
+        db = new ConnectionPool();
     }
 
     /**
@@ -31,13 +36,28 @@ public class Ledger {
      * @param newAccount object containing the account holder name and other information
      */
     @Listen(ServiceManager.USER_CREATION_CHANNEL)
-    private void createNewAccount(final NewAccount newAccount) {
+    public void createNewAccount(final Account newAccount) {
         newAccount.setAccountNumber(generateNewAccountNumber(newAccount));
-        // TODO Query to insert into database
-        // TODO communicate the generated information back to users
+        try {
+            SQLConnection connection = db.getConnection();
+            long newID = connection.getNextID(getNextAccountID);
+            PreparedStatement ps = connection.getConnection().prepareStatement(createNewAccount);
+            ps.setLong(1, newID);                               // id
+            ps.setString(2, newAccount.getAccountNumber());     // account_number
+            ps.setString(3, newAccount.getAccountHolderName()); // name
+            ps.setDouble(4, newAccount.getSpendingLimit());     // spending_limit
+            ps.setDouble(5, newAccount.getBalance());           // balance
+
+            ps.executeUpdate();
+            ps.close();
+            db.returnConnection(connection);
+            // TODO communicate the generated information back to users
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
-    public String generateNewAccountNumber(final NewAccount newAccount) {
+    public String generateNewAccountNumber(final Account newAccount) {
         int modifier = 0;
         String accountNumber = attemptAccountNumberGeneration(newAccount.getAccountHolderName(), modifier);
         while (modifier < 100 && accountNumberExists(accountNumber)) {
@@ -69,8 +89,21 @@ public class Ledger {
     }
 
     public boolean accountNumberExists(final String accountNumber) {
-        // TODO Return true if it exists, using getAccountInformation statement
-        return accountNumber == null;
+        try {
+            SQLConnection connection = db.getConnection();
+            PreparedStatement ps = connection.getConnection().prepareStatement(getAccountInformation);
+            ps.setString(1, accountNumber);     // account_number
+            ResultSet rs = ps.executeQuery();
+
+            boolean res = rs.next();
+            rs.close();
+            ps.close();
+            db.returnConnection(connection);
+            return res;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return true;
     }
 
     /**
@@ -84,6 +117,8 @@ public class Ledger {
      */
     @OnEvent(value = ServiceManager.TRANSACTION_PROCESSING_CHANNEL, consume = true)
     public void processTransaction(final Transaction transaction) {
+        // TODO Discuss ths method
+        /*
         String accountNumber = transaction.getSourceAccountNumber();
         if(this.ledger.keySet().contains(accountNumber)) {
             //TODO implement database function for spending limit
@@ -102,7 +137,7 @@ public class Ledger {
                 transaction.setSuccessfull(true);
                 serviceContext().send(ServiceManager.TRANSACTION_VERIFICATION_CHANNEL, transaction);
             }
-        }
+        }*/
     }
 
     /**
@@ -115,21 +150,59 @@ public class Ledger {
     public void processDataRequest(final DataRequest dataRequest) {
         RequestType requestType = dataRequest.getType();
         if (requestType == RequestType.BALANCE) {
-            String accountNumber = dataRequest.getAccountNumber();
-            DataReply dataReply = new DataReply(accountNumber, requestType, "" + this.ledger.get(accountNumber));
-            serviceContext().send(ServiceManager.DATA_REPLY_CHANNEL,  dataReply);
-        } else if (requestType == RequestType.TRANSACTIONHISTORY) {
-            //TODO fetch transaction history
-            String transactionHistory = "Dummy history";
-            String accountNumber = dataRequest.getAccountNumber();
-            DataReply dataReply = new DataReply(accountNumber, requestType, transactionHistory);
-            serviceContext().send(ServiceManager.DATA_REPLY_CHANNEL, dataReply);
-        }
-    }
+            try {
+                SQLConnection connection = db.getConnection();
+                PreparedStatement ps = connection.getConnection().prepareStatement(getAccountInformation);
+                ps.setString(1, dataRequest.getAccountNumber());     // account_number
+                ResultSet rs = ps.executeQuery();
 
-    public void printLedger() {
-        for (String key : this.ledger.keySet()) {
-            System.out.printf("Account: %s Balance: %f", key, this.ledger.get(key));
+                if (rs.next()) {
+                    String accountNumber = dataRequest.getAccountNumber();
+                    String name = rs.getString("name");
+                    double spendingLimit = rs.getDouble("spending_limit");
+                    double balance = rs.getDouble("balance");
+                    Account account = new Account(name, spendingLimit, balance);
+                    account.setAccountNumber(accountNumber);
+                    DataReply dataReply = new DataReply(accountNumber, requestType, account);
+                    serviceContext().send(ServiceManager.DATA_REPLY_CHANNEL, dataReply);
+                }
+                // TODO What if fails
+                rs.close();
+                ps.close();
+                db.returnConnection(connection);
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        } else if (requestType == RequestType.TRANSACTIONHISTORY) {
+            try {
+                SQLConnection connection = db.getConnection();
+                PreparedStatement ps = connection.getConnection().prepareStatement(getTransactionHistory);
+                ps.setString(1, dataRequest.getAccountNumber());     // account_number
+                ps.setString(2, dataRequest.getAccountNumber());     // account_number
+                ResultSet rs = ps.executeQuery();
+
+                LinkedList<Transaction> transactions = new LinkedList<Transaction>();
+                while (rs.next()) {
+                    long id = rs.getLong("id");
+                    long timestamp = rs.getLong("timestamp");
+                    String sourceAccount = rs.getString("source_account");
+                    String destinationAccount = rs.getString("destination_account");
+                    // TODO update DB
+                    String name = rs.getString("destination_account_holder_name");
+                    double amount = rs.getDouble("amount");
+
+                    transactions.add(new Transaction(id, timestamp, sourceAccount, destinationAccount, name, amount));
+                }
+
+                DataReply dataReply = new DataReply(dataRequest.getAccountNumber(), requestType, transactions);
+                serviceContext().send(ServiceManager.DATA_REPLY_CHANNEL, dataReply);
+                // TODO What if fails
+                rs.close();
+                ps.close();
+                db.returnConnection(connection);
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
     }
 }

@@ -24,20 +24,22 @@ public class SQLConnection {
         }
     }
 
-    public ResultSet excecuteQuery(String query) {
-        try {
-            PreparedStatement statement = connection.prepareStatement(query);
-            return statement.executeQuery();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return null;
+    public Connection getConnection() {
+        return connection;
     }
 
-    public int excecuteUpdate(String query) {
+    public long getNextID(final String query) {
         try {
-            PreparedStatement statement = connection.prepareStatement(query);
-            return statement.executeUpdate();
+            PreparedStatement ps = connection.prepareStatement(query);
+            ResultSet rs = ps.executeQuery();
+            if (rs != null) {
+                rs.next();
+                long id = rs.getLong(1);
+
+                rs.close();
+                ps.close();
+                return id + 1;
+            }
         } catch (SQLException e) {
             e.printStackTrace();
         }

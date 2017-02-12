@@ -3,14 +3,14 @@ package ledger;
 /**
  * @author Saul
  */
-public class NewAccount {
+public class Account {
 
     private String accountNumber;
     private String accountHolderName;
     private double spendingLimit;
     private double balance;
 
-    public NewAccount(final String newAccountHolderName, final double newSpendingLimit, final double newBalance) {
+    public Account(final String newAccountHolderName, final double newSpendingLimit, final double newBalance) {
         this.accountHolderName = newAccountHolderName;
         this.spendingLimit = newSpendingLimit;
         this.balance = newBalance;
