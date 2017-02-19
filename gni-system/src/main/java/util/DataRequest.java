@@ -1,18 +1,19 @@
-package ui;
+package util;
+
+import java.io.Serializable;
 
 /**
  * @author Noel
  * @version 1
- * Databean used to send a request over a Qbit queue.
+ * Databean used to send a request.
  */
-public final class DataRequest {
+public final class DataRequest implements Serializable {
     /** Account number the request is for. */
     private String accountNumber;
     /** Type of request {@link RequestType}. */
     private RequestType type;
 
-    /** Creates a DataRequest objects which is used to send a request to a
-     * micro service over a Qbit queue.
+    /** Creates a DataRequest objects which is used to send a request to a micro service.
      * @param newAccountNumber Account number relating to the request.
      * @param newType Type of data to request {@link RequestType}
      */
@@ -20,6 +21,11 @@ public final class DataRequest {
         this.accountNumber = newAccountNumber;
         this.type = newType;
     }
+
+    /**
+     * Empty constructor for json conversion of the object. Do not use as manual constructor.
+     */
+    public DataRequest() { }
 
     public String getAccountNumber() {
         return accountNumber;

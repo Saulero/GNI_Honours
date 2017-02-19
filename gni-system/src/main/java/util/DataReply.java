@@ -1,11 +1,13 @@
-package ui;
+package util;
+
+import java.io.Serializable;
 
 /**
  * @author Noel
  * @version 2
- * Databean used to send a request over a Qbit queue.
+ * Databean used to send a reply to another service.
  */
-public final class DataReply {
+public final class DataReply implements Serializable {
     /** Account number the reply corresponds to. */
     private String accountNumber;
     /** The type of request that this reply is for. */
@@ -14,7 +16,7 @@ public final class DataReply {
     private String data;
 
     /**
-     * Creates a DataReply for sending over channels.
+     * Creates a DataReply to send to other microservices.
      * @param newAccountNumber Account number the reply corresponds to.
      * @param newType Type of request that this reply is for.
      * @param newData Data of the reply.
@@ -25,6 +27,11 @@ public final class DataReply {
         this.type = type;
         this.data = data;
     }
+
+    /**
+     * Empty constructor for json conversion of the object. Do not use as manual constructor.
+     */
+    public DataReply() { }
 
     public String getAccountNumber() {
         return accountNumber;

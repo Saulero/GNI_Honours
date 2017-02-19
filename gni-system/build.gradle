@@ -3,7 +3,7 @@ version '1.0-SNAPSHOT'
 
 apply plugin: 'java'
 
-sourceCompatibility = 1.5
+sourceCompatibility = 1.8
 
 repositories {
     mavenCentral()
@@ -15,13 +15,14 @@ dependencies {
     compile group: 'mysql', name: 'mysql-connector-java', version: '6.0.5'
     compile 'io.advantageous.qbit:qbit-admin:1.10.0.RELEASE'
     compile 'io.advantageous.qbit:qbit-vertx:1.10.0.RELEASE'
+    compile 'com.google.code.gson:gson:2.2.4'
 }
 group 'org.gni.bank'
 version '1.0-SNAPSHOT'
 
 apply plugin: 'java'
 
-sourceCompatibility = 1.5
+sourceCompatibility = 1.8
 
 repositories {
     mavenCentral()

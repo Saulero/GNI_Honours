@@ -3,9 +3,6 @@ package ledger;
 import io.advantageous.qbit.annotation.Listen;
 import io.advantageous.qbit.annotation.OnEvent;
 import queue.ServiceManager;
-import ui.DataReply;
-import ui.DataRequest;
-import ui.RequestType;
 import users.Customer;
 
 import java.util.HashMap;

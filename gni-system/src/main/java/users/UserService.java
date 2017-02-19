@@ -2,9 +2,9 @@ package users;
 
 import io.advantageous.qbit.annotation.Listen;
 import queue.ServiceManager;
-import ui.DataReply;
-import ui.DataRequest;
-import ui.RequestType;
+import util.DataReply;
+import util.DataRequest;
+import util.RequestType;
 
 import static io.advantageous.qbit.service.ServiceContext.serviceContext;
 
@@ -41,7 +41,7 @@ public class UserService {
     public void processDataRequest(final DataRequest dataRequest) {
         RequestType requestType = dataRequest.getType();
         if (requestType == RequestType.CUSTOMERDATA) {
-            //TODO fetch customer information form database
+            //TODO fetch customer information from database
             String customerInformation = "freekje";
             DataReply dataReply = new DataReply(dataRequest.getAccountNumber(),
                                                 requestType,
