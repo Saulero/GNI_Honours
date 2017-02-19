@@ -6,6 +6,7 @@ import io.advantageous.qbit.annotation.RequestMethod;
 import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.reactive.Callback;
 import util.DataReply;
+import util.DataRequest;
 import util.Util;
 import util.RequestType;
 
@@ -20,9 +21,15 @@ public class TodoService {
 
 
     @RequestMapping(value = "/todo", method = RequestMethod.POST)
-    public void add(final Callback<Boolean> callback, final Todo todo) {
-        todoMap.put(todo.getId(), todo);
-        callback.accept(true);
+    public void add(final Callback<String> callback, final @RequestParam("body") String body) {
+        System.out.println("received a post");
+        System.out.println("request: " + body);
+        Gson gson = new Gson();
+        DataRequest request = gson.fromJson(body.substring(1, body.length() - 1).replaceAll("\\\\", ""),
+                                            DataRequest.class);
+        System.out.printf("Request received, accnr: %s", request.getAccountNumber());
+        DataReply reply = Util.createJsonReply(request.getAccountNumber(), request.getType(), "1234567890");
+        callback.reply(gson.toJson(reply));
     }
 
 
@@ -38,9 +45,12 @@ public class TodoService {
 
 
     @RequestMapping(value = "/todo", method = RequestMethod.GET)
-    public void list(final Callback<String> callback) {
-        DataReply reply = Util.createJsonReply("NL55INGB098123134", RequestType.BALANCE, "123,50");
+    public void list(final Callback<String> callback, final @RequestParam("body") String body) {
+        System.out.println("request: " + body);
         Gson gson = new Gson();
+        DataRequest request = gson.fromJson(body, DataRequest.class);
+        System.out.printf("Request received, accnr: %s\n", request.getAccountNumber());
+        DataReply reply = Util.createJsonReply(request.getAccountNumber(), request.getType(), "123,50");
         String tosend = gson.toJson(reply);
         System.out.println("Sending " + tosend);
         callback.reply(tosend);
