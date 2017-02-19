@@ -77,7 +77,7 @@ public class Ledger {
 
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
-            md.update((name + modifier).getBytes());
+            md.update((sanitizeName(name) + modifier).getBytes());
             byte[] digest = md.digest();
             for (int i = 0; i < 10; i++) {
                 accountNumber += Math.abs(digest[i] % 10);
@@ -87,6 +87,10 @@ public class Ledger {
             e.printStackTrace();
         }
         return null;
+    }
+
+    private String sanitizeName(final String inputString) {
+        return inputString.replaceAll("[^a-zA-Z]", "").toLowerCase();
     }
 
     public Account getAccountInfo(final String accountNumber) {
@@ -209,9 +213,10 @@ public class Ledger {
     public void processIncomingTransaction(final Transaction transaction) {
         // Check if account info is correct
         Account account = getAccountInfo(transaction.getDestinationAccountNumber());
-        // TODO Implement system for checking destination_account_holder_name
+        // TODO Implement better system for checking destination_account_holder_name
+        String calculatedAccountNumber = attemptAccountNumberGeneration(transaction.getDestinationAccountHolderName(), Integer.parseInt(transaction.getDestinationAccountNumber().substring(2, 4)));
 
-        if (account != null) {
+        if (account != null && transaction.getDestinationAccountNumber().equals(calculatedAccountNumber)) {
             // Update the object
             account.processDeposit(transaction);
 

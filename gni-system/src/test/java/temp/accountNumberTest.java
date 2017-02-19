@@ -16,5 +16,6 @@ public class accountNumberTest {
         String accountNumber2 = ledger.generateNewAccountNumber(test2);
         System.out.println(accountNumber1);
         System.out.println(accountNumber2);
+        System.out.println(ledger.attemptAccountNumberGeneration("M.s vander vies", Integer.parseInt("NL00GNIB7951334604".substring(2, 4))));
     }
 }

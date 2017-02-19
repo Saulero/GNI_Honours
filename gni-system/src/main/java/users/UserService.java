@@ -43,10 +43,9 @@ public class UserService {
         if (requestType == RequestType.CUSTOMERDATA) {
             //TODO fetch customer information form database
             String customerInformation = "freekje";
-            DataReply dataReply = new DataReply(dataRequest.getAccountNumber(),
-                                                requestType,
-                                                customerInformation);
-            serviceContext().send(ServiceManager.DATA_REPLY_CHANNEL, dataReply);
+            // TODO Fix this
+            // DataReply dataReply = new DataReply(dataRequest.getAccountNumber(), requestType, customerInformation);
+            serviceContext().send(ServiceManager.DATA_REPLY_CHANNEL, null);
         }
     }
 }

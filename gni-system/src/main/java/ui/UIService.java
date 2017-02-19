@@ -35,13 +35,11 @@ public final class UIService {
     @Listen(ServiceManager.DATA_REPLY_CHANNEL)
     private void processReply(final DataReply dataReply) {
         if (dataReply.getType() == RequestType.TRANSACTIONHISTORY) {
-            System.out.printf("UI: Your transaction history: %s\n\n",
-                            dataReply.getData());
+            System.out.printf("UI: Your transaction history: %s\n\n", dataReply.getTransactions());
         } else if (dataReply.getType() == RequestType.BALANCE) {
-            System.out.printf("UI: Your balance: %s\n\n", dataReply.getData());
+            System.out.printf("UI: Your balance: %s\n\n", dataReply.getAccountData().getBalance());
         } else if (dataReply.getType() == RequestType.CUSTOMERDATA) {
-            System.out.printf("UI: Your customer information: %s\n\n",
-                            dataReply.getData());
+            System.out.printf("UI: Your customer information: %s\n\n", dataReply.getAccountData());
         }
     }
 
