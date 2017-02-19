@@ -33,6 +33,7 @@ public class Ledger {
     /**
      * Listens to USER_CREATION_CHANNEL for new accounts that have to be gernated,
      * generates them and adds their information to the ledger.
+     *
      * @param newAccount object containing the account holder name and other information
      */
     @Listen(ServiceManager.USER_CREATION_CHANNEL)
@@ -134,25 +135,93 @@ public class Ledger {
         }
     }
 
-        /**
+    private void addTransaction(final Transaction transaction, final boolean incoming) {
+        try {
+            SQLConnection connection = db.getConnection();
+            PreparedStatement ps;
+            if (incoming) {
+                ps = connection.getConnection().prepareStatement(addIncomingTransaction);
+            } else {
+                ps = connection.getConnection().prepareStatement(addOutgoingTransaction);
+            }
+
+            ps.setLong(1, transaction.getTransactionID());
+            ps.setLong(2, transaction.getTimestamp());
+            ps.setString(3, transaction.getDestinationAccountNumber());
+            ps.setString(4, transaction.getSourceAccountNumber());
+            ps.setDouble(5, transaction.getTransactionAmount());
+            ps.executeUpdate();
+
+            ps.close();
+            db.returnConnection(connection);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private long getNextTransactionID() {
+        try {
+            SQLConnection connection = db.getConnection();
+            PreparedStatement ps1 = connection.getConnection().prepareStatement(getHighestIncomingTransactionID);
+            PreparedStatement ps2 = connection.getConnection().prepareStatement(getHighestOutgoingTransactionID);
+            ResultSet rs1 = ps1.executeQuery();
+            ResultSet rs2 = ps2.executeQuery();
+
+            long current = 0;
+            if (rs1.next()) {
+                long maxIncoming = rs1.getLong("id");
+                if (maxIncoming > current) {
+                    current = maxIncoming;
+                }
+            }
+
+            if (rs2.next()) {
+                long maxOutgoing = rs2.getLong("id");
+                if (maxOutgoing > current) {
+                    current = maxOutgoing;
+                }
+            }
+
+            rs1.close();
+            rs2.close();
+            ps1.close();
+            ps2.close();
+            db.returnConnection(connection);
+
+            return current;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return -1;
+    }
+
+    /**
      * Listens for transactions on INCOMING_TRANSACTION_CHANNEL when a transaction requires processing
      * the ledger checks if the accounts spending limit is not exceeded by the transaction, if it is not
      * the transaction variable successfull will be set to true and the ledger will apply the transaction.
      * If the spending limit is exceeded the ledger will not apply the transaction and the successfull variable
      * will be set to false. The transaction is then sent back to TransactionDispatchService
      * through INCOMING_TRANSACTION_VERIFICATION_CHANNEL.
+     *
      * @param transaction Transaction object to perform the transaction
      */
     @OnEvent(value = ServiceManager.INCOMING_TRANSACTION_CHANNEL, consume = true)
     public void processIncomingTransaction(final Transaction transaction) {
         // Check if account info is correct
         Account account = getAccountInfo(transaction.getDestinationAccountNumber());
+        // TODO Implement system for checking destination_account_holder_name
+
         if (account != null) {
             // Update the object
             account.processDeposit(transaction);
 
             // Update the database
             updateBalance(account);
+
+            // Update Transaction log
+            transaction.setTransactionID(getNextTransactionID());
+            transaction.generateTimestamp();
+            addTransaction(transaction, true);
 
             transaction.setProcessed(true);
             transaction.setSuccessful(true);
@@ -171,6 +240,7 @@ public class Ledger {
      * If the spending limit is exceeded the ledger will not apply the transaction and the successfull variable
      * will be set to false. The transaction is then sent back to TransactionDispatchService
      * through OUTGOING_TRANSACTION_VERIFICATION_CHANNEL.
+     *
      * @param transaction Transaction object to perform the transaction
      */
     @OnEvent(value = ServiceManager.OUTGOING_TRANSACTION_CHANNEL, consume = true)
@@ -184,6 +254,11 @@ public class Ledger {
 
             // Update the database
             updateBalance(account);
+
+            /// Update Transaction log
+            transaction.setTransactionID(getNextTransactionID());
+            transaction.generateTimestamp();
+            addTransaction(transaction, false);
 
             transaction.setProcessed(true);
             transaction.setSuccessful(true);
@@ -199,6 +274,7 @@ public class Ledger {
      * Listens on DATA_REQUEST_CHANNEL for customer data requests.
      * If the request is a balance or transaction request the method gets this data from the database and sends
      * it back in a dataReply object.
+     *
      * @param dataRequest DataRequest object containing the customer data request
      */
     @Listen(ServiceManager.DATA_REQUEST_CHANNEL)
@@ -231,33 +307,40 @@ public class Ledger {
         } else if (requestType == RequestType.TRANSACTIONHISTORY) {
             try {
                 SQLConnection connection = db.getConnection();
-                PreparedStatement ps = connection.getConnection().prepareStatement(getTransactionHistory);
-                ps.setString(1, dataRequest.getAccountNumber());     // account_number
-                ps.setString(2, dataRequest.getAccountNumber());     // account_number
-                ResultSet rs = ps.executeQuery();
+                PreparedStatement ps1 = connection.getConnection().prepareStatement(getIncomingTransactionHistory);
+                PreparedStatement ps2 = connection.getConnection().prepareStatement(getOutgoingTransactionHistory);
+                ps1.setString(1, dataRequest.getAccountNumber());     // account_number
+                ps2.setString(1, dataRequest.getAccountNumber());     // account_number
+                ResultSet rs1 = ps1.executeQuery();
+                ResultSet rs2 = ps2.executeQuery();
 
                 LinkedList<Transaction> transactions = new LinkedList<Transaction>();
-                while (rs.next()) {
-                    long id = rs.getLong("id");
-                    long timestamp = rs.getLong("timestamp");
-                    String sourceAccount = rs.getString("source_account");
-                    String destinationAccount = rs.getString("destination_account");
-                    // TODO update DB
-                    String name = rs.getString("destination_account_holder_name");
-                    double amount = rs.getDouble("amount");
-
-                    transactions.add(new Transaction(id, timestamp, sourceAccount, destinationAccount, name, amount));
-                }
+                fillTransactionList(transactions, rs1);
+                fillTransactionList(transactions, rs2);
 
                 DataReply dataReply = new DataReply(dataRequest.getAccountNumber(), requestType, transactions);
                 serviceContext().send(ServiceManager.DATA_REPLY_CHANNEL, dataReply);
-                // TODO What if fails
-                rs.close();
-                ps.close();
+
+                rs1.close();
+                rs2.close();
+                ps1.close();
+                ps2.close();
                 db.returnConnection(connection);
             } catch (SQLException e) {
                 e.printStackTrace();
             }
+        }
+    }
+
+    private void fillTransactionList(final LinkedList<Transaction> list, final ResultSet rs) throws SQLException {
+        while (rs.next()) {
+            long id = rs.getLong("id");
+            long timestamp = rs.getLong("timestamp");
+            String sourceAccount = rs.getString("account_to");
+            String destinationAccount = rs.getString("account_from");
+            double amount = rs.getDouble("amount");
+
+            list.add(new Transaction(id, timestamp, sourceAccount, destinationAccount, amount));
         }
     }
 }

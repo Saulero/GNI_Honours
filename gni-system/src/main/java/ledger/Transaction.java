@@ -16,7 +16,7 @@ public class Transaction {
 
     public Transaction(final long newTransactionID, final String newSourceAccountNumber, final String newDestinationAccountNumber, final String newDestinationAccountHolderName, final double newTransactionAmount) {
         this.transactionID = newTransactionID;
-        this.timestamp = System.currentTimeMillis();
+        this.timestamp = -1;
         this.sourceAccountNumber = newSourceAccountNumber;
         this.destinationAccountNumber = newDestinationAccountNumber;
         this.destinationAccountHolderName = newDestinationAccountHolderName;
@@ -25,12 +25,12 @@ public class Transaction {
         this.successful = false;
     }
 
-    public Transaction(final long newTransactionID, final long newTimestamp, final String newSourceAccountNumber, final String newDestinationAccountNumber, final String newDestinationAccountHolderName, final double newTransactionAmount) {
+    public Transaction(final long newTransactionID, final long newTimestamp, final String newSourceAccountNumber, final String newDestinationAccountNumber, final double newTransactionAmount) {
         this.transactionID = newTransactionID;
         this.timestamp = newTimestamp;
         this.sourceAccountNumber = newSourceAccountNumber;
         this.destinationAccountNumber = newDestinationAccountNumber;
-        this.destinationAccountHolderName = newDestinationAccountHolderName;
+        this.destinationAccountHolderName = "";
         this.transactionAmount = newTransactionAmount;
         this.processed = false;
         this.successful = false;
@@ -50,6 +50,10 @@ public class Transaction {
 
     public void setTimestamp(final long newTimestamp) {
         this.timestamp = newTimestamp;
+    }
+
+    public void generateTimestamp() {
+        this.timestamp = System.currentTimeMillis();
     }
 
     public String getSourceAccountNumber() {
