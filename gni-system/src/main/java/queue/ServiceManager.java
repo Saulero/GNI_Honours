@@ -3,7 +3,7 @@ package queue;
 import io.advantageous.qbit.QBit;
 import io.advantageous.qbit.events.EventManager;
 import ledger.Ledger;
-import ledger.Transaction;
+import util.Transaction;
 import transactionin.TransactionReceiveService;
 import transactionout.TransactionDispatchService;
 import ui.UIService;

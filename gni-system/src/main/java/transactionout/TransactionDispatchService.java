@@ -1,7 +1,7 @@
 package transactionout;
 
 import io.advantageous.qbit.annotation.Listen;
-import ledger.Transaction;
+import util.Transaction;
 import queue.ServiceManager;
 
 import static io.advantageous.qbit.service.ServiceContext.serviceContext;
@@ -52,7 +52,7 @@ public class TransactionDispatchService {
                                 transaction.getTransactionID());
             } else {
                 //TODO code to process payment failure
-                System.out.printf("Dispatch: ledger.Transaction %s failed.\n\n",
+                System.out.printf("Dispatch: util.Transaction %s failed.\n\n",
                                 transaction.getTransactionID());
             }
         }

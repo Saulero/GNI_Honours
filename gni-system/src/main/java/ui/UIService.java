@@ -1,7 +1,7 @@
 package ui;
 
 import io.advantageous.qbit.annotation.Listen;
-import ledger.Transaction;
+import util.Transaction;
 import queue.ServiceManager;
 import users.Customer;
 import util.DataReply;
@@ -16,13 +16,14 @@ import static io.advantageous.qbit.service.ServiceContext.serviceContext;
  * history, and make transactions.
  */
 public final class UIService {
-
+    //TODO method to remove customer from system
     /**
      * Send a transaction request to the ledger service that will reply with
      * the transaction history of the account.
      * @param accountNumber Account number to request the transaction history
      *                      for.
      */
+    //TODO GET request
     public void requestTransactionHistory(final String accountNumber) {
         DataRequest request = new DataRequest(accountNumber,
                                             RequestType.TRANSACTIONHISTORY);
@@ -52,6 +53,7 @@ public final class UIService {
      * Sends a balance request to the ledger service for an account.
      * @param accountNumber Account number to request the balance for
      */
+    //TODO GET request
     public void requestBalance(final String accountNumber) {
         DataRequest request = new DataRequest(accountNumber,
                                             RequestType.BALANCE);
@@ -63,6 +65,7 @@ public final class UIService {
      * Sends a customer data request to the user service for an account.
      * @param accountNumber Account number to request the balance for
      */
+    //TODO GET request
     //TODO needs to be reworked to not be dependent on accountNumber
     public void requestCustomerData(final String accountNumber) {
         DataRequest request = new DataRequest(accountNumber,
@@ -79,6 +82,7 @@ public final class UIService {
      *                                     destination account number
      * @param transactionNumber Transaction number used for processing
      */
+    //TODO PUT request
     //TODO generate transaction number in ledger, process reply
     public void doTransaction(final String sourceAccountNumber,
                               final double amount,
@@ -105,6 +109,7 @@ public final class UIService {
      * @param surname Surname of the user to create
      * @param accountNumber Account number of the user to create
      */
+    //TODO PUT request
     //TODO Account number needs to be requested from the ledger
     public void createCustomer(final String name, final String surname,
                                final String accountNumber) {

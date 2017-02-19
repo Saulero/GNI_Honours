@@ -22,6 +22,7 @@ public class UserService {
      * and adds these to the database.
      * @param customer customer to add to the databse.
      */
+    //TODO Client to listen for GET requests
     @Listen(ServiceManager.USER_CREATION_CHANNEL)
     public void enrollCustomer(final Customer customer) {
         //TODO write code to enroll customer in database.

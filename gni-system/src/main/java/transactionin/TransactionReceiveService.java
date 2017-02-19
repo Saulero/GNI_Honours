@@ -1,7 +1,7 @@
 package transactionin;
 
 //import io.advantageous.qbit.annotation.Listen;
-import ledger.Transaction;
+import util.Transaction;
 //import queue.ServiceManager;
 
 /**

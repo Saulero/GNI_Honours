@@ -1,13 +1,9 @@
 package testcomms;
 
 import com.google.gson.Gson;
-import io.advantageous.boon.core.Sys;
 import io.advantageous.qbit.annotation.RequestMapping;
 import io.advantageous.qbit.http.client.HttpClient;
-import util.DataReply;
-import util.DataRequest;
-import util.RequestType;
-import util.Util;
+import util.*;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 
@@ -22,16 +18,27 @@ public class OtherService {
         HttpClient httpClient = httpClientBuilder()
                 .setHost("localhost").setPort(8888).build();
         httpClient.start();
-
         DataRequest request = Util.createJsonRequest("123456", RequestType.BALANCE);
         Gson gson = new Gson();
-        String req = gson.toJson(request);
-        String tosend = "{\"accountNumber\":\"123456\",\"type\":\"BALANCE\"}";
-        System.out.println("sending " + tosend);
-        Sys.sleep(100);
-        httpClient.getAsyncWith1Param("/v1/todo-service/todo", "body", tosend,
-                (code, contentType, body) -> {
-                            if (code == 200) {processReply(body);} else { System.out.println("Request failed"); } });
+        httpClient.getAsyncWith1Param("/v1/todo-service/todo", "body", gson.toJson(request),
+                                        (code, contentType, body) -> {
+            if (code == 200) {
+                processReply(body);
+            } else {
+                System.out.println("Request failed");
+            }
+        });
+        Transaction transaction = Util.createJsonTransaction(13245678, "324567",
+                                        "12345678", "De Vries",
+                                        222.22, false, false);
+        httpClient.putFormAsyncWith1Param("/v1/todo-service/todo", "body", gson.toJson(transaction),
+                                            (code, contentType, body) -> {
+                    if (code == 200) {
+                        processTransaction(body);
+                    } else {
+                        System.out.println("Transaction failed");
+                    }
+        });
     }
 
     private static void processReply(String jsonReply) {
@@ -39,5 +46,13 @@ public class OtherService {
         DataReply reply = gson.fromJson(jsonReply.substring(1, jsonReply.length() - 1).replaceAll("\\\\", ""),
                                          DataReply.class);
         System.out.println("Received new reply " + reply.getAccountNumber() + " " + reply.getData());
+    }
+
+    private static void processTransaction(String jsonReply) {
+        Gson gson = new Gson();
+        Transaction transaction = gson.fromJson(jsonReply.substring(1, jsonReply.length() - 1).replaceAll("\\\\", ""),
+                                                Transaction.class);
+        System.out.println("Received new Transconfirm " + transaction.getTransactionID() + " " +
+                            transaction.isSuccessfull());
     }
 }

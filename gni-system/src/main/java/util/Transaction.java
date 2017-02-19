@@ -1,4 +1,4 @@
-package ledger;
+package util;
 
 /**
  * @author Saul
@@ -22,6 +22,11 @@ public class Transaction {
         this.processed = false;
         this.successfull = false;
     }
+
+    /**
+     * Empty constructor for json conversion of the object. Do not use as manual constructor.
+     */
+    public Transaction() { }
 
     public long getTransactionID() {
         return transactionID;
