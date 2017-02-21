@@ -1,15 +1,8 @@
 package queue;
 
-import io.advantageous.qbit.QBit;
-import io.advantageous.qbit.events.EventManager;
-import ledger.Ledger;
-import util.Transaction;
-import transactionin.TransactionReceiveService;
-import transactionout.TransactionDispatchService;
+import io.advantageous.qbit.admin.ManagedServiceBuilder;
 import ui.UIService;
 import users.UserService;
-
-import static io.advantageous.boon.core.Sys.sleep;
 
 /**
  * Created by noel on 4-2-17.
@@ -18,28 +11,6 @@ import static io.advantageous.boon.core.Sys.sleep;
  * Microservices manager, handles the event queue and starts the microservices.
  */
 public final class ServiceManager {
-    /** Channel to send user creation requests over using Customer objects. */
-    public static final String USER_CREATION_CHANNEL = "org.gni.user.new";
-
-    /** Channel to send transaction requests over using a Transaction object. */
-    public static final String TRANSACTION_REQUEST_CHANNEL
-                                                = "org.gni.transaction.request";
-
-    /** Channel used by transaction dispatch services to send
-     * Transaction objects to the ledger. */
-    public static final String TRANSACTION_PROCESSING_CHANNEL
-                                                = "org.gni.transaction.process";
-
-    /** Channel used by the ledger to send processed Transaction
-     * objects back to the dispatch services. */
-    public static final String TRANSACTION_VERIFICATION_CHANNEL
-                                                = "org.gni.transaction.verify";
-
-    /** Channel to request data over using DataRequest objects. */
-    public static final String DATA_REQUEST_CHANNEL = "org.gni.data.request";
-
-    /** Channel used to reply to data requests using DataReply objects. */
-    public static final String DATA_REPLY_CHANNEL = "org.gni.data.reply";
 
     /**
      * Private constructor to satisfy utility class property.
@@ -58,28 +29,29 @@ public final class ServiceManager {
         String testAccountNumber = "NL52INGB0987890998";
         String testDestinationNumber = "NL52RABO0987890998";
 
-        //Create eventmanager and start microservices
-        EventManager eventManager = QBit.factory().systemEventManager();
-        UserService userService = new UserService();
-        Ledger ledger = new Ledger();
-        UIService uiService = new UIService();
-        TransactionDispatchService dispatchService
-                                            = new TransactionDispatchService();
-        TransactionReceiveService receiveService
-                                            = new TransactionReceiveService();
+        /* Create the ManagedServiceBuilder which manages a clean shutdown, health, stats, etc. */
+        final ManagedServiceBuilder managedServiceBuilder =
+                ManagedServiceBuilder.managedServiceBuilder()
+                        .setRootURI("/services") //Defaults to services
+                        .setPort(8888); //Defaults to 8080 or environment variable PORT
 
-        //Set listener on microservices
-        eventManager.listen(userService);
-        eventManager.listen(ledger);
-        eventManager.listen(uiService);
-        eventManager.listen(dispatchService);
-        eventManager.listen(receiveService);
+
+        /* Start the service. */
+        managedServiceBuilder.addEndpointService(new UIService()).addEndpointService(new UserService()) //Register services
+                .getEndpointServerBuilder()
+                .build().startServer();
+
+        /* Start the admin builder which exposes health end-points and swagger meta data. */
+        managedServiceBuilder.getAdminBuilder().build().startServer();
+
+        System.out.println("Todo Server and Admin Server started");
 
         //Emulate user using the uiService
         //TODO move Service calls to the services themselves.
         // Does not work at the moment because there is no code to call the
         // methods.
-        System.out.println("Manager: Creating customer");
+
+        /*System.out.println("Manager: Creating customer");
         uiService.createCustomer("freek", "de wilde",
                                 "NL52INGB0987890998");
         sleep(200);
@@ -120,6 +92,6 @@ public final class ServiceManager {
 
         //Test method.
         System.out.println("Manager: Printing ledger:");
-        ledger.printLedger();
+        ledger.printLedger();*/
     }
 }

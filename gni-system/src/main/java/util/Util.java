@@ -7,7 +7,7 @@ package util;
  */
 public class Util {
 
-    public static DataReply createJsonReply(String accountNumber, RequestType type, String data) {
+    public static DataReply createJsonReply(final String accountNumber, final RequestType type, final String data) {
         DataReply reply = new DataReply();
         reply.setAccountNumber(accountNumber);
         reply.setType(type);
@@ -15,17 +15,18 @@ public class Util {
         return reply;
     }
 
-    public static DataRequest createJsonRequest(String accountNumber, RequestType type) {
+    public static DataRequest createJsonRequest(final String accountNumber, final RequestType type) {
         DataRequest request = new DataRequest();
         request.setType(type);
         request.setAccountNumber(accountNumber);
         return request;
     }
 
-    public static Transaction createJsonTransaction(long transactionID, String sourceAccountNumber,
-                                                    String destinationAccountNumber,
-                                                    String destinationAccountHolderName, double transactionAmount,
-                                                    boolean processed, boolean successfull) {
+    public static Transaction createJsonTransaction(final long transactionID, final String sourceAccountNumber,
+                                                    final String destinationAccountNumber,
+                                                    final String destinationAccountHolderName,
+                                                    final double transactionAmount, final boolean processed,
+                                                    final boolean successfull) {
         Transaction transaction = new Transaction();
         transaction.setTransactionID(transactionID);
         transaction.setSourceAccountNumber(sourceAccountNumber);
@@ -35,5 +36,16 @@ public class Util {
         transaction.setProcessed(processed);
         transaction.setSuccessfull(successfull);
         return transaction;
+    }
+
+    public static Customer createJsonCustomer(final String newName, final String newSurname,
+                                              final String newAccountNumber, final boolean newEnrolled) {
+        Customer customer = new Customer();
+        customer.setName(newName);
+        customer.setSurname(newSurname);
+        customer.setAccountNumber(newAccountNumber);
+        customer.setEnrolled(newEnrolled);
+        return customer;
+
     }
 }
