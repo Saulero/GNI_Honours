@@ -1,13 +1,12 @@
 package ui;
 
+import com.google.gson.Gson;
 import io.advantageous.qbit.annotation.Listen;
-import util.Transaction;
+import io.advantageous.qbit.http.client.HttpClient;
+import util.*;
 import queue.ServiceManager;
-import util.Customer;
-import util.DataReply;
-import util.DataRequest;
-import util.RequestType;
 
+import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 import static io.advantageous.qbit.service.ServiceContext.serviceContext;
 
 /**
@@ -16,6 +15,14 @@ import static io.advantageous.qbit.service.ServiceContext.serviceContext;
  * history, and make transactions.
  */
 public final class UIService {
+    private HttpClient httpClient;
+
+    public UIService(String host, int port) {
+        /* Setup an httpClient. */
+        httpClient = httpClientBuilder()
+                .setHost(host).setPort(port).build();
+        httpClient.start();
+    }
     //TODO method to remove customer from system
     /**
      * Send a transaction request to the ledger service that will reply with
@@ -23,41 +30,44 @@ public final class UIService {
      * @param accountNumber Account number to request the transaction history
      *                      for.
      */
-    //TODO GET request
+    //TODO handle request failure
     public void requestTransactionHistory(final String accountNumber) {
-        DataRequest request = new DataRequest(accountNumber,
-                                            RequestType.TRANSACTIONHISTORY);
-        serviceContext().send(ServiceManager.DATA_REQUEST_CHANNEL, request);
-    }
-
-    /**
-     * Handles replies coming back from other services.
-     * Checks what kind of reply it is and handles it accordingly.
-     * @param dataReply Reply object containing the type of request and its
-     *                  reply data
-     */
-    @Listen(ServiceManager.DATA_REPLY_CHANNEL)
-    private void processReply(final DataReply dataReply) {
-        if (dataReply.getType() == RequestType.TRANSACTIONHISTORY) {
-            System.out.printf("UI: Your transaction history: %s\n\n",
-                            dataReply.getData());
-        } else if (dataReply.getType() == RequestType.BALANCE) {
-            System.out.printf("UI: Your balance: %s\n\n", dataReply.getData());
-        } else if (dataReply.getType() == RequestType.CUSTOMERDATA) {
-            System.out.printf("UI: Your customer information: %s\n\n",
-                            dataReply.getData());
-        }
+        DataRequest request = Util.createJsonRequest(accountNumber, RequestType.TRANSACTIONHISTORY);
+        Gson gson = new Gson();
+        httpClient.getAsyncWith1Param("/services/user/data", "body", gson.toJson(request),
+                ((code, contentType, body) -> { if (code == 200) {
+                    DataReply reply = gson.fromJson(body, DataReply.class);
+                    if (reply.getAccountNumber().equals(accountNumber)
+                                                                && reply.getType() == RequestType.TRANSACTIONHISTORY) {
+                        System.out.println("Request successfull, data: " +  reply.getData());
+                    } else {
+                        System.out.println("Transaction request failed.");
+                    }
+                } else {
+                    System.out.println("Transaction request failed.");
+                } }));
     }
 
     /**
      * Sends a balance request to the ledger service for an account.
      * @param accountNumber Account number to request the balance for
      */
-    //TODO GET request
+    //TODO handle request failure
     public void requestBalance(final String accountNumber) {
-        DataRequest request = new DataRequest(accountNumber,
-                                            RequestType.BALANCE);
-        serviceContext().send(ServiceManager.DATA_REQUEST_CHANNEL, request);
+        DataRequest request = Util.createJsonRequest(accountNumber, RequestType.BALANCE);
+        Gson gson = new Gson();
+        httpClient.getAsyncWith1Param("/services/user/data", "body", gson.toJson(request),
+                ((code, contentType, body) -> { if (code == 200) {
+                    DataReply reply = gson.fromJson(body, DataReply.class);
+                    if (reply.getAccountNumber().equals(accountNumber)
+                            && reply.getType() == RequestType.BALANCE) {
+                        System.out.println("Balance request successfull, data: " +  reply.getData());
+                    } else {
+                        System.out.println("Balance request failed.");
+                    }
+                } else {
+                    System.out.println("Balance request failed.");
+                } }));
     }
 
 
@@ -65,12 +75,22 @@ public final class UIService {
      * Sends a customer data request to the user service for an account.
      * @param accountNumber Account number to request the balance for
      */
-    //TODO GET request
     //TODO needs to be reworked to not be dependent on accountNumber
     public void requestCustomerData(final String accountNumber) {
-        DataRequest request = new DataRequest(accountNumber,
-                                            RequestType.CUSTOMERDATA);
-        serviceContext().send(ServiceManager.DATA_REQUEST_CHANNEL, request);
+        DataRequest request = Util.createJsonRequest(accountNumber, RequestType.CUSTOMERDATA);
+        Gson gson = new Gson();
+        httpClient.getAsyncWith1Param("/services/user/data", "body", gson.toJson(request),
+                ((code, contentType, body) -> { if (code == 200) {
+                    DataReply reply = gson.fromJson(body, DataReply.class);
+                    if (reply.getAccountNumber().equals(accountNumber)
+                            && reply.getType() == RequestType.CUSTOMERDATA) {
+                        System.out.println("Customer information request successfull, data: " +  reply.getData());
+                    } else {
+                        System.out.println("Customer information request failed.");
+                    }
+                } else {
+                    System.out.println("Customer information request failed.");
+                } }));
     }
 
     /**
@@ -92,14 +112,21 @@ public final class UIService {
         //Do transaction work
         System.out.printf("UI: Executed new transaction\n\n");
 
-        Transaction transaction = new Transaction(transactionNumber,
-                                                sourceAccountNumber,
-                                                destinationAccountNumber,
-                                                destinationAccountHolderName,
-                                                amount);
-
-        serviceContext().send(ServiceManager.TRANSACTION_REQUEST_CHANNEL,
-                            transaction);
+        Transaction transaction = Util.createJsonTransaction(transactionNumber, sourceAccountNumber,
+                                                             destinationAccountNumber, destinationAccountHolderName,
+                                                             amount, false, false);
+        Gson gson = new Gson();
+        httpClient.putFormAsyncWith1Param("/services/user/transaction", "body", gson.toJson(transaction),
+                ((code, contentType, body) -> { if (code == 200) {
+                    Transaction reply = gson.fromJson(body, Transaction.class);
+                    if (reply.equals(transaction) && reply.isSuccessfull() && reply.isProcessed()) {
+                        System.out.println("Transaction request successfull.");
+                    } else {
+                        System.out.println("Transaction request failed.");
+                    }
+                } else {
+                    System.out.println("Transaction request failed.");
+                } }));
     }
 
     /**
@@ -113,11 +140,24 @@ public final class UIService {
     //TODO Account number needs to be requested from the ledger
     public void createCustomer(final String name, final String surname,
                                final String accountNumber) {
-        //TODO move function from userService to this service.
         System.out.printf("UI: Creating customer with name: %s %s\n\n", name,
                         surname);
-        Customer customer = new Customer(name, surname, accountNumber);
-        serviceContext().send(ServiceManager.USER_CREATION_CHANNEL, customer);
+        Customer customer = Util.createJsonCustomer(name, surname, accountNumber, false);
+        Gson gson = new Gson();
+        httpClient.putFormAsyncWith1Param("services/user/customer", "body", gson.toJson(customer),
+                (code, contentType, body) -> { if (code == 200) {
+                    Customer reply = gson.fromJson(body, Customer.class);
+                    if (reply.getEnrolled() && reply.getAccountNumber().equals(customer.getAccountNumber())
+                            && reply.getName().equals(customer.getName()) && reply.getSurname().equals(
+                                    customer.getSurname())) {
+                        System.out.println("Customer successfully enrolled.");
+                    } else {
+                        System.out.println("Customer enrollment error, see data: " + reply);
+                    }
+                } else {
+                    System.out.println("Customer enrollment failed, connection error.");
+                }
+                });
     }
 }
 

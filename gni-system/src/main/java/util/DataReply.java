@@ -7,6 +7,7 @@ import java.io.Serializable;
  * @version 2
  * Databean used to send a reply to another service.
  */
+//TODO needs to be reworked to not be dependent on accountNumber
 public final class DataReply implements Serializable {
     /** Account number the reply corresponds to. */
     private String accountNumber;

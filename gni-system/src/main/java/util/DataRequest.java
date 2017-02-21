@@ -7,6 +7,7 @@ import java.io.Serializable;
  * @version 1
  * Databean used to send a request.
  */
+//TODO needs to be reworked to not be dependent on accountNumber
 public final class DataRequest implements Serializable {
     /** Account number the request is for. */
     private String accountNumber;

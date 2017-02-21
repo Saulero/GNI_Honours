@@ -1,5 +1,7 @@
 package util;
 
+import java.lang.reflect.Field;
+
 /**
  * @author Saul
  */
@@ -82,6 +84,20 @@ public class Transaction {
 
     public void setSuccessfull(boolean successfull) {
         this.successfull = successfull;
+    }
+
+    /**
+     * Compares all variables of transaction to the current object and checks if they are equal.
+     * @param transaction object to check for equality.
+     * @return boolean indicating if the objects are equal.
+     */
+    public boolean equals(Transaction transaction) {
+        return this.getTransactionID() == transaction.getTransactionID() && this.getSourceAccountNumber().equals(
+                transaction.getSourceAccountNumber()) && this.getDestinationAccountNumber().equals(
+                transaction.getDestinationAccountNumber()) && this.getDestinationAccountHolderName()
+        .equals(transaction.getDestinationAccountHolderName()) && this.getTransactionAmount()
+                == transaction.getTransactionAmount() && this.isProcessed() == transaction.isProcessed()
+                && this.isSuccessfull() == transaction.isSuccessfull();
     }
 }
 

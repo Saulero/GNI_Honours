@@ -16,7 +16,7 @@ import util.*;
  * Creates customer accounts.
  * Initiates transactions for customers
  */
-@RequestMapping("/User")
+@RequestMapping("/user")
 public class UserService {
     /**
      * Listens on DATA_REQUEST_CHANNEL for services that request user data.
