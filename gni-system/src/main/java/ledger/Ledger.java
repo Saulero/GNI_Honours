@@ -3,12 +3,9 @@ package ledger;
 import com.google.gson.Gson;
 import io.advantageous.qbit.annotation.*;
 import io.advantageous.qbit.reactive.Callback;
-import queue.ServiceManager;
 import util.*;
 
 import java.util.HashMap;
-
-import static io.advantageous.qbit.service.ServiceContext.serviceContext;
 
 /**
  * @author Saul

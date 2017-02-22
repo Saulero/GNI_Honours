@@ -30,7 +30,6 @@ public final class UIService {
     @RequestMapping(value = "/data", method = RequestMethod.GET)
     public void requestTransactionHistory(final Callback<String> callback, @RequestParam("body") final String accountNumber) {
         /* Setup a httpClient. */
-        System.out.printf("Setting host %s, port %d", "localhost", 8888);
         HttpClient httpClient = httpClientBuilder().setHost("localhost").setPort(8888).build();
         httpClient.start();
         DataRequest request = Util.createJsonRequest(accountNumber, RequestType.TRANSACTIONHISTORY);
