@@ -46,7 +46,6 @@ public class UserService {
             HttpClient httpClient = httpClientBuilder().setHost("localhost").setPort(9999).build();
             httpClient.start();
             if (type == RequestType.BALANCE) {
-                //TODO make ledger request
                 httpClient.getAsyncWith1Param("/services/ledger/data", "body", gson.toJson(request),
                         (code, contentType, replyBody) -> { if (code == 200) {
                             DataReply reply = gson.fromJson(replyBody.substring(1, replyBody.length() - 1)
