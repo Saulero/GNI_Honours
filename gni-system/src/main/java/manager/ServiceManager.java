@@ -34,11 +34,11 @@ public final class ServiceManager {
         //Start http client
         HttpClient httpClient = httpClientBuilder().setHost("localhost").setPort(7777).build();
         httpClient.start();
-        //doGet(httpClient, testAccountNumber, RequestType.TRANSACTIONHISTORY);
-        //doGet(httpClient, testAccountNumber, RequestType.BALANCE);
-        //doGet(httpClient, testAccountNumber, RequestType.CUSTOMERDATA);
-        //doTransaction(httpClient, testAccountNumber, testDestinationNumber, "De boer",
-        //            20.00);
+        doGet(httpClient, testAccountNumber, RequestType.TRANSACTIONHISTORY);
+        doGet(httpClient, testAccountNumber, RequestType.BALANCE);
+        doGet(httpClient, testAccountNumber, RequestType.CUSTOMERDATA);
+        doTransaction(httpClient, testAccountNumber, testDestinationNumber, "De boer",
+                    20.00);
         makeNewAccount(httpClient, "Henk", "De Wilde");
     }
 
