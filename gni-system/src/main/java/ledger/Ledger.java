@@ -1,13 +1,10 @@
 package ledger;
 
-import io.advantageous.qbit.annotation.Listen;
-import io.advantageous.qbit.annotation.OnEvent;
+import com.google.gson.Gson;
+import io.advantageous.qbit.annotation.*;
+import io.advantageous.qbit.reactive.Callback;
 import queue.ServiceManager;
-import util.Customer;
-import util.DataReply;
-import util.DataRequest;
-import util.RequestType;
-import util.Transaction;
+import util.*;
 
 import java.util.HashMap;
 
@@ -16,6 +13,7 @@ import static io.advantageous.qbit.service.ServiceContext.serviceContext;
 /**
  * @author Saul
  */
+@RequestMapping("/ledger")
 public class Ledger {
 
     private HashMap<String, Double> ledger;
@@ -29,13 +27,17 @@ public class Ledger {
      * Listens to USER_CREATION_CHANNEL for new customers and adds their account number to the ledger.
      * @param customer customer object containing the customers name and accountnumber
      */
-    @Listen(ServiceManager.USER_CREATION_CHANNEL)
-    public void process_new_user(final Customer customer) {
-        if (!this.ledger.keySet().contains(customer.getAccountNumber())){
-            this.ledger.put(customer.getAccountNumber(), 0.0);
-            System.out.printf("Ledger: Added user %s %s to ledger\n\n", customer.getName(), customer.getSurname());
-        }
-        //TODO code to process what happens when the accountnumber already exists in the ledger.
+    @RequestMapping(value = "/accountNumber", method = RequestMethod.PUT)
+    public void processAccountNumberRequest(final Callback<String> callback, final @RequestParam("body") String body) {
+        Gson gson = new Gson();
+        Customer customer = gson.fromJson(body, Customer.class);
+        //TODO properly set accountnumber, will happen when merging with ledger branch.
+        String newAccountNumber = "NL55GNIB0938723334";
+        Customer reply = Util.createJsonCustomer(customer.getName(), customer.getSurname(), newAccountNumber,
+                                                true);
+        System.out.printf("Ledger: Added user %s with accountNumber %s to ledger\n\n", reply.getSurname(),
+                reply.getAccountNumber());
+        callback.reply(gson.toJson(reply));
     }
 
     /**
@@ -47,25 +49,31 @@ public class Ledger {
      * through TRANSACTION_VERIFICATION_CHANNEL.
      * @param transaction Transaction object to perform the transaction
      */
-    @OnEvent(value = ServiceManager.TRANSACTION_PROCESSING_CHANNEL, consume = true)
-    public void process_transaction(final Transaction transaction) {
+    @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
+    public void processTransaction(final Callback<String> callback, final @RequestParam("body") String body) {
+        Gson gson = new Gson();
+        Transaction transaction = gson.fromJson(body, Transaction.class);
         String accountNumber = transaction.getSourceAccountNumber();
-        if(this.ledger.keySet().contains(accountNumber)) {
+        //TODO generate transactionId
+        long transactionId = 134567890;
+        Transaction reply = Util.createJsonTransaction(transactionId, transaction.getSourceAccountNumber(),
+                                                       transaction.getDestinationAccountNumber(),
+                                                       transaction.getDestinationAccountHolderName(),
+                                                       transaction.getTransactionAmount(), true,
+                                                       false);
+        boolean accountInLedger = true;
+        if (accountInLedger) {
             //TODO implement database function for spending limit
-            double spendingLimit = this.ledger.get(accountNumber);
+            double spendingLimit = 10000;
             if (spendingLimit - transaction.getTransactionAmount() < 0) {
-                transaction.setProcessed(true);
                 System.out.printf("Ledger: Transaction number %s failed due to insufficient balance.\n",
                         transaction.getTransactionID());
-                serviceContext().send(ServiceManager.TRANSACTION_VERIFICATION_CHANNEL, transaction);
+                callback.reply(gson.toJson(reply));
             } else {
-                double new_balance = this.ledger.get(accountNumber) - transaction.getTransactionAmount();
-                this.ledger.put(accountNumber, new_balance);
-                System.out.printf("Ledger: Processed transaction, Account number: %s, new balance: %f\n\n",
-                        accountNumber, new_balance);
-                transaction.setProcessed(true);
-                transaction.setSuccessfull(true);
-                serviceContext().send(ServiceManager.TRANSACTION_VERIFICATION_CHANNEL, transaction);
+                //TODO process transaction in database
+                System.out.printf("Ledger: Processed transaction, Account number: %s\n\n", accountNumber);
+                reply.setSuccessfull(true);
+                callback.reply(gson.toJson(reply));
             }
         }
     }
@@ -76,20 +84,28 @@ public class Ledger {
      * it back in a dataReply object.
      * @param dataRequest DataRequest object containing the customer data request
      */
-    @Listen(ServiceManager.DATA_REQUEST_CHANNEL)
-    public void process_data_request(final DataRequest dataRequest) {
-        RequestType requestType = dataRequest.getType();
+    @RequestMapping(value = "/data", method = RequestMethod.GET)
+    public void processDataRequest(final Callback<String> callback, final @RequestParam("body") String body) {
+        System.out.println("Ledger: Called by Users");
+        Gson gson = new Gson();
+        DataRequest request = gson.fromJson(body, DataRequest.class);
+        RequestType requestType = request.getType();
         if (requestType == RequestType.BALANCE) {
-            String accountNumber = dataRequest.getAccountNumber();
-            DataReply dataReply = new DataReply(accountNumber, requestType, "" + this.ledger.get(accountNumber));
-            serviceContext().send(ServiceManager.DATA_REPLY_CHANNEL,  dataReply);
+            String accountNumber = request.getAccountNumber();
+            //TODO fetch balance from database
+            String balance = "125,50";
+            DataReply reply = Util.createJsonReply(request.getAccountNumber(), requestType, balance);
+            callback.reply(gson.toJson(reply));
         }
         else if (requestType == RequestType.TRANSACTIONHISTORY) {
             //TODO fetch transaction history
             String transactionHistory = "Dummy history";
-            String accountNumber = dataRequest.getAccountNumber();
-            DataReply dataReply = new DataReply(accountNumber, requestType, transactionHistory);
-            serviceContext().send(ServiceManager.DATA_REPLY_CHANNEL, dataReply);
+            String accountNumber = request.getAccountNumber();
+            DataReply reply = Util.createJsonReply(accountNumber, requestType, transactionHistory);
+            callback.reply(gson.toJson(reply));
+            System.out.println("Replied with dummy history");
+        } else {
+            callback.reject("Incorrect request type sent to ledger.");
         }
     }
 

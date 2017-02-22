@@ -1,8 +1,13 @@
 package queue;
 
+import io.advantageous.boon.core.Sys;
 import io.advantageous.qbit.admin.ManagedServiceBuilder;
+import io.advantageous.qbit.http.client.HttpClient;
+import ledger.Ledger;
 import ui.UIService;
 import users.UserService;
+
+import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 
 /**
  * Created by noel on 4-2-17.
@@ -11,7 +16,6 @@ import users.UserService;
  * Microservices manager, handles the event queue and starts the microservices.
  */
 public final class ServiceManager {
-
     /**
      * Private constructor to satisfy utility class property.
      */
@@ -28,70 +32,16 @@ public final class ServiceManager {
         //test variables
         String testAccountNumber = "NL52INGB0987890998";
         String testDestinationNumber = "NL52RABO0987890998";
-
-        /* Create the ManagedServiceBuilder which manages a clean shutdown, health, stats, etc. */
-        final ManagedServiceBuilder managedServiceBuilder =
-                ManagedServiceBuilder.managedServiceBuilder()
-                        .setRootURI("/services") //Defaults to services
-                        .setPort(8888); //Defaults to 8080 or environment variable PORT
-
-
-        /* Start the service. */
-        managedServiceBuilder.addEndpointService(new UIService()).addEndpointService(new UserService()) //Register services
-                .getEndpointServerBuilder()
-                .build().startServer();
-
-        /* Start the admin builder which exposes health end-points and swagger meta data. */
-        managedServiceBuilder.getAdminBuilder().build().startServer();
-
-        System.out.println("Todo Server and Admin Server started");
-
-        //Emulate user using the uiService
-        //TODO move Service calls to the services themselves.
-        // Does not work at the moment because there is no code to call the
-        // methods.
-
-        /*System.out.println("Manager: Creating customer");
-        uiService.createCustomer("freek", "de wilde",
-                                "NL52INGB0987890998");
-        sleep(200);
-
-        System.out.println("Manager: Requesting customer info");
-        uiService.requestCustomerData(testAccountNumber);
-        sleep(200);
-
-        System.out.println("Manager: Requesting customer balance");
-        uiService.requestBalance(testAccountNumber);
-        sleep(200);
-
-        System.out.println("Manager: Requesting transaction history");
-        uiService.requestTransactionHistory(testAccountNumber);
-        sleep(200);
-
-        System.out.println("Manager: Creating transaction");
-        Transaction transaction = new Transaction(112,
-                                        testAccountNumber,
-                                        testDestinationNumber,
-                                        "de wilde",
-                                        250);
-        eventManager.send(TRANSACTION_REQUEST_CHANNEL, transaction);
-        sleep(200);
-
-        System.out.println("Manager: Creating transaction");
-        Transaction transaction2 = new Transaction(113,
-                                        testAccountNumber,
-                                        testDestinationNumber,
-                                        "de wilde",
-                                        250);
-        eventManager.send(TRANSACTION_REQUEST_CHANNEL, transaction2);
-        sleep(200);
-
-        System.out.println("Manager: Requesting customer balance");
-        uiService.requestBalance(testAccountNumber);
-        sleep(200);
-
-        //Test method.
-        System.out.println("Manager: Printing ledger:");
-        ledger.printLedger();*/
+        HttpClient httpClient = httpClientBuilder().setHost("localhost").setPort(7777).build();
+        httpClient.start();
+        System.out.println("Sending request");
+        httpClient.getAsyncWith1Param("/services/ui/data", "body", "NL123456",
+                                     (code, contentType, body) -> {
+            if (code == 200) {
+                System.out.println("successfull request, body: " + body);
+            } else {
+                System.out.println("Request not successfull, body: " + body);
+            }
+        });
     }
 }

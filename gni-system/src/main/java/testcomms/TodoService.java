@@ -13,10 +13,6 @@ import java.util.*;
 @RequestMapping("/todo-service")
 public class TodoService {
 
-
-    private final Map<String, Todo> todoMap = new TreeMap<>();
-
-
     @RequestMapping(value = "/todo", method = RequestMethod.POST)
     public void add(final Callback<String> callback, final @RequestParam("body") String body) {
         System.out.println("received a post");
@@ -33,9 +29,7 @@ public class TodoService {
 
     @RequestMapping(value = "/todo", method = RequestMethod.DELETE)
     public void remove(final Callback<Boolean> callback, final @RequestParam("id") String id) {
-
-        Todo remove = todoMap.remove(id);
-        callback.accept(remove!=null);
+        callback.accept(true);
 
     }
 
