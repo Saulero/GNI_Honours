@@ -85,10 +85,8 @@ public class UserService {
         Transaction transaction = gson.fromJson(body, Transaction.class);
         //TODO send transaction to transactionout
         System.out.println("Sent transaction to transactionOut");
-        Transaction transacioninCallback = Util.createJsonTransaction(1234, "1234",
-                                                        "1234","asdfg",
-                                                        20.00, true,true);
-        callback.reply(gson.toJson(transacioninCallback));
+        Transaction transactionInReply = transaction;
+        callback.reply(gson.toJson(transactionInReply));
     }
 
     @RequestMapping(value = "/customer", method = RequestMethod.PUT)
@@ -99,7 +97,7 @@ public class UserService {
         Customer customer = gson.fromJson(body, Customer.class);
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder();
         callbackBuilder.withStringCallback(callback);
-        httpClient.putFormAsyncWith1Param("/services/ledger/accountNumber","body", gson.toJson(customer),
+        httpClient.putFormAsyncWith1Param("/services/ledger/accountNumber", "body", gson.toJson(customer),
                 (code, contentType, replyBody) -> { if (code == 200) {
                     Customer ledgerReply = gson.fromJson(replyBody.substring(1, replyBody.length() - 1)
                                                         .replaceAll("\\\\", ""), Customer.class);
@@ -110,6 +108,7 @@ public class UserService {
                         String customerSurname = customer.getSurname();
                         Customer enrolledCustomer = Util.createJsonCustomer(customerName, customerSurname,
                                 accountNumber, enrolled);
+                        System.out.println("Sending back new customer.");
                         callbackBuilder.build().reply(gson.toJson(enrolledCustomer));
                     } else {
                         callbackBuilder.build().reject("Ledger failed to enroll.");
