@@ -3,6 +3,9 @@ package manager;
 import com.google.gson.Gson;
 import io.advantageous.qbit.http.client.HttpClient;
 import util.DataReply;
+import util.DataRequest;
+import util.RequestType;
+import util.Util;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 
@@ -54,10 +57,11 @@ public final class ServiceManager {
 
     private static void getTransactionHistory(HttpClient httpClient, String accountNumber) {
         System.out.println("Sending request");
-        httpClient.getAsyncWith1Param("/services/ui/data", "body", accountNumber,
+        DataRequest request = Util.createJsonRequest(accountNumber, RequestType.TRANSACTIONHISTORY);
+        Gson gson = new Gson();
+        httpClient.getAsyncWith1Param("/services/ui/data", "body", gson.toJson(request),
                 (code, contentType, body) -> {
                     if (code == 200) {
-                        Gson gson = new Gson();
                         System.out.println("received" + body);
                         DataReply reply = gson.fromJson(body.substring(1, body.length() - 1).replaceAll("\\\\", ""),
                                 DataReply.class);

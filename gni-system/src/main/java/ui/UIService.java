@@ -7,6 +7,7 @@ import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
+import jdk.nashorn.internal.codegen.CompilerConstants;
 import util.*;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
@@ -28,34 +29,42 @@ public final class UIService {
      */
     //TODO handle request failure
     @RequestMapping(value = "/data", method = RequestMethod.GET)
-    public void requestTransactionHistory(final Callback<String> callback, @RequestParam("body") final String accountNumber) {
-        /* Setup a httpClient. */
+    public void processDataRequest(final Callback<String> callback, @RequestParam("body") final String jsonRequest) {
         HttpClient httpClient = httpClientBuilder().setHost("localhost").setPort(8888).build();
         httpClient.start();
-        DataRequest request = Util.createJsonRequest(accountNumber, RequestType.TRANSACTIONHISTORY);
         Gson gson = new Gson();
+        DataRequest request = gson.fromJson(jsonRequest, DataRequest.class);
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder();
         callbackBuilder.withStringCallback(callback);
-        System.out.println("UI: Sending request to Users");
+        doUsersRequest(httpClient, request, gson, callbackBuilder);
+    }
+
+    private void doUsersRequest(final HttpClient httpClient, final DataRequest request, final Gson gson,
+                                             final CallbackBuilder callbackBuilder) {
+        System.out.println("UI: Sending data request to Users");
         httpClient.getAsyncWith1Param("/services/user/data", "body", gson.toJson(request),
-                                     (code, contentType, body) -> { if (code == 200) {
-                    String replyJson = body.substring(1, body.length() - 1).replaceAll("\\\\", "");
-                    DataReply reply = gson.fromJson(replyJson, DataReply.class);
-                                             System.out.println("processed");
-                    if (reply.getAccountNumber().equals(accountNumber)
-                                                                && reply.getType() == RequestType.TRANSACTIONHISTORY) {
-                        callbackBuilder.build().reply(gson.toJson(reply));
-                        System.out.println("Request successfull, data: " +  reply.getData());
+                (code, contentType, body) -> {
+                    if (code == 200) {
+                        processUsersReply(callbackBuilder, body, request, gson);
                     } else {
-                        System.out.println("Transaction request failed on reply check.");
-                        callbackBuilder.build().reject("Transaction request failed.");
+                        callbackBuilder.build().reject("Transaction history request failed.");
                     }
-                } else {
-                    System.out.println("Transaction history request failed.");
-                                         System.out.println(body);
-                                         System.out.println(code);
-                    callbackBuilder.build().reject("Transaction history request failed.");
-                } });
+                });
+    }
+
+    private void processUsersReply(final CallbackBuilder callbackBuilder, final String body,
+                                                final DataRequest request, final Gson gson) {
+        String replyJson = body.substring(1, body.length() - 1).replaceAll("\\\\", "");
+        DataReply reply = gson.fromJson(replyJson, DataReply.class);
+        System.out.println("processed");
+        if (reply.getAccountNumber().equals(request.getAccountNumber())
+                && reply.getType() == request.getType()) {
+            callbackBuilder.build().reply(gson.toJson(reply));
+            System.out.println("Request successfull, data: " +  reply.getData());
+        } else {
+            System.out.println("Transaction request failed on reply check.");
+            callbackBuilder.build().reject("Transaction request failed.");
+        }
     }
 
     /**
