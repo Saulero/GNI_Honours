@@ -16,7 +16,7 @@ public class UIServiceMain {
                         .setPort(7777); //Defaults to 8080 or environment variable PORT
 
         /* Start the service. */
-        managedServiceBuilder.addEndpointService(new UIService()) //Register TodoService
+        managedServiceBuilder.addEndpointService(new UIService(8888, "localhost"))
                 .getEndpointServerBuilder()
                 .build().startServer();
 

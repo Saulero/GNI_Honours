@@ -7,28 +7,46 @@ import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
-import jdk.nashorn.internal.codegen.CompilerConstants;
-import util.*;
+import util.Customer;
+import util.DataReply;
+import util.DataRequest;
+import util.Transaction;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 
 /**
- * Created by noel on 5-2-17.
- * Interface that outside users can use to view their balance, transaction
- * history, and make transactions.
+ * @author Noel
+ * @version 1
+ * Interface that outside users can use to view their balance, transaction history, customer information, create
+ * new accounts and make transactions.
  */
 @RequestMapping("/ui")
 public final class UIService {
+    /**Used to verify if a http request to another service was successfull.*/
+    private static final int HTTP_OK = 200;
+    /**Port that the user service can be found on.*/
+    private int usersPort;
+    /**Host that the user service can be found on.*/
+    private String usersHost;
 
     /**
-     * Send a transaction request to the ledger service that will reply with
-     * the transaction history of the account.
-     * @param accountNumber Account number to request the transaction history
-     *                      for.
+     * Constructor.
+     * @param newUsersPort port the user service can be found on.
+     * @param newUsersHost host the user service can be found on.
+     */
+    public UIService(final int newUsersPort, final String newUsersHost) {
+        this.usersPort = newUsersPort;
+        this.usersHost = newUsersHost;
+    }
+
+    /**
+     * Process a data requests from a user.
+     * @param callback Callback used to send a reply back to the origin of the request.
+     * @param jsonRequest A Json string representing a DataRequest object {@link DataRequest}.
      */
     @RequestMapping(value = "/data", method = RequestMethod.GET)
     public void processDataRequest(final Callback<String> callback, @RequestParam("body") final String jsonRequest) {
-        HttpClient httpClient = httpClientBuilder().setHost("localhost").setPort(8888).build();
+        HttpClient httpClient = httpClientBuilder().setHost(usersHost).setPort(usersPort).build();
         httpClient.start();
         Gson gson = new Gson();
         DataRequest request = gson.fromJson(jsonRequest, DataRequest.class);
@@ -37,12 +55,19 @@ public final class UIService {
         doUserDataRequest(httpClient, request, gson, callbackBuilder);
     }
 
+    /**
+     * Forwards the data request to the user service and waits for a callback.
+     * @param httpClient Httpclient to use to make an asynchronous request.
+     * @param request DataRequest to forward to the user service.
+     * @param gson Used for json conversion.
+     * @param callbackBuilder Used to send the received reply back to the source of the request.
+     */
     private void doUserDataRequest(final HttpClient httpClient, final DataRequest request, final Gson gson,
                                              final CallbackBuilder callbackBuilder) {
         System.out.println("UI: Sending data request to Users");
         httpClient.getAsyncWith1Param("/services/user/data", "body", gson.toJson(request),
                 (code, contentType, body) -> {
-                    if (code == 200) {
+                    if (code == HTTP_OK) {
                         processUserDataReply(callbackBuilder, body, request, gson);
                     } else {
                         callbackBuilder.build().reject("Transaction history request failed.");
@@ -50,6 +75,13 @@ public final class UIService {
                 });
     }
 
+    /**
+     * Checks if a data request was successfull and sends the reply back to the source of the request.
+     * @param callbackBuilder Used to send the received reply back to the source of the request.
+     * @param body Body of the callback, a json string representing a DataReply object {@link DataReply}.
+     * @param request Data request that was made to the user service.
+     * @param gson Used for json conversion.
+     */
     private void processUserDataReply(final CallbackBuilder callbackBuilder, final String body,
                                                 final DataRequest request, final Gson gson) {
         String replyJson = body.substring(1, body.length() - 1).replaceAll("\\\\", "");
@@ -65,17 +97,13 @@ public final class UIService {
     }
 
     /**
-     * Send a transaction request to the transaction out service.
-     * @param sourceAccountNumber Account number to draw the funds from
-     * @param amount Amount of money to send
-     * @param destinationAccountNumber Account Number to send the money to
-     * @param destinationAccountHolderName The name of the owner of the
-     *                                     destination account number
-     * @param transactionNumber Transaction number used for processing
+     * Sends an incoming transaction request to the user service.
+     * @param callback Used to send the reply of user service to the source of the request.
+     * @param body Body of the transaction request, a Json string representing a Transaction object {@link Transaction}
      */
     @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
     public void processTransactionRequest(final Callback<String> callback, @RequestParam("body") final String body) {
-        HttpClient httpClient = httpClientBuilder().setHost("localhost").setPort(8888).build();
+        HttpClient httpClient = httpClientBuilder().setHost(usersHost).setPort(usersPort).build();
         httpClient.start();
         Gson gson = new Gson();
         Transaction request = gson.fromJson(body, Transaction.class);
@@ -85,12 +113,19 @@ public final class UIService {
         doTransactionRequest(httpClient, request, gson, callbackBuilder);
     }
 
+    /**
+     * Forwards transaction request to the user service and wait for a callback.
+     * @param httpClient Client used to perform an asynchronous transaction request.
+     * @param request Transaction request that should be processed.
+     * @param gson used for json conversion.
+     * @param callbackBuilder Used to send the received reply back to the source of the request.
+     */
     private void doTransactionRequest(final HttpClient httpClient, final Transaction request, final Gson gson,
                                       final CallbackBuilder callbackBuilder) {
         System.out.println("UI: Sending transaction request to Users");
         httpClient.putFormAsyncWith1Param("/services/user/transaction", "body", gson.toJson(request),
                 (code, contentType, body) -> {
-                    if (code == 200) {
+                    if (code == HTTP_OK) {
                         processTransactionReply(callbackBuilder, body, request, gson);
                     } else {
                         callbackBuilder.build().reject("Transaction request failed.");
@@ -98,6 +133,13 @@ public final class UIService {
                 });
     }
 
+    /**
+     * Checks the result of a transaction request and sends the result to the source of the request.
+     * @param callbackBuilder Used to send the received reply back to the source of the request.
+     * @param body Body of the transaction reply, Json string representing a Transaction object {@link Transaction}.
+     * @param request Transaction request that has been processed.
+     * @param gson used for json conversion.
+     */
     private void processTransactionReply(final CallbackBuilder callbackBuilder, final String body,
                                          final Transaction request, final Gson gson) {
         String replyJson = body.substring(1, body.length() - 1).replaceAll("\\\\", "");
@@ -113,15 +155,14 @@ public final class UIService {
     }
 
     /**
-     * Send a user creation request over the USER_CREATION_CHANNEL to create
-     * a new user in the system.
-     * @param name First name of the user to create
-     * @param surname Surname of the user to create
-     * @param accountNumber Account number of the user to create
+     * Handles customer creation requests by forwarding the request to the user service and waiting for a callback.
+     * @param callback Used to send the result of the request back to the source of the request.
+     * @param body Body of the request, a Json string representing a Customer object that should be
+     *             created {@link Customer}.
      */
     @RequestMapping(value = "/customer", method = RequestMethod.PUT)
     public void createCustomer(final Callback<String> callback, @RequestParam("body") final String body) {
-        HttpClient httpClient = httpClientBuilder().setHost("localhost").setPort(8888).build();
+        HttpClient httpClient = httpClientBuilder().setHost(usersHost).setPort(usersPort).build();
         httpClient.start();
         Gson gson = new Gson();
         System.out.println(body);
@@ -132,12 +173,19 @@ public final class UIService {
         doCustomerRequest(httpClient, customer, gson, callbackBuilder);
     }
 
+    /**
+     * Sends the customer request to the user service and then processes the reply accordingly.
+     * @param httpClient HttpClient used to perform an asynchronous customer creation request.
+     * @param customer Customer object that should be created in the system.
+     * @param gson used for json conversion.
+     * @param callbackBuilder used to send the response of the creation request back to the source of the request.
+     */
     private void doCustomerRequest(final HttpClient httpClient, final Customer customer, final Gson gson,
                                    final CallbackBuilder callbackBuilder) {
         System.out.println("UI: Sending customer creation request to Users");
         httpClient.putFormAsyncWith1Param("/services/user/customer", "body", gson.toJson(customer),
                 (code, contentType, body) -> {
-                    if (code == 200) {
+                    if (code == HTTP_OK) {
                         processCustomerReply(callbackBuilder, body, customer, gson);
                     } else {
                         callbackBuilder.build().reject("Customer creation request failed.");
@@ -145,6 +193,13 @@ public final class UIService {
                 });
     }
 
+    /**
+     * Handles the callback from the user service and sends the result of the request back to the source of the request.
+     * @param callbackBuilder used to send the result of the request to the source of the request.
+     * @param body Json string representing a Customer object which is a reply to the creation request.
+     * @param customer Customer object that was requested to be created.
+     * @param gson used for json conversion.
+     */
     private void processCustomerReply(final CallbackBuilder callbackBuilder, final String body,
                                       final Customer customer, final Gson gson) {
         Customer reply = gson.fromJson(body.substring(1, body.length() - 1)
