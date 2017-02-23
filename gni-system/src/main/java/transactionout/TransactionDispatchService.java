@@ -39,6 +39,12 @@ public class TransactionDispatchService {
         this.ledgerHost = newLedgerHost;
     }
 
+    /**
+     * Processes transactions from the User and Pin services, sends them to the ledger for processing and then
+     * reports the result back to the source of the transaction request.
+     * @param callback Used to send the result back to the request source.
+     * @param body Json String containing a Transaction object {@link Transaction}.
+     */
     @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
     public void processTransactionRequest(final Callback<String> callback, @RequestParam("body") final String body) {
         Gson gson = new Gson();
@@ -74,8 +80,5 @@ public class TransactionDispatchService {
                 callbackBuilder.build().reject("Recieved an error from ledger.");
             }
         });
-    }
-
-    public void processIncomingTransaction() {
     }
 }
