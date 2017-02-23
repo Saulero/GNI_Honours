@@ -28,43 +28,53 @@ public final class ServiceManager {
      */
     public static void main(final String[] args) {
         //test variables
-        String testAccountNumber = "NL52INGB0987890998";
-        String testDestinationNumber = "NL52RABO0987890998";
+        String testAccountNumber = "NL52RABO0987890998";
+        String testDestinationNumber = "NL52GNIB0987890998";
 
         //Start http client
-        HttpClient httpClient = httpClientBuilder().setHost("localhost").setPort(9990).build();
-        httpClient.start();
+        HttpClient userClient = httpClientBuilder().setHost("localhost").setPort(9990).build();
+        userClient.start();
+        HttpClient externalBankClient = httpClientBuilder().setHost("localhost").setPort(9994).build();
+        externalBankClient.start();
         //doGet(httpClient, testAccountNumber, RequestType.TRANSACTIONHISTORY);
         //doGet(httpClient, testAccountNumber, RequestType.BALANCE);
         //doGet(httpClient, testAccountNumber, RequestType.CUSTOMERDATA);
-        doTransaction(httpClient, testAccountNumber, testDestinationNumber, "De boer",
-                    20.00);
+        doTransaction(externalBankClient, testAccountNumber, testDestinationNumber, "De boer",
+                20.00, true);
+        //doTransaction(httpClient, testAccountNumber, testDestinationNumber, "De boer",
+        //            20.00, false);
         //makeNewAccount(httpClient, "Henk", "De Wilde");
     }
 
     private static void doTransaction(final HttpClient httpClient, final String sourceAccountNumber,
                                final String destinationAccountNumber, final String destinationAccountHolderName,
-                               final double transactionAmount) {
+                               final double transactionAmount, boolean isExternal) {
         Transaction transaction = Util.createJsonTransaction(-1, sourceAccountNumber,
                                     destinationAccountNumber, destinationAccountHolderName, transactionAmount,
                                     false, false);
         Gson gson = new Gson();
-        httpClient.putFormAsyncWith1Param("/services/ui/transaction", "body", gson.toJson(transaction),
-                (code, contentType, body) -> { if (code == 200) {
-                        System.out.println("received" + body);
-                        Transaction reply = gson.fromJson(body.substring(1, body.length() - 1).replaceAll("\\\\", ""),
-                                Transaction.class);
-                        if (reply.isSuccessfull() && reply.isProcessed()) {
-                            System.out.println("Transaction successfull.");
-                        } else if (!reply.isProcessed()) {
-                            System.out.println("Transaction couldn't be processed");
-                        } else {
-                            System.out.println("Transaction was not successfull");
-                        }
-                    } else {
-                        System.out.println("Transaction request failed, body: " + body);
-                    }
-                });
+        String uri;
+        if (isExternal) {
+            uri = "/services/transactionReceive/transaction";
+        } else {
+            uri = "/services/ui/transaction";
+        }
+        httpClient.putFormAsyncWith1Param(uri, "body", gson.toJson(transaction),
+                                        (code, contentType, body) -> {
+            if (code == 200) {
+                Transaction reply = gson.fromJson(body.substring(1, body.length() - 1).replaceAll("\\\\", ""),
+                                                    Transaction.class);
+                if (reply.isSuccessfull() && reply.isProcessed()) {
+                    System.out.println("Transaction successfull.");
+                } else if (!reply.isProcessed()) {
+                    System.out.println("Transaction couldn't be processed");
+                } else {
+                    System.out.println("Transaction was not successfull");
+                }
+            } else {
+                System.out.println("Transaction request failed, body: " + body);
+            }
+        });
     }
 
     private static void makeNewAccount(final HttpClient httpClient, final String newName, final String newSurname) {

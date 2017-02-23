@@ -1,7 +1,5 @@
 package util;
 
-import java.lang.reflect.Field;
-
 /**
  * @author Saul
  */
@@ -111,5 +109,20 @@ public class Transaction {
                 && this.getDestinationAccountHolderName().equals(transaction.getDestinationAccountHolderName())
                 && this.getTransactionAmount() == transaction.getTransactionAmount();
     }
-}
 
+    /**
+     * Checks if the Transaction has a GNIB source accountNumber.
+     * @return True if the sourceAccountNumber is a GNIB accountNumber, otherwise returns false.
+     */
+    public boolean isGNIBSource() {
+        return this.getSourceAccountNumber().contains("GNIB");
+    }
+
+    /**
+     * Checks if the Transaction has a GNIB destination accountNumber.
+     * @return True if the destinationAccountNumber is a GNIB accountNumber, otherwise returns false.
+     */
+    public boolean isGNIBDestination() {
+        return this.getDestinationAccountNumber().contains("GNIB");
+    }
+}

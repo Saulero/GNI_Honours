@@ -50,7 +50,8 @@ public class Ledger {
     public void processTransaction(final Callback<String> callback, final @RequestParam("body") String body) {
         Gson gson = new Gson();
         Transaction transaction = gson.fromJson(body, Transaction.class);
-        String accountNumber = transaction.getSourceAccountNumber();
+        String sourceAccountNumber = transaction.getSourceAccountNumber();
+        String destinationAccountNumber = transaction.getDestinationAccountNumber();
         //TODO generate transactionId
         long transactionId = 134567890;
         Transaction reply = Util.createJsonTransaction(transactionId, transaction.getSourceAccountNumber(),
@@ -68,7 +69,8 @@ public class Ledger {
                 callback.reply(gson.toJson(reply));
             } else {
                 //TODO process transaction in database
-                System.out.printf("Ledger: Processed transaction, Account number: %s\n\n", accountNumber);
+                System.out.printf("Ledger: Processed transaction, src Account number: %s, dst Account number: %s\n\n",
+                        sourceAccountNumber, destinationAccountNumber);
                 reply.setSuccessfull(true);
                 callback.reply(gson.toJson(reply));
             }

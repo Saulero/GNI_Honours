@@ -1,8 +1,15 @@
 package transactionin;
 
+import com.google.gson.Gson;
 import io.advantageous.qbit.annotation.RequestMapping;
+import io.advantageous.qbit.annotation.RequestMethod;
 import io.advantageous.qbit.annotation.RequestParam;
+import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
+import io.advantageous.qbit.reactive.CallbackBuilder;
+import util.Transaction;
+
+import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 
 /**
  * @author Noel
@@ -30,14 +37,63 @@ public class TransactionReceiveService {
     }
 
     /**
-     * Processes method coming from other banks, sends them to the ledger and then sends back a reply.
+     * Processes transactions that come from external banks by checking if the destination is a GNIB accountNumber
+     * and then executing the transaction. Reports the result back to the request source.
      * @param callback Used to send a reply back to the external bank.
      * @param body Json String representing an external transaction.
      */
     //TODO might need reworking when it is clear how external transactions will be sent
+    @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
     public void processIncomingTransaction(final Callback<String> callback, final @RequestParam("body") String body) {
-        //TODO fill method
+        Gson gson = new Gson();
+        Transaction request = gson.fromJson(body, Transaction.class);
+        System.out.println("Received transaction request from external bank");
+        HttpClient httpClient = httpClientBuilder().setHost(ledgerHost).setPort(ledgerPort).build();
+        httpClient.start();
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder();
+        callbackBuilder.withStringCallback(callback);
+        if (request.isGNIBDestination()) {
+            doTransaction(httpClient, gson, request, callbackBuilder);
+        } else {
+            //TODO send reply instead of rejection
+            callback.reject("Destination account is not a GNIB account");
+        }
+    }
 
-        System.out.println("Processing transaction from an external bank.");
+    /**
+     * Sends a transaction request to the Ledger for executing and then processes the reply and reports the result
+     * back to the request source.
+     * @param httpClient HttpClient used to communicate with the Ledger.
+     * @param gson Used for Json conversions.
+     * @param request Transaction object containing the transaction requested by an external bank.
+     * @param callbackBuilder Used to send the result back to the bank that requested the transaction.
+     */
+    private void doTransaction(final HttpClient httpClient, final Gson gson, final Transaction request,
+                               final CallbackBuilder callbackBuilder) {
+        httpClient.putFormAsyncWith1Param("/services/ledger/transaction", "body", gson.toJson(request),
+                (code, contentType, replyBody) -> {
+                    if (code == HTTP_OK) {
+                        Transaction reply = gson.fromJson(replyBody.substring(1, replyBody.length() - 1)
+                                .replaceAll("\\\\", ""), Transaction.class);
+                        if (reply.isProcessed()) {
+                            if (reply.isSuccessfull()) {
+                                System.out.println("Successfully processed external transaction");
+                                callbackBuilder.build().reply(gson.toJson(reply));
+                                //TODO send reply to external bank.
+                            } else {
+                                System.out.println("External transaction wasn't successfull, rejecting.");
+                                //TODO send unsuccessfull reply instead of rejection
+                                callbackBuilder.build().reject("Unsuccessfull external transaction.");
+                            }
+                        } else {
+                            System.out.println("External transaction couldnt be processed, rejecting.");
+                            //TODO send unsuccessfull reply instead of rejection
+                            callbackBuilder.build().reject("Transaction couldn't be processed.");
+                        }
+                    } else {
+                        //TODO send unsuccessfull reply instead of rejection
+                        callbackBuilder.build().reject("Recieved an error from ledger.");
+                    }
+                });
     }
 }
