@@ -34,7 +34,7 @@ public final class UIService {
      * @param newUsersPort port the user service can be found on.
      * @param newUsersHost host the user service can be found on.
      */
-    public UIService(final int newUsersPort, final String newUsersHost) {
+    UIService(final int newUsersPort, final String newUsersHost) {
         this.usersPort = newUsersPort;
         this.usersHost = newUsersHost;
     }
@@ -42,7 +42,7 @@ public final class UIService {
     /**
      * Process a data requests from a user.
      * @param callback Callback used to send a reply back to the origin of the request.
-     * @param jsonRequest A Json string representing a DataRequest object {@link DataRequest}.
+     * @param jsonRequest A Json String representing a DataRequest object {@link DataRequest}.
      */
     @RequestMapping(value = "/data", method = RequestMethod.GET)
     public void processDataRequest(final Callback<String> callback, @RequestParam("body") final String jsonRequest) {
@@ -56,10 +56,10 @@ public final class UIService {
     }
 
     /**
-     * Forwards the data request to the user service and waits for a callback.
+     * Forwards the data request to the User service and waits for a callback.
      * @param httpClient Httpclient to use to make an asynchronous request.
-     * @param request DataRequest to forward to the user service.
-     * @param gson Used for json conversion.
+     * @param request DataRequest to forward to the User service.
+     * @param gson Used for Json conversion.
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
     private void doUserDataRequest(final HttpClient httpClient, final DataRequest request, final Gson gson,
@@ -78,9 +78,9 @@ public final class UIService {
     /**
      * Checks if a data request was successfull and sends the reply back to the source of the request.
      * @param callbackBuilder Used to send the received reply back to the source of the request.
-     * @param body Body of the callback, a json string representing a DataReply object {@link DataReply}.
-     * @param request Data request that was made to the user service.
-     * @param gson Used for json conversion.
+     * @param body Body of the callback, a Json string representing a DataReply object {@link DataReply}.
+     * @param request Data request that was made to the User service.
+     * @param gson Used for Json conversion.
      */
     private void processUserDataReply(final CallbackBuilder callbackBuilder, final String body,
                                                 final DataRequest request, final Gson gson) {
@@ -97,8 +97,8 @@ public final class UIService {
     }
 
     /**
-     * Sends an incoming transaction request to the user service.
-     * @param callback Used to send the reply of user service to the source of the request.
+     * Sends an incoming transaction request to the User service.
+     * @param callback Used to send the reply of User service to the source of the request.
      * @param body Body of the transaction request, a Json string representing a Transaction object {@link Transaction}
      */
     @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
@@ -114,10 +114,10 @@ public final class UIService {
     }
 
     /**
-     * Forwards transaction request to the user service and wait for a callback.
+     * Forwards transaction request to the User service and wait for a callback.
      * @param httpClient Client used to perform an asynchronous transaction request.
      * @param request Transaction request that should be processed.
-     * @param gson used for json conversion.
+     * @param gson Used for Json conversion.
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
     private void doTransactionRequest(final HttpClient httpClient, final Transaction request, final Gson gson,
@@ -138,7 +138,7 @@ public final class UIService {
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      * @param body Body of the transaction reply, Json string representing a Transaction object {@link Transaction}.
      * @param request Transaction request that has been processed.
-     * @param gson used for json conversion.
+     * @param gson Used for Json conversion.
      */
     private void processTransactionReply(final CallbackBuilder callbackBuilder, final String body,
                                          final Transaction request, final Gson gson) {
@@ -174,11 +174,11 @@ public final class UIService {
     }
 
     /**
-     * Sends the customer request to the user service and then processes the reply accordingly.
+     * Sends the customer request to the User service and then processes the reply accordingly.
      * @param httpClient HttpClient used to perform an asynchronous customer creation request.
      * @param customer Customer object that should be created in the system.
-     * @param gson used for json conversion.
-     * @param callbackBuilder used to send the response of the creation request back to the source of the request.
+     * @param gson Used for Json conversion.
+     * @param callbackBuilder Used to send the response of the creation request back to the source of the request.
      */
     private void doCustomerRequest(final HttpClient httpClient, final Customer customer, final Gson gson,
                                    final CallbackBuilder callbackBuilder) {
@@ -194,11 +194,11 @@ public final class UIService {
     }
 
     /**
-     * Handles the callback from the user service and sends the result of the request back to the source of the request.
-     * @param callbackBuilder used to send the result of the request to the source of the request.
+     * Handles the callback from the User service and sends the result of the request back to the source of the request.
+     * @param callbackBuilder Used to send the result of the request to the source of the request.
      * @param body Json string representing a Customer object which is a reply to the creation request.
      * @param customer Customer object that was requested to be created.
-     * @param gson used for json conversion.
+     * @param gson Used for Json conversion.
      */
     private void processCustomerReply(final CallbackBuilder callbackBuilder, final String body,
                                       final Customer customer, final Gson gson) {

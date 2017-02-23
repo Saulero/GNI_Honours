@@ -15,7 +15,8 @@ public class UserServiceMain {
                         .setPort(8888); //Defaults to 8080 or environment variable PORT
 
         /* Start the service. */
-        managedServiceBuilder.addEndpointService(new UserService()) //Register TodoService
+        managedServiceBuilder.addEndpointService(new UserService(9999, "localhost",
+                101010, "localhost"))
                 .getEndpointServerBuilder()
                 .build().startServer();
 
