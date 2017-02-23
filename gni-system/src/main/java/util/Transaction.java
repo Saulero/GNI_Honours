@@ -13,7 +13,9 @@ public class Transaction {
     private boolean processed;
     private boolean successfull;
 
-    public Transaction(long transactionID, String sourceAccountNumber, String destinationAccountNumber, String destinationAccountHolderName, double transactionAmount) {
+    public Transaction(final long transactionID, final String sourceAccountNumber,
+                       final String destinationAccountNumber, final String destinationAccountHolderName,
+                       final double transactionAmount) {
         this.transactionID = transactionID;
         this.sourceAccountNumber = sourceAccountNumber;
         this.destinationAccountNumber = destinationAccountNumber;

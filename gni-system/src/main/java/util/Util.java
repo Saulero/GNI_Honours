@@ -46,6 +46,20 @@ public class Util {
         customer.setAccountNumber(newAccountNumber);
         customer.setEnrolled(newEnrolled);
         return customer;
+    }
 
+    public static PinTransaction createJsonPinTransaction(final String newSourceAccountNumber,
+                                                          final String newDestinationAccountNumber,
+                                                          final String newDestinationAccountHolderName,
+                                                          final String newPinCode, final String newCardNumber,
+                                                          final double newTransactionAmount) {
+        PinTransaction pinTransaction = new PinTransaction();
+        pinTransaction.setSourceAccountNumber(newSourceAccountNumber);
+        pinTransaction.setDestinationAccountNumber(newDestinationAccountNumber);
+        pinTransaction.setDestinationAccountHolderName(newDestinationAccountHolderName);
+        pinTransaction.setPinCode(newPinCode);
+        pinTransaction.setCardNumber(newCardNumber);
+        pinTransaction.setTransactionAmount(newTransactionAmount);
+        return pinTransaction;
     }
 }

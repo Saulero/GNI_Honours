@@ -6,6 +6,7 @@ import io.advantageous.qbit.http.client.HttpClient;
 import util.*;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
+import static java.net.HttpURLConnection.HTTP_OK;
 
 /**
  * Created by noel on 4-2-17.
@@ -36,11 +37,15 @@ public final class ServiceManager {
         userClient.start();
         HttpClient externalBankClient = httpClientBuilder().setHost("localhost").setPort(9994).build();
         externalBankClient.start();
+        HttpClient pinClient = httpClientBuilder().setHost("localhost").setPort(9995).build();
+        pinClient.start();
         //doGet(httpClient, testAccountNumber, RequestType.TRANSACTIONHISTORY);
         //doGet(httpClient, testAccountNumber, RequestType.BALANCE);
         //doGet(httpClient, testAccountNumber, RequestType.CUSTOMERDATA);
-        doTransaction(externalBankClient, testAccountNumber, testDestinationNumber, "De boer",
-                20.00, true);
+        doPin(pinClient, testDestinationNumber, testAccountNumber, "De wilde", "8888",
+                "730", 20.00);
+        //doTransaction(externalBankClient, testAccountNumber, testDestinationNumber, "De boer",
+        //        20.00, true);
         //doTransaction(httpClient, testAccountNumber, testDestinationNumber, "De boer",
         //            20.00, false);
         //makeNewAccount(httpClient, "Henk", "De Wilde");
@@ -108,6 +113,30 @@ public final class ServiceManager {
                         System.out.println("Request successfull, reply: " + reply.getData());
                     } else {
                         System.out.println("Transaction history request not successfull, body: " + body);
+                    }
+                });
+    }
+
+    private static void doPin(final HttpClient httpClient, final String sourceAccountNumber,
+                              final String destinationAccountNumber, final String destinationAccountHolderName,
+                              final String pinCode, final String cardNumber, final double transactionAmount) {
+        PinTransaction pin = Util.createJsonPinTransaction(sourceAccountNumber, destinationAccountNumber,
+                                destinationAccountHolderName, pinCode, cardNumber, transactionAmount);
+        Gson gson = new Gson();
+        httpClient.putFormAsyncWith1Param("/services/pin/transaction", "body", gson.toJson(pin),
+                (code, contentType, body) -> {
+                    if (code == HTTP_OK) {
+                        Transaction reply = gson.fromJson(body.substring(1, body.length() - 1).replaceAll("\\\\", ""),
+                                Transaction.class);
+                        if (reply.isSuccessfull() && reply.isProcessed()) {
+                            System.out.println("Pin transaction successfull.");
+                        } else if (!reply.isProcessed()) {
+                            System.out.println("Pin transaction couldn't be processed");
+                        } else {
+                            System.out.println("Pin transaction was not successfull");
+                        }
+                    } else {
+                        System.out.println("Pin transaction request failed, body: " + body);
                     }
                 });
     }
