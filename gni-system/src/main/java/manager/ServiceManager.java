@@ -32,14 +32,14 @@ public final class ServiceManager {
         String testDestinationNumber = "NL52RABO0987890998";
 
         //Start http client
-        HttpClient httpClient = httpClientBuilder().setHost("localhost").setPort(7777).build();
+        HttpClient httpClient = httpClientBuilder().setHost("localhost").setPort(9990).build();
         httpClient.start();
-        doGet(httpClient, testAccountNumber, RequestType.TRANSACTIONHISTORY);
-        doGet(httpClient, testAccountNumber, RequestType.BALANCE);
-        doGet(httpClient, testAccountNumber, RequestType.CUSTOMERDATA);
+        //doGet(httpClient, testAccountNumber, RequestType.TRANSACTIONHISTORY);
+        //doGet(httpClient, testAccountNumber, RequestType.BALANCE);
+        //doGet(httpClient, testAccountNumber, RequestType.CUSTOMERDATA);
         doTransaction(httpClient, testAccountNumber, testDestinationNumber, "De boer",
                     20.00);
-        makeNewAccount(httpClient, "Henk", "De Wilde");
+        //makeNewAccount(httpClient, "Henk", "De Wilde");
     }
 
     private static void doTransaction(final HttpClient httpClient, final String sourceAccountNumber,

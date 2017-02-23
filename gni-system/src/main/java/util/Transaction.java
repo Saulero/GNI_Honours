@@ -91,13 +91,25 @@ public class Transaction {
      * @param transaction object to check for equality.
      * @return boolean indicating if the objects are equal.
      */
-    public boolean equals(Transaction transaction) {
+    public boolean equals(final Transaction transaction) {
         return this.getTransactionID() == transaction.getTransactionID() && this.getSourceAccountNumber().equals(
                 transaction.getSourceAccountNumber()) && this.getDestinationAccountNumber().equals(
                 transaction.getDestinationAccountNumber()) && this.getDestinationAccountHolderName()
         .equals(transaction.getDestinationAccountHolderName()) && this.getTransactionAmount()
                 == transaction.getTransactionAmount() && this.isProcessed() == transaction.isProcessed()
                 && this.isSuccessfull() == transaction.isSuccessfull();
+    }
+
+    /**
+     * Used to compare a transaction request where the transactionID is not set to the reply where it is set.
+     * @param transaction Transaction request.
+     * @return If the request is equal to the reply on every variable except transactionID.
+     */
+    public boolean equalsRequest(final Transaction transaction) {
+        return this.getSourceAccountNumber().equals(transaction.getSourceAccountNumber())
+                && this.getDestinationAccountNumber().equals(transaction.getDestinationAccountNumber())
+                && this.getDestinationAccountHolderName().equals(transaction.getDestinationAccountHolderName())
+                && this.getTransactionAmount() == transaction.getTransactionAmount();
     }
 }
 

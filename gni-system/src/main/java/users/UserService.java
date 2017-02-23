@@ -108,11 +108,47 @@ public class UserService {
     @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
     public void processTransactionRequest(final Callback<String> callback, final @RequestParam("body") String body) {
         Gson gson = new Gson();
-        Transaction transaction = gson.fromJson(body, Transaction.class);
+        Transaction request = gson.fromJson(body, Transaction.class);
         //TODO send transaction to TransactionDispatch service
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder();
+        callbackBuilder.withStringCallback(callback);
+        HttpClient httpClient = httpClientBuilder().setHost(transactionDispatchHost).setPort(transactionDispatchPort)
+                                                    .build();
+        httpClient.start();
         System.out.println("Sent transaction to TransactionDispatch");
-        Transaction transactionInReply = transaction;
-        callback.reply(gson.toJson(transactionInReply));
+        doTransactionRequest(httpClient, request, gson, callbackBuilder);
+    }
+
+    /**
+     * Sends transaction request to the TransactionDispatch service and sends the reply back to the UI service.
+     * @param httpClient HttpClient used to send the request to the TransactionDispatch.
+     * @param request Transaction request made by the UI service {@link Transaction}.
+     * @param gson Used to do Json conversions.
+     * @param callbackBuilder Used to send the result back to the UI service.
+     */
+    private void doTransactionRequest(final HttpClient httpClient, final Transaction request, final Gson gson,
+                                      final CallbackBuilder callbackBuilder) {
+        httpClient.putFormAsyncWith1Param("/services/transactionDispatch/transaction", "body",
+                                            gson.toJson(request), (code, contentType, body) -> {
+            if (code == HTTP_OK) {
+                System.out.println("reply: " + body);
+                Transaction reply = gson.fromJson(body.substring(1, body.length() - 1)
+                                                                .replaceAll("\\\\", ""), Transaction.class);
+                System.out.println("after reply");
+                if (reply.isProcessed() && reply.equalsRequest(request)) {
+                    if (reply.isSuccessfull()) {
+                        System.out.println("Transaction was successfull");
+                        callbackBuilder.build().reply(gson.toJson(reply));
+                    } else {
+                        callbackBuilder.build().reject("Transaction was unsuccessfull.");
+                    }
+                } else {
+                    callbackBuilder.build().reject("Transaction couldn't be processed.");
+                }
+            } else {
+                callbackBuilder.build().reject("Couldn't reach transactionDispatch.");
+            }
+        });
     }
 
     /**

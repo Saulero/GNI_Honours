@@ -145,7 +145,7 @@ public final class UIService {
         String replyJson = body.substring(1, body.length() - 1).replaceAll("\\\\", "");
         Transaction reply = gson.fromJson(replyJson, Transaction.class);
         request.setTransactionID(reply.getTransactionID());
-        if (reply.equals(request)) {
+        if (reply.equalsRequest(request)) {
             callbackBuilder.build().reply(gson.toJson(reply));
             System.out.println("Request successfull, transactionId: " + reply.getTransactionID());
         } else {

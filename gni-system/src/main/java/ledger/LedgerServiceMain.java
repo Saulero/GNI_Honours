@@ -12,7 +12,7 @@ public class LedgerServiceMain {
         final ManagedServiceBuilder managedServiceBuilder =
                 ManagedServiceBuilder.managedServiceBuilder()
                         .setRootURI("/services") //Defaults to services
-                        .setPort(9999); //Defaults to 8080 or environment variable PORT
+                        .setPort(9992); //Defaults to 8080 or environment variable PORT
 
         /* Start the service. */
         managedServiceBuilder.addEndpointService(new Ledger()) //Register TodoService

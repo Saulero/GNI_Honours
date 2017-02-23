@@ -13,10 +13,10 @@ public class UIServiceMain {
         final ManagedServiceBuilder managedServiceBuilder =
                 ManagedServiceBuilder.managedServiceBuilder()
                         .setRootURI("/services") //Defaults to services
-                        .setPort(7777); //Defaults to 8080 or environment variable PORT
+                        .setPort(9990); //Defaults to 8080 or environment variable PORT
 
         /* Start the service. */
-        managedServiceBuilder.addEndpointService(new UIService(8888, "localhost"))
+        managedServiceBuilder.addEndpointService(new UIService(9991, "localhost"))
                 .getEndpointServerBuilder()
                 .build().startServer();
 
