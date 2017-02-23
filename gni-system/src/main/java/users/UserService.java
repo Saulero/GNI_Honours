@@ -129,26 +129,39 @@ public class UserService {
         Customer customer = gson.fromJson(body, Customer.class);
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder();
         callbackBuilder.withStringCallback(callback);
+        doCustomerRequest(httpClient, gson, customer, callbackBuilder);
+    }
+
+    /**
+     * Sends request for obtaining an accountNumber to the ledger, then processes the customer request internally in
+     * the User database and sends a reply back to the UI service.
+     * @param httpClient HttpClient used to send an asynchronous accountNumber request to the ledger.
+     * @param gson Used to do Json conversions.
+     * @param customer Customer object that was used to make a new customer request.
+     * @param callbackBuilder Used to send the result of the customer request back to the UI service.
+     */
+    private void doCustomerRequest(final HttpClient httpClient, final Gson gson, final Customer customer,
+                                   final CallbackBuilder callbackBuilder) {
         httpClient.putFormAsyncWith1Param("/services/ledger/accountNumber", "body", gson.toJson(customer),
                 (code, contentType, replyBody) -> {
-            if (code == HTTP_OK) {
-                Customer ledgerReply = gson.fromJson(replyBody.substring(1, replyBody.length() - 1)
-                                                    .replaceAll("\\\\", ""), Customer.class);
-                String accountNumber = ledgerReply.getAccountNumber();
-                boolean enrolled = ledgerReply.getEnrolled();
-                if (enrolled) {
-                    String customerName = customer.getName();
-                    String customerSurname = customer.getSurname();
-                    Customer enrolledCustomer = Util.createJsonCustomer(customerName, customerSurname,
-                            accountNumber, enrolled);
-                    //TODO enroll customer in database
-                    callbackBuilder.build().reply(gson.toJson(enrolledCustomer));
-                } else {
-                    callbackBuilder.build().reject("Ledger failed to enroll.");
-                }
-            } else {
-                callbackBuilder.build().reject("Recieved an error from ledger.");
-            }
-            });
+                    if (code == HTTP_OK) {
+                        Customer ledgerReply = gson.fromJson(replyBody.substring(1, replyBody.length() - 1)
+                                .replaceAll("\\\\", ""), Customer.class);
+                        String accountNumber = ledgerReply.getAccountNumber();
+                        boolean enrolled = ledgerReply.getEnrolled();
+                        if (enrolled) {
+                            String customerName = customer.getName();
+                            String customerSurname = customer.getSurname();
+                            Customer enrolledCustomer = Util.createJsonCustomer(customerName, customerSurname,
+                                    accountNumber, enrolled);
+                            //TODO enroll customer in database
+                            callbackBuilder.build().reply(gson.toJson(enrolledCustomer));
+                        } else {
+                            callbackBuilder.build().reject("Ledger failed to enroll.");
+                        }
+                    } else {
+                        callbackBuilder.build().reject("Recieved an error from ledger.");
+                    }
+                });
     }
 }
