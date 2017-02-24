@@ -7,9 +7,9 @@ import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
-import util.PinTransaction;
-import util.Transaction;
-import util.Util;
+import databeans.PinTransaction;
+import databeans.Transaction;
+import util.JSONParser;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 import static java.net.HttpURLConnection.HTTP_OK;
@@ -23,6 +23,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
  */
 @RequestMapping("/pin")
 public class PinService {
+
     private String transactionDispatchHost;
     private int transactionDispatchPort;
 
@@ -30,7 +31,6 @@ public class PinService {
         this.transactionDispatchPort = newTransactionDispatchPort;
         this.transactionDispatchHost = newTransactionDispatchHost;
     }
-
 
     @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
     public void processPinTransaction(final Callback<String> callback, final @RequestParam("body") String body) {
@@ -40,7 +40,7 @@ public class PinService {
         //TODO internal check to confirm pin number
         boolean pinCorrect = true;
         if (pinCorrect) {
-            Transaction transaction = Util.createJsonTransaction(-1, request.getSourceAccountNumber(),
+            Transaction transaction = JSONParser.createJsonTransaction(-1, request.getSourceAccountNumber(),
                     request.getDestinationAccountNumber(), request.getDestinationAccountHolderName(),
                     request.getTransactionAmount(), false, false);
             HttpClient httpClient = httpClientBuilder().setHost(transactionDispatchHost)

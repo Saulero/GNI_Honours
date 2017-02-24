@@ -1,11 +1,13 @@
 package util;
 
+import databeans.*;
+
 /**
  * Created by noel on 18-2-17.
  * @author noel
  * @version 1
  */
-public class Util {
+public class JSONParser {
 
     public static DataReply createJsonReply(final String accountNumber, final RequestType type, final String data) {
         DataReply reply = new DataReply();

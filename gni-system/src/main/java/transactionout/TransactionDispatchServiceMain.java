@@ -6,6 +6,7 @@ import io.advantageous.qbit.admin.ManagedServiceBuilder;
  * Created by noel on 23-2-17.
  */
 public class TransactionDispatchServiceMain {
+
     public static void main(final String[] args) {
                 /* Create the ManagedServiceBuilder which manages a clean shutdown, health, stats, etc. */
         final ManagedServiceBuilder managedServiceBuilder =

@@ -1,4 +1,4 @@
-package util;
+package databeans;
 
 import java.io.Serializable;
 
@@ -34,7 +34,9 @@ public final class Customer implements Serializable {
     /**
      * Empty constructor for creation of json objects. Do not use unless you set all variables manually afterwards.
      */
-    public Customer() {}
+    public Customer() {
+
+    }
 
     public String getName() { return name; }
 

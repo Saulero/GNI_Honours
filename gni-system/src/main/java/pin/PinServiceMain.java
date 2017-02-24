@@ -8,6 +8,7 @@ import transactionout.TransactionDispatchService;
  * Created by noel on 23-2-17.
  */
 public class PinServiceMain {
+
     public static void main(final String[] args) {
                 /* Create the ManagedServiceBuilder which manages a clean shutdown, health, stats, etc. */
         final ManagedServiceBuilder managedServiceBuilder =

@@ -7,10 +7,10 @@ import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
-import util.Customer;
-import util.DataReply;
-import util.DataRequest;
-import util.Transaction;
+import databeans.Customer;
+import databeans.DataReply;
+import databeans.DataRequest;
+import databeans.Transaction;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 
@@ -22,6 +22,7 @@ import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuild
  */
 @RequestMapping("/ui")
 public final class UIService {
+
     /**Used to verify if a http request to another service was successfull.*/
     private static final int HTTP_OK = 200;
     /**Port that the user service can be found on.*/
@@ -34,7 +35,7 @@ public final class UIService {
      * @param newUsersPort port the user service can be found on.
      * @param newUsersHost host the user service can be found on.
      */
-    UIService(final int newUsersPort, final String newUsersHost) {
+    public UIService(final int newUsersPort, final String newUsersHost) {
         this.usersPort = newUsersPort;
         this.usersHost = newUsersHost;
     }
@@ -89,7 +90,6 @@ public final class UIService {
         if (reply.getAccountNumber().equals(request.getAccountNumber())
                 && reply.getType() == request.getType()) {
             callbackBuilder.build().reply(gson.toJson(reply));
-            System.out.println("Request successfull, data: " +  reply.getData());
         } else {
             System.out.println("Transaction request failed on reply check.");
             callbackBuilder.build().reject("Transaction request failed.");

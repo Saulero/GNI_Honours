@@ -8,6 +8,7 @@ import io.advantageous.qbit.admin.ManagedServiceBuilder;
  * @version 1
  */
 public class TransactionReceiveServiceMain {
+
     public static void main(final String[] args) {
                 /* Create the ManagedServiceBuilder which manages a clean shutdown, health, stats, etc. */
         final ManagedServiceBuilder managedServiceBuilder =

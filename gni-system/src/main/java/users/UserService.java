@@ -7,12 +7,12 @@ import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
-import util.Customer;
-import util.DataReply;
-import util.DataRequest;
-import util.RequestType;
-import util.Transaction;
-import util.Util;
+import databeans.Customer;
+import databeans.DataReply;
+import databeans.DataRequest;
+import databeans.RequestType;
+import databeans.Transaction;
+import util.JSONParser;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 
@@ -23,6 +23,7 @@ import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuild
  */
 @RequestMapping("/user")
 public class UserService {
+
     /**Used to verify if a http request to another service was successfull.*/
     private static final int HTTP_OK = 200;
     /**Port that the Ledger service can be found on.*/
@@ -41,7 +42,7 @@ public class UserService {
      * @param newTransactionDispatchPort Port the TransactionDispatch service can be found on.
      * @param newTransactionDispatchHost Host the TransactionDispatch service can be found on.
      */
-    UserService(final int newLedgerPort, final String newLedgerHost, final int newTransactionDispatchPort,
+    public UserService(final int newLedgerPort, final String newLedgerHost, final int newTransactionDispatchPort,
                        final String newTransactionDispatchHost) {
         this.ledgerPort = newLedgerPort;
         this.ledgerHost = newLedgerHost;
@@ -66,7 +67,7 @@ public class UserService {
         if (request.getType() == RequestType.CUSTOMERDATA) {
             //TODO fetch customer information from database
             String customerInformation = "freekje";
-            DataReply reply = Util.createJsonReply(request.getAccountNumber(), request.getType(), customerInformation);
+            DataReply reply = JSONParser.createJsonReply(request.getAccountNumber(), request.getType(), customerInformation);
             callbackBuilder.build().reply(gson.toJson(reply));
         } else {
             doDataRequest(request, gson, callbackBuilder);
@@ -188,7 +189,7 @@ public class UserService {
                         if (enrolled) {
                             String customerName = customer.getName();
                             String customerSurname = customer.getSurname();
-                            Customer enrolledCustomer = Util.createJsonCustomer(customerName, customerSurname,
+                            Customer enrolledCustomer = JSONParser.createJsonCustomer(customerName, customerSurname,
                                     accountNumber, enrolled);
                             //TODO enroll customer in database
                             callbackBuilder.build().reply(gson.toJson(enrolledCustomer));

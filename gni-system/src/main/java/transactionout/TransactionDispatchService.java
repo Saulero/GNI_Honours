@@ -7,7 +7,7 @@ import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
-import util.Transaction;
+import databeans.Transaction;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 
@@ -22,6 +22,7 @@ import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuild
  */
 @RequestMapping("/transactionDispatch")
 public class TransactionDispatchService {
+
     /**Used to verify if a http request to another service was successfull.*/
     private static final int HTTP_OK = 200;
     /**Port that the Ledger service can be found on.*/
@@ -34,7 +35,7 @@ public class TransactionDispatchService {
      * @param newLedgerPort Port the ledger can be found on.
      * @param newLedgerHost Host the ledger can be found on.
      */
-    TransactionDispatchService(final int newLedgerPort, final String newLedgerHost) {
+    public TransactionDispatchService(final int newLedgerPort, final String newLedgerHost) {
         this.ledgerPort = newLedgerPort;
         this.ledgerHost = newLedgerHost;
     }

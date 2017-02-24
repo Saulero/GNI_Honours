@@ -1,9 +1,9 @@
 package manager;
 
 import com.google.gson.Gson;
-import io.advantageous.boon.core.Sys;
 import io.advantageous.qbit.http.client.HttpClient;
-import util.*;
+import databeans.*;
+import util.JSONParser;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 import static java.net.HttpURLConnection.HTTP_OK;
@@ -54,7 +54,7 @@ public final class ServiceManager {
     private static void doTransaction(final HttpClient httpClient, final String sourceAccountNumber,
                                final String destinationAccountNumber, final String destinationAccountHolderName,
                                final double transactionAmount, boolean isExternal) {
-        Transaction transaction = Util.createJsonTransaction(-1, sourceAccountNumber,
+        Transaction transaction = JSONParser.createJsonTransaction(-1, sourceAccountNumber,
                                     destinationAccountNumber, destinationAccountHolderName, transactionAmount,
                                     false, false);
         Gson gson = new Gson();
@@ -83,7 +83,7 @@ public final class ServiceManager {
     }
 
     private static void makeNewAccount(final HttpClient httpClient, final String newName, final String newSurname) {
-        Customer customer = Util.createJsonCustomer(newName, newSurname, "", false);
+        Customer customer = JSONParser.createJsonCustomer(newName, newSurname, "", false);
         Gson gson = new Gson();
         httpClient.putFormAsyncWith1Param("/services/ui/customer", "body", gson.toJson(customer),
                 (code, contentType, body) -> { if (code == 200) {
@@ -102,7 +102,7 @@ public final class ServiceManager {
     }
 
     private static void doGet(HttpClient httpClient, String accountNumber, RequestType type) {
-        DataRequest request = Util.createJsonRequest(accountNumber, type);
+        DataRequest request = JSONParser.createJsonRequest(accountNumber, type);
         Gson gson = new Gson();
         httpClient.getAsyncWith1Param("/services/ui/data", "body", gson.toJson(request),
                 (code, contentType, body) -> {
@@ -120,7 +120,7 @@ public final class ServiceManager {
     private static void doPin(final HttpClient httpClient, final String sourceAccountNumber,
                               final String destinationAccountNumber, final String destinationAccountHolderName,
                               final String pinCode, final String cardNumber, final double transactionAmount) {
-        PinTransaction pin = Util.createJsonPinTransaction(sourceAccountNumber, destinationAccountNumber,
+        PinTransaction pin = JSONParser.createJsonPinTransaction(sourceAccountNumber, destinationAccountNumber,
                                 destinationAccountHolderName, pinCode, cardNumber, transactionAmount);
         Gson gson = new Gson();
         httpClient.putFormAsyncWith1Param("/services/pin/transaction", "body", gson.toJson(pin),

@@ -1,4 +1,4 @@
-package util;
+package databeans;
 
 import java.io.Serializable;
 
