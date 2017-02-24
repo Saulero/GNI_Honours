@@ -50,4 +50,10 @@ public class ConnectionPool {
             sqlConnection.close();
         }
     }
+
+    public void close() {
+        for (SQLConnection connection : pool) {
+            connection.close();
+        }
+    }
 }

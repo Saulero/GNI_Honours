@@ -139,7 +139,7 @@ public class Ledger {
         }
     }
 
-    private void addTransaction(final Transaction transaction, final boolean incoming) {
+    public void addTransaction(final Transaction transaction, final boolean incoming) {
         try {
             SQLConnection connection = db.getConnection();
             PreparedStatement ps;
@@ -163,40 +163,13 @@ public class Ledger {
         }
     }
 
-    private long getNextTransactionID() {
-        try {
-            SQLConnection connection = db.getConnection();
-            PreparedStatement ps1 = connection.getConnection().prepareStatement(getHighestIncomingTransactionID);
-            PreparedStatement ps2 = connection.getConnection().prepareStatement(getHighestOutgoingTransactionID);
-            ResultSet rs1 = ps1.executeQuery();
-            ResultSet rs2 = ps2.executeQuery();
+    public long getNextTransactionID() {
+        SQLConnection connection = db.getConnection();
+        long maxIncoming = connection.getNextID(getHighestIncomingTransactionID);
+        long maxOutgoing = connection.getNextID(getHighestOutgoingTransactionID);
+        db.returnConnection(connection);
 
-            long current = 0;
-            if (rs1.next()) {
-                long maxIncoming = rs1.getLong("id");
-                if (maxIncoming > current) {
-                    current = maxIncoming;
-                }
-            }
-
-            if (rs2.next()) {
-                long maxOutgoing = rs2.getLong("id");
-                if (maxOutgoing > current) {
-                    current = maxOutgoing;
-                }
-            }
-
-            rs1.close();
-            rs2.close();
-            ps1.close();
-            ps2.close();
-            db.returnConnection(connection);
-
-            return current;
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return -1;
+        return Math.max(0, Math.max(maxIncoming, maxOutgoing));
     }
 
     /**
@@ -283,7 +256,7 @@ public class Ledger {
      * @param dataRequest DataRequest object containing the customer data request
      */
     @Listen(ServiceManager.DATA_REQUEST_CHANNEL)
-    public void processDataRequest(final DataRequest dataRequest) {
+    public DataReply processDataRequest(final DataRequest dataRequest) {
         RequestType requestType = dataRequest.getType();
         if (requestType == RequestType.BALANCE) {
             try {
@@ -292,6 +265,7 @@ public class Ledger {
                 ps.setString(1, dataRequest.getAccountNumber());     // account_number
                 ResultSet rs = ps.executeQuery();
 
+                DataReply dataReply = null;
                 if (rs.next()) {
                     String accountNumber = dataRequest.getAccountNumber();
                     String name = rs.getString("name");
@@ -299,13 +273,14 @@ public class Ledger {
                     double balance = rs.getDouble("balance");
                     Account account = new Account(name, spendingLimit, balance);
                     account.setAccountNumber(accountNumber);
-                    DataReply dataReply = new DataReply(accountNumber, requestType, account);
+                    dataReply = new DataReply(accountNumber, requestType, account);
                     serviceContext().send(ServiceManager.DATA_REPLY_CHANNEL, dataReply);
                 }
-                // TODO What if fails
+
                 rs.close();
                 ps.close();
                 db.returnConnection(connection);
+                return dataReply;
             } catch (SQLException e) {
                 e.printStackTrace();
             }
@@ -331,21 +306,27 @@ public class Ledger {
                 ps1.close();
                 ps2.close();
                 db.returnConnection(connection);
+                return dataReply;
             } catch (SQLException e) {
                 e.printStackTrace();
             }
         }
+        return null;
     }
 
-    private void fillTransactionList(final LinkedList<Transaction> list, final ResultSet rs) throws SQLException {
+    public void fillTransactionList(final LinkedList<Transaction> list, final ResultSet rs) throws SQLException {
         while (rs.next()) {
             long id = rs.getLong("id");
             long timestamp = rs.getLong("timestamp");
-            String sourceAccount = rs.getString("account_to");
-            String destinationAccount = rs.getString("account_from");
+            String sourceAccount = rs.getString("account_from");
+            String destinationAccount = rs.getString("account_to");
             double amount = rs.getDouble("amount");
 
             list.add(new Transaction(id, timestamp, sourceAccount, destinationAccount, amount));
         }
+    }
+
+    public void shutdown() {
+        db.close();
     }
 }

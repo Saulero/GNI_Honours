@@ -103,4 +103,69 @@ public class Transaction {
     public void setSuccessful(final boolean newSuccessful) {
         this.successful = newSuccessful;
     }
+
+    public boolean minimalEquals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Transaction)) return false;
+
+        Transaction that = (Transaction) o;
+
+        if (getTransactionID() != that.getTransactionID()) return false;
+        if (getTimestamp() != that.getTimestamp()) return false;
+        if (Double.compare(that.getTransactionAmount(), getTransactionAmount()) != 0) return false;
+        if (getSourceAccountNumber() != null ? !getSourceAccountNumber().equals(that.getSourceAccountNumber()) : that.getSourceAccountNumber() != null)
+            return false;
+        if (getDestinationAccountNumber() != null ? !getDestinationAccountNumber().equals(that.getDestinationAccountNumber()) : that.getDestinationAccountNumber() != null)
+            return false;
+        return true;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Transaction)) return false;
+
+        Transaction that = (Transaction) o;
+
+        if (getTransactionID() != that.getTransactionID()) return false;
+        if (getTimestamp() != that.getTimestamp()) return false;
+        if (Double.compare(that.getTransactionAmount(), getTransactionAmount()) != 0) return false;
+        if (isProcessed() != that.isProcessed()) return false;
+        if (isSuccessful() != that.isSuccessful()) return false;
+        if (getSourceAccountNumber() != null ? !getSourceAccountNumber().equals(that.getSourceAccountNumber()) : that.getSourceAccountNumber() != null)
+            return false;
+        if (getDestinationAccountNumber() != null ? !getDestinationAccountNumber().equals(that.getDestinationAccountNumber()) : that.getDestinationAccountNumber() != null)
+            return false;
+        return getDestinationAccountHolderName() != null ? getDestinationAccountHolderName().equals(that.getDestinationAccountHolderName()) : that.getDestinationAccountHolderName() == null;
+    }
+
+    @Override
+    public int hashCode() {
+        int result;
+        long temp;
+        result = (int) (getTransactionID() ^ (getTransactionID() >>> 32));
+        result = 31 * result + (int) (getTimestamp() ^ (getTimestamp() >>> 32));
+        result = 31 * result + (getSourceAccountNumber() != null ? getSourceAccountNumber().hashCode() : 0);
+        result = 31 * result + (getDestinationAccountNumber() != null ? getDestinationAccountNumber().hashCode() : 0);
+        result = 31 * result + (getDestinationAccountHolderName() != null ? getDestinationAccountHolderName().hashCode() : 0);
+        temp = Double.doubleToLongBits(getTransactionAmount());
+        result = 31 * result + (int) (temp ^ (temp >>> 32));
+        result = 31 * result + (isProcessed() ? 1 : 0);
+        result = 31 * result + (isSuccessful() ? 1 : 0);
+        return result;
+    }
+
+    @Override
+    public String toString() {
+        return "Transaction{" +
+                "transactionID=" + transactionID +
+                ", timestamp=" + timestamp +
+                ", sourceAccountNumber='" + sourceAccountNumber + '\'' +
+                ", destinationAccountNumber='" + destinationAccountNumber + '\'' +
+                ", destinationAccountHolderName='" + destinationAccountHolderName + '\'' +
+                ", transactionAmount=" + transactionAmount +
+                ", processed=" + processed +
+                ", successful=" + successful +
+                '}';
+    }
 }

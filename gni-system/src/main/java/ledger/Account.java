@@ -61,4 +61,31 @@ public class Account {
     public void setBalance(final double newBalance) {
         this.balance = newBalance;
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Account)) return false;
+
+        Account account = (Account) o;
+
+        if (Double.compare(account.getSpendingLimit(), getSpendingLimit()) != 0) return false;
+        if (Double.compare(account.getBalance(), getBalance()) != 0) return false;
+        if (getAccountNumber() != null ? !getAccountNumber().equals(account.getAccountNumber()) : account.getAccountNumber() != null)
+            return false;
+        return getAccountHolderName() != null ? getAccountHolderName().equals(account.getAccountHolderName()) : account.getAccountHolderName() == null;
+    }
+
+    @Override
+    public int hashCode() {
+        int result;
+        long temp;
+        result = getAccountNumber() != null ? getAccountNumber().hashCode() : 0;
+        result = 31 * result + (getAccountHolderName() != null ? getAccountHolderName().hashCode() : 0);
+        temp = Double.doubleToLongBits(getSpendingLimit());
+        result = 31 * result + (int) (temp ^ (temp >>> 32));
+        temp = Double.doubleToLongBits(getBalance());
+        result = 31 * result + (int) (temp ^ (temp >>> 32));
+        return result;
+    }
 }

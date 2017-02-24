@@ -33,9 +33,10 @@ public class SQLConnection {
             PreparedStatement ps = connection.prepareStatement(query);
             ResultSet rs = ps.executeQuery();
             if (rs != null) {
-                rs.next();
-                long id = rs.getLong(1);
-
+                long id = -2;
+                if (rs.next()) {
+                    id = rs.getLong(1);
+                }
                 rs.close();
                 ps.close();
                 return id + 1;
