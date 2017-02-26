@@ -7,7 +7,7 @@ import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
-import databeans.Transaction;
+import ledger.Transaction;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 
@@ -71,13 +71,16 @@ public class TransactionReceiveService {
      */
     private void doTransaction(final HttpClient httpClient, final Gson gson, final Transaction request,
                                final CallbackBuilder callbackBuilder) {
-        httpClient.putFormAsyncWith1Param("/services/ledger/transaction", "body", gson.toJson(request),
+        httpClient.putFormAsyncWith1Param("/services/ledger/transaction/in", "body", gson.toJson(request),
                 (code, contentType, replyBody) -> {
                     if (code == HTTP_OK) {
                         Transaction reply = gson.fromJson(replyBody.substring(1, replyBody.length() - 1)
                                 .replaceAll("\\\\", ""), Transaction.class);
+                        System.out.println(replyBody);
+                        System.out.println(reply.toString());
+                        System.out.println(reply.isSuccessful());
                         if (reply.isProcessed()) {
-                            if (reply.isSuccessfull()) {
+                            if (reply.isSuccessful()) {
                                 System.out.println("Successfully processed external transaction");
                                 callbackBuilder.build().reply(gson.toJson(reply));
                                 //TODO send reply to external bank.

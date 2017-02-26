@@ -1,6 +1,12 @@
 package util;
 
-import databeans.*;
+import databeans.Customer;
+import databeans.DataReply;
+import databeans.DataRequest;
+import databeans.PinTransaction;
+import databeans.RequestType;
+import ledger.Account;
+import ledger.Transaction;
 
 /**
  * Created by noel on 18-2-17.
@@ -31,22 +37,22 @@ public class JSONParser {
                                                     final boolean successfull) {
         Transaction transaction = new Transaction();
         transaction.setTransactionID(transactionID);
+        transaction.setTimestamp(-1);
         transaction.setSourceAccountNumber(sourceAccountNumber);
         transaction.setDestinationAccountNumber(destinationAccountNumber);
         transaction.setDestinationAccountHolderName(destinationAccountHolderName);
         transaction.setTransactionAmount(transactionAmount);
         transaction.setProcessed(processed);
-        transaction.setSuccessfull(successfull);
+        transaction.setSuccessful(successfull);
         return transaction;
     }
 
     public static Customer createJsonCustomer(final String newName, final String newSurname,
-                                              final String newAccountNumber, final boolean newEnrolled) {
+                                              final double newSpendingLimit, final double newBalance) {
         Customer customer = new Customer();
         customer.setName(newName);
         customer.setSurname(newSurname);
-        customer.setAccountNumber(newAccountNumber);
-        customer.setEnrolled(newEnrolled);
+        customer.setAccount(new Account(newSurname, newSpendingLimit, newBalance));
         return customer;
     }
 

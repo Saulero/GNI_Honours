@@ -8,7 +8,7 @@ import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
 import databeans.PinTransaction;
-import databeans.Transaction;
+import ledger.Transaction;
 import util.JSONParser;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
@@ -55,7 +55,7 @@ public class PinService {
                             Transaction reply = gson.fromJson(replyBody.substring(1, replyBody.length() - 1)
                                     .replaceAll("\\\\", ""), Transaction.class);
                             if (reply.isProcessed() && reply.equalsRequest(transaction)) {
-                                if (reply.isSuccessfull()) {
+                                if (reply.isSuccessful()) {
                                     System.out.println("Pin transaction was successfull");
                                     callbackBuilder.build().reply(gson.toJson(reply));
                                 } else {

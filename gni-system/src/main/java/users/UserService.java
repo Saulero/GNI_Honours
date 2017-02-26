@@ -11,7 +11,8 @@ import databeans.Customer;
 import databeans.DataReply;
 import databeans.DataRequest;
 import databeans.RequestType;
-import databeans.Transaction;
+import ledger.Account;
+import ledger.Transaction;
 import util.JSONParser;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
@@ -137,7 +138,7 @@ public class UserService {
                                                                 .replaceAll("\\\\", ""), Transaction.class);
                 System.out.println("after reply");
                 if (reply.isProcessed() && reply.equalsRequest(request)) {
-                    if (reply.isSuccessfull()) {
+                    if (reply.isSuccessful()) {
                         System.out.println("Transaction was successfull");
                         callbackBuilder.build().reply(gson.toJson(reply));
                     } else {
@@ -166,7 +167,7 @@ public class UserService {
         Customer customer = gson.fromJson(body, Customer.class);
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder();
         callbackBuilder.withStringCallback(callback);
-        doCustomerRequest(httpClient, gson, customer, callbackBuilder);
+        doAccountNumberRequest(httpClient, gson, customer, callbackBuilder);
     }
 
     /**
@@ -177,25 +178,18 @@ public class UserService {
      * @param customer Customer object that was used to make a new customer request.
      * @param callbackBuilder Used to send the result of the customer request back to the UI service.
      */
-    private void doCustomerRequest(final HttpClient httpClient, final Gson gson, final Customer customer,
+    private void doAccountNumberRequest(final HttpClient httpClient, final Gson gson, final Customer customer,
                                    final CallbackBuilder callbackBuilder) {
-        httpClient.putFormAsyncWith1Param("/services/ledger/accountNumber", "body", gson.toJson(customer),
-                (code, contentType, replyBody) -> {
+        httpClient.putFormAsyncWith1Param("/services/ledger/accountNumber", "body",
+                gson.toJson(customer.getAccount()), (code, contentType, replyBody) -> {
                     if (code == HTTP_OK) {
-                        Customer ledgerReply = gson.fromJson(replyBody.substring(1, replyBody.length() - 1)
-                                .replaceAll("\\\\", ""), Customer.class);
-                        String accountNumber = ledgerReply.getAccountNumber();
-                        boolean enrolled = ledgerReply.getEnrolled();
-                        if (enrolled) {
-                            String customerName = customer.getName();
-                            String customerSurname = customer.getSurname();
-                            Customer enrolledCustomer = JSONParser.createJsonCustomer(customerName, customerSurname,
-                                    accountNumber, enrolled);
-                            //TODO enroll customer in database
-                            callbackBuilder.build().reply(gson.toJson(enrolledCustomer));
-                        } else {
-                            callbackBuilder.build().reject("Ledger failed to enroll.");
-                        }
+                        Account ledgerReply = gson.fromJson(replyBody.substring(1, replyBody.length() - 1)
+                                .replaceAll("\\\\", ""), Account.class);
+                        Customer enrolledCustomer = JSONParser.createJsonCustomer(customer.getName(),
+                                                    ledgerReply.getAccountHolderName(), ledgerReply.getSpendingLimit(),
+                                                    ledgerReply.getBalance());
+                        //TODO enroll customer in database
+                        callbackBuilder.build().reply(gson.toJson(enrolledCustomer));
                     } else {
                         callbackBuilder.build().reject("Recieved an error from ledger.");
                     }

@@ -1,10 +1,12 @@
 package ledger;
 
+import com.google.gson.Gson;
 import database.ConnectionPool;
 import database.SQLConnection;
-import io.advantageous.qbit.annotation.Listen;
-import io.advantageous.qbit.annotation.OnEvent;
-import queue.ServiceManager;
+import io.advantageous.qbit.annotation.RequestMapping;
+import io.advantageous.qbit.annotation.RequestMethod;
+import io.advantageous.qbit.annotation.RequestParam;
+import io.advantageous.qbit.reactive.Callback;
 import databeans.DataReply;
 import databeans.DataRequest;
 import databeans.RequestType;
@@ -17,11 +19,12 @@ import java.sql.SQLException;
 import java.util.LinkedList;
 
 import static database.SQLStatements.*;
-import static io.advantageous.qbit.service.ServiceContext.serviceContext;
 
 /**
  * @author Saul
+ * @version 1
  */
+@RequestMapping("/ledger")
 public class Ledger {
 
     private ConnectionPool db;
@@ -31,13 +34,13 @@ public class Ledger {
     }
 
     /**
-     * Listens to USER_CREATION_CHANNEL for new accounts that have to be gernated,
-     * generates them and adds their information to the ledger.
-     *
-     * @param newAccount object containing the account holder name and other information
+     * Listens to USER_CREATION_CHANNEL for new customers and adds their account number to the ledger.
+     * @param customer customer object containing the customers name and accountnumber
      */
-    @Listen(ServiceManager.USER_CREATION_CHANNEL)
-    public void createNewAccount(final Account newAccount) {
+    @RequestMapping(value = "/accountNumber", method = RequestMethod.PUT)
+    public void createNewAccount(final Callback<String> callback, final @RequestParam("body") String body) {
+        Gson gson = new Gson();
+        Account newAccount = gson.fromJson(body, Account.class);
         newAccount.setAccountNumber(generateNewAccountNumber(newAccount));
         try {
             SQLConnection connection = db.getConnection();
@@ -52,8 +55,11 @@ public class Ledger {
             ps.executeUpdate();
             ps.close();
             db.returnConnection(connection);
-            // TODO communicate the generated information back to users
+            System.out.printf("Ledger: Added user %s with accountNumber %s to ledger\n\n",
+                    newAccount.getAccountHolderName(), newAccount.getAccountNumber());
+            callback.reply(gson.toJson(newAccount));
         } catch (SQLException e) {
+            callback.reject(e.getMessage());
             e.printStackTrace();
         }
     }
@@ -182,12 +188,21 @@ public class Ledger {
      *
      * @param transaction Transaction object to perform the transaction
      */
-    @OnEvent(value = ServiceManager.INCOMING_TRANSACTION_CHANNEL, consume = true)
-    public void processIncomingTransaction(final Transaction transaction) {
+    @RequestMapping(value = "/transaction/in", method = RequestMethod.PUT)
+    public void processIncomingTransaction(final Callback<String> callback, final @RequestParam("body") String body) {
+        Gson gson = new Gson();
+        System.out.println("received a transaction body: " + body);
+        Transaction transaction = gson.fromJson(body, Transaction.class);
         // Check if account info is correct
         Account account = getAccountInfo(transaction.getDestinationAccountNumber());
+        System.out.println(account);
         // TODO Implement better system for checking destination_account_holder_name
-        String calculatedAccountNumber = attemptAccountNumberGeneration(transaction.getDestinationAccountHolderName(), Integer.parseInt(transaction.getDestinationAccountNumber().substring(2, 4)));
+        String calculatedAccountNumber = attemptAccountNumberGeneration(transaction.getDestinationAccountHolderName(),
+                                        Integer.parseInt(transaction.getDestinationAccountNumber().substring(2, 4)));
+        System.out.println(calculatedAccountNumber);
+        System.out.println(transaction.getDestinationAccountNumber());
+        System.out.println(transaction.getDestinationAccountNumber().equals(calculatedAccountNumber));
+        System.out.println(account != null);
 
         if (account != null && transaction.getDestinationAccountNumber().equals(calculatedAccountNumber)) {
             // Update the object
@@ -203,11 +218,12 @@ public class Ledger {
 
             transaction.setProcessed(true);
             transaction.setSuccessful(true);
-            serviceContext().send(ServiceManager.INCOMING_TRANSACTION_VERIFICATION_CHANNEL, transaction);
+            System.out.println(gson.toJson(transaction));
+            callback.reply(gson.toJson(transaction));
         } else {
             transaction.setProcessed(true);
             transaction.setSuccessful(false);
-            serviceContext().send(ServiceManager.INCOMING_TRANSACTION_VERIFICATION_CHANNEL, transaction);
+            callback.reply(gson.toJson(transaction));
         }
     }
 
@@ -221,8 +237,10 @@ public class Ledger {
      *
      * @param transaction Transaction object to perform the transaction
      */
-    @OnEvent(value = ServiceManager.OUTGOING_TRANSACTION_CHANNEL, consume = true)
-    public void processOutgoingTransaction(final Transaction transaction) {
+    @RequestMapping(value = "/transaction/out", method = RequestMethod.PUT)
+    public void processOutgoingTransaction(final Callback<String> callback, final @RequestParam("body") String body) {
+        Gson gson = new Gson();
+        Transaction transaction = gson.fromJson(body, Transaction.class);
         // Check if spending_limit allows for the transaction
         Account account = getAccountInfo(transaction.getSourceAccountNumber());
 
@@ -240,11 +258,11 @@ public class Ledger {
 
             transaction.setProcessed(true);
             transaction.setSuccessful(true);
-            serviceContext().send(ServiceManager.INCOMING_TRANSACTION_VERIFICATION_CHANNEL, transaction);
+            callback.reply(gson.toJson(transaction));
         } else {
             transaction.setProcessed(true);
             transaction.setSuccessful(false);
-            serviceContext().send(ServiceManager.INCOMING_TRANSACTION_VERIFICATION_CHANNEL, transaction);
+            callback.reply(gson.toJson(transaction));
         }
     }
 
@@ -255,8 +273,10 @@ public class Ledger {
      *
      * @param dataRequest DataRequest object containing the customer data request
      */
-    @Listen(ServiceManager.DATA_REQUEST_CHANNEL)
-    public DataReply processDataRequest(final DataRequest dataRequest) {
+    @RequestMapping(value = "/data", method = RequestMethod.GET)
+    public void processDataRequest(final Callback<String> callback, final @RequestParam("body") String body) {
+        Gson gson = new Gson();
+        DataRequest dataRequest = gson.fromJson(body, DataRequest.class);
         RequestType requestType = dataRequest.getType();
         if (requestType == RequestType.BALANCE) {
             try {
@@ -274,14 +294,14 @@ public class Ledger {
                     Account account = new Account(name, spendingLimit, balance);
                     account.setAccountNumber(accountNumber);
                     dataReply = new DataReply(accountNumber, requestType, account);
-                    serviceContext().send(ServiceManager.DATA_REPLY_CHANNEL, dataReply);
+                    callback.reply(gson.toJson(dataReply));
                 }
 
                 rs.close();
                 ps.close();
                 db.returnConnection(connection);
-                return dataReply;
             } catch (SQLException e) {
+                callback.reject(e.getMessage());
                 e.printStackTrace();
             }
         } else if (requestType == RequestType.TRANSACTIONHISTORY) {
@@ -299,19 +319,18 @@ public class Ledger {
                 fillTransactionList(transactions, rs2);
 
                 DataReply dataReply = new DataReply(dataRequest.getAccountNumber(), requestType, transactions);
-                serviceContext().send(ServiceManager.DATA_REPLY_CHANNEL, dataReply);
+                callback.reply(gson.toJson(dataReply));
 
                 rs1.close();
                 rs2.close();
                 ps1.close();
                 ps2.close();
                 db.returnConnection(connection);
-                return dataReply;
             } catch (SQLException e) {
+                callback.reject(e.getMessage());
                 e.printStackTrace();
             }
         }
-        return null;
     }
 
     public void fillTransactionList(final LinkedList<Transaction> list, final ResultSet rs) throws SQLException {

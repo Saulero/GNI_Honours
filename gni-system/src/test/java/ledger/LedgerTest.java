@@ -18,7 +18,7 @@ import static org.junit.Assert.*;
  */
 public class LedgerTest {
 
-    private Ledger ledger;
+    /*private Ledger ledger;
 
     @Before
     public void setUp() throws Exception {
@@ -266,5 +266,5 @@ public class LedgerTest {
         ps2.close();
         ps3.close();
         con.close();
-    }
+    }*/
 }

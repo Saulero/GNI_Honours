@@ -10,7 +10,7 @@ import io.advantageous.qbit.reactive.CallbackBuilder;
 import databeans.Customer;
 import databeans.DataReply;
 import databeans.DataRequest;
-import databeans.Transaction;
+import ledger.Transaction;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 
@@ -204,8 +204,9 @@ public final class UIService {
                                       final Customer customer, final Gson gson) {
         Customer reply = gson.fromJson(body.substring(1, body.length() - 1)
                 .replaceAll("\\\\", ""), Customer.class);
-        if (reply.getEnrolled() && reply.getAccountNumber().length() > 1 && reply.getName()
-                .equals(customer.getName()) && reply.getSurname().equals(customer.getSurname())) {
+        if (reply.getAccount().getAccountNumber().length() > 1 && reply.getName()
+                .equals(customer.getName()) && reply.getSurname()
+                .equals(customer.getAccount().getAccountHolderName())) {
             System.out.println("successfull callback, sending back reply");
             callbackBuilder.build().reply(gson.toJson(reply));
         } else {

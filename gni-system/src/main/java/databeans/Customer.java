@@ -1,5 +1,7 @@
 package databeans;
 
+import ledger.Account;
+
 import java.io.Serializable;
 
 /**
@@ -12,23 +14,20 @@ public final class Customer implements Serializable {
     private String name;
     /** Surname of the customer. */
     private String surname;
-    /** accountNumber of the customer. */
-    private String accountNumber;
-    /** Indicates if the customer has been entered into the system */
-    private boolean enrolled;
+    /** Account of the customer. */
+    private Account account;
 
     /** Initializes customer object and assigns its variables.
      * @param newName first name of the customer.
      * @param newSurname surname of the customer.
-     * @param newAccountNumber Account number to be assigned to the customer.
-     * @param newEnrolled Indicates if the customer has been enrolled in the system yet.
+     * @param newSpendingLimit spending limit of the customer.
+     * @param newBalance balance of the customers new account.
      * */
-    public Customer(final String newName, final String newSurname,
-                    final String newAccountNumber, final boolean newEnrolled) {
+    public Customer(final String newName, final String newSurname, final double newSpendingLimit,
+                    final double newBalance) {
         this.name = newName;
         this.surname = newSurname;
-        this.accountNumber = newAccountNumber;
-        this.enrolled = newEnrolled;
+        this.account = new Account(newSurname, newSpendingLimit, newBalance);
     }
 
     /**
@@ -52,15 +51,11 @@ public final class Customer implements Serializable {
         this.surname = newSurname;
     }
 
-    public String getAccountNumber() {
-        return accountNumber;
+    public Account getAccount() {
+        return account;
     }
 
-    public void setAccountNumber(final String newAccountNumber) {
-        this.accountNumber = newAccountNumber;
+    public void setAccount(final Account newAccount) {
+        this.account = newAccount;
     }
-
-    public boolean getEnrolled() { return enrolled; }
-
-    public void setEnrolled(final boolean newEnrolled) { this.enrolled = newEnrolled; }
 }

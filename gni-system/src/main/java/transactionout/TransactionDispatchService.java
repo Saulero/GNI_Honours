@@ -7,7 +7,7 @@ import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
-import databeans.Transaction;
+import ledger.Transaction;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 
@@ -58,14 +58,14 @@ public class TransactionDispatchService {
         httpClient.start();
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder();
         callbackBuilder.withStringCallback(callback);
-        httpClient.putFormAsyncWith1Param("/services/ledger/transaction", "body", gson.toJson(request),
+        httpClient.putFormAsyncWith1Param("/services/ledger/transaction/out", "body", gson.toJson(request),
                                         (code, contentType, replyBody) -> {
             if (code == HTTP_OK) {
                 Transaction reply = gson.fromJson(replyBody.substring(1, replyBody.length() - 1)
                         .replaceAll("\\\\", ""), Transaction.class);
                 System.out.println("Received reply from ledger");
                 if (reply.isProcessed()) {
-                    if (reply.isSuccessfull()) {
+                    if (reply.isSuccessful()) {
                         System.out.println("Successfull transaction, sending back reply.");
                         callbackBuilder.build().reply(gson.toJson(reply));
                         //TODO send outgoing transaction.

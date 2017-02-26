@@ -1,9 +1,11 @@
 package ledger;
 
+import java.io.Serializable;
+
 /**
  * @author Saul
  */
-public class Account {
+public class Account implements Serializable{
 
     private String accountNumber;
     private String accountHolderName;
