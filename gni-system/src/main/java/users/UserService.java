@@ -133,10 +133,8 @@ public class UserService {
         httpClient.putFormAsyncWith1Param("/services/transactionDispatch/transaction", "body",
                                             gson.toJson(request), (code, contentType, body) -> {
             if (code == HTTP_OK) {
-                System.out.println("reply: " + body);
                 Transaction reply = gson.fromJson(body.substring(1, body.length() - 1)
                                                                 .replaceAll("\\\\", ""), Transaction.class);
-                System.out.println("after reply");
                 if (reply.isProcessed() && reply.equalsRequest(request)) {
                     if (reply.isSuccessful()) {
                         System.out.println("Transaction was successfull");

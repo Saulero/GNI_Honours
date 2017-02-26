@@ -76,9 +76,6 @@ public class TransactionReceiveService {
                     if (code == HTTP_OK) {
                         Transaction reply = gson.fromJson(replyBody.substring(1, replyBody.length() - 1)
                                 .replaceAll("\\\\", ""), Transaction.class);
-                        System.out.println(replyBody);
-                        System.out.println(reply.toString());
-                        System.out.println(reply.isSuccessful());
                         if (reply.isProcessed()) {
                             if (reply.isSuccessful()) {
                                 System.out.println("Successfully processed external transaction");

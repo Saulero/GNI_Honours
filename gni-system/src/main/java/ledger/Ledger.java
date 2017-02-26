@@ -191,18 +191,13 @@ public class Ledger {
     @RequestMapping(value = "/transaction/in", method = RequestMethod.PUT)
     public void processIncomingTransaction(final Callback<String> callback, final @RequestParam("body") String body) {
         Gson gson = new Gson();
-        System.out.println("received a transaction body: " + body);
+        System.out.println("received an incoming transaction.");
         Transaction transaction = gson.fromJson(body, Transaction.class);
         // Check if account info is correct
         Account account = getAccountInfo(transaction.getDestinationAccountNumber());
-        System.out.println(account);
         // TODO Implement better system for checking destination_account_holder_name
         String calculatedAccountNumber = attemptAccountNumberGeneration(transaction.getDestinationAccountHolderName(),
                                         Integer.parseInt(transaction.getDestinationAccountNumber().substring(2, 4)));
-        System.out.println(calculatedAccountNumber);
-        System.out.println(transaction.getDestinationAccountNumber());
-        System.out.println(transaction.getDestinationAccountNumber().equals(calculatedAccountNumber));
-        System.out.println(account != null);
 
         if (account != null && transaction.getDestinationAccountNumber().equals(calculatedAccountNumber)) {
             // Update the object
@@ -218,11 +213,12 @@ public class Ledger {
 
             transaction.setProcessed(true);
             transaction.setSuccessful(true);
-            System.out.println(gson.toJson(transaction));
+            System.out.println("Successfully processed the transaction.");
             callback.reply(gson.toJson(transaction));
         } else {
             transaction.setProcessed(true);
             transaction.setSuccessful(false);
+            System.out.println("Transaction was not successful.");
             callback.reply(gson.toJson(transaction));
         }
     }
