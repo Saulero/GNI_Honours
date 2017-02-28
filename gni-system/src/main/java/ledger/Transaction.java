@@ -133,14 +133,6 @@ public class Transaction {
     }
 
     /**
-     * Checks if the Transaction has a GNIB source accountNumber.
-     * @return True if the sourceAccountNumber is a GNIB accountNumber, otherwise returns false.
-     */
-    public boolean isGNIBSource() {
-        return this.getSourceAccountNumber().contains("GNIB");
-    }
-
-    /**
      * Checks if the Transaction has a GNIB destination accountNumber.
      * @return True if the destinationAccountNumber is a GNIB accountNumber, otherwise returns false.
      */
