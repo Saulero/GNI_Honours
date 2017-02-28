@@ -1,6 +1,8 @@
 package users;
 
 import com.google.gson.Gson;
+import database.ConnectionPool;
+import database.SQLConnection;
 import io.advantageous.qbit.annotation.RequestMapping;
 import io.advantageous.qbit.annotation.RequestMethod;
 import io.advantageous.qbit.annotation.RequestParam;
@@ -15,7 +17,12 @@ import ledger.Account;
 import ledger.Transaction;
 import util.JSONParser;
 
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+
+import static database.SQLStatements.*;
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
+import static java.net.HttpURLConnection.HTTP_OK;
 
 /**
  * @author Noel
@@ -24,17 +31,16 @@ import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuild
  */
 @RequestMapping("/user")
 public class UserService {
-
-    /**Used to verify if a http request to another service was successfull.*/
-    private static final int HTTP_OK = 200;
-    /**Port that the Ledger service can be found on.*/
+    /** Port that the Ledger service can be found on. */
     private int ledgerPort;
-    /**Host that the User service can be found on.*/
+    /** Host that the User service can be found on. */
     private String ledgerHost;
-    /**Port that the TransactionDispatch service can be found on.*/
+    /** Port that the TransactionDispatch service can be found on. */
     private int transactionDispatchPort;
-    /**Host that the TransactionDispatch service can be found on.*/
+    /** Host that the TransactionDispatch service can be found on. */
     private String transactionDispatchHost;
+    /** Connection pool with database connections for the User Service. */
+    private ConnectionPool db;
 
     /**
      * Constructor.
@@ -49,6 +55,7 @@ public class UserService {
         this.ledgerHost = newLedgerHost;
         this.transactionDispatchPort = newTransactionDispatchPort;
         this.transactionDispatchHost = newTransactionDispatchHost;
+        this.db = new ConnectionPool();
     }
 
     /**
@@ -179,18 +186,60 @@ public class UserService {
     private void doAccountNumberRequest(final HttpClient httpClient, final Gson gson, final Customer customer,
                                    final CallbackBuilder callbackBuilder) {
         httpClient.putFormAsyncWith1Param("/services/ledger/accountNumber", "body",
-                gson.toJson(customer.getAccount()), (code, contentType, replyBody) -> {
-                    if (code == HTTP_OK) {
-                        Account ledgerReply = gson.fromJson(replyBody.substring(1, replyBody.length() - 1)
-                                .replaceAll("\\\\", ""), Account.class);
-                        Customer enrolledCustomer = JSONParser.createJsonCustomer(customer.getName(),
-                                                    ledgerReply.getAccountHolderName(), ledgerReply.getSpendingLimit(),
-                                                    ledgerReply.getBalance());
-                        //TODO enroll customer in database
-                        callbackBuilder.build().reply(gson.toJson(enrolledCustomer));
-                    } else {
-                        callbackBuilder.build().reject("Recieved an error from ledger.");
-                    }
-                });
+                                        gson.toJson(customer.getAccount()), (code, contentType, replyBody) -> {
+                if (code == HTTP_OK) {
+                    Account ledgerReply = gson.fromJson(replyBody.substring(1, replyBody.length() - 1)
+                            .replaceAll("\\\\", ""), Account.class);
+                    customer.setAccount(ledgerReply);
+
+                    enrollCustomer(customer, callbackBuilder, gson);
+                } else {
+                    callbackBuilder.build().reject("Recieved an error from ledger.");
+                }
+            });
+    }
+
+    private void enrollCustomer(final Customer customer, final CallbackBuilder callbackBuilder, final Gson gson) {
+        try {
+            SQLConnection connection = db.getConnection();
+            long newID = connection.getNextID(getNextUserID);
+            PreparedStatement ps = connection.getConnection().prepareStatement(createNewUser);
+            ps.setLong(1, newID);                           // id
+            ps.setString(2, customer.getInitials());        // initials
+            ps.setString(3, customer.getName());            // firstname
+            ps.setString(4, customer.getSurname());         // lastname
+            ps.setString(5, customer.getEmail());           // email
+            ps.setString(6, customer.getTelephoneNumber()); //telephone_number
+            ps.setString(7, customer.getAddress());         //address
+            ps.setString(8, customer.getDob());             //date_of_birth
+            ps.setLong(9, customer.getSsn());               //social_security_number
+            ps.executeUpdate();
+            ps.close();
+            db.returnConnection(connection);
+            System.out.printf("Users: Added user %s %s to the customer database\n\n",
+                    customer.getName(), customer.getSurname());
+            addAccountToCustomerDb(newID, customer, callbackBuilder, gson);
+        } catch (SQLException e) {
+            callbackBuilder.build().reject(e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void addAccountToCustomerDb(final Long customerId, final Customer customer,
+                                           final CallbackBuilder callbackBuilder, final Gson gson) {
+        try {
+            SQLConnection connection = db.getConnection();
+            PreparedStatement ps = connection.getConnection().prepareStatement(addAccountToUser);
+            ps.setLong(1, customerId);
+            ps.setString(2, customer.getAccount().getAccountNumber());
+            ps.executeUpdate();
+            ps.close();
+            db.returnConnection(connection);
+            System.out.printf("Users: Added Accountnumber %s to userid %d", customer.getAccount().getAccountNumber(),
+                                                                            customerId);
+            callbackBuilder.build().reply(gson.toJson(customer));
+        } catch (SQLException e) {
+            callbackBuilder.build().reject(e.getMessage());
+        }
     }
 }

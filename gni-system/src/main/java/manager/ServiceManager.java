@@ -1,8 +1,12 @@
 package manager;
 
 import com.google.gson.Gson;
+import databeans.Customer;
+import databeans.DataReply;
+import databeans.DataRequest;
+import databeans.PinTransaction;
+import databeans.RequestType;
 import io.advantageous.qbit.http.client.HttpClient;
-import databeans.*;
 import ledger.Transaction;
 import util.JSONParser;
 
@@ -43,14 +47,14 @@ public final class ServiceManager {
         //pinClient.start();
         //doPin(pinClient, testDestinationNumber, testAccountNumber, "De wilde", "8888",
         //        "730", 20.00);
-        //makeNewAccount(userClient, "Henk", "van Vliet");
-        doTransaction(externalBankClient, testAccountNumber, "NL00GNIB5695575206", "De Wilde",
-                200.00, true);
-        doTransaction(userClient, deWildeNumber, testDestinationNumber, "De Boer",
-                    250.00, false);
-        doGet(userClient, testAccountNumber, RequestType.TRANSACTIONHISTORY);
-        doGet(userClient, testAccountNumber, RequestType.BALANCE);
-        doGet(userClient, testAccountNumber, RequestType.CUSTOMERDATA);
+        makeNewAccount(userClient, "Mats", "Bats");
+        //doTransaction(externalBankClient, testAccountNumber, "NL00GNIB5695575206", "De Wilde",
+        //        200.00, true);
+        //doTransaction(userClient, deWildeNumber, testDestinationNumber, "De Boer",
+        //            250.00, false);
+        //doGet(userClient, testAccountNumber, RequestType.TRANSACTIONHISTORY);
+        //doGet(userClient, testAccountNumber, RequestType.BALANCE);
+        //doGet(userClient, testAccountNumber, RequestType.CUSTOMERDATA);
     }
 
     private static void doTransaction(final HttpClient httpClient, final String sourceAccountNumber,
@@ -86,7 +90,9 @@ public final class ServiceManager {
     }
 
     private static void makeNewAccount(final HttpClient httpClient, final String newName, final String newSurname) {
-        Customer customer = JSONParser.createJsonCustomer(newName, newSurname, 0, 0);
+        Customer customer = JSONParser.createJsonCustomer("M.", newName, newSurname, "bob@bob.com",
+                                    "0612121212121", "berlin 25", "20-04-1889",
+                                    new Long("2345678981231231"), 0, 0);
         Gson gson = new Gson();
         httpClient.putFormAsyncWith1Param("/services/ui/customer", "body", gson.toJson(customer),
                 (code, contentType, body) -> { if (code == 200) {

@@ -47,11 +47,19 @@ public class JSONParser {
         return transaction;
     }
 
-    public static Customer createJsonCustomer(final String newName, final String newSurname,
+    public static Customer createJsonCustomer(final String newInitials, final String newName, final String newSurname,
+                                              final String newEmail, final String newTelephoneNumber,
+                                              final String newAddress, final String newDob, final Long newSsn,
                                               final double newSpendingLimit, final double newBalance) {
         Customer customer = new Customer();
+        customer.setInitials(newInitials);
         customer.setName(newName);
         customer.setSurname(newSurname);
+        customer.setEmail(newEmail);
+        customer.setTelephoneNumber(newTelephoneNumber);
+        customer.setAddress(newAddress);
+        customer.setDob(newDob);
+        customer.setSsn(newSsn);
         customer.setAccount(new Account(newSurname, newSpendingLimit, newBalance));
         return customer;
     }

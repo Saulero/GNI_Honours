@@ -13,6 +13,7 @@ import databeans.DataRequest;
 import ledger.Transaction;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
+import static java.net.HttpURLConnection.HTTP_OK;
 
 /**
  * @author Noel
@@ -22,9 +23,6 @@ import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuild
  */
 @RequestMapping("/ui")
 public final class UIService {
-
-    /**Used to verify if a http request to another service was successfull.*/
-    private static final int HTTP_OK = 200;
     /**Port that the user service can be found on.*/
     private int usersPort;
     /**Host that the user service can be found on.*/

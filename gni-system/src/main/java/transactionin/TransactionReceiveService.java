@@ -10,6 +10,7 @@ import io.advantageous.qbit.reactive.CallbackBuilder;
 import ledger.Transaction;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
+import static java.net.HttpURLConnection.HTTP_OK;
 
 /**
  * @author Noel
@@ -19,9 +20,6 @@ import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuild
  */
 @RequestMapping("/transactionReceive")
 public class TransactionReceiveService {
-
-    /**Used to verify if a http request to another service was successfull.*/
-    private static final int HTTP_OK = 200;
     /**Port that the Ledger service can be found on.*/
     private int ledgerPort;
     /**Host that the User service can be found on.*/
