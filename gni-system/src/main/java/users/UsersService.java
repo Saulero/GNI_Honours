@@ -29,8 +29,8 @@ import static java.net.HttpURLConnection.HTTP_OK;
  * @version 1
  * The User microservice, handles customer information and is used as a gateway for the UI service.
  */
-@RequestMapping("/user")
-public class UserService {
+@RequestMapping("/users")
+public class UsersService {
     /** Port that the Ledger service can be found on. */
     private int ledgerPort;
     /** Host that the User service can be found on. */
@@ -49,8 +49,8 @@ public class UserService {
      * @param newTransactionDispatchPort Port the TransactionDispatch service can be found on.
      * @param newTransactionDispatchHost Host the TransactionDispatch service can be found on.
      */
-    public UserService(final int newLedgerPort, final String newLedgerHost, final int newTransactionDispatchPort,
-                       final String newTransactionDispatchHost) {
+    public UsersService(final int newLedgerPort, final String newLedgerHost, final int newTransactionDispatchPort,
+                        final String newTransactionDispatchHost) {
         this.ledgerPort = newLedgerPort;
         this.ledgerHost = newLedgerHost;
         this.transactionDispatchPort = newTransactionDispatchPort;
@@ -216,7 +216,7 @@ public class UserService {
             ps.executeUpdate();
             ps.close();
             db.returnConnection(connection);
-            System.out.printf("Users: Added user %s %s to the customer database\n\n",
+            System.out.printf("Users: Added users %s %s to the customer database\n\n",
                     customer.getName(), customer.getSurname());
             addAccountToCustomerDb(newID, customer, callbackBuilder, gson);
         } catch (SQLException e) {

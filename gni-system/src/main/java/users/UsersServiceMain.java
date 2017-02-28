@@ -5,7 +5,7 @@ import io.advantageous.qbit.admin.ManagedServiceBuilder;
 /**
  * Created by noel on 21-2-17.
  */
-public class UserServiceMain {
+public class UsersServiceMain {
 
     public static void main(final String[] args) {
                 /* Create the ManagedServiceBuilder which manages a clean shutdown, health, stats, etc. */
@@ -15,7 +15,7 @@ public class UserServiceMain {
                         .setPort(9991); //Defaults to 8080 or environment variable PORT
 
         /* Start the service. */
-        managedServiceBuilder.addEndpointService(new UserService(9992, "localhost",
+        managedServiceBuilder.addEndpointService(new UsersService(9992, "localhost",
                 9993, "localhost"))
                 .getEndpointServerBuilder()
                 .build().startServer();

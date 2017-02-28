@@ -55,7 +55,7 @@ public class Ledger {
             ps.executeUpdate();
             ps.close();
             db.returnConnection(connection);
-            System.out.printf("Ledger: Added user %s with accountNumber %s to ledger\n\n",
+            System.out.printf("Ledger: Added users %s with accountNumber %s to ledger\n\n",
                     newAccount.getAccountHolderName(), newAccount.getAccountNumber());
             callback.reply(gson.toJson(newAccount));
         } catch (SQLException e) {

@@ -23,15 +23,15 @@ import static java.net.HttpURLConnection.HTTP_OK;
  */
 @RequestMapping("/ui")
 public final class UIService {
-    /**Port that the user service can be found on.*/
+    /**Port that the users service can be found on.*/
     private int usersPort;
-    /**Host that the user service can be found on.*/
+    /**Host that the users service can be found on.*/
     private String usersHost;
 
     /**
      * Constructor.
-     * @param newUsersPort port the user service can be found on.
-     * @param newUsersHost host the user service can be found on.
+     * @param newUsersPort port the users service can be found on.
+     * @param newUsersHost host the users service can be found on.
      */
     public UIService(final int newUsersPort, final String newUsersHost) {
         this.usersPort = newUsersPort;
@@ -39,7 +39,7 @@ public final class UIService {
     }
 
     /**
-     * Process a data requests from a user.
+     * Process a data requests from a users.
      * @param callback Callback used to send a reply back to the origin of the request.
      * @param jsonRequest A Json String representing a DataRequest object {@link DataRequest}.
      */
@@ -64,7 +64,7 @@ public final class UIService {
     private void doUserDataRequest(final HttpClient httpClient, final DataRequest request, final Gson gson,
                                              final CallbackBuilder callbackBuilder) {
         System.out.println("UI: Sending data request to Users");
-        httpClient.getAsyncWith1Param("/services/user/data", "body", gson.toJson(request),
+        httpClient.getAsyncWith1Param("/services/users/data", "body", gson.toJson(request),
                 (code, contentType, body) -> {
                     if (code == HTTP_OK) {
                         processUserDataReply(callbackBuilder, body, request, gson);
@@ -121,7 +121,7 @@ public final class UIService {
     private void doTransactionRequest(final HttpClient httpClient, final Transaction request, final Gson gson,
                                       final CallbackBuilder callbackBuilder) {
         System.out.println("UI: Sending transaction request to Users");
-        httpClient.putFormAsyncWith1Param("/services/user/transaction", "body", gson.toJson(request),
+        httpClient.putFormAsyncWith1Param("/services/users/transaction", "body", gson.toJson(request),
                 (code, contentType, body) -> {
                     if (code == HTTP_OK) {
                         processTransactionReply(callbackBuilder, body, request, gson);
@@ -153,7 +153,7 @@ public final class UIService {
     }
 
     /**
-     * Handles customer creation requests by forwarding the request to the user service and waiting for a callback.
+     * Handles customer creation requests by forwarding the request to the users service and waiting for a callback.
      * @param callback Used to send the result of the request back to the source of the request.
      * @param body Body of the request, a Json string representing a Customer object that should be
      *             created {@link Customer}.
@@ -181,7 +181,7 @@ public final class UIService {
     private void doCustomerRequest(final HttpClient httpClient, final Customer customer, final Gson gson,
                                    final CallbackBuilder callbackBuilder) {
         System.out.println("UI: Sending customer creation request to Users");
-        httpClient.putFormAsyncWith1Param("/services/user/customer", "body", gson.toJson(customer),
+        httpClient.putFormAsyncWith1Param("/services/users/customer", "body", gson.toJson(customer),
                 (code, contentType, body) -> {
                     if (code == HTTP_OK) {
                         processCustomerReply(callbackBuilder, body, customer, gson);
