@@ -27,7 +27,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Noel
  * @version 1
- * The User microservice, handles customer information and is used as a gateway for the UI service.
+ * The Users microservice, handles customer information and is used as a gateway for the UI service.
  */
 @RequestMapping("/users")
 public class UsersService {
@@ -75,7 +75,8 @@ public class UsersService {
         if (request.getType() == RequestType.CUSTOMERDATA) {
             //TODO fetch customer information from database
             String customerInformation = "freekje";
-            DataReply reply = JSONParser.createJsonReply(request.getAccountNumber(), request.getType(), customerInformation);
+            DataReply reply = JSONParser.createJsonReply(request.getAccountNumber(), request.getType(),
+                                                        customerInformation);
             callbackBuilder.build().reply(gson.toJson(reply));
         } else {
             doDataRequest(request, gson, callbackBuilder);
@@ -199,6 +200,12 @@ public class UsersService {
             });
     }
 
+    /**
+     * Enrolls the customer in the Users database.
+     * @param customer Customer to enroll in the database.
+     * @param callbackBuilder Used to send the outcome to the UIService.
+     * @param gson Used for Json conversions.
+     */
     private void enrollCustomer(final Customer customer, final CallbackBuilder callbackBuilder, final Gson gson) {
         try {
             SQLConnection connection = db.getConnection();
@@ -218,28 +225,38 @@ public class UsersService {
             db.returnConnection(connection);
             System.out.printf("Users: Added users %s %s to the customer database\n\n",
                     customer.getName(), customer.getSurname());
-            addAccountToCustomerDb(newID, customer, callbackBuilder, gson);
+            boolean addedAccount = addAccountToCustomerDb(newID, customer.getAccount().getAccountNumber());
+            if (addedAccount) {
+                callbackBuilder.build().reply(gson.toJson(customer));
+            } else {
+                callbackBuilder.build().reject("SQLException when adding account to accounts table.");
+            }
         } catch (SQLException e) {
             callbackBuilder.build().reject(e.getMessage());
             e.printStackTrace();
         }
     }
 
-    private void addAccountToCustomerDb(final Long customerId, final Customer customer,
-                                           final CallbackBuilder callbackBuilder, final Gson gson) {
+    /**
+     * Links an account to a user in the Users database by inserting the userID and the accountnumber into the
+     * accounts table.
+     * @param customerId Id of the customer to link the account to.
+     * @param accountNumber Account number to link to the customer.
+     */
+    private boolean addAccountToCustomerDb(final Long customerId, final String accountNumber) {
         try {
             SQLConnection connection = db.getConnection();
             PreparedStatement ps = connection.getConnection().prepareStatement(addAccountToUser);
             ps.setLong(1, customerId);
-            ps.setString(2, customer.getAccount().getAccountNumber());
+            ps.setString(2, accountNumber);
             ps.executeUpdate();
             ps.close();
             db.returnConnection(connection);
-            System.out.printf("Users: Added Accountnumber %s to userid %d", customer.getAccount().getAccountNumber(),
-                                                                            customerId);
-            callbackBuilder.build().reply(gson.toJson(customer));
+            System.out.printf("Users: Added Accountnumber %s to userid %d", accountNumber, customerId);
+            return true;
         } catch (SQLException e) {
-            callbackBuilder.build().reject(e.getMessage());
+            e.printStackTrace();
+            return false;
         }
     }
 }
