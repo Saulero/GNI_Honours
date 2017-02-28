@@ -7,31 +7,28 @@ import io.advantageous.qbit.admin.ManagedServiceBuilder;
  * @author Noel
  * @version 1
  */
-public final class UsersServiceMain {
+final class UsersServiceMain {
 
     /**
      * Private constructor for utility class.
      */
     private UsersServiceMain() {
+        //Not called
     }
 
     /**
-     * Start
-     * @param args
+     * Starts a User service on localhost:9991.
+     * @param args Not used.
      */
     public static void main(final String[] args) {
-                /* Create the ManagedServiceBuilder which manages a clean shutdown, health, stats, etc. */
         final ManagedServiceBuilder managedServiceBuilder =
                 ManagedServiceBuilder.managedServiceBuilder()
                         .setRootURI("/services") //Defaults to services
-                        .setPort(9991); //Defaults to 8080 or environment variable PORT
-
-        /* Start the service. */
+                        .setPort(9991);
         managedServiceBuilder.addEndpointService(new UsersService(9992, "localhost",
                 9993, "localhost"))
                 .getEndpointServerBuilder()
                 .build().startServer();
-
         System.out.println("User service started");
     }
 }

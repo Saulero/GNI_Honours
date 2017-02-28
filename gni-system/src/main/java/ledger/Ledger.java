@@ -10,6 +10,7 @@ import io.advantageous.qbit.reactive.Callback;
 import databeans.DataReply;
 import databeans.DataRequest;
 import databeans.RequestType;
+import util.JSONParser;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -289,7 +290,7 @@ public class Ledger {
                     double balance = rs.getDouble("balance");
                     Account account = new Account(name, spendingLimit, balance);
                     account.setAccountNumber(accountNumber);
-                    dataReply = new DataReply(accountNumber, requestType, account);
+                    dataReply = JSONParser.createJsonReply(accountNumber, requestType, account);
                     callback.reply(gson.toJson(dataReply));
                 }
 

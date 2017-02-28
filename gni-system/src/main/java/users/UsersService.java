@@ -15,7 +15,6 @@ import databeans.DataRequest;
 import databeans.RequestType;
 import ledger.Account;
 import ledger.Transaction;
-import util.JSONParser;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -31,7 +30,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
  * The Users microservice, handles customer information and is used as a gateway for the UI service.
  */
 @RequestMapping("/users")
-public class UsersService {
+class UsersService {
     /** Port that the Ledger service can be found on. */
     private int ledgerPort;
     /** Host that the User service can be found on. */
@@ -83,7 +82,8 @@ public class UsersService {
     }
 
     /**
-     * Fetches customerdata from the users table for the user with id userId and returns this data in a Customer object.
+     * Fetches customer data from the users table for the user with id userId and returns
+     * this data in a Customer object.
      * @param userId Id of the user to fetch data for.
      * @return Customer object containing the data for Customer with id=userId
      */

@@ -23,8 +23,6 @@ public final class DataReply implements Serializable {
     /** The data of the reply, in case it was a transactionhistory request. */
     private List<Transaction> transactions;
 
-    private String data;
-
     /**
      * Creates a DataReply to send to other microservices.
      * @param newAccountNumber Account number the reply corresponds to.
@@ -86,13 +84,5 @@ public final class DataReply implements Serializable {
 
     public void setTransactions(final List<Transaction> newTransactions) {
         this.transactions = newTransactions;
-    }
-
-    public String getData() {
-        return data;
-    }
-
-    public void setData(final String newData) {
-        this.data = newData;
     }
 }

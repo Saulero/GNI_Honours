@@ -22,7 +22,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
  * new accounts and make transactions.
  */
 @RequestMapping("/ui")
-public final class UIService {
+final class UIService {
     /**Port that the users service can be found on.*/
     private int usersPort;
     /**Host that the users service can be found on.*/
@@ -33,7 +33,7 @@ public final class UIService {
      * @param newUsersPort port the users service can be found on.
      * @param newUsersHost host the users service can be found on.
      */
-    public UIService(final int newUsersPort, final String newUsersHost) {
+    UIService(final int newUsersPort, final String newUsersHost) {
         this.usersPort = newUsersPort;
         this.usersHost = newUsersHost;
     }

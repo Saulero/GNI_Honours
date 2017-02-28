@@ -14,22 +14,21 @@ import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuild
 import static java.net.HttpURLConnection.HTTP_OK;
 
 /**
- * Created by noel on 4-2-17.
  * @author Noel
  * @version 1
- * Microservices manager, handles the event manager and starts the microservices.
+ * Currently used to do system tests, will be rewritten to start all services.
  */
+//TODO rewrite to start services
 public final class ServiceManager {
     /**
-     * Private constructor to satisfy utility class property.
+     * Private constructor for utility class.
      */
     private ServiceManager() {
         //Not called
     }
 
     /**
-     * Initializes the eventmanager and then starts all services and sets up
-     * their listeners.
+     * Calls services using http clients to simulate a client using the system.
      * @param args empty argument
      */
     public static void main(final String[] args) {
@@ -47,7 +46,9 @@ public final class ServiceManager {
         //pinClient.start();
         //doPin(pinClient, testDestinationNumber, testAccountNumber, "De wilde", "8888",
         //        "730", 20.00);
-        makeNewAccount(userClient, "Mats", "Bats");
+        makeNewAccount(userClient, "M.S.", "Mats", "Bats", "mats@bats.nl",
+                        "061212121212", "Batslaan 25", "20-04-1889",
+                new Long("1234567890"),1000, 0);
         //doTransaction(externalBankClient, testAccountNumber, "NL00GNIB5695575206", "De Wilde",
         //        200.00, true);
         //doTransaction(userClient, deWildeNumber, testDestinationNumber, "De Boer",
@@ -57,6 +58,16 @@ public final class ServiceManager {
         //doGet(userClient, testAccountNumber, RequestType.CUSTOMERDATA);
     }
 
+    /**
+     * Performs a transaction by calling the transaction receive service or the ui service.
+     * @param httpClient Client connected to the service to be called.
+     * @param sourceAccountNumber Source account for the transaction.
+     * @param destinationAccountNumber Destination account for the transaction.
+     * @param destinationAccountHolderName Name of the destination account holder.
+     * @param transactionAmount Amount to transfer.
+     * @param isExternal Boolean indicating if the transaction is from an external bank(so to the transaction receive
+     *                   service) or from a user (so to the ui service).
+     */
     private static void doTransaction(final HttpClient httpClient, final String sourceAccountNumber,
                                final String destinationAccountNumber, final String destinationAccountHolderName,
                                final double transactionAmount, final boolean isExternal) {
@@ -89,10 +100,26 @@ public final class ServiceManager {
         });
     }
 
-    private static void makeNewAccount(final HttpClient httpClient, final String newName, final String newSurname) {
-        Customer customer = JSONParser.createJsonCustomer("M.", newName, newSurname, "bob@bob.com",
-                                    "0612121212121", "berlin 25", "20-04-1889",
-                                    new Long("2345678981231231"), 0, 0);
+    /**
+     * Sends a customer creation request to the UI service.
+     * @param httpClient Client connected to the UI.
+     * @param initials Initials of the customer.
+     * @param name First name of the customer.
+     * @param surname Last name of the customer.
+     * @param email Email of the customer.
+     * @param telephoneNumber Telephone number of the customer.
+     * @param address Address of the customer.
+     * @param dob Date of birth of the customer.
+     * @param ssn Social security number of the customer.
+     * @param spendingLimit Spendinglimit of the account.
+     * @param balance Balance of the account.
+     */
+    private static void makeNewAccount(final HttpClient httpClient, final String initials, final String name,
+                                       final String surname, final String email, final String telephoneNumber,
+                                       final String address, final String dob, final Long ssn,
+                                       final double spendingLimit, final double balance) {
+        Customer customer = JSONParser.createJsonCustomer(initials, name, surname, email, telephoneNumber, address, dob,
+                                                            ssn, spendingLimit, balance);
         Gson gson = new Gson();
         httpClient.putFormAsyncWith1Param("/services/ui/customer", "body", gson.toJson(customer),
                 (code, contentType, body) -> { if (code == 200) {
@@ -105,26 +132,39 @@ public final class ServiceManager {
             });
     }
 
-    private static void doGet(final HttpClient httpClient, final String accountNumber, final RequestType type) {
-        DataRequest request = JSONParser.createJsonRequest(accountNumber, type);
+    /**
+     * Sends a get request to the UI service to retrieve information from other services.
+     * @param httpClient Client connected to the UI service.
+     * @param accountNumber Accountnumber of the customer we want to request information for.
+     * @param type Type of request we want to do{@link RequestType}.
+     * @param userId Id of the customer we want to request information for.
+     */
+    private static void doGet(final HttpClient httpClient, final String accountNumber, final RequestType type,
+                              final Long userId) {
+        DataRequest request = JSONParser.createJsonRequest(accountNumber, type, userId);
         Gson gson = new Gson();
         httpClient.getAsyncWith1Param("/services/ui/data", "body", gson.toJson(request),
                 (code, contentType, body) -> {
                     if (code == 200) {
-                        DataReply reply = gson.fromJson(body.substring(1, body.length() - 1).replaceAll("\\\\", ""),
-                                DataReply.class);
                         switch (type) {
                             case BALANCE:
+                                DataReply balanceReply = gson.fromJson(body.substring(1, body.length() - 1)
+                                                .replaceAll("\\\\", ""), DataReply.class);
                                 System.out.printf("Request successful, balance: %f\n",
-                                        reply.getAccountData().getBalance());
+                                        balanceReply.getAccountData().getBalance());
                                 break;
                             case TRANSACTIONHISTORY:
-                                for (Transaction x : reply.getTransactions()) {
+                                DataReply transactionReply = gson.fromJson(body.substring(1, body.length() - 1)
+                                        .replaceAll("\\\\", ""), DataReply.class);
+                                for (Transaction x : transactionReply.getTransactions()) {
                                     System.out.println(x.toString());
                                 }
                                 break;
                             case CUSTOMERDATA:
-                                System.out.println(reply.getData());
+                                Customer customerReply = gson.fromJson(body.substring(1, body.length() - 1)
+                                        .replaceAll("\\\\", ""), Customer.class);
+                                System.out.printf("Name: %s, dob: %s", customerReply.getInitials()
+                                                + customerReply.getSurname(), customerReply.getDob());
                                 break;
                             default:
                                 System.out.println("couldnt get reply data.");
@@ -136,6 +176,16 @@ public final class ServiceManager {
                 });
     }
 
+    /**
+     * Sends a transaction request to the Pin service, simulating a Pin transaction of a customer.
+     * @param httpClient Client connected to the Pin service.
+     * @param sourceAccountNumber Account number to transfer funds from.
+     * @param destinationAccountNumber Account number to transfer funds into.
+     * @param destinationAccountHolderName Name of the owner of the destination account number.
+     * @param pinCode Pin code of the source account owner.
+     * @param cardNumber Card number used in the transaction.
+     * @param transactionAmount Amount to transfer.
+     */
     private static void doPin(final HttpClient httpClient, final String sourceAccountNumber,
                               final String destinationAccountNumber, final String destinationAccountHolderName,
                               final String pinCode, final String cardNumber, final double transactionAmount) {
