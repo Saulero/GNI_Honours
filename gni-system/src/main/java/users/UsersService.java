@@ -18,6 +18,7 @@ import ledger.Transaction;
 import util.JSONParser;
 
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 
 import static database.SQLStatements.*;
@@ -49,7 +50,7 @@ public class UsersService {
      * @param newTransactionDispatchPort Port the TransactionDispatch service can be found on.
      * @param newTransactionDispatchHost Host the TransactionDispatch service can be found on.
      */
-    public UsersService(final int newLedgerPort, final String newLedgerHost, final int newTransactionDispatchPort,
+    UsersService(final int newLedgerPort, final String newLedgerHost, final int newTransactionDispatchPort,
                         final String newTransactionDispatchHost) {
         this.ledgerPort = newLedgerPort;
         this.ledgerHost = newLedgerHost;
@@ -73,13 +74,39 @@ public class UsersService {
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder();
         callbackBuilder.withStringCallback(callback);
         if (request.getType() == RequestType.CUSTOMERDATA) {
-            //TODO fetch customer information from database
-            String customerInformation = "freekje";
-            DataReply reply = JSONParser.createJsonReply(request.getAccountNumber(), request.getType(),
-                                                        customerInformation);
+            Long userId = request.getUserId();
+            Customer reply = getCustomerData(userId);
             callbackBuilder.build().reply(gson.toJson(reply));
         } else {
             doDataRequest(request, gson, callbackBuilder);
+        }
+    }
+
+    /**
+     * Fetches customerdata from the users table for the user with id userId and returns this data in a Customer object.
+     * @param userId Id of the user to fetch data for.
+     * @return Customer object containing the data for Customer with id=userId
+     */
+    private Customer getCustomerData(final Long userId) {
+        try {
+            SQLConnection connection = db.getConnection();
+            PreparedStatement ps = connection.getConnection().prepareStatement(getCustomerInformation);
+            ps.setLong(1, userId);
+            ResultSet rs = ps.executeQuery();
+            ps.close();
+            db.returnConnection(connection);
+            Customer reply = new Customer();
+            reply.setInitials(rs.getString("initials"));
+            reply.setName(rs.getString("firstname"));
+            reply.setSurname(rs.getString("lastname"));
+            reply.setEmail(rs.getString("email"));
+            reply.setTelephoneNumber(rs.getString("telephone_number"));
+            reply.setAddress(rs.getString("address"));
+            reply.setDob(rs.getString("date_of_birth"));
+            reply.setSsn(rs.getLong("social_security_number"));
+            return reply;
+        } catch (SQLException e) {
+            return null;
         }
     }
 

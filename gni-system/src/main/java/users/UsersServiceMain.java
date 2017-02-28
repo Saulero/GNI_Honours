@@ -3,10 +3,22 @@ package users;
 import io.advantageous.qbit.admin.ManagedServiceBuilder;
 
 /**
- * Created by noel on 21-2-17.
+ * Utility class that contains a main method to start up the UsersService.
+ * @author Noel
+ * @version 1
  */
-public class UsersServiceMain {
+public final class UsersServiceMain {
 
+    /**
+     * Private constructor for utility class.
+     */
+    private UsersServiceMain() {
+    }
+
+    /**
+     * Start
+     * @param args
+     */
     public static void main(final String[] args) {
                 /* Create the ManagedServiceBuilder which manages a clean shutdown, health, stats, etc. */
         final ManagedServiceBuilder managedServiceBuilder =
@@ -21,6 +33,5 @@ public class UsersServiceMain {
                 .build().startServer();
 
         System.out.println("User service started");
-
     }
 }
