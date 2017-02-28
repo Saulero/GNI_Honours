@@ -1,6 +1,7 @@
 package ui;
 
 import com.google.gson.Gson;
+import databeans.RequestType;
 import io.advantageous.qbit.annotation.RequestMapping;
 import io.advantageous.qbit.annotation.RequestMethod;
 import io.advantageous.qbit.annotation.RequestParam;
@@ -84,13 +85,19 @@ final class UIService {
     private void processUserDataReply(final CallbackBuilder callbackBuilder, final String body,
                                                 final DataRequest request, final Gson gson) {
         String replyJson = body.substring(1, body.length() - 1).replaceAll("\\\\", "");
-        DataReply reply = gson.fromJson(replyJson, DataReply.class);
-        if (reply.getAccountNumber().equals(request.getAccountNumber())
-                && reply.getType() == request.getType()) {
-            callbackBuilder.build().reply(gson.toJson(reply));
+        if (request.getType() == RequestType.BALANCE || request.getType() == RequestType.TRANSACTIONHISTORY) {
+            DataReply reply = gson.fromJson(replyJson, DataReply.class);
+            if (reply.getAccountNumber().equals(request.getAccountNumber())) {
+                System.out.println("UI: Sending callback.");
+                callbackBuilder.build().reply(gson.toJson(reply));
+            } else {
+                System.out.println("UI: Transaction request failed on reply check.");
+                callbackBuilder.build().reject("Transaction request failed.");
+            }
         } else {
-            System.out.println("Transaction request failed on reply check.");
-            callbackBuilder.build().reject("Transaction request failed.");
+            Customer reply = gson.fromJson(replyJson, Customer.class);
+            System.out.println("UI: Sending callback.");
+            callbackBuilder.build().reply(gson.toJson(reply));
         }
     }
 
@@ -105,7 +112,7 @@ final class UIService {
         httpClient.start();
         Gson gson = new Gson();
         Transaction request = gson.fromJson(body, Transaction.class);
-        System.out.printf("UI: Sending transaction to users\n\n");
+        System.out.printf("UI: Sending transaction to users\n");
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder();
         callbackBuilder.withStringCallback(callback);
         doTransactionRequest(httpClient, request, gson, callbackBuilder);
@@ -145,9 +152,9 @@ final class UIService {
         request.setTransactionID(reply.getTransactionID());
         if (reply.equalsRequest(request)) {
             callbackBuilder.build().reply(gson.toJson(reply));
-            System.out.println("Request successfull, transactionId: " + reply.getTransactionID());
+            System.out.println("UI: Request successfull, transactionId: " + reply.getTransactionID());
         } else {
-            System.out.println("Transaction request failed on reply check.");
+            System.out.println("UI: Transaction request failed on reply check.");
             callbackBuilder.build().reject("Transaction request failed.");
         }
     }
@@ -163,9 +170,7 @@ final class UIService {
         HttpClient httpClient = httpClientBuilder().setHost(usersHost).setPort(usersPort).build();
         httpClient.start();
         Gson gson = new Gson();
-        System.out.println(body);
         Customer customer = gson.fromJson(body, Customer.class);
-        System.out.println("after customer");
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder();
         callbackBuilder.withStringCallback(callback);
         doCustomerRequest(httpClient, customer, gson, callbackBuilder);
@@ -205,10 +210,10 @@ final class UIService {
         if (reply.getAccount().getAccountNumber().length() > 1 && reply.getName()
                 .equals(customer.getName()) && reply.getSurname()
                 .equals(customer.getAccount().getAccountHolderName())) {
-            System.out.println("successfull callback, sending back reply");
+            System.out.println("UI: successfull callback, sending back reply");
             callbackBuilder.build().reply(gson.toJson(reply));
         } else {
-            System.out.println("Customer enrollment error, see data: " + reply);
+            System.out.println("UI: Customer enrollment error, see data: " + reply);
             callbackBuilder.build().reject("Customer enrollment failed on reply.");
         }
     }

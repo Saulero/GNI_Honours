@@ -35,7 +35,8 @@ public final class ServiceManager {
         //test variables
         String testAccountNumber = "NL00GNIB5695575206";
         String testDestinationNumber = "NL52GNIB0987890998";
-        String deWildeNumber = "NL00GNIB5695575206";
+        String batsNumber = "NL02GNIB0516754934";
+        int batsId = 2;
 
         //Start http client
         HttpClient userClient = httpClientBuilder().setHost("localhost").setPort(9990).build();
@@ -49,13 +50,13 @@ public final class ServiceManager {
         makeNewAccount(userClient, "M.S.", "Mats", "Bats", "mats@bats.nl",
                         "061212121212", "Batslaan 25", "20-04-1889",
                 new Long("1234567890"),1000, 0);
-        //doTransaction(externalBankClient, testAccountNumber, "NL00GNIB5695575206", "De Wilde",
-        //        200.00, true);
-        //doTransaction(userClient, deWildeNumber, testDestinationNumber, "De Boer",
-        //            250.00, false);
-        //doGet(userClient, testAccountNumber, RequestType.TRANSACTIONHISTORY);
-        //doGet(userClient, testAccountNumber, RequestType.BALANCE);
-        //doGet(userClient, testAccountNumber, RequestType.CUSTOMERDATA);
+        doTransaction(externalBankClient, testAccountNumber, batsNumber, "Bats",
+                "Moneys",200.00, true);
+        doTransaction(userClient, batsNumber, testDestinationNumber, "De Boer",
+                "moar moneys",250.00, false);
+        doGet(userClient, batsNumber, RequestType.TRANSACTIONHISTORY, batsId);
+        doGet(userClient, testAccountNumber, RequestType.BALANCE, batsId);
+        doGet(userClient, testAccountNumber, RequestType.CUSTOMERDATA, batsId);
     }
 
     /**
@@ -70,10 +71,10 @@ public final class ServiceManager {
      */
     private static void doTransaction(final HttpClient httpClient, final String sourceAccountNumber,
                                final String destinationAccountNumber, final String destinationAccountHolderName,
-                               final double transactionAmount, final boolean isExternal) {
+                               final String description, final double transactionAmount, final boolean isExternal) {
         Transaction transaction = JSONParser.createJsonTransaction(-1, sourceAccountNumber,
-                                    destinationAccountNumber, destinationAccountHolderName, transactionAmount,
-                                    false, false);
+                                    destinationAccountNumber, destinationAccountHolderName, description,
+                                    transactionAmount,false, false);
         Gson gson = new Gson();
         String uri;
         if (isExternal) {
@@ -140,7 +141,7 @@ public final class ServiceManager {
      * @param userId Id of the customer we want to request information for.
      */
     private static void doGet(final HttpClient httpClient, final String accountNumber, final RequestType type,
-                              final Long userId) {
+                              final int userId) {
         DataRequest request = JSONParser.createJsonRequest(accountNumber, type, userId);
         Gson gson = new Gson();
         httpClient.getAsyncWith1Param("/services/ui/data", "body", gson.toJson(request),
@@ -150,7 +151,7 @@ public final class ServiceManager {
                             case BALANCE:
                                 DataReply balanceReply = gson.fromJson(body.substring(1, body.length() - 1)
                                                 .replaceAll("\\\\", ""), DataReply.class);
-                                System.out.printf("Request successful, balance: %f\n",
+                                System.out.printf("Request successfull, balance: %f\n",
                                         balanceReply.getAccountData().getBalance());
                                 break;
                             case TRANSACTIONHISTORY:
@@ -163,7 +164,7 @@ public final class ServiceManager {
                             case CUSTOMERDATA:
                                 Customer customerReply = gson.fromJson(body.substring(1, body.length() - 1)
                                         .replaceAll("\\\\", ""), Customer.class);
-                                System.out.printf("Name: %s, dob: %s", customerReply.getInitials()
+                                System.out.printf("Request successfull, Name: %s, dob: %s\n", customerReply.getInitials()
                                                 + customerReply.getSurname(), customerReply.getDob());
                                 break;
                             default:

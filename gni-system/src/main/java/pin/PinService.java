@@ -36,12 +36,14 @@ public class PinService {
     public void processPinTransaction(final Callback<String> callback, final @RequestParam("body") String body) {
         Gson gson = new Gson();
         PinTransaction request = gson.fromJson(body, PinTransaction.class);
-        System.out.println("Received new Pin request from a customer.");
+        System.out.println("PIN: Received new Pin request from a customer.");
         //TODO internal check to confirm pin number
+        //TODO check cardnumber
         boolean pinCorrect = true;
         if (pinCorrect) {
             Transaction transaction = JSONParser.createJsonTransaction(-1, request.getSourceAccountNumber(),
                     request.getDestinationAccountNumber(), request.getDestinationAccountHolderName(),
+                    "PIN Transaction",
                     request.getTransactionAmount(), false, false);
             HttpClient httpClient = httpClientBuilder().setHost(transactionDispatchHost)
                                     .setPort(transactionDispatchPort)
@@ -56,7 +58,7 @@ public class PinService {
                                     .replaceAll("\\\\", ""), Transaction.class);
                             if (reply.isProcessed() && reply.equalsRequest(transaction)) {
                                 if (reply.isSuccessful()) {
-                                    System.out.println("Pin transaction was successfull");
+                                    System.out.println("PIN: Pin transaction was successfull");
                                     callbackBuilder.build().reply(gson.toJson(reply));
                                 } else {
                                     callbackBuilder.build().reject("Pin Transaction was unsuccessfull.");

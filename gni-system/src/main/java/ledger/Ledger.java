@@ -159,8 +159,10 @@ public class Ledger {
             ps.setLong(1, transaction.getTransactionID());
             ps.setLong(2, transaction.getTimestamp());
             ps.setString(3, transaction.getDestinationAccountNumber());
-            ps.setString(4, transaction.getSourceAccountNumber());
-            ps.setDouble(5, transaction.getTransactionAmount());
+            ps.setString(4, transaction.getDestinationAccountHolderName());
+            ps.setString(5, transaction.getSourceAccountNumber());
+            ps.setDouble(6, transaction.getTransactionAmount());
+            ps.setString(7, transaction.getDescription());
             ps.executeUpdate();
 
             ps.close();
@@ -192,7 +194,7 @@ public class Ledger {
     @RequestMapping(value = "/transaction/in", method = RequestMethod.PUT)
     public void processIncomingTransaction(final Callback<String> callback, final @RequestParam("body") String body) {
         Gson gson = new Gson();
-        System.out.println("received an incoming transaction.");
+        System.out.println("Ledger: received an incoming transaction.");
         Transaction transaction = gson.fromJson(body, Transaction.class);
         // Check if account info is correct
         Account account = getAccountInfo(transaction.getDestinationAccountNumber());
@@ -214,12 +216,12 @@ public class Ledger {
 
             transaction.setProcessed(true);
             transaction.setSuccessful(true);
-            System.out.println("Successfully processed the transaction.");
+            System.out.println("Ledger: Successfully processed the transaction.");
             callback.reply(gson.toJson(transaction));
         } else {
             transaction.setProcessed(true);
             transaction.setSuccessful(false);
-            System.out.println("Transaction was not successful.");
+            System.out.println("Ledger: Transaction was not successful.");
             callback.reply(gson.toJson(transaction));
         }
     }
@@ -336,9 +338,12 @@ public class Ledger {
             long timestamp = rs.getLong("timestamp");
             String sourceAccount = rs.getString("account_from");
             String destinationAccount = rs.getString("account_to");
+            String destinationAccountHolderName = rs.getString("account_to_name");
+            String description = rs.getString("description");
             double amount = rs.getDouble("amount");
 
-            list.add(new Transaction(id, timestamp, sourceAccount, destinationAccount, amount));
+            list.add(new Transaction(id, timestamp, sourceAccount, destinationAccount, destinationAccountHolderName,
+                    description, amount));
         }
     }
 

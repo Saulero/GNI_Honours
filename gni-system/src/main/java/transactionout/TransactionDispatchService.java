@@ -47,9 +47,8 @@ public class TransactionDispatchService {
     @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
     public void processTransactionRequest(final Callback<String> callback, @RequestParam("body") final String body) {
         Gson gson = new Gson();
-        System.out.println("In transaction");
         Transaction request = gson.fromJson(body, Transaction.class);
-        System.out.printf("Transaction received, sourceAccount: %s , destAccount: %s, amount: %f",
+        System.out.printf("TransactionDispatch: Transaction received, sourceAccount: %s ,destAccount: %s, amount: %f\n",
                             request.getSourceAccountNumber(), request.getDestinationAccountNumber(),
                             request.getTransactionAmount());
         HttpClient httpClient = httpClientBuilder().setHost(ledgerHost).setPort(ledgerPort).build();
@@ -61,18 +60,18 @@ public class TransactionDispatchService {
             if (code == HTTP_OK) {
                 Transaction reply = gson.fromJson(replyBody.substring(1, replyBody.length() - 1)
                         .replaceAll("\\\\", ""), Transaction.class);
-                System.out.println("Received reply from ledger");
+                System.out.println("TransactionDispatch: Received reply from ledger");
                 if (reply.isProcessed()) {
                     if (reply.isSuccessful()) {
-                        System.out.println("Successfull transaction, sending back reply.");
+                        System.out.println("TransactionDispatch: Successfull transaction, sending back reply.");
                         callbackBuilder.build().reply(gson.toJson(reply));
                         //TODO send outgoing transaction.
                     } else {
-                        System.out.println("Transaction wasn't successfull, rejecting.");
+                        System.out.println("TransactionDispatch: Transaction wasn't successfull, rejecting.");
                         callbackBuilder.build().reject("Unsuccessfull transaction.");
                     }
                 } else {
-                    System.out.println("Transaction couldnt be processed, rejecting.");
+                    System.out.println("TransactionDispatch: Transaction couldnt be processed, rejecting.");
                     callbackBuilder.build().reject("Transaction couldn't be processed.");
                 }
             } else {

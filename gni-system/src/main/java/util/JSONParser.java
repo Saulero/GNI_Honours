@@ -46,7 +46,7 @@ public final class JSONParser {
      * @return DataRequest object that can be converted to a Json String.
      */
     public static DataRequest createJsonRequest(final String accountNumber, final RequestType type,
-                                                final Long newUserId) {
+                                                final int newUserId) {
         DataRequest request = new DataRequest();
         request.setType(type);
         request.setAccountNumber(accountNumber);
@@ -68,6 +68,7 @@ public final class JSONParser {
     public static Transaction createJsonTransaction(final long transactionID, final String sourceAccountNumber,
                                                     final String destinationAccountNumber,
                                                     final String destinationAccountHolderName,
+                                                    final String description,
                                                     final double transactionAmount, final boolean processed,
                                                     final boolean successfull) {
         Transaction transaction = new Transaction();
@@ -76,6 +77,7 @@ public final class JSONParser {
         transaction.setSourceAccountNumber(sourceAccountNumber);
         transaction.setDestinationAccountNumber(destinationAccountNumber);
         transaction.setDestinationAccountHolderName(destinationAccountHolderName);
+        transaction.setDescription(description);
         transaction.setTransactionAmount(transactionAmount);
         transaction.setProcessed(processed);
         transaction.setSuccessful(successfull);

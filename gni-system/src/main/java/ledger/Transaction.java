@@ -10,27 +10,34 @@ public class Transaction {
     private String sourceAccountNumber;
     private String destinationAccountNumber;
     private String destinationAccountHolderName;
+    private String description;
     private double transactionAmount;
     private boolean processed;
     private boolean successful;
 
-    public Transaction(final long newTransactionID, final String newSourceAccountNumber, final String newDestinationAccountNumber, final String newDestinationAccountHolderName, final double newTransactionAmount) {
+    public Transaction(final long newTransactionID, final String newSourceAccountNumber,
+                       final String newDestinationAccountNumber, final String newDestinationAccountHolderName,
+                       final String newDescription, final double newTransactionAmount) {
         this.transactionID = newTransactionID;
         this.timestamp = -1;
         this.sourceAccountNumber = newSourceAccountNumber;
         this.destinationAccountNumber = newDestinationAccountNumber;
         this.destinationAccountHolderName = newDestinationAccountHolderName;
+        this.description = newDescription;
         this.transactionAmount = newTransactionAmount;
         this.processed = false;
         this.successful = false;
     }
 
-    public Transaction(final long newTransactionID, final long newTimestamp, final String newSourceAccountNumber, final String newDestinationAccountNumber, final double newTransactionAmount) {
+    public Transaction(final long newTransactionID, final long newTimestamp, final String newSourceAccountNumber,
+                       final String newDestinationAccountNumber, final String newDestinationAccountHolderName,
+                       final String newDescription, final double newTransactionAmount) {
         this.transactionID = newTransactionID;
         this.timestamp = newTimestamp;
         this.sourceAccountNumber = newSourceAccountNumber;
         this.destinationAccountNumber = newDestinationAccountNumber;
-        this.destinationAccountHolderName = "";
+        this.destinationAccountHolderName = newDestinationAccountHolderName;
+        this.description = newDescription;
         this.transactionAmount = newTransactionAmount;
         this.processed = false;
         this.successful = false;
@@ -106,6 +113,14 @@ public class Transaction {
         this.successful = newSuccessful;
     }
 
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(final String newDescription) {
+        this.description = newDescription;
+    }
+
     /**
      * Compares all variables of transaction to the current object and checks if they are equal.
      * @param transaction object to check for equality.
@@ -115,7 +130,8 @@ public class Transaction {
         return this.getTransactionID() == transaction.getTransactionID() && this.getSourceAccountNumber().equals(
                 transaction.getSourceAccountNumber()) && this.getDestinationAccountNumber().equals(
                 transaction.getDestinationAccountNumber()) && this.getDestinationAccountHolderName()
-                .equals(transaction.getDestinationAccountHolderName()) && this.getTransactionAmount()
+                .equals(transaction.getDestinationAccountHolderName()) && this.getDescription()
+                 .equals(transaction.getDescription()) && this.getTransactionAmount()
                 == transaction.getTransactionAmount() && this.isProcessed() == transaction.isProcessed()
                 && this.isSuccessful() == transaction.isSuccessful();
     }
@@ -129,15 +145,8 @@ public class Transaction {
         return this.getSourceAccountNumber().equals(transaction.getSourceAccountNumber())
                 && this.getDestinationAccountNumber().equals(transaction.getDestinationAccountNumber())
                 && this.getDestinationAccountHolderName().equals(transaction.getDestinationAccountHolderName())
+                && this.getDescription().equals(transaction.getDescription())
                 && this.getTransactionAmount() == transaction.getTransactionAmount();
-    }
-
-    /**
-     * Checks if the Transaction has a GNIB destination accountNumber.
-     * @return True if the destinationAccountNumber is a GNIB accountNumber, otherwise returns false.
-     */
-    public boolean isGNIBDestination() {
-        return this.getDestinationAccountNumber().contains("GNIB");
     }
 
     public boolean minimalEquals(Object o) {
@@ -199,6 +208,7 @@ public class Transaction {
                 ", sourceAccountNumber='" + sourceAccountNumber + '\'' +
                 ", destinationAccountNumber='" + destinationAccountNumber + '\'' +
                 ", destinationAccountHolderName='" + destinationAccountHolderName + '\'' +
+                ", description='" + description + '\'' +
                 ", transactionAmount=" + transactionAmount +
                 ", processed=" + processed +
                 ", successful=" + successful +

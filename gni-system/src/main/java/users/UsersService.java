@@ -66,17 +66,19 @@ class UsersService {
      */
     @RequestMapping(value = "/data", method = RequestMethod.GET)
     public void processDataRequest(final Callback<String> callback, final @RequestParam("body") String body) {
-        System.out.println("Users: Called by UI, calling Ledger");
         Gson gson = new Gson();
         DataRequest request = gson.fromJson(body, DataRequest.class);
         RequestType type = request.getType();
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder();
         callbackBuilder.withStringCallback(callback);
         if (request.getType() == RequestType.CUSTOMERDATA) {
-            Long userId = request.getUserId();
+            System.out.println("Users: Called by UI, fetching customer data.");
+            int userId = request.getUserId();
             Customer reply = getCustomerData(userId);
+            System.out.println("Users: Sending data back to UI.");
             callbackBuilder.build().reply(gson.toJson(reply));
         } else {
+            System.out.println("Users: Called by UI, calling Ledger");
             doDataRequest(request, gson, callbackBuilder);
         }
     }
@@ -87,25 +89,33 @@ class UsersService {
      * @param userId Id of the user to fetch data for.
      * @return Customer object containing the data for Customer with id=userId
      */
-    private Customer getCustomerData(final Long userId) {
+    private Customer getCustomerData(final int userId) {
         try {
             SQLConnection connection = db.getConnection();
             PreparedStatement ps = connection.getConnection().prepareStatement(getCustomerInformation);
             ps.setLong(1, userId);
             ResultSet rs = ps.executeQuery();
-            ps.close();
-            db.returnConnection(connection);
-            Customer reply = new Customer();
-            reply.setInitials(rs.getString("initials"));
-            reply.setName(rs.getString("firstname"));
-            reply.setSurname(rs.getString("lastname"));
-            reply.setEmail(rs.getString("email"));
-            reply.setTelephoneNumber(rs.getString("telephone_number"));
-            reply.setAddress(rs.getString("address"));
-            reply.setDob(rs.getString("date_of_birth"));
-            reply.setSsn(rs.getLong("social_security_number"));
-            return reply;
+            if (rs.next()) {
+                Customer reply = new Customer();
+                reply.setInitials(rs.getString("initials"));
+                reply.setName(rs.getString("firstname"));
+                reply.setSurname(rs.getString("lastname"));
+                reply.setEmail(rs.getString("email"));
+                reply.setTelephoneNumber(rs.getString("telephone_number"));
+                reply.setAddress(rs.getString("address"));
+                reply.setDob(rs.getString("date_of_birth"));
+                reply.setSsn(rs.getLong("social_security_number"));
+                ps.close();
+                db.returnConnection(connection);
+                return reply;
+            } else {
+                ps.close();
+                db.returnConnection(connection);
+                return null;
+            }
+
         } catch (SQLException e) {
+            e.printStackTrace();
             return null;
         }
     }
@@ -152,7 +162,7 @@ class UsersService {
         HttpClient httpClient = httpClientBuilder().setHost(transactionDispatchHost).setPort(transactionDispatchPort)
                                                     .build();
         httpClient.start();
-        System.out.println("Sent transaction to TransactionDispatch");
+        System.out.println("Users: Sent transaction to TransactionDispatch");
         doTransactionRequest(httpClient, request, gson, callbackBuilder);
     }
 
@@ -172,7 +182,7 @@ class UsersService {
                                                                 .replaceAll("\\\\", ""), Transaction.class);
                 if (reply.isProcessed() && reply.equalsRequest(request)) {
                     if (reply.isSuccessful()) {
-                        System.out.println("Transaction was successfull");
+                        System.out.println("Users: Transaction was successfull");
                         callbackBuilder.build().reply(gson.toJson(reply));
                     } else {
                         callbackBuilder.build().reject("Transaction was unsuccessfull.");
@@ -250,7 +260,7 @@ class UsersService {
             ps.executeUpdate();
             ps.close();
             db.returnConnection(connection);
-            System.out.printf("Users: Added users %s %s to the customer database\n\n",
+            System.out.printf("Users: Added users %s %s to the customer database\n",
                     customer.getName(), customer.getSurname());
             boolean addedAccount = addAccountToCustomerDb(newID, customer.getAccount().getAccountNumber());
             if (addedAccount) {
@@ -279,7 +289,7 @@ class UsersService {
             ps.executeUpdate();
             ps.close();
             db.returnConnection(connection);
-            System.out.printf("Users: Added Accountnumber %s to userid %d", accountNumber, customerId);
+            System.out.printf("Users: Added Accountnumber %s to userid %dń", accountNumber, customerId);
             return true;
         } catch (SQLException e) {
             e.printStackTrace();

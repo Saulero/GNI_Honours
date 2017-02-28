@@ -46,17 +46,12 @@ public class TransactionReceiveService {
     public void processIncomingTransaction(final Callback<String> callback, final @RequestParam("body") String body) {
         Gson gson = new Gson();
         Transaction request = gson.fromJson(body, Transaction.class);
-        System.out.println("Received transaction request from external bank");
+        System.out.println("TransactionReceive: Received transaction request from external bank");
         HttpClient httpClient = httpClientBuilder().setHost(ledgerHost).setPort(ledgerPort).build();
         httpClient.start();
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder();
         callbackBuilder.withStringCallback(callback);
-        if (request.isGNIBDestination()) {
-            doTransaction(httpClient, gson, request, callbackBuilder);
-        } else {
-            //TODO send reply instead of rejection
-            callback.reject("Destination account is not a GNIB account");
-        }
+        doTransaction(httpClient, gson, request, callbackBuilder);
     }
 
     /**
@@ -76,11 +71,12 @@ public class TransactionReceiveService {
                                 .replaceAll("\\\\", ""), Transaction.class);
                         if (reply.isProcessed()) {
                             if (reply.isSuccessful()) {
-                                System.out.println("Successfully processed external transaction");
+                                System.out.println("TransactionReceive: Successfully processed external transaction");
                                 callbackBuilder.build().reply(gson.toJson(reply));
                                 //TODO send reply to external bank.
                             } else {
-                                System.out.println("External transaction wasn't successfull, rejecting.");
+                                System.out.println("TransactionReceive: External transaction wasn't successfull,"
+                                                    + " rejecting.");
                                 //TODO send unsuccessfull reply instead of rejection
                                 callbackBuilder.build().reject("Unsuccessfull external transaction.");
                             }
