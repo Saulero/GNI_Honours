@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import databeans.Customer;
 import databeans.DataReply;
 import databeans.DataRequest;
-import databeans.PinTransaction;
 import databeans.RequestType;
 import io.advantageous.qbit.http.client.HttpClient;
 import ledger.Transaction;
@@ -43,10 +42,6 @@ public final class ServiceManager {
         userClient.start();
         HttpClient externalBankClient = httpClientBuilder().setHost("localhost").setPort(9994).build();
         externalBankClient.start();
-        //HttpClient pinClient = httpClientBuilder().setHost("localhost").setPort(9995).build();
-        //pinClient.start();
-        //doPin(pinClient, testDestinationNumber, testAccountNumber, "De wilde", "8888",
-        //        "730", 20.00);
         makeNewAccount(userClient, "M.S.", "Mats", "Bats", "mats@bats.nl",
                         "061212121212", "Batslaan 25", "20-04-1889",
                 new Long("1234567890"),1000, 0);
@@ -176,39 +171,4 @@ public final class ServiceManager {
                     }
                 });
     }
-
-    /**
-     * Sends a transaction request to the Pin service, simulating a Pin transaction of a customer.
-     * @param httpClient Client connected to the Pin service.
-     * @param sourceAccountNumber Account number to transfer funds from.
-     * @param destinationAccountNumber Account number to transfer funds into.
-     * @param destinationAccountHolderName Name of the owner of the destination account number.
-     * @param pinCode Pin code of the source account owner.
-     * @param cardNumber Card number used in the transaction.
-     * @param transactionAmount Amount to transfer.
-     */
-    private static void doPin(final HttpClient httpClient, final String sourceAccountNumber,
-                              final String destinationAccountNumber, final String destinationAccountHolderName,
-                              final String pinCode, final String cardNumber, final double transactionAmount) {
-        PinTransaction pin = JSONParser.createJsonPinTransaction(sourceAccountNumber, destinationAccountNumber,
-                                destinationAccountHolderName, pinCode, cardNumber, transactionAmount);
-        Gson gson = new Gson();
-        httpClient.putFormAsyncWith1Param("/services/pin/transaction", "body", gson.toJson(pin),
-                (code, contentType, body) -> {
-                    if (code == HTTP_OK) {
-                        Transaction reply = gson.fromJson(body.substring(1, body.length() - 1).replaceAll("\\\\", ""),
-                                Transaction.class);
-                        if (reply.isSuccessful() && reply.isProcessed()) {
-                            System.out.println("Pin transaction successfull.");
-                        } else if (!reply.isProcessed()) {
-                            System.out.println("Pin transaction couldn't be processed");
-                        } else {
-                            System.out.println("Pin transaction was not successfull");
-                        }
-                    } else {
-                        System.out.println("Pin transaction request failed, body: " + body);
-                    }
-                });
-    }
-
 }
