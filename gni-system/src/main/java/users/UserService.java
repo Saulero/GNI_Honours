@@ -27,7 +27,7 @@ public class UserService {
 
     /**Used to verify if a http request to another service was successfull.*/
     private static final int HTTP_OK = 200;
-    /**Port that the Ledger service can be found on.*/
+    /**Port that the LedgerService service can be found on.*/
     private int ledgerPort;
     /**Host that the User service can be found on.*/
     private String ledgerHost;
@@ -38,8 +38,8 @@ public class UserService {
 
     /**
      * Constructor.
-     * @param newLedgerPort Port the Ledger service can be found on.
-     * @param newLedgerHost Host the Ledger service can be found on.
+     * @param newLedgerPort Port the LedgerService service can be found on.
+     * @param newLedgerHost Host the LedgerService service can be found on.
      * @param newTransactionDispatchPort Port the TransactionDispatch service can be found on.
      * @param newTransactionDispatchHost Host the TransactionDispatch service can be found on.
      */
@@ -53,13 +53,13 @@ public class UserService {
 
     /**
      * Processes incoming data requests from the UI service and sends a reply back through a callback, if necessary
-     * sends the request to the Ledger service and waits for a callback from the Ledger.
+     * sends the request to the LedgerService service and waits for a callback from the LedgerService.
      * @param callback Used to send result back to the UI service.
      * @param body Json String representing a DataRequest that is made by the UI service {@link DataRequest}.
      */
     @RequestMapping(value = "/data", method = RequestMethod.GET)
     public void processDataRequest(final Callback<String> callback, final @RequestParam("body") String body) {
-        System.out.println("Users: Called by UI, calling Ledger");
+        System.out.println("Users: Called by UI, calling LedgerService");
         Gson gson = new Gson();
         DataRequest request = gson.fromJson(body, DataRequest.class);
         RequestType type = request.getType();
@@ -76,7 +76,7 @@ public class UserService {
     }
 
     /**
-     * Sends a data request to the Ledger and handles the response from the ledger. Uses the callbackBuilder to send
+     * Sends a data request to the LedgerService and handles the response from the ledger. Uses the callbackBuilder to send
      * the reply from the ledger back to the UI service.
      * @param request DataRequest that was sent to the ledger {@link DataRequest}.
      * @param gson Used for Json conversions.
@@ -152,7 +152,7 @@ public class UserService {
     }
 
     /**
-     * Processes customer creation requests coming from the UI service, sends the request to the Ledger service to
+     * Processes customer creation requests coming from the UI service, sends the request to the LedgerService service to
      * obtain an accountNumber for the customer and then processes the customer in the User database.
      * @param callback Used to send the result of the request back to the UI service.
      * @param body Json string containing the Customer object the request is for {@link Customer}.

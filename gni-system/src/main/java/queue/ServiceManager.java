@@ -53,7 +53,7 @@ public final class ServiceManager {
         //Create eventmanager and start microservices
         EventManager eventManager = QBit.factory().systemEventManager();
         UserService userService = new UserService();
-        Ledger ledger = new Ledger();
+        LedgerService ledger = new LedgerService();
         UIService uiService = new UIService();
         TransactionDispatchService dispatchService
                 = new TransactionDispatchService();

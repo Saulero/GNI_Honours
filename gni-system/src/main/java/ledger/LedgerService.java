@@ -17,6 +17,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.LinkedList;
+import java.util.List;
 
 import static database.SQLStatements.*;
 
@@ -25,17 +26,23 @@ import static database.SQLStatements.*;
  * @version 1
  */
 @RequestMapping("/ledger")
-public class Ledger {
+public class LedgerService {
 
+    /** Database connection pool containing persistant database connections. */
     private ConnectionPool db;
 
-    public Ledger() {
+    /**
+     * Constructor.
+     */
+    public LedgerService() {
         db = new ConnectionPool();
     }
 
     /**
-     * Listens to USER_CREATION_CHANNEL for new customers and adds their account number to the ledger.
-     * @param customer customer object containing the customers name and accountnumber
+     * Creates a new account for a customer and sends the data back to UserService,
+     * so that the new account may be properly linked to the customer.
+     * @param callback Used to send a reply back to the UserService
+     * @param body Json String representing customer information
      */
     @RequestMapping(value = "/accountNumber", method = RequestMethod.PUT)
     public void createNewAccount(final Callback<String> callback, final @RequestParam("body") String body) {
@@ -55,7 +62,7 @@ public class Ledger {
             ps.executeUpdate();
             ps.close();
             db.returnConnection(connection);
-            System.out.printf("Ledger: Added user %s with accountNumber %s to ledger\n\n",
+            System.out.printf("LedgerService: Added user %s with accountNumber %s to ledger\n\n",
                     newAccount.getAccountHolderName(), newAccount.getAccountNumber());
             callback.reply(gson.toJson(newAccount));
         } catch (SQLException e) {
@@ -64,7 +71,13 @@ public class Ledger {
         }
     }
 
-    public String generateNewAccountNumber(final Account newAccount) {
+    /**
+     * Generates a new account number based on specific customer information,
+     * also checks that the account number doesn't already exist.
+     * @param newAccount Account Object containing customer information
+     * @return The new account number
+     */
+    private String generateNewAccountNumber(final Account newAccount) {
         int modifier = 0;
         String accountNumber = attemptAccountNumberGeneration(newAccount.getAccountHolderName(), modifier);
         while (modifier < 100 && getAccountInfo(accountNumber) != null) {
@@ -74,7 +87,14 @@ public class Ledger {
         return accountNumber;
     }
 
-    public String attemptAccountNumberGeneration(final String name, final int modifier) {
+    /**
+     * Generates a single account number, based on a name and a modifier,
+     * which are specified by the calling method.
+     * @param name Customer name to be used
+     * @param modifier Modifier to be used
+     * @return The generated account number
+     */
+    private String attemptAccountNumberGeneration(final String name, final int modifier) {
         String accountNumber = "NL";
         if (modifier < 10) {
             accountNumber += "0";
@@ -95,11 +115,22 @@ public class Ledger {
         return null;
     }
 
+    /**
+     * Sanitizes a string.
+     * Deleted all spaces, non-letter characters, converts to lower case.
+     * @param inputString String to be sanitized
+     * @return Sanitized String
+     */
     private String sanitizeName(final String inputString) {
         return inputString.replaceAll("[^a-zA-Z]", "").toLowerCase();
     }
 
-    public Account getAccountInfo(final String accountNumber) {
+    /**
+     * Gets all data for a specific account number from the database.
+     * @param accountNumber The account number to retrieve the information for
+     * @return The account information
+     */
+    private Account getAccountInfo(final String accountNumber) {
         try {
             SQLConnection connection = db.getConnection();
             PreparedStatement ps = connection.getConnection().prepareStatement(getAccountInformation);
@@ -129,7 +160,12 @@ public class Ledger {
         return null;
     }
 
-    public void updateBalance(final Account account) {
+    /**
+     * Overwrites account information for a specific account,
+     * in case a transaction is successfully processed.
+     * @param account The account to overwrite, containing the new data
+     */
+    private void updateBalance(final Account account) {
         try {
             SQLConnection connection = db.getConnection();
             PreparedStatement ps = connection.getConnection().prepareStatement(updateBalance);
@@ -145,7 +181,13 @@ public class Ledger {
         }
     }
 
-    public void addTransaction(final Transaction transaction, final boolean incoming) {
+    /**
+     * Adds a transaction to either the incoming transaction log, or the outgoing transaction log,
+     * depending on the incoming flag.
+     * @param transaction Transaction to add
+     * @param incoming Incoming flag (true for incoming, false for outgoing)
+     */
+    private void addTransaction(final Transaction transaction, final boolean incoming) {
         try {
             SQLConnection connection = db.getConnection();
             PreparedStatement ps;
@@ -169,7 +211,11 @@ public class Ledger {
         }
     }
 
-    public long getNextTransactionID() {
+    /**
+     * Collects the current highest ids from both transaction tables and returns the highest.
+     * @return The highest current transaction id
+     */
+    private long getHighestTransactionID() {
         SQLConnection connection = db.getConnection();
         long maxIncoming = connection.getNextID(getHighestIncomingTransactionID);
         long maxOutgoing = connection.getNextID(getHighestOutgoingTransactionID);
@@ -179,14 +225,10 @@ public class Ledger {
     }
 
     /**
-     * Listens for transactions on INCOMING_TRANSACTION_CHANNEL when a transaction requires processing
-     * the ledger checks if the accounts spending limit is not exceeded by the transaction, if it is not
-     * the transaction variable successfull will be set to true and the ledger will apply the transaction.
-     * If the spending limit is exceeded the ledger will not apply the transaction and the successfull variable
-     * will be set to false. The transaction is then sent back to TransactionDispatchService
-     * through INCOMING_TRANSACTION_VERIFICATION_CHANNEL.
-     *
-     * @param transaction Transaction object to perform the transaction
+     * Processes an incoming transaction.
+     * Checks if the account exists and then processes the transaction if it does.
+     * @param callback Used to send result back to the UserService.
+     * @param body Json String representing a Transaction
      */
     @RequestMapping(value = "/transaction/in", method = RequestMethod.PUT)
     public void processIncomingTransaction(final Callback<String> callback, final @RequestParam("body") String body) {
@@ -207,7 +249,7 @@ public class Ledger {
             updateBalance(account);
 
             // Update Transaction log
-            transaction.setTransactionID(getNextTransactionID());
+            transaction.setTransactionID(getHighestTransactionID());
             transaction.generateTimestamp();
             addTransaction(transaction, true);
 
@@ -224,14 +266,10 @@ public class Ledger {
     }
 
     /**
-     * Listens for transactions on OUTGOING_TRANSACTION_CHANNEL when a transaction requires processing
-     * the ledger checks if the accounts spending limit is not exceeded by the transaction, if it is not
-     * the transaction variable successfull will be set to true and the ledger will apply the transaction.
-     * If the spending limit is exceeded the ledger will not apply the transaction and the successfull variable
-     * will be set to false. The transaction is then sent back to TransactionDispatchService
-     * through OUTGOING_TRANSACTION_VERIFICATION_CHANNEL.
-     *
-     * @param transaction Transaction object to perform the transaction
+     * Processes an outgoing transaction.
+     * Checks if the account making the transaction is allowed to do this. (has a high enough spending limit)
+     * @param callback Used to send result back to the UserService.
+     * @param body Json String representing a Transaction
      */
     @RequestMapping(value = "/transaction/out", method = RequestMethod.PUT)
     public void processOutgoingTransaction(final Callback<String> callback, final @RequestParam("body") String body) {
@@ -240,7 +278,7 @@ public class Ledger {
         // Check if spending_limit allows for the transaction
         Account account = getAccountInfo(transaction.getSourceAccountNumber());
 
-        if (account.withdrawTransactionIsAllowed(transaction)) {
+        if (account != null && account.withdrawTransactionIsAllowed(transaction)) {
             // Update the object
             account.processWithdraw(transaction);
 
@@ -248,7 +286,7 @@ public class Ledger {
             updateBalance(account);
 
             /// Update Transaction log
-            transaction.setTransactionID(getNextTransactionID());
+            transaction.setTransactionID(getHighestTransactionID());
             transaction.generateTimestamp();
             addTransaction(transaction, false);
 
@@ -263,11 +301,10 @@ public class Ledger {
     }
 
     /**
-     * Listens on DATA_REQUEST_CHANNEL for customer data requests.
-     * If the request is a balance or transaction request the method gets this data from the database and sends
-     * it back in a dataReply object.
-     *
-     * @param dataRequest DataRequest object containing the customer data request
+     * Processes a datarequest.
+     * The datarequest is either for account information, or a transaction history.
+     * @param callback Used to send result back to the UserService.
+     * @param body Json String representing a DataRequest containing the request information
      */
     @RequestMapping(value = "/data", method = RequestMethod.GET)
     public void processDataRequest(final Callback<String> callback, final @RequestParam("body") String body) {
@@ -281,7 +318,7 @@ public class Ledger {
                 ps.setString(1, dataRequest.getAccountNumber());     // account_number
                 ResultSet rs = ps.executeQuery();
 
-                DataReply dataReply = null;
+                DataReply dataReply;
                 if (rs.next()) {
                     String accountNumber = dataRequest.getAccountNumber();
                     String name = rs.getString("name");
@@ -310,7 +347,7 @@ public class Ledger {
                 ResultSet rs1 = ps1.executeQuery();
                 ResultSet rs2 = ps2.executeQuery();
 
-                LinkedList<Transaction> transactions = new LinkedList<Transaction>();
+                LinkedList<Transaction> transactions = new LinkedList<>();
                 fillTransactionList(transactions, rs1);
                 fillTransactionList(transactions, rs2);
 
@@ -329,7 +366,13 @@ public class Ledger {
         }
     }
 
-    public void fillTransactionList(final LinkedList<Transaction> list, final ResultSet rs) throws SQLException {
+    /**
+     * Fills a provided list with transactions from a given database query.
+     * @param list The list to add the transactions to.
+     * @param rs The ResultSet to get the transactions from.
+     * @throws SQLException SQLException
+     */
+    private void fillTransactionList(final List<Transaction> list, final ResultSet rs) throws SQLException {
         while (rs.next()) {
             long id = rs.getLong("id");
             long timestamp = rs.getLong("timestamp");
@@ -341,6 +384,9 @@ public class Ledger {
         }
     }
 
+    /**
+     * Safely shuts down the LedgerService.
+     */
     public void shutdown() {
         db.close();
     }

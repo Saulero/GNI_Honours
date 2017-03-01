@@ -25,7 +25,7 @@ public class TransactionDispatchService {
 
     /**Used to verify if a http request to another service was successfull.*/
     private static final int HTTP_OK = 200;
-    /**Port that the Ledger service can be found on.*/
+    /**Port that the LedgerService service can be found on.*/
     private int ledgerPort;
     /**Host that the User service can be found on.*/
     private String ledgerHost;

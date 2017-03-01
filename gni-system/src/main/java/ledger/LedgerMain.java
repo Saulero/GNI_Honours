@@ -16,11 +16,11 @@ public class LedgerMain {
                         .setPort(9992); //Defaults to 8080 or environment variable PORT
 
         /* Start the service. */
-        managedServiceBuilder.addEndpointService(new Ledger()) //Register TodoService
+        managedServiceBuilder.addEndpointService(new LedgerService()) //Register TodoService
                 .getEndpointServerBuilder()
                 .build().startServer();
 
-        System.out.println("Ledger service started");
+        System.out.println("LedgerService service started");
 
     }
 }
