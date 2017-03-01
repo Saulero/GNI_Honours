@@ -1,7 +1,5 @@
 package databeans;
 
-import ledger.Account;
-
 import java.io.Serializable;
 
 /**

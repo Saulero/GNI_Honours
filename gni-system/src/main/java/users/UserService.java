@@ -11,8 +11,8 @@ import databeans.Customer;
 import databeans.DataReply;
 import databeans.DataRequest;
 import databeans.RequestType;
-import ledger.Account;
-import ledger.Transaction;
+import databeans.Account;
+import databeans.Transaction;
 import util.JSONParser;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;

@@ -3,7 +3,7 @@ package manager;
 import com.google.gson.Gson;
 import io.advantageous.qbit.http.client.HttpClient;
 import databeans.*;
-import ledger.Transaction;
+import databeans.Transaction;
 import util.JSONParser;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;

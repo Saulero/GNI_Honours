@@ -1,11 +1,11 @@
-package ledger;
+package databeans;
 
 import java.io.Serializable;
 
 /**
  * @author Saul
  */
-public class Account implements Serializable{
+public class Account implements Serializable {
 
     private String accountNumber;
     private String accountHolderName;

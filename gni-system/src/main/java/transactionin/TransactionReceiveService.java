@@ -7,7 +7,7 @@ import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
-import ledger.Transaction;
+import databeans.Transaction;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 

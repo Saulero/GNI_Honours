@@ -10,7 +10,7 @@ import io.advantageous.qbit.reactive.CallbackBuilder;
 import databeans.Customer;
 import databeans.DataReply;
 import databeans.DataRequest;
-import ledger.Transaction;
+import databeans.Transaction;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 

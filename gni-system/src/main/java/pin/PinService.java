@@ -8,7 +8,7 @@ import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
 import databeans.PinTransaction;
-import ledger.Transaction;
+import databeans.Transaction;
 import util.JSONParser;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
