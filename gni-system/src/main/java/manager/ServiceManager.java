@@ -6,11 +6,10 @@ import databeans.DataReply;
 import databeans.DataRequest;
 import databeans.RequestType;
 import io.advantageous.qbit.http.client.HttpClient;
-import ledger.Transaction;
+import databeans.Transaction;
 import util.JSONParser;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
-import static java.net.HttpURLConnection.HTTP_OK;
 
 /**
  * @author Noel

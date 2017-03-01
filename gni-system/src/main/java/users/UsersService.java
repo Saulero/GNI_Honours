@@ -13,13 +13,11 @@ import databeans.Customer;
 import databeans.DataReply;
 import databeans.DataRequest;
 import databeans.RequestType;
-import ledger.Account;
-import ledger.Transaction;
-
+import databeans.Account;
+import databeans.Transaction;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-
 import static database.SQLStatements.*;
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 import static java.net.HttpURLConnection.HTTP_OK;
@@ -44,8 +42,8 @@ class UsersService {
 
     /**
      * Constructor.
-     * @param newLedgerPort Port the Ledger service can be found on.
-     * @param newLedgerHost Host the Ledger service can be found on.
+     * @param newLedgerPort Port the LedgerService service can be found on.
+     * @param newLedgerHost Host the LedgerService service can be found on.
      * @param newTransactionDispatchPort Port the TransactionDispatch service can be found on.
      * @param newTransactionDispatchHost Host the TransactionDispatch service can be found on.
      */
@@ -60,7 +58,7 @@ class UsersService {
 
     /**
      * Processes incoming data requests from the UI service and sends a reply back through a callback, if necessary
-     * sends the request to the Ledger service and waits for a callback from the Ledger.
+     * sends the request to the LedgerService service and waits for a callback from the LedgerService.
      * @param callback Used to send result back to the UI service.
      * @param body Json String representing a DataRequest that is made by the UI service {@link DataRequest}.
      */
@@ -84,6 +82,7 @@ class UsersService {
     }
 
     /**
+<<<<<<< HEAD:gni-system/src/main/java/users/UsersService.java
      * Fetches customer data from the users table for the user with id userId and returns
      * this data in a Customer object.
      * @param userId Id of the user to fetch data for.
@@ -122,6 +121,9 @@ class UsersService {
 
     /**
      * Sends a data request to the Ledger and handles the response from the ledger. Uses the callbackBuilder to send
+=======
+     * Sends a data request to the LedgerService and handles the response from the ledger. Uses the callbackBuilder to send
+>>>>>>> fb6b7aeab56af1fce8d9f60c7766b56e66f7d29b:gni-system/src/main/java/users/UserService.java
      * the reply from the ledger back to the UI service.
      * @param request DataRequest that was sent to the ledger {@link DataRequest}.
      * @param gson Used for Json conversions.
@@ -197,7 +199,7 @@ class UsersService {
     }
 
     /**
-     * Processes customer creation requests coming from the UI service, sends the request to the Ledger service to
+     * Processes customer creation requests coming from the UI service, sends the request to the LedgerService service to
      * obtain an accountNumber for the customer and then processes the customer in the User database.
      * @param callback Used to send the result of the request back to the UI service.
      * @param body Json string containing the Customer object the request is for {@link Customer}.

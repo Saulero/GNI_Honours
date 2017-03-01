@@ -7,7 +7,7 @@ import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
-import ledger.Transaction;
+import databeans.Transaction;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 import static java.net.HttpURLConnection.HTTP_OK;
@@ -20,14 +20,14 @@ import static java.net.HttpURLConnection.HTTP_OK;
  */
 @RequestMapping("/transactionReceive")
 public class TransactionReceiveService {
-    /**Port that the Ledger service can be found on.*/
+    /**Port that the Ledger Service can be found on.*/
     private int ledgerPort;
     /**Host that the User service can be found on.*/
     private String ledgerHost;
 
     /**
      * Constructor.
-     * @param newLedgerPort Port the Ledger can be found on.
+     * @param newLedgerPort Port the LedgerService can be found on.
      * @param newLedgerHost Host the ledger can be found on.
      */
     public TransactionReceiveService(final int newLedgerPort, final String newLedgerHost) {
@@ -55,9 +55,9 @@ public class TransactionReceiveService {
     }
 
     /**
-     * Sends a transaction request to the Ledger for executing and then processes the reply and reports the result
+     * Sends a transaction request to the LedgerService for executing and then processes the reply and reports the result
      * back to the request source.
-     * @param httpClient HttpClient used to communicate with the Ledger.
+     * @param httpClient HttpClient used to communicate with the LedgerService.
      * @param gson Used for Json conversions.
      * @param request Transaction object containing the transaction requested by an external bank.
      * @param callbackBuilder Used to send the result back to the bank that requested the transaction.

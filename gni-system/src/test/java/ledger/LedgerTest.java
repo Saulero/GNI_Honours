@@ -18,11 +18,11 @@ import static org.junit.Assert.*;
  */
 public class LedgerTest {
 
-    /*private Ledger ledger;
+    /*private LedgerService ledger;
 
     @Before
     public void setUp() throws Exception {
-        ledger = new Ledger();
+        ledger = new LedgerService();
     }
 
     @After

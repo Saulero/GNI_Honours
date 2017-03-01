@@ -4,8 +4,8 @@ import databeans.Customer;
 import databeans.DataReply;
 import databeans.DataRequest;
 import databeans.RequestType;
-import ledger.Account;
-import ledger.Transaction;
+import databeans.Account;
+import databeans.Transaction;
 
 /**
  * Creates objects by initializing them using empty constructors and then setting all variables. Needed to use the

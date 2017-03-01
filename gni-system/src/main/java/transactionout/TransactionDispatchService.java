@@ -7,13 +7,12 @@ import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
-import ledger.Transaction;
+import databeans.Transaction;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 import static java.net.HttpURLConnection.HTTP_OK;
 
 /**
- * Created by noel on 5-2-17.
  * @author Noel
  * @version 1
  * Receives outgoing transaction requests.
@@ -23,7 +22,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
  */
 @RequestMapping("/transactionDispatch")
 public class TransactionDispatchService {
-    /**Port that the Ledger service can be found on.*/
+    /**Port that the Ledger Service can be found on.*/
     private int ledgerPort;
     /**Host that the User service can be found on.*/
     private String ledgerHost;

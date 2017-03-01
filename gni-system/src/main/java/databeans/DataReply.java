@@ -2,9 +2,6 @@ package databeans;
 
 import java.io.Serializable;
 
-import ledger.Account;
-import ledger.Transaction;
-
 import java.util.List;
 
 /**
