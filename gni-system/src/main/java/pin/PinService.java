@@ -37,43 +37,37 @@ public class PinService {
         Gson gson = new Gson();
         PinTransaction request = gson.fromJson(body, PinTransaction.class);
         System.out.println("PIN: Received new Pin request from a customer.");
-        //TODO internal check to confirm pinBa number
         //TODO check cardnumber
-        boolean pinCorrect = true;
-        if (pinCorrect) {
-            Transaction transaction = JSONParser.createJsonTransaction(-1, request.getSourceAccountNumber(),
-                    request.getDestinationAccountNumber(), request.getDestinationAccountHolderName(),
-                    "PIN Transaction",
-                    request.getTransactionAmount(), false, false);
-            HttpClient httpClient = httpClientBuilder().setHost(transactionDispatchHost)
-                    .setPort(transactionDispatchPort)
-                    .build();
-            httpClient.start();
-            CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder();
-            callbackBuilder.withStringCallback(callback);
-            httpClient.putFormAsyncWith1Param("/services/transactionDispatch/transaction", "body",
-                    gson.toJson(transaction), (code, contentType, replyBody) -> {
-                        if (code == HTTP_OK) {
-                            Transaction reply = gson.fromJson(replyBody.substring(1, replyBody.length() - 1)
-                                    .replaceAll("\\\\", ""), Transaction.class);
-                            if (reply.isProcessed() && reply.equalsRequest(transaction)) {
-                                if (reply.isSuccessful()) {
-                                    System.out.println("PIN: Pin transaction was successfull");
-                                    callbackBuilder.build().reply(gson.toJson(reply));
-                                } else {
-                                    callbackBuilder.build()
-                                            .reject("PIN: Pin Transaction was unsuccessfull.");
-                                }
-                            } else {
-                                callbackBuilder.build()
-                                        .reject("PIN: Pin Transaction couldn't be processed.");
-                            }
-                        } else {
-                            callbackBuilder.build().reject("PIN: Couldn't reach transactionDispatch.");
-                        }
-                    });
-        } else {
-            callback.reject("Incorrect PIN.");
-        }
+        Transaction transaction = JSONParser.createJsonTransaction(-1, request.getSourceAccountNumber(),
+                request.getDestinationAccountNumber(), request.getDestinationAccountHolderName(),
+                "PIN Transaction card #" + request.getCardNumber(),
+                request.getTransactionAmount(), false, false);
+        HttpClient httpClient = httpClientBuilder().setHost(transactionDispatchHost)
+                .setPort(transactionDispatchPort)
+                .build();
+        httpClient.start();
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder();
+        callbackBuilder.withStringCallback(callback);
+        httpClient.putFormAsyncWith1Param("/services/transactionDispatch/transaction", "body",
+                                            gson.toJson(transaction), (code, contentType, replyBody) -> {
+            if (code == HTTP_OK) {
+                Transaction reply = gson.fromJson(replyBody.substring(1, replyBody.length() - 1)
+                        .replaceAll("\\\\", ""), Transaction.class);
+                if (reply.isProcessed() && reply.equalsRequest(transaction)) {
+                    if (reply.isSuccessful()) {
+                        System.out.println("PIN: Pin transaction was successfull");
+                        callbackBuilder.build().reply(gson.toJson(reply));
+                    } else {
+                        callbackBuilder.build()
+                                .reject("PIN: Pin Transaction was unsuccessfull.");
+                    }
+                } else {
+                    callbackBuilder.build()
+                            .reject("PIN: Pin Transaction couldn't be processed.");
+                }
+            } else {
+                callbackBuilder.build().reject("PIN: Couldn't reach transactionDispatch.");
+            }
+        });
     }
 }

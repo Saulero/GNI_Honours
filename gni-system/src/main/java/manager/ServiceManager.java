@@ -3,6 +3,7 @@ package manager;
 import com.google.gson.Gson;
 import databeans.*;
 import io.advantageous.qbit.http.client.HttpClient;
+import io.advantageous.reakt.exception.RejectedPromiseException;
 import util.JSONParser;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
@@ -189,20 +190,20 @@ public final class ServiceManager {
                 destinationAccountHolderName, pinCode, cardNumber, transactionAmount);
         Gson gson = new Gson();
         httpClient.putFormAsyncWith1Param("/services/pinBa/transaction", "body", gson.toJson(pin),
-                (code, contentType, body) -> {
-                    if (code == HTTP_OK) {
-                        Transaction reply = gson.fromJson(body.substring(1, body.length() - 1).replaceAll("\\\\", ""),
-                                Transaction.class);
-                        if (reply.isSuccessful() && reply.isProcessed()) {
-                            System.out.println("Pin transaction successfull.");
-                        } else if (!reply.isProcessed()) {
-                            System.out.println("Pin transaction couldn't be processed");
-                        } else {
-                            System.out.println("Pin transaction was not successfull");
-                        }
-                    } else {
-                        System.out.println("Pin transaction request failed, body: " + body);
-                    }
-                });
+                                        (code, contentType, body) -> {
+            if (code == HTTP_OK) {
+                Transaction reply = gson.fromJson(body.substring(1, body.length() - 1).replaceAll("\\\\", ""),
+                        Transaction.class);
+                if (reply.isSuccessful() && reply.isProcessed()) {
+                    System.out.println("Pin transaction successfull.");
+                } else if (!reply.isProcessed()) {
+                    System.out.println("Pin transaction couldn't be processed");
+                } else {
+                    System.out.println("Pin transaction was not successfull");
+                }
+            } else {
+                System.out.println("Pin transaction request failed, body: " + body);
+            }
+        });
     }
 }
