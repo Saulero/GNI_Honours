@@ -1,11 +1,6 @@
 package util;
 
-import databeans.Customer;
-import databeans.DataReply;
-import databeans.DataRequest;
-import databeans.RequestType;
-import databeans.Account;
-import databeans.Transaction;
+import databeans.*;
 
 /**
  * Creates objects by initializing them using empty constructors and then setting all variables. Needed to use the
@@ -112,5 +107,30 @@ public final class JSONParser {
         customer.setSsn(newSsn);
         customer.setAccount(new Account(newSurname, newSpendingLimit, newBalance));
         return customer;
+    }
+
+    /**
+     * Creates a PinTransaction object that can be converted to a Json String.
+     * @param newSourceAccountNumber The account the funds of the transaction will be pulled from.
+     * @param newDestinationAccountNumber The account the funds of the transaction will be deposited into.
+     * @param newDestinationAccountHolderName The name of the destination account owner.
+     * @param newPinCode The pincode used by the source account holder.
+     * @param newCardNumber The card number of the card used to do the pinBa transaction.
+     * @param newTransactionAmount The amount the transaction is for.
+     * @return A PinTransaction object that can be converted to a Json String.
+     */
+    public static PinTransaction createJsonPinTransaction(final String newSourceAccountNumber,
+                                                          final String newDestinationAccountNumber,
+                                                          final String newDestinationAccountHolderName,
+                                                          final String newPinCode, final String newCardNumber,
+                                                          final double newTransactionAmount) {
+        PinTransaction pinTransaction = new PinTransaction();
+        pinTransaction.setSourceAccountNumber(newSourceAccountNumber);
+        pinTransaction.setDestinationAccountNumber(newDestinationAccountNumber);
+        pinTransaction.setDestinationAccountHolderName(newDestinationAccountHolderName);
+        pinTransaction.setPinCode(newPinCode);
+        pinTransaction.setCardNumber(newCardNumber);
+        pinTransaction.setTransactionAmount(newTransactionAmount);
+        return pinTransaction;
     }
 }

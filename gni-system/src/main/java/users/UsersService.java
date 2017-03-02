@@ -291,7 +291,7 @@ class UsersService {
             ps.executeUpdate();
             ps.close();
             db.returnConnection(connection);
-            System.out.printf("Users: Added Accountnumber %s to userid %dń", accountNumber, customerId);
+            System.out.printf("Users: Added Accountnumber %s to userid %d\n", accountNumber, customerId);
             return true;
         } catch (SQLException e) {
             e.printStackTrace();

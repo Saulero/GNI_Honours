@@ -28,7 +28,7 @@ import static database.SQLStatements.*;
  * @version 1
  */
 @RequestMapping("/ledger")
-public class LedgerService {
+class LedgerService {
 
     /** Database connection pool containing persistant database connections. */
     private ConnectionPool db;
@@ -36,7 +36,7 @@ public class LedgerService {
     /**
      * Constructor.
      */
-    public LedgerService() {
+    LedgerService() {
         db = new ConnectionPool();
     }
 
@@ -237,7 +237,6 @@ public class LedgerService {
     @RequestMapping(value = "/transaction/in", method = RequestMethod.PUT)
     public void processIncomingTransaction(final Callback<String> callback, final @RequestParam("body") String body) {
         Gson gson = new Gson();
-        System.out.println("Ledger: received an incoming transaction.");
         Transaction transaction = gson.fromJson(body, Transaction.class);
         // Check if account info is correct
         Account account = getAccountInfo(transaction.getDestinationAccountNumber());
@@ -279,7 +278,6 @@ public class LedgerService {
     public void processOutgoingTransaction(final Callback<String> callback, final @RequestParam("body") String body) {
         Gson gson = new Gson();
         Transaction transaction = gson.fromJson(body, Transaction.class);
-        // Check if spending_limit allows for the transaction
         Account account = getAccountInfo(transaction.getSourceAccountNumber());
 
         if (account != null && account.withdrawTransactionIsAllowed(transaction)) {
