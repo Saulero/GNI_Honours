@@ -299,7 +299,7 @@ class LedgerService {
         } else {
             transaction.setProcessed(true);
             transaction.setSuccessful(false);
-            System.out.println("Ledger: Failed to do the transaction.");
+            System.out.println("Ledger: failed to processed the transaction.");
             callback.reply(gson.toJson(transaction));
         }
     }

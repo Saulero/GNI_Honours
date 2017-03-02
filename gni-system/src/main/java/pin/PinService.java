@@ -22,14 +22,13 @@ import static java.net.HttpURLConnection.HTTP_OK;
  * then handles the transaction request accordingly.
  */
 @RequestMapping("/pinBa")
-public class PinService {
+class PinService {
+    /** Connection to the Transaction Dispatch service.*/
+    private HttpClient transactionDispatchClient;
 
-    private String transactionDispatchHost;
-    private int transactionDispatchPort;
-
-    public PinService(final int newTransactionDispatchPort, final String newTransactionDispatchHost) {
-        this.transactionDispatchPort = newTransactionDispatchPort;
-        this.transactionDispatchHost = newTransactionDispatchHost;
+    PinService(final int transactionDispatchPort, final String transactionDispatchHost) {
+        transactionDispatchClient = httpClientBuilder().setHost(transactionDispatchHost)
+                                                        .setPort(transactionDispatchPort).buildAndStart();
     }
 
     @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
@@ -37,19 +36,14 @@ public class PinService {
         Gson gson = new Gson();
         PinTransaction request = gson.fromJson(body, PinTransaction.class);
         System.out.println("PIN: Received new Pin request from a customer.");
-        //TODO check cardnumber
         Transaction transaction = JSONParser.createJsonTransaction(-1, request.getSourceAccountNumber(),
                 request.getDestinationAccountNumber(), request.getDestinationAccountHolderName(),
                 "PIN Transaction card #" + request.getCardNumber(),
                 request.getTransactionAmount(), false, false);
-        HttpClient httpClient = httpClientBuilder().setHost(transactionDispatchHost)
-                .setPort(transactionDispatchPort)
-                .build();
-        httpClient.start();
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder();
         callbackBuilder.withStringCallback(callback);
-        httpClient.putFormAsyncWith1Param("/services/transactionDispatch/transaction", "body",
-                                            gson.toJson(transaction), (code, contentType, replyBody) -> {
+        transactionDispatchClient.putFormAsyncWith1Param("/services/transactionDispatch/transaction",
+                "body", gson.toJson(transaction), (code, contentType, replyBody) -> {
             if (code == HTTP_OK) {
                 Transaction reply = gson.fromJson(replyBody.substring(1, replyBody.length() - 1)
                         .replaceAll("\\\\", ""), Transaction.class);

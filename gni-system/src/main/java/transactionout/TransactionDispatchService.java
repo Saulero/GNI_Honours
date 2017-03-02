@@ -21,20 +21,17 @@ import static java.net.HttpURLConnection.HTTP_OK;
  * respective receiving bank.
  */
 @RequestMapping("/transactionDispatch")
-public class TransactionDispatchService {
-    /**Port that the Ledger Service can be found on.*/
-    private int ledgerPort;
-    /**Host that the User service can be found on.*/
-    private String ledgerHost;
+class TransactionDispatchService {
+    /** Connection to the Ledger service.*/
+    private HttpClient ledgerClient;
 
     /**
      * Constructor.
-     * @param newLedgerPort Port the ledger can be found on.
-     * @param newLedgerHost Host the ledger can be found on.
+     * @param ledgerPort Port the ledger can be found on.
+     * @param ledgerHost Host the ledger can be found on.
      */
-    public TransactionDispatchService(final int newLedgerPort, final String newLedgerHost) {
-        this.ledgerPort = newLedgerPort;
-        this.ledgerHost = newLedgerHost;
+    TransactionDispatchService(final int ledgerPort, final String ledgerHost) {
+        ledgerClient = httpClientBuilder().setHost(ledgerHost).setPort(ledgerPort).buildAndStart();
     }
 
     /**
@@ -50,12 +47,10 @@ public class TransactionDispatchService {
         System.out.printf("TransactionDispatch: Transaction received, sourceAccount: %s ,destAccount: %s, amount: %f\n",
                             request.getSourceAccountNumber(), request.getDestinationAccountNumber(),
                             request.getTransactionAmount());
-        HttpClient httpClient = httpClientBuilder().setHost(ledgerHost).setPort(ledgerPort).build();
-        httpClient.start();
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder();
         callbackBuilder.withStringCallback(callback);
-        httpClient.putFormAsyncWith1Param("/services/ledger/transaction/out", "body", gson.toJson(request),
-                                        (code, contentType, replyBody) -> {
+        ledgerClient.putFormAsyncWith1Param("/services/ledger/transaction/out", "body",
+                gson.toJson(request), (code, contentType, replyBody) -> {
             if (code == HTTP_OK) {
                 Transaction reply = gson.fromJson(replyBody.substring(1, replyBody.length() - 1)
                         .replaceAll("\\\\", ""), Transaction.class);

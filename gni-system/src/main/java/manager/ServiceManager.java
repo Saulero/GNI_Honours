@@ -2,8 +2,8 @@ package manager;
 
 import com.google.gson.Gson;
 import databeans.*;
+import io.advantageous.boon.core.Sys;
 import io.advantageous.qbit.http.client.HttpClient;
-import io.advantageous.reakt.exception.RejectedPromiseException;
 import util.JSONParser;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
@@ -41,10 +41,11 @@ public final class ServiceManager {
         externalBankClient.start();
         HttpClient pinClient = httpClientBuilder().setHost("localhost").setPort(9995).build();
         pinClient.start();
+        Sys.sleep(1000);
         doPin(pinClient, batsNumber, testAccountNumber, "De wilde", "8888",
                 "730", 20.00);
-        makeNewAccount(userClient, "M.S.", "Mats", "Bats", "mats@bats.nl",
-                        "061212121212", "Batslaan 25", "20-04-1889",
+        makeNewAccount(userClient, "test", "test", "test", "mats@bats.nl",
+                "061212121212", "Batslaan 25", "20-04-1889",
                 new Long("1234567890"),1000, 0);
         doTransaction(externalBankClient, testAccountNumber, batsNumber, "Bats",
                 "Moneys",200.00, true);
@@ -92,7 +93,7 @@ public final class ServiceManager {
                     System.out.println("Transaction was not successfull");
                 }
             } else {
-                System.out.println("Transaction request failed, body: " + body);
+                System.out.println("Transaction request failed.");
             }
         });
     }
@@ -202,7 +203,7 @@ public final class ServiceManager {
                     System.out.println("Pin transaction was not successfull");
                 }
             } else {
-                System.out.println("Pin transaction request failed, body: " + body);
+                System.out.println("Pin transaction request failed.");
             }
         });
     }

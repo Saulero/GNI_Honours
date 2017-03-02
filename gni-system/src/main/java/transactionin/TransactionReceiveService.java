@@ -20,19 +20,16 @@ import static java.net.HttpURLConnection.HTTP_OK;
  */
 @RequestMapping("/transactionReceive")
 public class TransactionReceiveService {
-    /**Port that the Ledger Service can be found on.*/
-    private int ledgerPort;
-    /**Host that the User service can be found on.*/
-    private String ledgerHost;
+    /** Connection to the Ledger service.*/
+    private HttpClient ledgerClient;
 
     /**
      * Constructor.
-     * @param newLedgerPort Port the LedgerService can be found on.
-     * @param newLedgerHost Host the ledger can be found on.
+     * @param ledgerPort Port the LedgerService can be found on.
+     * @param ledgerHost Host the ledger can be found on.
      */
-    public TransactionReceiveService(final int newLedgerPort, final String newLedgerHost) {
-        this.ledgerPort = newLedgerPort;
-        this.ledgerHost = newLedgerHost;
+    public TransactionReceiveService(final int ledgerPort, final String ledgerHost) {
+        ledgerClient = httpClientBuilder().setHost(ledgerHost).setPort(ledgerPort).buildAndStart();
     }
 
     /**
@@ -47,25 +44,22 @@ public class TransactionReceiveService {
         Gson gson = new Gson();
         Transaction request = gson.fromJson(body, Transaction.class);
         System.out.println("TransactionReceive: Received transaction request from external bank");
-        HttpClient httpClient = httpClientBuilder().setHost(ledgerHost).setPort(ledgerPort).build();
-        httpClient.start();
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder();
         callbackBuilder.withStringCallback(callback);
-        doTransaction(httpClient, gson, request, callbackBuilder);
+        doTransaction(gson, request, callbackBuilder);
     }
 
     /**
      * Sends a transaction request to the LedgerService for executing and then processes the reply and reports the result
      * back to the request source.
-     * @param httpClient HttpClient used to communicate with the LedgerService.
      * @param gson Used for Json conversions.
      * @param request Transaction object containing the transaction requested by an external bank.
      * @param callbackBuilder Used to send the result back to the bank that requested the transaction.
      */
-    private void doTransaction(final HttpClient httpClient, final Gson gson, final Transaction request,
+    private void doTransaction(final Gson gson, final Transaction request,
                                final CallbackBuilder callbackBuilder) {
-        httpClient.putFormAsyncWith1Param("/services/ledger/transaction/in", "body", gson.toJson(request),
-                (code, contentType, replyBody) -> {
+        ledgerClient.putFormAsyncWith1Param("/services/ledger/transaction/in", "body",
+                gson.toJson(request), (code, contentType, replyBody) -> {
                     if (code == HTTP_OK) {
                         Transaction reply = gson.fromJson(replyBody.substring(1, replyBody.length() - 1)
                                 .replaceAll("\\\\", ""), Transaction.class);
