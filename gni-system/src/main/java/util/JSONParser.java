@@ -133,4 +133,21 @@ public final class JSONParser {
         pinTransaction.setTransactionAmount(newTransactionAmount);
         return pinTransaction;
     }
+
+    public static Account createJsonAccount(final String newAccountNumber, final double newSpendingLimit,
+                                            final double newBalance) {
+        Account account = new Account();
+        account.setAccountNumber(newAccountNumber);
+        account.setSpendingLimit(newSpendingLimit);
+        account.setBalance(newBalance);
+        return account;
+    }
+
+    public static AccountLink createJsonAccountLink(final Long newCustomerId, final String newAccountNumber) {
+        AccountLink request = new AccountLink();
+        request.setCustomerId(newCustomerId);
+        request.setAccount(createJsonAccount(newAccountNumber, 0, 0));
+        request.setSuccessfull(false);
+        return request;
+    }
 }

@@ -3,19 +3,15 @@ package users;
 import com.google.gson.Gson;
 import database.ConnectionPool;
 import database.SQLConnection;
+import databeans.*;
 import io.advantageous.qbit.annotation.RequestMapping;
 import io.advantageous.qbit.annotation.RequestMethod;
 import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.http.client.HttpClient;
-import io.advantageous.qbit.http.client.HttpClientBuilder;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
-import databeans.Customer;
-import databeans.DataReply;
-import databeans.DataRequest;
-import databeans.RequestType;
-import databeans.Account;
-import databeans.Transaction;
+import util.JSONParser;
+
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -63,8 +59,7 @@ class UsersService {
         Gson gson = new Gson();
         DataRequest request = gson.fromJson(body, DataRequest.class);
         RequestType type = request.getType();
-        final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder();
-        callbackBuilder.withStringCallback(callback);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         if (request.getType() == RequestType.CUSTOMERDATA) {
             System.out.println("Users: Called by UI, fetching customer data.");
             int userId = request.getUserId();
@@ -149,8 +144,7 @@ class UsersService {
         Gson gson = new Gson();
         Transaction request = gson.fromJson(body, Transaction.class);
         //TODO send transaction to TransactionDispatch service
-        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder();
-        callbackBuilder.withStringCallback(callback);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         System.out.println("Users: Sent transaction to TransactionDispatch");
         doTransactionRequest(request, gson, callbackBuilder);
     }
@@ -194,8 +188,7 @@ class UsersService {
     public void processNewCustomer(final Callback<String> callback, final @RequestParam("body") String body) {
         Gson gson = new Gson();
         Customer customer = gson.fromJson(body, Customer.class);
-        final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder();
-        callbackBuilder.withStringCallback(callback);
+        final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         doAccountNumberRequest(gson, customer, callbackBuilder);
     }
 
@@ -280,5 +273,25 @@ class UsersService {
             e.printStackTrace();
             return false;
         }
+    }
+
+    /**
+     * Takes an account link request and links the account to the specified customer id.
+     * @param callback Used to send the result back to the UI Service.
+     * @param body Json string representing an AccountLink{@link AccountLink} object containing
+     *             an account number which is to be attached to a customer with the specified customerId.
+     */
+    @RequestMapping(value = "/account", method = RequestMethod.PUT)
+    public void linkCustomerAccount(final Callback<String> callback, final @RequestParam("body") String body) {
+        Gson gson = new Gson();
+        AccountLink request = gson.fromJson(body, AccountLink.class);
+        Long customerId = request.getCustomerId();
+        String accountNumber = request.getAccount().getAccountNumber();
+        if (customerId == null || accountNumber == null) {
+            callback.reject("CustomerId or AccountNumber not specified.");
+        }
+        boolean addedAccount = addAccountToCustomerDb(customerId, accountNumber);
+        request.setSuccessfull(addedAccount);
+        callback.reply(gson.toJson(request));
     }
 }

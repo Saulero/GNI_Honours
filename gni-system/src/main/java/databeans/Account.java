@@ -18,6 +18,11 @@ public class Account implements Serializable {
         this.balance = newBalance;
     }
 
+    /** Used for Json conversions, only use if you manually fill the object afterwards. */
+    public Account() {
+
+    }
+
     public boolean withdrawTransactionIsAllowed(final Transaction transaction) {
         return transaction.getTransactionAmount() <= spendingLimit;
     }

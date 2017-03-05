@@ -1,17 +1,13 @@
 package ui;
 
 import com.google.gson.Gson;
-import databeans.RequestType;
+import databeans.*;
 import io.advantageous.qbit.annotation.RequestMapping;
 import io.advantageous.qbit.annotation.RequestMethod;
 import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
-import databeans.Customer;
-import databeans.DataReply;
-import databeans.DataRequest;
-import databeans.Transaction;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 import static java.net.HttpURLConnection.HTTP_OK;
@@ -45,8 +41,7 @@ final class UIService {
     public void processDataRequest(final Callback<String> callback, @RequestParam("body") final String jsonRequest) {
         Gson gson = new Gson();
         DataRequest request = gson.fromJson(jsonRequest, DataRequest.class);
-        final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder();
-        callbackBuilder.withStringCallback(callback);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         doUserDataRequest(request, gson, callbackBuilder);
     }
 
@@ -105,8 +100,7 @@ final class UIService {
         Gson gson = new Gson();
         Transaction request = gson.fromJson(body, Transaction.class);
         System.out.printf("UI: Sending transaction to users\n");
-        final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder();
-        callbackBuilder.withStringCallback(callback);
+        final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         doTransactionRequest(request, gson, callbackBuilder);
     }
 
@@ -160,8 +154,7 @@ final class UIService {
     public void createCustomer(final Callback<String> callback, @RequestParam("body") final String body) {
         Gson gson = new Gson();
         Customer customer = gson.fromJson(body, Customer.class);
-        final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder();
-        callbackBuilder.withStringCallback(callback);
+        final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         doCustomerRequest(customer, gson, callbackBuilder);
     }
 
@@ -204,6 +197,38 @@ final class UIService {
             System.out.println("UI: Customer enrollment error, see data: " + reply);
             callbackBuilder.build().reject("Customer enrollment failed on reply.");
         }
+    }
+
+    /**
+     * Handles customer account link requests by forwarding the request to the users service and waiting for a callback.
+     * @param callback Used to send the result of the request back to the source of the request.
+     * @param body Body of the request, a Json string representing a Customer object that should be
+     *             created {@link Customer}.
+     */
+    @RequestMapping(value = "/account", method = RequestMethod.PUT)
+    public void createCustomerBankAccount(final Callback<String> callback, @RequestParam("body") final String body) {
+        Gson gson = new Gson();
+        AccountLink request = gson.fromJson(body, AccountLink.class);
+        System.out.printf("UI: Received account link request for customer %d account number %s\n",
+                            request.getCustomerId(), request.getAccount().getAccountNumber());
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        usersClient.putFormAsyncWith1Param("/services/users/account", "body", body,
+                                            ((code, contentType, replyBody) -> {
+            if (code == HTTP_OK) {
+                String replyJson = replyBody.substring(1, replyBody.length() - 1).replaceAll("\\\\", "");
+                AccountLink reply = gson.fromJson(replyJson, AccountLink.class);
+                if (reply.isSuccessfull()) {
+                    System.out.println("UI: Successfull account link, sending reply.");
+                    callbackBuilder.build().reply(replyJson);
+                } else {
+                    System.out.println("UI: Account link unsuccessfull, sending reply.");
+                    callbackBuilder.build().reply(replyJson);
+                }
+            } else {
+                System.out.println("UI: Account link request failed, sending rejection.");
+                callbackBuilder.build().reject("Request failed HTTP code: " + code);
+            }
+        }));
     }
 }
 

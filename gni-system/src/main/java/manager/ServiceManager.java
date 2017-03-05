@@ -32,28 +32,29 @@ public final class ServiceManager {
         String testAccountNumber = "NL00GNIB5695575206";
         String testDestinationNumber = "NL52GNIB0987890998";
         String batsNumber = "NL02GNIB0516754934";
-        int batsId = 2;
+        Long batsId = 2L;
 
         //Start http client
-        HttpClient userClient = httpClientBuilder().setHost("localhost").setPort(9990).build();
-        userClient.start();
+        HttpClient uiClient = httpClientBuilder().setHost("localhost").setPort(9990).build();
+        uiClient.start();
         HttpClient externalBankClient = httpClientBuilder().setHost("localhost").setPort(9994).build();
         externalBankClient.start();
         HttpClient pinClient = httpClientBuilder().setHost("localhost").setPort(9995).build();
         pinClient.start();
         Sys.sleep(1000);
-        doPin(pinClient, batsNumber, testAccountNumber, "De wilde", "8888",
+        doAccountLink(uiClient, batsId, testDestinationNumber);
+        /*doPin(pinClient, batsNumber, testAccountNumber, "De wilde", "8888",
                 "730", 20.00);
-        makeNewAccount(userClient, "test", "test", "test", "mats@bats.nl",
+        makeNewAccount(uiClient, "test", "test", "test", "mats@bats.nl",
                 "061212121212", "Batslaan 25", "20-04-1889",
                 new Long("1234567890"),1000, 0);
         doTransaction(externalBankClient, testAccountNumber, batsNumber, "Bats",
                 "Moneys",200.00, true);
-        doTransaction(userClient, batsNumber, testDestinationNumber, "De Boer",
+        doTransaction(uiClient, batsNumber, testDestinationNumber, "De Boer",
                 "moar moneys",250.00, false);
-        doGet(userClient, batsNumber, RequestType.TRANSACTIONHISTORY, batsId);
-        doGet(userClient, testAccountNumber, RequestType.BALANCE, batsId);
-        doGet(userClient, testAccountNumber, RequestType.CUSTOMERDATA, batsId);
+        doGet(uiClient, batsNumber, RequestType.TRANSACTIONHISTORY, batsId);
+        doGet(uiClient, testAccountNumber, RequestType.BALANCE, batsId);
+        doGet(uiClient, testAccountNumber, RequestType.CUSTOMERDATA, batsId);*/
     }
 
     /**
@@ -190,7 +191,7 @@ public final class ServiceManager {
         PinTransaction pin = JSONParser.createJsonPinTransaction(sourceAccountNumber, destinationAccountNumber,
                 destinationAccountHolderName, pinCode, cardNumber, transactionAmount);
         Gson gson = new Gson();
-        httpClient.putFormAsyncWith1Param("/services/pinBa/transaction", "body", gson.toJson(pin),
+        httpClient.putFormAsyncWith1Param("/services/pin/transaction", "body", gson.toJson(pin),
                                         (code, contentType, body) -> {
             if (code == HTTP_OK) {
                 Transaction reply = gson.fromJson(body.substring(1, body.length() - 1).replaceAll("\\\\", ""),
@@ -204,6 +205,25 @@ public final class ServiceManager {
                 }
             } else {
                 System.out.println("Pin transaction request failed.");
+            }
+        });
+    }
+
+    private static void doAccountLink(final HttpClient httpClient, final Long customerId, final String accountNumber) {
+        AccountLink request = JSONParser.createJsonAccountLink(customerId, accountNumber);
+        Gson gson = new Gson();
+        httpClient.putFormAsyncWith1Param("/services/ui/account", "body", gson.toJson(request),
+                                            (code, contentType, body) -> {
+            if (code == HTTP_OK) {
+                AccountLink reply = gson.fromJson(body.substring(1, body.length() - 1).replaceAll("\\\\", ""),
+                        AccountLink.class);
+                if (reply.isSuccessfull()) {
+                    System.out.println("Account link successfull.");
+                } else {
+                    System.out.println("Account link creation unsuccessfull.");
+                }
+            } else {
+                System.out.println("Account link creation failed.");
             }
         });
     }
