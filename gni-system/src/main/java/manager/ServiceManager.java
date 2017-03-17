@@ -45,7 +45,7 @@ public final class ServiceManager {
         pinClient.start();
         Sys.sleep(1000);
         doGet(uiClient, "", RequestType.ACCOUNTS, batsId);
-        //doAccountLink(uiClient, batsId, testDestinationNumber);
+        doAccountLink(uiClient, batsId, testDestinationNumber);
         /*doPin(pinClient, batsNumber, testAccountNumber, "De wilde", "8888",
                 "730", 20.00);
         makeNewAccount(uiClient, "test", "test", "test", "mats@bats.nl",
@@ -172,7 +172,7 @@ public final class ServiceManager {
                             case ACCOUNTS:
                                 DataReply accountsReply = gson.fromJson(body.substring(1, body.length() - 1)
                                         .replaceAll("\\\\", ""), DataReply.class);
-                                System.out.printf("Request successfull, accounts: %s",
+                                System.out.printf("Request successfull, accounts: %s\n",
                                                                                     accountsReply.getAccountNumbers());
                                 break;
                             default:

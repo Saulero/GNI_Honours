@@ -297,10 +297,25 @@ class UsersService {
      * accounts table.
      * @param customerId Id of the customer to link the account to.
      * @param accountNumber Account number to link to the customer.
+     * @return boolean indicating if the account is successfully linked to the customer.
      */
     private boolean addAccountToCustomerDb(final Long customerId, final String accountNumber) {
         try {
+            boolean linkExists = false;
             SQLConnection connection = db.getConnection();
+            PreparedStatement check = connection.getConnection().prepareStatement(getAccountNumbers);
+            check.setLong(1, customerId);
+            ResultSet rs = check.executeQuery();
+            while (rs.next()) {
+                if (rs.getString("account_number").equals(accountNumber.trim())) {
+                    linkExists = true;
+                }
+            }
+            check.close();
+            if (linkExists) {
+                System.out.println("Users: Account link already exists.");
+                return true;
+            }
             PreparedStatement ps = connection.getConnection().prepareStatement(addAccountToUser);
             ps.setLong(1, customerId);
             ps.setString(2, accountNumber);
