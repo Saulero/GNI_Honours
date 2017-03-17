@@ -9,6 +9,10 @@ import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
 
+import javax.xml.crypto.Data;
+import java.util.ArrayList;
+import java.util.List;
+
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 import static java.net.HttpURLConnection.HTTP_OK;
 
@@ -74,19 +78,28 @@ final class UIService {
     private void processUserDataReply(final CallbackBuilder callbackBuilder, final String body,
                                                 final DataRequest request, final Gson gson) {
         String replyJson = body.substring(1, body.length() - 1).replaceAll("\\\\", "");
-        if (request.getType() == RequestType.BALANCE || request.getType() == RequestType.TRANSACTIONHISTORY) {
+        RequestType type = request.getType();
+        if (type == RequestType.BALANCE || type == RequestType.TRANSACTIONHISTORY) {
             DataReply reply = gson.fromJson(replyJson, DataReply.class);
             if (reply.getAccountNumber().equals(request.getAccountNumber())) {
                 System.out.println("UI: Sending callback.");
                 callbackBuilder.build().reply(gson.toJson(reply));
             } else {
-                System.out.println("UI: Transaction request failed on reply check.");
-                callbackBuilder.build().reject("Transaction request failed.");
+                System.out.println("UI: Request/reply account numbers do not match.");
+                callbackBuilder.build().reject("Request/reply account numbers do not match.");
             }
         } else {
-            Customer reply = gson.fromJson(replyJson, Customer.class);
-            System.out.println("UI: Sending callback.");
-            callbackBuilder.build().reply(gson.toJson(reply));
+            if (type == RequestType.CUSTOMERDATA) {
+                Customer reply = gson.fromJson(replyJson, Customer.class);
+                System.out.println("UI: Sending callback.");
+                callbackBuilder.build().reply(gson.toJson(reply));
+            } else {
+                DataReply reply = gson.fromJson(replyJson, DataReply.class);
+                System.out.println("UI: Sending callback.");
+                callbackBuilder.build().reply(gson.toJson(reply));
+                //TODO FINISH
+            }
+
         }
     }
 

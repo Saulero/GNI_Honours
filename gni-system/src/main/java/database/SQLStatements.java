@@ -19,4 +19,5 @@ public final class SQLStatements {
     public static final String createNewUser = "INSERT INTO users (id, initials, firstname, lastname, email, telephone_number, address, date_of_birth, social_security_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
     public static final String addAccountToUser = "INSERT INTO accounts (user_id, account_number) VALUES (?, ?)";
     public static final String getCustomerInformation = "SELECT * FROM users WHERE users.id = ?";
+    public static final String getAccountNumbers = "SELECT * FROM accounts where accounts.user_id = ?";
 }

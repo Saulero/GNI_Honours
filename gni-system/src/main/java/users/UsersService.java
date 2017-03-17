@@ -15,6 +15,9 @@ import util.JSONParser;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+
 import static database.SQLStatements.*;
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 import static java.net.HttpURLConnection.HTTP_OK;
@@ -60,15 +63,52 @@ class UsersService {
         DataRequest request = gson.fromJson(body, DataRequest.class);
         RequestType type = request.getType();
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        if (request.getType() == RequestType.CUSTOMERDATA) {
+        if (type == RequestType.CUSTOMERDATA || type == RequestType.ACCOUNTS) {
             System.out.println("Users: Called by UI, fetching customer data.");
-            int userId = request.getUserId();
-            Customer reply = getCustomerData(userId);
-            System.out.println("Users: Sending data back to UI.");
-            callbackBuilder.build().reply(gson.toJson(reply));
+            Long userId = request.getUserId();
+            if (type == RequestType.ACCOUNTS) {
+                DataReply reply = new DataReply();
+                List<String> accountNumbers = getAccountNumbers(userId);
+                reply.setType(request.getType());
+                reply.setAccountNumbers(accountNumbers);
+                callbackBuilder.build().reply(gson.toJson(reply));
+                System.out.println("Users: Sent reply back to UI.");
+            } else {
+                Customer reply = getCustomerData(userId);
+                System.out.println("Users: Sending data back to UI.");
+                callbackBuilder.build().reply(gson.toJson(reply));
+            }
         } else {
             System.out.println("Users: Called by UI, calling Ledger");
             doDataRequest(request, gson, callbackBuilder);
+        }
+    }
+
+    /**
+     * Fetches account numbers from the accounts table for the user with id userId, returns this in a list object.
+     * @param userId User id of the customer we want to fetch accounts for.
+     * @return List containing account number that belong to the customer, null if no account numbers belong to the
+     * customer.
+     */
+    private List<String> getAccountNumbers(final Long userId) {
+        try {
+            List<String> reply = new ArrayList<>();
+            SQLConnection connection = db.getConnection();
+            PreparedStatement ps = connection.getConnection().prepareStatement(getAccountNumbers);
+            ps.setLong(1, userId);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                reply.add(rs.getString("account_number"));
+            }
+            ps.close();
+            db.returnConnection(connection);
+            if (reply.isEmpty()) {
+                return null;
+            }
+            return reply;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return null;
         }
     }
 
@@ -78,7 +118,7 @@ class UsersService {
      * @param userId Id of the user to fetch data for.
      * @return Customer object containing the data for Customer with id=userId
      */
-    private Customer getCustomerData(final int userId) {
+    private Customer getCustomerData(final Long userId) {
         try {
             SQLConnection connection = db.getConnection();
             PreparedStatement ps = connection.getConnection().prepareStatement(getCustomerInformation);
@@ -224,7 +264,7 @@ class UsersService {
     private void enrollCustomer(final Customer customer, final CallbackBuilder callbackBuilder, final Gson gson) {
         try {
             SQLConnection connection = db.getConnection();
-            long newID = connection.getNextID(getNextUserID);
+            Long newID = connection.getNextID(getNextUserID);
             PreparedStatement ps = connection.getConnection().prepareStatement(createNewUser);
             ps.setLong(1, newID);                           // id
             ps.setString(2, customer.getInitials());        // initials
@@ -287,7 +327,8 @@ class UsersService {
         AccountLink request = gson.fromJson(body, AccountLink.class);
         Long customerId = request.getCustomerId();
         String accountNumber = request.getAccount().getAccountNumber();
-        if (customerId == null || accountNumber == null) {
+        //todo test if this works when customerId is not specified.
+        if (customerId < 0 || accountNumber == null) {
             callback.reject("CustomerId or AccountNumber not specified.");
         }
         boolean addedAccount = addAccountToCustomerDb(customerId, accountNumber);

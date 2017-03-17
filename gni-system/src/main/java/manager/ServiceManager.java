@@ -6,6 +6,8 @@ import io.advantageous.boon.core.Sys;
 import io.advantageous.qbit.http.client.HttpClient;
 import util.JSONParser;
 
+import java.util.List;
+
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 import static java.net.HttpURLConnection.HTTP_OK;
 
@@ -42,7 +44,8 @@ public final class ServiceManager {
         HttpClient pinClient = httpClientBuilder().setHost("localhost").setPort(9995).build();
         pinClient.start();
         Sys.sleep(1000);
-        doAccountLink(uiClient, batsId, testDestinationNumber);
+        doGet(uiClient, "", RequestType.ACCOUNTS, batsId);
+        //doAccountLink(uiClient, batsId, testDestinationNumber);
         /*doPin(pinClient, batsNumber, testAccountNumber, "De wilde", "8888",
                 "730", 20.00);
         makeNewAccount(uiClient, "test", "test", "test", "mats@bats.nl",
@@ -101,7 +104,7 @@ public final class ServiceManager {
 
     /**
      * Sends a customer creation request to the UI service.
-     * @param httpClient Client connected to the UI.
+     * @param uiClient Client connected to the UI.
      * @param initials Initials of the customer.
      * @param name First name of the customer.
      * @param surname Last name of the customer.
@@ -113,14 +116,14 @@ public final class ServiceManager {
      * @param spendingLimit Spendinglimit of the account.
      * @param balance Balance of the account.
      */
-    private static void makeNewAccount(final HttpClient httpClient, final String initials, final String name,
+    private static void makeNewAccount(final HttpClient uiClient, final String initials, final String name,
                                        final String surname, final String email, final String telephoneNumber,
                                        final String address, final String dob, final Long ssn,
                                        final double spendingLimit, final double balance) {
         Customer customer = JSONParser.createJsonCustomer(initials, name, surname, email, telephoneNumber, address, dob,
                                                             ssn, spendingLimit, balance);
         Gson gson = new Gson();
-        httpClient.putFormAsyncWith1Param("/services/ui/customer", "body", gson.toJson(customer),
+        uiClient.putFormAsyncWith1Param("/services/ui/customer", "body", gson.toJson(customer),
                 (code, contentType, body) -> { if (code == 200) {
                     Customer reply = gson.fromJson(body.substring(1, body.length() - 1)
                                                         .replaceAll("\\\\", ""), Customer.class);
@@ -133,16 +136,16 @@ public final class ServiceManager {
 
     /**
      * Sends a get request to the UI service to retrieve information from other services.
-     * @param httpClient Client connected to the UI service.
+     * @param uiClient Client connected to the UI service.
      * @param accountNumber Accountnumber of the customer we want to request information for.
      * @param type Type of request we want to do{@link RequestType}.
      * @param userId Id of the customer we want to request information for.
      */
-    private static void doGet(final HttpClient httpClient, final String accountNumber, final RequestType type,
-                              final int userId) {
+    private static void doGet(final HttpClient uiClient, final String accountNumber, final RequestType type,
+                              final Long userId) {
         DataRequest request = JSONParser.createJsonRequest(accountNumber, type, userId);
         Gson gson = new Gson();
-        httpClient.getAsyncWith1Param("/services/ui/data", "body", gson.toJson(request),
+        uiClient.getAsyncWith1Param("/services/ui/data", "body", gson.toJson(request),
                 (code, contentType, body) -> {
                     if (code == 200) {
                         switch (type) {
@@ -162,8 +165,15 @@ public final class ServiceManager {
                             case CUSTOMERDATA:
                                 Customer customerReply = gson.fromJson(body.substring(1, body.length() - 1)
                                         .replaceAll("\\\\", ""), Customer.class);
-                                System.out.printf("Request successfull, Name: %s, dob: %s\n", customerReply.getInitials()
-                                                + customerReply.getSurname(), customerReply.getDob());
+                                System.out.printf("Request successfull, Name: %s, dob: %s\n",
+                                                            customerReply.getInitials() + customerReply.getSurname(),
+                                                            customerReply.getDob());
+                                break;
+                            case ACCOUNTS:
+                                DataReply accountsReply = gson.fromJson(body.substring(1, body.length() - 1)
+                                        .replaceAll("\\\\", ""), DataReply.class);
+                                System.out.printf("Request successfull, accounts: %s",
+                                                                                    accountsReply.getAccountNumbers());
                                 break;
                             default:
                                 System.out.println("couldnt get reply data.");
@@ -177,7 +187,7 @@ public final class ServiceManager {
 
     /**
      * Sends a transaction request to the Pin service, simulating a Pin transaction of a customer.
-     * @param httpClient Client connected to the Pin service.
+     * @param pinClient Client connected to the Pin service.
      * @param sourceAccountNumber Account number to transfer funds from.
      * @param destinationAccountNumber Account number to transfer funds into.
      * @param destinationAccountHolderName Name of the owner of the destination account number.
@@ -185,13 +195,13 @@ public final class ServiceManager {
      * @param cardNumber Card number used in the transaction.
      * @param transactionAmount Amount to transfer.
      */
-    private static void doPin(final HttpClient httpClient, final String sourceAccountNumber,
+    private static void doPin(final HttpClient pinClient, final String sourceAccountNumber,
                               final String destinationAccountNumber, final String destinationAccountHolderName,
                               final String pinCode, final String cardNumber, final double transactionAmount) {
         PinTransaction pin = JSONParser.createJsonPinTransaction(sourceAccountNumber, destinationAccountNumber,
                 destinationAccountHolderName, pinCode, cardNumber, transactionAmount);
         Gson gson = new Gson();
-        httpClient.putFormAsyncWith1Param("/services/pin/transaction", "body", gson.toJson(pin),
+        pinClient.putFormAsyncWith1Param("/services/pin/transaction", "body", gson.toJson(pin),
                                         (code, contentType, body) -> {
             if (code == HTTP_OK) {
                 Transaction reply = gson.fromJson(body.substring(1, body.length() - 1).replaceAll("\\\\", ""),
@@ -209,10 +219,10 @@ public final class ServiceManager {
         });
     }
 
-    private static void doAccountLink(final HttpClient httpClient, final Long customerId, final String accountNumber) {
+    private static void doAccountLink(final HttpClient uiClient, final Long customerId, final String accountNumber) {
         AccountLink request = JSONParser.createJsonAccountLink(customerId, accountNumber);
         Gson gson = new Gson();
-        httpClient.putFormAsyncWith1Param("/services/ui/account", "body", gson.toJson(request),
+        uiClient.putFormAsyncWith1Param("/services/ui/account", "body", gson.toJson(request),
                                             (code, contentType, body) -> {
             if (code == HTTP_OK) {
                 AccountLink reply = gson.fromJson(body.substring(1, body.length() - 1).replaceAll("\\\\", ""),

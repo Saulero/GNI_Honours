@@ -15,10 +15,12 @@ public final class DataReply implements Serializable {
     private String accountNumber;
     /** The type of request that this reply is for. */
     private RequestType type;
-    /** The data of the reply, in case it was a accountdata request. */
+    /** The data of the reply, in case it was a Balance request. */
     private Account accountData;
-    /** The data of the reply, in case it was a transactionhistory request. */
+    /** The data of the reply, in case it was a transaction history request. */
     private List<Transaction> transactions;
+    /** The data of the reply, in case it was an accounts request. */
+    private List<String> accountNumbers;
 
     /**
      * Creates a DataReply to send to other microservices.
@@ -31,10 +33,11 @@ public final class DataReply implements Serializable {
         this.type = newType;
         this.accountData = newAccountData;
         this.transactions = null;
+        this.accountNumbers = null;
     }
 
     /**
-     * Creates a DataReply for sending over channels.
+     * Creates a DataReply object for a transaction history request.
      * @param newAccountNumber Account number the reply corresponds to.
      * @param newType Type of request that this reply is for.
      * @param newTransactions Data of the reply.
@@ -44,6 +47,19 @@ public final class DataReply implements Serializable {
         this.type = newType;
         this.accountData = null;
         this.transactions = newTransactions;
+    }
+
+    /**
+     * Creates a DataReply object for a account numbers request.
+     * @param newType Type of request that this reply is for.
+     * @param newAccountNumbers Account numbers that belong to the requestee.
+     */
+    public DataReply(final RequestType newType, final List<String> newAccountNumbers) {
+        this.accountNumber = null;
+        this.type = newType;
+        this.accountData = null;
+        this.transactions = null;
+        this.accountNumbers = newAccountNumbers;
     }
 
     /**
@@ -81,5 +97,13 @@ public final class DataReply implements Serializable {
 
     public void setTransactions(final List<Transaction> newTransactions) {
         this.transactions = newTransactions;
+    }
+
+    public List<String> getAccountNumbers() {
+        return accountNumbers;
+    }
+
+    public void setAccountNumbers(final List<String> newAccountNumbers) {
+        accountNumbers = newAccountNumbers;
     }
 }

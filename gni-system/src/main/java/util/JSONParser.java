@@ -40,10 +40,23 @@ public final class JSONParser {
      * @return DataRequest object that can be converted to a Json String.
      */
     public static DataRequest createJsonRequest(final String accountNumber, final RequestType type,
-                                                final int newUserId) {
+                                                final long newUserId) {
         DataRequest request = new DataRequest();
         request.setType(type);
         request.setAccountNumber(accountNumber);
+        request.setUserId(newUserId);
+        return request;
+    }
+
+    /**
+     * Creates a DataRequest object that can be converted to Json.
+     * @param type Type of request.
+     * @param newUserId User id the request is for.
+     * @return DataRequest object that can be converted to a Json String.
+     */
+    public static DataRequest createJsonRequest(final RequestType type, final long newUserId) {
+        DataRequest request = new DataRequest();
+        request.setType(type);
         request.setUserId(newUserId);
         return request;
     }

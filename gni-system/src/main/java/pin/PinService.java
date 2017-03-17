@@ -21,7 +21,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
  * Handles Pin transactions by verifying the PIN code for the card used and
  * then handles the transaction request accordingly.
  */
-@RequestMapping("/pinBa")
+@RequestMapping("/pin")
 class PinService {
     /** Connection to the Transaction Dispatch service.*/
     private HttpClient transactionDispatchClient;
