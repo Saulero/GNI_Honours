@@ -6,18 +6,18 @@ package databeans;
  */
 public class AccountLink {
     private Long customerId;
-    private Account account;
+    private String accountNumber;
     private boolean successfull;
 
     public AccountLink(final Long newCustomerId) {
         this.customerId = newCustomerId;
-        this.account = null;
+        this.accountNumber = null;
         this.successfull = false;
     }
 
-    public AccountLink(final Long newCustomerId, final Account newAccount, final boolean newSuccessfull) {
+    public AccountLink(final Long newCustomerId, final String newAccountNumber, final boolean newSuccessfull) {
         this.customerId = newCustomerId;
-        this.account = newAccount;
+        this.accountNumber = newAccountNumber;
         this.successfull = newSuccessfull;
     }
 
@@ -33,12 +33,12 @@ public class AccountLink {
         customerId = newCustomerId;
     }
 
-    public Account getAccount() {
-        return account;
+    public String getAccountNumber() {
+        return accountNumber;
     }
 
-    public void setAccount(final Account newAccount) {
-        account = newAccount;
+    public void setAccountNumber(final String newAccountNumber) {
+        accountNumber = newAccountNumber;
     }
 
     public boolean isSuccessfull() {

@@ -367,6 +367,28 @@ class LedgerService {
                 callback.reject(e.getMessage());
                 e.printStackTrace();
             }
+        } else if (requestType == RequestType.ACCOUNTEXISTS) {
+            try {
+                boolean accountExists = false;
+                SQLConnection connection = db.getConnection();
+                PreparedStatement ps = connection.getConnection().prepareStatement(getAccountNumberCount);
+                ps.setString(1, dataRequest.getAccountNumber());
+                ResultSet rs = ps.executeQuery();
+                if (rs.next()) {
+                    int accountCount = rs.getInt(1);
+                    if (accountCount > 0) {
+                        accountExists = true;
+                    }
+                }
+                DataReply dataReply = new DataReply(dataRequest.getType(), dataRequest.getAccountNumber(),
+                                                                                                        accountExists);
+                callback.reply(gson.toJson(dataReply));
+                rs.close();
+                db.returnConnection(connection);
+            } catch (SQLException e) {
+                callback.reject(e.getMessage());
+                e.printStackTrace();
+            }
         }
     }
 

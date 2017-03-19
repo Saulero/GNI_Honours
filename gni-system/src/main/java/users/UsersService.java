@@ -121,7 +121,7 @@ class UsersService {
     private Customer getCustomerData(final Long userId) {
         try {
             SQLConnection connection = db.getConnection();
-            PreparedStatement ps = connection.getConnection().prepareStatement(getCustomerInformation);
+            PreparedStatement ps = connection.getConnection().prepareStatement(getUserInformation);
             ps.setLong(1, userId);
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
@@ -341,13 +341,75 @@ class UsersService {
         Gson gson = new Gson();
         AccountLink request = gson.fromJson(body, AccountLink.class);
         Long customerId = request.getCustomerId();
-        String accountNumber = request.getAccount().getAccountNumber();
-        //todo test if this works when customerId is not specified.
-        if (customerId < 0 || accountNumber == null) {
+        String accountNumber = request.getAccountNumber();
+        if (customerId == null || customerId < 0 || accountNumber == null) {
             callback.reject("CustomerId or AccountNumber not specified.");
         }
-        boolean addedAccount = addAccountToCustomerDb(customerId, accountNumber);
-        request.setSuccessfull(addedAccount);
-        callback.reply(gson.toJson(request));
+        DataRequest dataRequest = JSONParser.createAccountExistsRequest(accountNumber);
+        final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        doAccountLink(gson, dataRequest, customerId, callbackBuilder);
+    }
+
+    /**
+     * Checks if an account exists in the ledger, if it does this is an existing account that will be added to the
+     * user specified in request. Otherwise the request will be rejected.
+     * @param gson Used for json conversions.
+     * @param request DataRequest object containing an account link request.
+     * @param callbackBuilder Used to send a callback to UI.
+     */
+    private void doAccountLink(final Gson gson, final DataRequest request, final Long customerId,
+                               final CallbackBuilder callbackBuilder) {
+        ledgerClient.getAsyncWith1Param("/services/ledger/data", "body",
+                                                            gson.toJson(request), (code, contentType, replyBody) -> {
+            if (code == HTTP_OK) {
+                DataReply ledgerReply = gson.fromJson(replyBody.substring(1, replyBody.length() - 1)
+                        .replaceAll("\\\\", ""), DataReply.class);
+                if (ledgerReply.isAccountInLedger()) {
+                    if (customerExists(customerId)) {
+                        boolean addedAccount = addAccountToCustomerDb(customerId, request.getAccountNumber());
+                        AccountLink reply = new AccountLink(customerId, request.getAccountNumber(),
+                                addedAccount);
+                        System.out.println("Users: Account link successfull.");
+                        callbackBuilder.build().reply(gson.toJson(reply));
+                    } else {
+                        System.out.println("Users: Account link failed, UserId does not exist.");
+                        callbackBuilder.build().reject("UserId does not exist.");
+                    }
+                } else {
+                    System.out.println("Users: Account link failed, account does not exist.");
+                    callbackBuilder.build().reject("Account does not exist.");
+                }
+            } else {
+                System.out.println("Users: Unsuccessfull ledger call.");
+                callbackBuilder.build().reject("Unsuccessfull call, code: " + code);
+            }
+        });
+    }
+
+    /**
+     * Checks if a customer with id customerId exists in the users database.
+     * @param customerId Id of the customer to look for.
+     * @return Boolean indicating if the customer exists in the users database.
+     */
+    private boolean customerExists(final Long customerId) {
+        boolean customerExists = false;
+        try {
+            SQLConnection connection = db.getConnection();
+            PreparedStatement check = connection.getConnection().prepareStatement(getUserCount);
+            check.setLong(1, customerId);
+            ResultSet rs = check.executeQuery();
+            if (rs.next()) {
+                Long customerCount = rs.getLong(1);
+                if (customerCount > 0) {
+                    customerExists = true;
+                }
+            }
+            rs.close();
+            db.returnConnection(connection);
+            return customerExists;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 }

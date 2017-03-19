@@ -93,7 +93,7 @@ final class UIService {
                 Customer reply = gson.fromJson(replyJson, Customer.class);
                 System.out.println("UI: Sending callback.");
                 callbackBuilder.build().reply(gson.toJson(reply));
-            } else {
+            } else if (type == RequestType.ACCOUNTS) {
                 DataReply reply = gson.fromJson(replyJson, DataReply.class);
                 System.out.println("UI: Sending callback.");
                 callbackBuilder.build().reply(gson.toJson(reply));
@@ -219,11 +219,11 @@ final class UIService {
      *             created {@link Customer}.
      */
     @RequestMapping(value = "/account", method = RequestMethod.PUT)
-    public void createCustomerBankAccount(final Callback<String> callback, @RequestParam("body") final String body) {
+    public void createCustomerAccountLink(final Callback<String> callback, @RequestParam("body") final String body) {
         Gson gson = new Gson();
         AccountLink request = gson.fromJson(body, AccountLink.class);
         System.out.printf("UI: Received account link request for customer %d account number %s\n",
-                            request.getCustomerId(), request.getAccount().getAccountNumber());
+                            request.getCustomerId(), request.getAccountNumber());
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         usersClient.putFormAsyncWith1Param("/services/users/account", "body", body,
                                             ((code, contentType, replyBody) -> {

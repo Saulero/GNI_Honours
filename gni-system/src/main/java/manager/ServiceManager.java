@@ -45,7 +45,7 @@ public final class ServiceManager {
         pinClient.start();
         Sys.sleep(1000);
         doGet(uiClient, "", RequestType.ACCOUNTS, batsId);
-        doAccountLink(uiClient, batsId, testDestinationNumber);
+        doAccountLink(uiClient, batsId, batsNumber);
         /*doPin(pinClient, batsNumber, testAccountNumber, "De wilde", "8888",
                 "730", 20.00);
         makeNewAccount(uiClient, "test", "test", "test", "mats@bats.nl",

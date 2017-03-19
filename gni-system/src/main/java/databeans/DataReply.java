@@ -21,6 +21,8 @@ public final class DataReply implements Serializable {
     private List<Transaction> transactions;
     /** The data of the reply, in case it was an accounts request. */
     private List<String> accountNumbers;
+    /** The data of the reply, in case it was an account exists request. */
+    private boolean accountInLedger;
 
     /**
      * Creates a DataReply to send to other microservices.
@@ -60,6 +62,18 @@ public final class DataReply implements Serializable {
         this.accountData = null;
         this.transactions = null;
         this.accountNumbers = newAccountNumbers;
+    }
+
+    /**
+     * Creates a DataReply object for a account exists request.
+     * @param newType Type of the request that this reply is for.
+     * @param newAccountNumber Account number of the request that this reply is for.
+     * @param newAccountExists Boolean indicating if the account exists in the ledger.
+     */
+    public DataReply(final RequestType newType, final String newAccountNumber, final boolean newAccountExists) {
+        this.type = newType;
+        this.accountNumber = newAccountNumber;
+        this.accountInLedger = newAccountExists;
     }
 
     /**
@@ -105,5 +119,13 @@ public final class DataReply implements Serializable {
 
     public void setAccountNumbers(final List<String> newAccountNumbers) {
         accountNumbers = newAccountNumbers;
+    }
+
+    public boolean isAccountInLedger() {
+        return accountInLedger;
+    }
+
+    public void setAccountInLedger(final boolean newAccountExists) {
+        accountInLedger = newAccountExists;
     }
 }

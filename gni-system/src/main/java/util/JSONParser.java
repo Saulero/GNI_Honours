@@ -62,6 +62,18 @@ public final class JSONParser {
     }
 
     /**
+     * Creates a DataRequest object to check if an account exists in the ledger.
+     * @param accountNumber Account number to check for.
+     * @return DataRequest object that can be converted to a Json String.
+     */
+    public static DataRequest createAccountExistsRequest(final String accountNumber) {
+        DataRequest request = new DataRequest();
+        request.setType(RequestType.ACCOUNTEXISTS);
+        request.setAccountNumber(accountNumber);
+        return request;
+    }
+
+    /**
      * Creates a Transaction object that can be converted to a Json String.
      * @param transactionID Transaction number.
      * @param sourceAccountNumber Account number funds are pulled from.
@@ -159,7 +171,7 @@ public final class JSONParser {
     public static AccountLink createJsonAccountLink(final Long newCustomerId, final String newAccountNumber) {
         AccountLink request = new AccountLink();
         request.setCustomerId(newCustomerId);
-        request.setAccount(createJsonAccount(newAccountNumber, 0, 0));
+        request.setAccountNumber(newAccountNumber);
         request.setSuccessfull(false);
         return request;
     }
