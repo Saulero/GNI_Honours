@@ -184,4 +184,11 @@ public final class JSONParser {
         request.setSuccessfull(false);
         return request;
     }
+
+    public static AccountLink createJsonAccountLink(final Long newCustomerId) {
+        AccountLink request = new AccountLink();
+        request.setCustomerId(newCustomerId);
+        request.setSuccessfull(false);
+        return request;
+    }
 }

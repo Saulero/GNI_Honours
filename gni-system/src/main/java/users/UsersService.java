@@ -389,16 +389,18 @@ class UsersService {
 
     @RequestMapping(value = "/account/new", method = RequestMethod.PUT)
     public void createNewCustomerAccount(final Callback<String> callback, final @RequestParam("body") String body) {
+        System.out.println("Users: Received account creation request.");
         Gson gson = new Gson();
         AccountLink request = gson.fromJson(body, AccountLink.class);
         Long customerId = request.getCustomerId();
         if (customerId == null || customerId < 0) {
             callback.reject("CustomerId not specified.");
         }
+        System.out.println("Customerid: " + customerId);
         Customer customer = getCustomerData(customerId);
         if (customer != null) {
             final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-
+            doAccountCreation(gson, request, customer, callbackBuilder);
         } else {
             callback.reject("Customer does not exist.");
         }
@@ -406,13 +408,15 @@ class UsersService {
 
     private void doAccountCreation(final Gson gson, final AccountLink accountLink, final Customer customer,
                                                                             final CallbackBuilder callbackBuilder) {
+        System.out.println("Creating account");
         String accountHolderName = customer.getInitials() + customer.getSurname();
         System.out.println("accountholdername: " + accountHolderName);
         Account account = JSONParser.createJsonAccount(0, 0, accountHolderName);
         ledgerClient.putFormAsyncWith1Param("/services/ledger/accountNumber", "body",
                                                                 gson.toJson(account), (code, contentType, body) -> {
             if (code == HTTP_OK) {
-                Account ledgerReply = gson.fromJson(body, Account.class);
+                Account ledgerReply = gson.fromJson(body.substring(1, body.length() - 1).replaceAll("\\\\", ""),
+                                                                                                        Account.class);
                 if (ledgerReply.getAccountNumber() != null && ledgerReply.getAccountHolderName() != null &&
                         ledgerReply.getAccountHolderName().equals(accountHolderName)) {
                     //Ledger successfully generated a new account for our user, create the link in the users db.
@@ -421,10 +425,13 @@ class UsersService {
                     accountLink.setAccountNumber(ledgerReply.getAccountNumber());
                     accountLink.setSuccessfull(accountLinked);
                     callbackBuilder.build().reply(gson.toJson(accountLink));
+                    System.out.println("Users: Successfully created account.");
                 } else {
+                    System.out.println("Users: Failed to create account.");
                     callbackBuilder.build().reject("Reply from the ledger contained incorrect data.");
                 }
             } else {
+                System.out.println("Users: Failed to create account.");
                 callbackBuilder.build().reject("Could not reach ledger.");
             }
 

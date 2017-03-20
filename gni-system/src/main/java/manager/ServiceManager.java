@@ -46,6 +46,7 @@ public final class ServiceManager {
         Sys.sleep(1000);
         doGet(uiClient, "", RequestType.ACCOUNTS, batsId);
         doAccountLink(uiClient, batsId, batsNumber);
+        doAccountCreation(uiClient, batsId);
         /*doPin(pinClient, batsNumber, testAccountNumber, "De wilde", "8888",
                 "730", 20.00);
         makeNewAccount(uiClient, "test", "test", "test", "mats@bats.nl",
@@ -228,12 +229,33 @@ public final class ServiceManager {
                 AccountLink reply = gson.fromJson(body.substring(1, body.length() - 1).replaceAll("\\\\", ""),
                         AccountLink.class);
                 if (reply.isSuccessfull()) {
-                    System.out.println("Account link successfull.");
+                    System.out.printf("Account link successfull for Account Holder: %s, AccountNumber: %s\n",
+                                                                    reply.getCustomerId(), reply.getAccountNumber());
                 } else {
                     System.out.println("Account link creation unsuccessfull.");
                 }
             } else {
                 System.out.println("Account link creation failed.");
+            }
+        });
+    }
+
+    private static void doAccountCreation(final HttpClient uiClient, final Long customerId) {
+        AccountLink request = JSONParser.createJsonAccountLink(customerId);
+        Gson gson = new Gson();
+        uiClient.putFormAsyncWith1Param("/services/ui/account/new", "body", gson.toJson(request),
+                                                                                    (code, contentType, body) -> {
+            if (code == HTTP_OK) {
+                AccountLink reply = gson.fromJson(body.substring(1, body.length() - 1).replaceAll("\\\\", ""),
+                    AccountLink.class);
+                if (reply.isSuccessfull()) {
+                System.out.printf("New Account creation successfull, Account Holder: %s, AccountNumber: %s\n",
+                                                                    reply.getCustomerId(), reply.getAccountNumber());
+                } else {
+                System.out.println("New Account creation unsuccessfull.");
+                }
+            } else {
+                System.out.println("Account creation failed.");
             }
         });
     }

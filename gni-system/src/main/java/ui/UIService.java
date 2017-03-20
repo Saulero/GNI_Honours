@@ -263,6 +263,10 @@ final class UIService {
             if (code == HTTP_OK) {
                 String replyJson = replyBody.substring(1, replyBody.length() - 1).replaceAll("\\\\", "");
                 AccountLink reply = gson.fromJson(replyJson, AccountLink.class);
+                callbackBuilder.build().reply(gson.toJson(reply));
+                System.out.println("UI: Successfull account creation request.");
+            } else {
+                callbackBuilder.build().reject("Connectivity issues with usersService.");
             }
         });
     }
