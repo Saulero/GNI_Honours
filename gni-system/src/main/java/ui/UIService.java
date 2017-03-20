@@ -164,6 +164,7 @@ final class UIService {
      *             created {@link Customer}.
      */
     @RequestMapping(value = "/customer", method = RequestMethod.PUT)
+    //todo rewrite so we can use initials + surname for accountholdername, where does account currently come from?
     public void createCustomer(final Callback<String> callback, @RequestParam("body") final String body) {
         Gson gson = new Gson();
         Customer customer = gson.fromJson(body, Customer.class);
@@ -215,8 +216,8 @@ final class UIService {
     /**
      * Handles customer account link requests by forwarding the request to the users service and waiting for a callback.
      * @param callback Used to send the result of the request back to the source of the request.
-     * @param body Body of the request, a Json string representing a Customer object that should be
-     *             created {@link Customer}.
+     * @param body Body of the request, a Json string representing an AccountLink object that should be
+     *             created {@link AccountLink}.
      */
     @RequestMapping(value = "/account", method = RequestMethod.PUT)
     public void createCustomerAccountLink(final Callback<String> callback, @RequestParam("body") final String body) {
@@ -242,6 +243,28 @@ final class UIService {
                 callbackBuilder.build().reject("Request failed HTTP code: " + code);
             }
         }));
+    }
+
+    /**
+     * Handles the creation of a new account for an existing customer by forwarding this request to the users service
+     * and waiting for a callback.
+     * @param callback Used to send the result of the request back to the source of the request.
+     * @param body Body of the request, a Json string representing an AccountLink object with a customer id of the
+     *             customer that an account needs to be created for.
+     */
+    @RequestMapping(value = "/account/new", method = RequestMethod.PUT)
+    public void createNewAccountForCustomer(final Callback<String> callback, @RequestParam("body") final String body) {
+        Gson gson = new Gson();
+        AccountLink request = gson.fromJson(body, AccountLink.class);
+        System.out.printf("UI: Received account creation request for customer %d\n", request.getCustomerId());
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        usersClient.putFormAsyncWith1Param("/services/users/account/new", "body", body,
+                                                                                    (code, contentType, replyBody) -> {
+            if (code == HTTP_OK) {
+                String replyJson = replyBody.substring(1, replyBody.length() - 1).replaceAll("\\\\", "");
+                AccountLink reply = gson.fromJson(replyJson, AccountLink.class);
+            }
+        });
     }
 }
 

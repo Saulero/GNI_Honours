@@ -225,6 +225,7 @@ class UsersService {
      * @param body Json string containing the Customer object the request is for {@link Customer}.
      */
     @RequestMapping(value = "/customer", method = RequestMethod.PUT)
+    //todo rewrite so we can use initials + surname for accountholdername.
     public void processNewCustomer(final Callback<String> callback, final @RequestParam("body") String body) {
         Gson gson = new Gson();
         Customer customer = gson.fromJson(body, Customer.class);
@@ -383,6 +384,50 @@ class UsersService {
                 System.out.println("Users: Unsuccessfull ledger call.");
                 callbackBuilder.build().reject("Unsuccessfull call, code: " + code);
             }
+        });
+    }
+
+    @RequestMapping(value = "/account/new", method = RequestMethod.PUT)
+    public void createNewCustomerAccount(final Callback<String> callback, final @RequestParam("body") String body) {
+        Gson gson = new Gson();
+        AccountLink request = gson.fromJson(body, AccountLink.class);
+        Long customerId = request.getCustomerId();
+        if (customerId == null || customerId < 0) {
+            callback.reject("CustomerId not specified.");
+        }
+        Customer customer = getCustomerData(customerId);
+        if (customer != null) {
+            final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+
+        } else {
+            callback.reject("Customer does not exist.");
+        }
+    }
+
+    private void doAccountCreation(final Gson gson, final AccountLink accountLink, final Customer customer,
+                                                                            final CallbackBuilder callbackBuilder) {
+        String accountHolderName = customer.getInitials() + customer.getSurname();
+        System.out.println("accountholdername: " + accountHolderName);
+        Account account = JSONParser.createJsonAccount(0, 0, accountHolderName);
+        ledgerClient.putFormAsyncWith1Param("/services/ledger/accountNumber", "body",
+                                                                gson.toJson(account), (code, contentType, body) -> {
+            if (code == HTTP_OK) {
+                Account ledgerReply = gson.fromJson(body, Account.class);
+                if (ledgerReply.getAccountNumber() != null && ledgerReply.getAccountHolderName() != null &&
+                        ledgerReply.getAccountHolderName().equals(accountHolderName)) {
+                    //Ledger successfully generated a new account for our user, create the link in the users db.
+                    boolean accountLinked = addAccountToCustomerDb(accountLink.getCustomerId(),
+                                                                                    ledgerReply.getAccountNumber());
+                    accountLink.setAccountNumber(ledgerReply.getAccountNumber());
+                    accountLink.setSuccessfull(accountLinked);
+                    callbackBuilder.build().reply(gson.toJson(accountLink));
+                } else {
+                    callbackBuilder.build().reject("Reply from the ledger contained incorrect data.");
+                }
+            } else {
+                callbackBuilder.build().reject("Could not reach ledger.");
+            }
+
         });
     }
 

@@ -168,6 +168,15 @@ public final class JSONParser {
         return account;
     }
 
+    public static Account createJsonAccount(final double newSpendingLimit, final double newBalance,
+                                                                                final String newAccountHolderName) {
+        Account account = new Account();
+        account.setAccountHolderName(newAccountHolderName);
+        account.setSpendingLimit(newSpendingLimit);
+        account.setBalance(newBalance);
+        return account;
+    }
+
     public static AccountLink createJsonAccountLink(final Long newCustomerId, final String newAccountNumber) {
         AccountLink request = new AccountLink();
         request.setCustomerId(newCustomerId);
