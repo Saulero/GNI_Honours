@@ -19,4 +19,4 @@ public enum RequestType implements Serializable {
     /** Used to check if an account exists. */
     ACCOUNTEXISTS
 
-};
+}

@@ -22,4 +22,9 @@ public final class SQLStatements {
     public static final String getAccountNumbers = "SELECT * FROM accounts where accounts.user_id = ?";
     public static final String getAccountNumberCount = "SELECT count(*) FROM ledger WHERE account_number = ?";
     public static final String getUserCount = "SELECT count(*) FROM users WHERE users.id = ?";
+    public static final String getAuthenticationData1 = "SELECT * FROM authentication WHERE authentication.username = ?";
+    public static final String getAuthenticationData2 = "SELECT * FROM authentication WHERE authentication.user_id = ?";
+    public static final String createAuthenticationData = "INSERT INTO authentication (user_id, username, password) VALUES (?, ?, ?)";
+    public static final String updateToken = "UPDATE authentication SET authentication.token = ?, authentication.token_validity = ? WHERE authentication.user_id = ?";
+    public static final String updateTokenValidity = "UPDATE authentication SET authentication.token_validity = ? WHERE authentication.user_id = ?";
 }

@@ -30,7 +30,7 @@ import static database.SQLStatements.*;
 @RequestMapping("/ledger")
 class LedgerService {
 
-    /** Database connection pool containing persistant database connections. */
+    /** Database connection pool containing persistent database connections. */
     private ConnectionPool db;
 
     /**
