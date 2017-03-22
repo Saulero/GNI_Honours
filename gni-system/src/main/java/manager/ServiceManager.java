@@ -47,18 +47,18 @@ public final class ServiceManager {
         doGet(uiClient, "", RequestType.ACCOUNTS, batsId);
         doAccountLink(uiClient, batsId, batsNumber);
         doAccountCreation(uiClient, batsId);
-        /*doPin(pinClient, batsNumber, testAccountNumber, "De wilde", "8888",
+        doPin(pinClient, batsNumber, testAccountNumber, "De wilde", "8888",
                 "730", 20.00);
         makeNewAccount(uiClient, "test", "test", "test", "mats@bats.nl",
                 "061212121212", "Batslaan 25", "20-04-1889",
                 new Long("1234567890"),1000, 0);
         doTransaction(externalBankClient, testAccountNumber, batsNumber, "Bats",
                 "Moneys",200.00, true);
-        doTransaction(uiClient, batsNumber, testDestinationNumber, "De Boer",
+        doTransaction(uiClient, testAccountNumber, testDestinationNumber, "De Boer",
                 "moar moneys",250.00, false);
         doGet(uiClient, batsNumber, RequestType.TRANSACTIONHISTORY, batsId);
         doGet(uiClient, testAccountNumber, RequestType.BALANCE, batsId);
-        doGet(uiClient, testAccountNumber, RequestType.CUSTOMERDATA, batsId);*/
+        doGet(uiClient, testAccountNumber, RequestType.CUSTOMERDATA, batsId);
     }
 
     /**

@@ -68,12 +68,12 @@ public final class DataReply implements Serializable {
      * Creates a DataReply object for a account exists request.
      * @param newType Type of the request that this reply is for.
      * @param newAccountNumber Account number of the request that this reply is for.
-     * @param newAccountExists Boolean indicating if the account exists in the ledger.
+     * @param newAccountInLedger Boolean indicating if the account exists in the ledger.
      */
-    public DataReply(final RequestType newType, final String newAccountNumber, final boolean newAccountExists) {
+    public DataReply(final RequestType newType, final String newAccountNumber, final boolean newAccountInLedger) {
         this.type = newType;
         this.accountNumber = newAccountNumber;
-        this.accountInLedger = newAccountExists;
+        this.accountInLedger = newAccountInLedger;
     }
 
     /**

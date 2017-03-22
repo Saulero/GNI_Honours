@@ -44,7 +44,7 @@ public final class JSONParser {
         DataRequest request = new DataRequest();
         request.setType(type);
         request.setAccountNumber(accountNumber);
-        request.setUserId(newUserId);
+        request.setCustomerId(newUserId);
         return request;
     }
 
@@ -57,7 +57,7 @@ public final class JSONParser {
     public static DataRequest createJsonRequest(final RequestType type, final long newUserId) {
         DataRequest request = new DataRequest();
         request.setType(type);
-        request.setUserId(newUserId);
+        request.setCustomerId(newUserId);
         return request;
     }
 
