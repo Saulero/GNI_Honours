@@ -219,7 +219,7 @@ public final class ServiceManager {
     }
 
     private static void doNewAccountRequest(final HttpClient uiClient, final Long customerId, final String accountNumber) {
-        AccountLink request = JSONParser.createJsonAccountLink(customerId, accountNumber);
+        AccountLink request = JSONParser.createJsonAccountLink(accountNumber, customerId);
         Gson gson = new Gson();
         uiClient.putFormAsyncWith1Param("/services/ui/account", "body", gson.toJson(request),
                                             (code, contentType, body) -> {

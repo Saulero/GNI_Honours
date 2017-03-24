@@ -321,8 +321,6 @@ class LedgerService {
                 PreparedStatement ps = connection.getConnection().prepareStatement(getAccountInformation);
                 ps.setString(1, dataRequest.getAccountNumber());     // account_number
                 ResultSet rs = ps.executeQuery();
-
-                DataReply dataReply;
                 if (rs.next()) {
                     String accountNumber = dataRequest.getAccountNumber();
                     String name = rs.getString("name");
@@ -330,7 +328,7 @@ class LedgerService {
                     double balance = rs.getDouble("balance");
                     Account account = new Account(name, spendingLimit, balance);
                     account.setAccountNumber(accountNumber);
-                    dataReply = JSONParser.createJsonReply(accountNumber, requestType, account);
+                    DataReply dataReply = JSONParser.createJsonReply(accountNumber, requestType, account);
                     callback.reply(gson.toJson(dataReply));
                 }
 
@@ -338,7 +336,6 @@ class LedgerService {
                 ps.close();
                 db.returnConnection(connection);
             } catch (SQLException e) {
-                System.out.println(e);
                 callback.reject(e.getMessage());
                 e.printStackTrace();
             }

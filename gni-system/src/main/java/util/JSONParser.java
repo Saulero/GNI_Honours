@@ -230,7 +230,7 @@ public final class JSONParser {
         return account;
     }
 
-    public static AccountLink createJsonAccountLink(final Long newCustomerId, final String newAccountNumber) {
+    public static AccountLink createJsonAccountLink(final String newAccountNumber, final Long newCustomerId) {
         AccountLink request = new AccountLink();
         request.setCustomerId(newCustomerId);
         request.setAccountNumber(newAccountNumber);
@@ -245,7 +245,7 @@ public final class JSONParser {
         return request;
     }
 
-    public static AccountLink createJsonAccountLink(final Long newCustomerId, final String newAccountNumber,
+    public static AccountLink createJsonAccountLink(final String newAccountNumber, final Long newCustomerId,
                                                     final boolean newSuccessfull) {
         AccountLink request = new AccountLink();
         request.setCustomerId(newCustomerId);
