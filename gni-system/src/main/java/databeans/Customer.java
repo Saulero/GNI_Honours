@@ -27,6 +27,8 @@ public final class Customer implements Serializable {
     private Long ssn;
     /** Account of the customer. */
     private Account account;
+    /** Id of the customer. */
+    private Long Id;
 
     /** Initializes customer object and assigns its variables.
      * @param newInitials initials of the customer.
@@ -51,7 +53,34 @@ public final class Customer implements Serializable {
         this.address = newAddress;
         this.dob = newDob;
         this.ssn = newSsn;
+        this.account = new Account(newInitials + newSurname, newSpendingLimit, newBalance);
+    }
+
+    /** Initializes customer object and assigns its variables.
+     * @param newInitials initials of the customer.
+     * @param newName first name of the customer.
+     * @param newSurname surname of the customer.
+     * @param newEmail email of the customer.
+     * @param newTelephoneNumber telephone number of the customer.
+     * @param newAddress address of the customer.
+     * @param newDob date of birth of the customer.
+     * @param newSsn social security number of the customer.
+     * @param newSpendingLimit spending limit of the customer.
+     * @param newBalance balance of the customers new account.
+     * */
+    public Customer(final String newInitials, final String newName, final String newSurname, final String newEmail,
+                    final String newTelephoneNumber, final String newAddress, final String newDob, final Long newSsn,
+                    final double newSpendingLimit, final double newBalance, final Long newId) {
+        this.initials = newInitials;
+        this.name = newName;
+        this.surname = newSurname;
+        this.email = newEmail;
+        this.telephoneNumber = newTelephoneNumber;
+        this.address = newAddress;
+        this.dob = newDob;
+        this.ssn = newSsn;
         this.account = new Account(newSurname, newSpendingLimit, newBalance);
+        this.Id = newId;
     }
 
     /**
@@ -131,5 +160,13 @@ public final class Customer implements Serializable {
 
     public void setSsn(final Long newSsn) {
         this.ssn = newSsn;
+    }
+
+    public Long getId() {
+        return Id;
+    }
+
+    public void setId(final Long newId) {
+        Id = newId;
     }
 }

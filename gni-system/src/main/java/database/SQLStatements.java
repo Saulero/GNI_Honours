@@ -22,4 +22,5 @@ public final class SQLStatements {
     public static final String getAccountNumbers = "SELECT * FROM accounts where accounts.user_id = ?";
     public static final String getAccountNumberCount = "SELECT count(*) FROM ledger WHERE account_number = ?";
     public static final String getUserCount = "SELECT count(*) FROM users WHERE users.id = ?";
+    public static final String getAccountLinkCount = "SELECT count(*) FROM accounts WHERE user_id = ? AND account_number = ?";
 }

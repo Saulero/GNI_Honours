@@ -2,6 +2,8 @@ package util;
 
 import databeans.*;
 
+import java.util.LinkedList;
+
 /**
  * Creates objects by initializing them using empty constructors and then setting all variables. Needed to use the
  * objects as Json objects.
@@ -30,6 +32,24 @@ public final class JSONParser {
         reply.setType(type);
         reply.setAccountData(account);
         return reply;
+    }
+
+    public static DataReply createJsonReply(final String accountNumber, final RequestType type,
+                                            final LinkedList<Transaction> transactions) {
+        DataReply dataReply = new DataReply();
+        dataReply.setAccountNumber(accountNumber);
+        dataReply.setType(type);
+        dataReply.setTransactions(transactions);
+        return dataReply;
+    }
+
+    public static DataReply createJsonReply(final String accountNumber, final RequestType type,
+                                            final boolean accountExists) {
+        DataReply dataReply = new DataReply();
+        dataReply.setAccountNumber(accountNumber);
+        dataReply.setType(type);
+        dataReply.setAccountInLedger(accountExists);
+        return dataReply;
     }
 
     /**
@@ -130,7 +150,40 @@ public final class JSONParser {
         customer.setAddress(newAddress);
         customer.setDob(newDob);
         customer.setSsn(newSsn);
-        customer.setAccount(new Account(newSurname, newSpendingLimit, newBalance));
+        customer.setAccount(new Account(newInitials + newSurname, newSpendingLimit, newBalance));
+        return customer;
+    }
+
+    /**
+     * Creates a Customer object that can be converted to a Json String.
+     * @param newInitials Initials of the customer.
+     * @param newName First name of the customer.
+     * @param newSurname Last name of the customer.
+     * @param newEmail Email of the customer.
+     * @param newTelephoneNumber Telephone number of the customer.
+     * @param newAddress Address of the customer.
+     * @param newDob Date of birth of the customer.
+     * @param newSsn Social security number of the customer.
+     * @param newSpendingLimit Spending limit of the customers account(used for creating a new account).
+     * @param newBalance Balance of the customers account(used for creating a new account).
+     * @return A Customer object that can be converted to a Json String.
+     */
+    public static Customer createJsonCustomer(final String newInitials, final String newName, final String newSurname,
+                                              final String newEmail, final String newTelephoneNumber,
+                                              final String newAddress, final String newDob, final Long newSsn,
+                                              final double newSpendingLimit, final double newBalance,
+                                              final Long newCustomerId) {
+        Customer customer = new Customer();
+        customer.setInitials(newInitials);
+        customer.setName(newName);
+        customer.setSurname(newSurname);
+        customer.setEmail(newEmail);
+        customer.setTelephoneNumber(newTelephoneNumber);
+        customer.setAddress(newAddress);
+        customer.setDob(newDob);
+        customer.setSsn(newSsn);
+        customer.setId(newCustomerId);
+        customer.setAccount(new Account(newInitials + newSurname, newSpendingLimit, newBalance));
         return customer;
     }
 
@@ -190,5 +243,18 @@ public final class JSONParser {
         request.setCustomerId(newCustomerId);
         request.setSuccessfull(false);
         return request;
+    }
+
+    public static AccountLink createJsonAccountLink(final Long newCustomerId, final String newAccountNumber,
+                                                    final boolean newSuccessfull) {
+        AccountLink request = new AccountLink();
+        request.setCustomerId(newCustomerId);
+        request.setAccountNumber(newAccountNumber);
+        request.setSuccessfull(newSuccessfull);
+        return request;
+    }
+
+    public static String sanitizeJson(final String json){
+        return json.substring(1, json.length() - 1).replaceAll("\\\\", "");
     }
 }

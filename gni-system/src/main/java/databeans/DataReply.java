@@ -20,7 +20,7 @@ public final class DataReply implements Serializable {
     /** The data of the reply, in case it was a transaction history request. */
     private List<Transaction> transactions;
     /** The data of the reply, in case it was an accounts request. */
-    private List<String> accountNumbers;
+    private List<String> accounts;
     /** The data of the reply, in case it was an account exists request. */
     private boolean accountInLedger;
 
@@ -35,7 +35,7 @@ public final class DataReply implements Serializable {
         this.type = newType;
         this.accountData = newAccountData;
         this.transactions = null;
-        this.accountNumbers = null;
+        this.accounts = null;
     }
 
     /**
@@ -54,14 +54,14 @@ public final class DataReply implements Serializable {
     /**
      * Creates a DataReply object for a account numbers request.
      * @param newType Type of request that this reply is for.
-     * @param newAccountNumbers Account numbers that belong to the requestee.
+     * @param newAccounts Account numbers that belong to the requestee.
      */
-    public DataReply(final RequestType newType, final List<String> newAccountNumbers) {
+    public DataReply(final RequestType newType, final List<String> newAccounts) {
         this.accountNumber = null;
         this.type = newType;
         this.accountData = null;
         this.transactions = null;
-        this.accountNumbers = newAccountNumbers;
+        this.accounts = newAccounts;
     }
 
     /**
@@ -113,12 +113,12 @@ public final class DataReply implements Serializable {
         this.transactions = newTransactions;
     }
 
-    public List<String> getAccountNumbers() {
-        return accountNumbers;
+    public List<String> getAccounts() {
+        return accounts;
     }
 
-    public void setAccountNumbers(final List<String> newAccountNumbers) {
-        accountNumbers = newAccountNumbers;
+    public void setAccounts(final List<String> newAccountNumbers) {
+        accounts = newAccountNumbers;
     }
 
     public boolean isAccountInLedger() {

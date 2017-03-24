@@ -63,6 +63,7 @@ final class UIService {
                     if (code == HTTP_OK) {
                         processUserDataReply(callbackBuilder, body, request, gson);
                     } else {
+                        System.out.println("fail");
                         callbackBuilder.build().reject("Transaction history request failed.");
                     }
                 });
@@ -77,6 +78,7 @@ final class UIService {
      */
     private void processUserDataReply(final CallbackBuilder callbackBuilder, final String body,
                                                 final DataRequest request, final Gson gson) {
+        System.out.println(body);
         String replyJson = body.substring(1, body.length() - 1).replaceAll("\\\\", "");
         RequestType type = request.getType();
         if (type == RequestType.BALANCE || type == RequestType.TRANSACTIONHISTORY) {
@@ -166,8 +168,10 @@ final class UIService {
     @RequestMapping(value = "/customer", method = RequestMethod.PUT)
     //todo rewrite so we can use initials + surname for accountholdername, where does account currently come from?
     public void createCustomer(final Callback<String> callback, @RequestParam("body") final String body) {
+        System.out.println("called");
         Gson gson = new Gson();
         Customer customer = gson.fromJson(body, Customer.class);
+        System.out.println("after customer");
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         doCustomerRequest(customer, gson, callbackBuilder);
     }
@@ -184,6 +188,7 @@ final class UIService {
         usersClient.putFormAsyncWith1Param("/services/users/customer", "body", gson.toJson(customer),
                 (code, contentType, body) -> {
                     if (code == HTTP_OK) {
+                        System.out.println("request worked");
                         processCustomerReply(callbackBuilder, body, customer, gson);
                     } else {
                         callbackBuilder.build().reject("Customer creation request failed.");
@@ -194,23 +199,15 @@ final class UIService {
     /**
      * Handles the callback from the User service and sends the result of the request back to the source of the request.
      * @param callbackBuilder Used to send the result of the request to the source of the request.
-     * @param body Json string representing a Customer object which is a reply to the creation request.
+     * @param replyJson Json string representing a Customer object which is a reply to the creation request.
      * @param customer Customer object that was requested to be created.
      * @param gson Used for Json conversion.
      */
-    private void processCustomerReply(final CallbackBuilder callbackBuilder, final String body,
+    private void processCustomerReply(final CallbackBuilder callbackBuilder, final String replyJson,
                                       final Customer customer, final Gson gson) {
-        Customer reply = gson.fromJson(body.substring(1, body.length() - 1)
-                .replaceAll("\\\\", ""), Customer.class);
-        if (reply.getAccount().getAccountNumber().length() > 1 && reply.getName()
-                .equals(customer.getName()) && reply.getSurname()
-                .equals(customer.getAccount().getAccountHolderName())) {
-            System.out.println("UI: successfull callback, sending back reply");
-            callbackBuilder.build().reply(gson.toJson(reply));
-        } else {
-            System.out.println("UI: Customer enrollment error, see data: " + reply);
-            callbackBuilder.build().reject("Customer enrollment failed on reply.");
-        }
+        Customer reply = gson.fromJson(replyJson, Customer.class);
+        System.out.println("UI: successfull callback, sending back reply");
+        callbackBuilder.build().reply(gson.toJson(reply));
     }
 
     /**
@@ -230,16 +227,12 @@ final class UIService {
                                             ((code, contentType, replyBody) -> {
             if (code == HTTP_OK) {
                 String replyJson = replyBody.substring(1, replyBody.length() - 1).replaceAll("\\\\", "");
-                AccountLink reply = gson.fromJson(replyJson, AccountLink.class);
-                if (reply.isSuccessfull()) {
-                    System.out.println("UI: Successfull account link, sending reply.");
-                    callbackBuilder.build().reply(replyJson);
-                } else {
-                    System.out.println("UI: Account link unsuccessfull, sending reply.");
-                    callbackBuilder.build().reply(replyJson);
-                }
+                Customer reply = gson.fromJson(replyJson, Customer.class);
+                System.out.println("UI: Successfull account link, sending reply.");
+                callbackBuilder.build().reply(replyJson);
             } else {
                 System.out.println("UI: Account link request failed, sending rejection.");
+                System.out.println(replyBody);
                 callbackBuilder.build().reject("Request failed HTTP code: " + code);
             }
         }));
@@ -255,17 +248,18 @@ final class UIService {
     @RequestMapping(value = "/account/new", method = RequestMethod.PUT)
     public void createNewAccountForCustomer(final Callback<String> callback, @RequestParam("body") final String body) {
         Gson gson = new Gson();
-        AccountLink request = gson.fromJson(body, AccountLink.class);
-        System.out.printf("UI: Received account creation request for customer %d\n", request.getCustomerId());
+        Customer accountOwner = gson.fromJson(body, Customer.class);
+        System.out.printf("UI: Received account creation request for customer %d\n", accountOwner.getId());
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         usersClient.putFormAsyncWith1Param("/services/users/account/new", "body", body,
-                                                                                    (code, contentType, replyBody) -> {
+                                                                                    (code, contentType, replyJson) -> {
             if (code == HTTP_OK) {
-                String replyJson = replyBody.substring(1, replyBody.length() - 1).replaceAll("\\\\", "");
-                AccountLink reply = gson.fromJson(replyJson, AccountLink.class);
+                Customer reply = gson.fromJson(replyJson, Customer.class);
                 callbackBuilder.build().reply(gson.toJson(reply));
                 System.out.println("UI: Successfull account creation request.");
             } else {
+                System.out.println(body);
+                System.out.println(code);
                 callbackBuilder.build().reject("Connectivity issues with usersService.");
             }
         });

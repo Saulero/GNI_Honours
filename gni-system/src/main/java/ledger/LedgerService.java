@@ -299,7 +299,7 @@ class LedgerService {
         } else {
             transaction.setProcessed(true);
             transaction.setSuccessful(false);
-            System.out.println("Ledger: failed to processed the transaction.");
+            System.out.println("Ledger: failed to process the transaction.");
             callback.reply(gson.toJson(transaction));
         }
     }
@@ -338,6 +338,7 @@ class LedgerService {
                 ps.close();
                 db.returnConnection(connection);
             } catch (SQLException e) {
+                System.out.println(e);
                 callback.reject(e.getMessage());
                 e.printStackTrace();
             }
@@ -355,7 +356,8 @@ class LedgerService {
                 fillTransactionList(transactions, rs1);
                 fillTransactionList(transactions, rs2);
 
-                DataReply dataReply = new DataReply(dataRequest.getAccountNumber(), requestType, transactions);
+                DataReply dataReply = JSONParser.createJsonReply(dataRequest.getAccountNumber(),
+                                                                 requestType, transactions);
                 callback.reply(gson.toJson(dataReply));
 
                 rs1.close();
@@ -380,8 +382,8 @@ class LedgerService {
                         accountExists = true;
                     }
                 }
-                DataReply dataReply = new DataReply(dataRequest.getType(), dataRequest.getAccountNumber(),
-                                                                                                        accountExists);
+                DataReply dataReply = JSONParser.createJsonReply(dataRequest.getAccountNumber(), dataRequest.getType(),
+                                                                 accountExists);
                 callback.reply(gson.toJson(dataReply));
                 rs.close();
                 db.returnConnection(connection);
