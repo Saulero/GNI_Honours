@@ -24,8 +24,8 @@ import static java.net.HttpURLConnection.HTTP_OK;
 
 /**
  * @author Noel
- * @version 1
- * The Users microservice, handles customer information and is used as a gateway for the UI service.
+ * @version 2
+ * The Users Microservice, handles customer information and is used as a gateway for the UI service.
  */
 @RequestMapping("/users")
 class UsersService {
@@ -58,18 +58,18 @@ class UsersService {
      * Checks if incoming data request needs to be handled internally of externally and then calls the appropriate
      * function.
      * @param callback Used to send a reply back to the service that sent the request.
-     * @param requestJson Json String representing a data request.{@link DataRequest}.
+     * @param dataRequestJson Json String representing a data request.{@link DataRequest}.
      */
     @RequestMapping(value = "/data", method = RequestMethod.GET)
-    public void processDataRequest(final Callback<String> callback, final @RequestParam("body") String requestJson) {
-        DataRequest dataRequest = jsonConverter.fromJson(requestJson, DataRequest.class);
+    public void processDataRequest(final Callback<String> callback,
+                                   final @RequestParam("body") String dataRequestJson) {
+        System.out.println(dataRequestJson);
+        DataRequest dataRequest = jsonConverter.fromJson(dataRequestJson, DataRequest.class);
         RequestType dataRequestType = dataRequest.getType();
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         if (dataRequestType == RequestType.CUSTOMERDATA || dataRequestType == RequestType.ACCOUNTS) {
-            System.out.println("Users: Called by UI, fetching customer data.");
             handleInternalDataRequest(dataRequest, callbackBuilder);
         } else {
-            System.out.println("Users: Called by UI, calling Ledger");
             doLedgerDataRequest(dataRequest, callbackBuilder);
         }
     }
@@ -81,6 +81,7 @@ class UsersService {
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
     private void handleInternalDataRequest(final DataRequest dataRequest, final CallbackBuilder callbackBuilder) {
+        System.out.println("Users: Called by UI, fetching customer data.");
         if (dataRequest.getType() == RequestType.ACCOUNTS) {
             handleAccountsRequestExceptions(dataRequest.getCustomerId(), callbackBuilder);
         } else {             //The request is a Customer Data request.
@@ -202,11 +203,12 @@ class UsersService {
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
     private void doLedgerDataRequest(final DataRequest dataRequest, final CallbackBuilder callbackBuilder) {
+        System.out.println("Users: Called by UI for a data request, calling Ledger");
         ledgerClient.getAsyncWith1Param("/services/ledger/data", "body",
                                         jsonConverter.toJson(dataRequest),
-                                        (httpStatusCode, httpContentType, replyJson) -> {
+                                        (httpStatusCode, httpContentType, dataReplyJson) -> {
             if (httpStatusCode == HTTP_OK) {
-                sendLedgerDataRequestCallback(replyJson, callbackBuilder);
+                sendLedgerDataRequestCallback(dataReplyJson, callbackBuilder);
             } else {
                 callbackBuilder.build().reject("Received an error from ledger.");
             }
@@ -215,11 +217,11 @@ class UsersService {
 
     /**
      * Forwards a data response from the ledger to the service that requested it and then logs this to system.out.
-     * @param replyJson Json reply from the ledger representing a DataReply object.
+     * @param dataReplyJson Json reply from the ledger representing a DataReply object.
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void sendLedgerDataRequestCallback(final String replyJson, final CallbackBuilder callbackBuilder) {
-        callbackBuilder.build().reply(JSONParser.sanitizeJson(replyJson));
+    private void sendLedgerDataRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
+        callbackBuilder.build().reply(JSONParser.sanitizeJson(dataReplyJson));
         System.out.println("Users: Sent ledger data request callback to UI.");
     }
 
@@ -227,11 +229,12 @@ class UsersService {
     /**
      * Processes a transaction request by forwarding it to the TransactionDispatch service.
      * @param callback Used to send the result back to the calling service.
-     * @param requestJson Json String containing a Transaction object representing a transaction request.
+     * @param transactionRequestJson Json String containing a Transaction object representing a transaction request.
      */
     @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
-    public void processTransaction(final Callback<String> callback, final @RequestParam("body") String requestJson) {
-        Transaction transactionRequest = jsonConverter.fromJson(requestJson, Transaction.class);
+    public void processTransaction(final Callback<String> callback,
+                                   final @RequestParam("body") String transactionRequestJson) {
+        Transaction transactionRequest = jsonConverter.fromJson(transactionRequestJson, Transaction.class);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         System.out.println("Users: Sent transaction to TransactionDispatch");
         doTransactionRequest(transactionRequest, callbackBuilder);
@@ -245,9 +248,9 @@ class UsersService {
     private void doTransactionRequest(final Transaction transactionRequest, final CallbackBuilder callbackBuilder) {
         transactionDispatchClient.putFormAsyncWith1Param("/services/transactionDispatch/transaction",
                                                         "body", jsonConverter.toJson(transactionRequest),
-                                                        (httpStatusCode, httpContentType, replyJson) -> {
+                                                        (httpStatusCode, httpContentType, transactionReplyJson) -> {
             if (httpStatusCode == HTTP_OK) {
-                processTransactionReply(replyJson, callbackBuilder);
+                processTransactionReply(transactionReplyJson, callbackBuilder);
             } else {
                 callbackBuilder.build().reject("Couldn't reach transactionDispatch.");
             }
@@ -256,16 +259,15 @@ class UsersService {
 
     /**
      * Checks if the transaction was processed and successful, and then invokes the corresponding callback.
-     * @param replyJson Json String representing a Transaction resply that was received from the
+     * @param transactionReplyJson Json String representing a Transaction resply that was received from the
      *                  TransactionDispatchService.
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void processTransactionReply(final String replyJson, final CallbackBuilder callbackBuilder) {
-        Transaction transactionReply = jsonConverter.fromJson(replyJson
-                                                              .substring(1, replyJson.length() - 1)
-                                                              .replaceAll("\\\\", ""), Transaction.class);
+    private void processTransactionReply(final String transactionReplyJson, final CallbackBuilder callbackBuilder) {
+        Transaction transactionReply = jsonConverter.fromJson(JSONParser.sanitizeJson(transactionReplyJson),
+                                                              Transaction.class);
         if (transactionReply.isProcessed() && transactionReply.isSuccessful()) {
-            sendTransactionRequestCallback(transactionReply, callbackBuilder);
+            sendTransactionRequestCallback(transactionReplyJson, callbackBuilder);
         } else {
             callbackBuilder.build().reject("Transaction failed, processed: "
                                             + transactionReply.isProcessed() + " successfull: "
@@ -276,12 +278,12 @@ class UsersService {
     /**
      * Forwards a transaction reply from the transaction dispatch service to the service that requested the transaction
      * and then logs this to system.out.
-     * @param transactionReply Reply from the transaction dispatch service.
+     * @param transactionReplyJson Reply from the transaction dispatch service.
      * @param callbackBuilder Used to send a reply back to the calling service.
      */
-    private void sendTransactionRequestCallback(final Transaction transactionReply,
+    private void sendTransactionRequestCallback(final String transactionReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
-        callbackBuilder.build().reply(jsonConverter.toJson(transactionReply));
+        callbackBuilder.build().reply(JSONParser.sanitizeJson(transactionReplyJson));
         System.out.println("Users: Transaction was successfull, sent callback to UI.");
     }
 
@@ -289,11 +291,12 @@ class UsersService {
      * Processes customer creation requests by creating a callback builder and then sending the Customer object to the
      * handler.
      * @param callback Used to send the result of the request back to the UI service.
-     * @param requestJson Json string containing the Customer object the request is for {@link Customer}.
+     * @param customerRequestJson Json string containing the Customer object the request is for {@link Customer}.
      */
     @RequestMapping(value = "/customer", method = RequestMethod.PUT)
-    public void processNewCustomer(final Callback<String> callback, final @RequestParam("body") String requestJson) {
-        Customer customerToEnroll = jsonConverter.fromJson(requestJson, Customer.class);
+    public void processNewCustomer(final Callback<String> callback,
+                                   final @RequestParam("body") String customerRequestJson) {
+        Customer customerToEnroll = jsonConverter.fromJson(customerRequestJson, Customer.class);
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         handleNewCustomerRequestExceptions(customerToEnroll, callbackBuilder);
     }
@@ -381,9 +384,7 @@ class UsersService {
      */
     private void processNewAccountReply(final String replyAccountJson, final Customer accountOwner,
                                         final CallbackBuilder callbackBuilder) {
-        Account assignedAccount = jsonConverter.fromJson(replyAccountJson
-                .substring(1, replyAccountJson.length() - 1)
-                .replaceAll("\\\\", ""), Account.class);
+        Account assignedAccount = jsonConverter.fromJson(JSONParser.sanitizeJson(replyAccountJson), Account.class);
         accountOwner.setAccount(assignedAccount);
         handleNewAccountLinkExceptions(accountOwner, callbackBuilder);
     }
@@ -397,7 +398,7 @@ class UsersService {
     private void handleNewAccountLinkExceptions(final Customer accountOwner, final CallbackBuilder callbackBuilder) {
         try {
             linkAccountToCustomer(accountOwner.getAccount().getAccountNumber(), accountOwner.getId());
-            sendNewAccountLinkCallback(accountOwner, callbackBuilder);
+            sendNewAccountLinkCallback(jsonConverter.toJson(accountOwner), callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
             callbackBuilder.build().reject(e);
@@ -452,12 +453,12 @@ class UsersService {
     /**
      * Sends a callback to the service that requested the account link/customer creation indicating that the request
      * was successfull.
-     * @param newCustomer Customer object containing an account object representing account that was linked to the
-     *                    customer.
+     * @param newCustomerJson String representing a Customer object containing an account object with an account
+     *                        that was linked to the customer.
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void sendNewAccountLinkCallback(final Customer newCustomer, final CallbackBuilder callbackBuilder) {
-        callbackBuilder.build().reply(newCustomer);
+    private void sendNewAccountLinkCallback(final String newCustomerJson, final CallbackBuilder callbackBuilder) {
+        callbackBuilder.build().reply(newCustomerJson);
         System.out.println("Users: New account successfully linked, sent callback to UI.");
     }
 
@@ -465,12 +466,13 @@ class UsersService {
      * Takes an account link request, extracts the needed variables and then invokes a check to see if this link
      * already exists.
      * @param callback Used to send a reply back to the service that sent the request.
-     * @param requestJson Json string representing an AccountLink{@link AccountLink} object containing
+     * @param accountLinkRequestJson Json string representing an AccountLink{@link AccountLink} object containing
      *             an account number which is to be attached to the customer with the specified customerId.
      */
     @RequestMapping(value = "/account", method = RequestMethod.PUT)
-    public void processAccountLink(final Callback<String> callback, final @RequestParam("body") String requestJson) {
-        AccountLink accountLink = jsonConverter.fromJson(requestJson, AccountLink.class);
+    public void processAccountLink(final Callback<String> callback,
+                                   final @RequestParam("body") String accountLinkRequestJson) {
+        AccountLink accountLink = jsonConverter.fromJson(accountLinkRequestJson, AccountLink.class);
         Long customerId = accountLink.getCustomerId();
         String accountNumber = accountLink.getAccountNumber();
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
@@ -490,9 +492,9 @@ class UsersService {
         DataRequest accountExistsRequest = JSONParser.createAccountExistsRequest(accountNumber);
         ledgerClient.getAsyncWith1Param("/services/ledger/data", "body",
                                         jsonConverter.toJson(accountExistsRequest),
-                                        (httpStatusCode, httpContentType, replyJson) -> {
+                                        (httpStatusCode, httpContentType, dataReplyJson) -> {
             if (httpStatusCode == HTTP_OK) {
-                processAccountExistsReply(replyJson, customerId, callbackBuilder);
+                processAccountExistsReply(dataReplyJson, customerId, callbackBuilder);
             } else {
                 callbackBuilder.build().reject("Unsuccessfull call, code: " + httpStatusCode);
             }
@@ -502,14 +504,13 @@ class UsersService {
     /**
      * Checks if the account exists in the ledger, if it does calls the exception handler so the account link can be
      * done, if not it will reject the accountLink request.
-     * @param replyJson Json String representing a DataReply object that was received from the ledger.
+     * @param dataReplyJson Json String representing a DataReply object that was received from the ledger.
      * @param customerId Id of the customer the account should be linked to.
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void processAccountExistsReply(final String replyJson, final Long customerId,
+    private void processAccountExistsReply(final String dataReplyJson, final Long customerId,
                                            final CallbackBuilder callbackBuilder) {
-        DataReply ledgerReply = jsonConverter.fromJson(replyJson.substring(1, replyJson.length() - 1)
-                                                                .replaceAll("\\\\", ""), DataReply.class);
+        DataReply ledgerReply = jsonConverter.fromJson(JSONParser.sanitizeJson(dataReplyJson), DataReply.class);
         if (ledgerReply.isAccountInLedger()) {
             handleAccountLinkExceptions(ledgerReply.getAccountNumber(), customerId, callbackBuilder);
         } else {
@@ -587,14 +588,14 @@ class UsersService {
      * that contains the customer data of the customer and inside this customer object an Account Object that should
      * have an accountHolderName, balance and spendingLimit.
      * @param callback Used to send a reply back to the service that sent the request.
-     * @param requestJson Json String representing a customer that a new Account should be created for.
+     * @param accountRequestJson Json String representing a customer that a new Account should be created for.
      */
     @RequestMapping(value = "/account/new", method = RequestMethod.PUT)
     public void processNewAccount(final Callback<String> callback,
-                                             final @RequestParam("body") String requestJson) {
+                                             final @RequestParam("body") String accountRequestJson) {
         System.out.println("Users: Received account creation request.");
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        Customer accountOwner = jsonConverter.fromJson(requestJson, Customer.class);
+        Customer accountOwner = jsonConverter.fromJson(accountRequestJson, Customer.class);
         handleNewAccountExceptions(accountOwner, callbackBuilder);
     }
 
