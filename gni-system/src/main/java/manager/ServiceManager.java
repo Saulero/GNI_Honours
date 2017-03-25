@@ -43,7 +43,7 @@ public final class ServiceManager {
         pinClient.start();
         Sys.sleep(1000);
         doGet(uiClient, "", RequestType.ACCOUNTS, batsId);
-        doNewAccountRequest(uiClient, batsId, batsNumber);
+        doAccountLinkRequest(uiClient, batsId, batsNumber);
         doAccountCreation(uiClient, batsId);
         doPin(pinClient, batsNumber, testAccountNumber, "De wilde", "8888",
                 "730", 20.00);
@@ -211,8 +211,8 @@ public final class ServiceManager {
         });
     }
 
-    private static void doNewAccountRequest(final HttpClient uiClient, final Long customerId,
-                                            final String accountNumber) {
+    private static void doAccountLinkRequest(final HttpClient uiClient, final Long customerId,
+                                             final String accountNumber) {
         AccountLink request = JSONParser.createJsonAccountLink(accountNumber, customerId);
         Gson gson = new Gson();
         uiClient.putFormAsyncWith1Param("/services/ui/account", "body", gson.toJson(request),

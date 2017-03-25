@@ -37,7 +37,7 @@ final class UIService {
     }
 
     /**
-     * Process a data requests from a users.
+     * Creates a callback builder for the data request and then forwards the request to the UsersService.
      * @param callback Callback used to send a reply back to the origin of the request.
      * @param dataRequestJson A Json String representing a DataRequest object {@link DataRequest}.
      */
@@ -49,9 +49,9 @@ final class UIService {
     }
 
     /**
-     * Forwards the data request to the User service and waits for a callback.
-     * @param dataRequest DataRequest to forward to the User service.
-     * @param gson Used for Json conversion.
+     * Forwards the data request to the Users service and sends the reply off to processing, or rejects the request if
+     * the forward fails.
+     * @param dataRequestJson Json string representing a dataRequest that should be sent to the UsersService.
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
     private void doDataRequest(final String dataRequestJson, final CallbackBuilder callbackBuilder) {
@@ -68,10 +68,9 @@ final class UIService {
 
     /**
      * Checks if a data request was successfull and sends the reply back to the source of the request.
-     * @param callbackBuilder Used to send the received reply back to the source of the request.
      * @param dataReplyJson Body of the callback, a Json string representing a DataReply object {@link DataReply}.
-     * @param dataRequest Data request that was made to the User service.
-     * @param gson Used for Json conversion.
+     * @param dataRequestJson Json string containing the dataRequest that was forwarded {@link DataRequest}.
+     * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
     private void processDataReply(final String dataReplyJson, final String dataRequestJson,
                                   final CallbackBuilder callbackBuilder) {
@@ -96,31 +95,54 @@ final class UIService {
         }
     }
 
+    /**
+     * Forwards the result of a balance request to the service that requested it.
+     * @param dataReplyJson Json String containing the reply data {@link DataReply}.
+     * @param callbackBuilder Used to send the received reply back to the source of the request.
+     */
     private void sendBalanceRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
         System.out.println("UI: Sending balance request callback.");
         callbackBuilder.build().reply(JSONParser.sanitizeJson(dataReplyJson));
     }
 
+    /**
+     * Forwards the result of a transaction history request to the service that requested it.
+     * @param dataReplyJson Json String containing the reply data {@link DataReply}.
+     * @param callbackBuilder Used to send the received reply back to the source of the request.
+     */
     private void sendTransactionHistoryRequestCallback(final String dataReplyJson,
                                                        final CallbackBuilder callbackBuilder) {
         System.out.println("UI: Sending transaction history request callback.");
         callbackBuilder.build().reply(JSONParser.sanitizeJson(dataReplyJson));
     }
 
+    /**
+     * Forwards the result of a customer data request to the service that requested it.
+     * @param dataReplyJson Json String containing a customer {@link Customer}.
+     * @param callbackBuilder Used to send the received reply back to the source of the request.
+     */
     private void sendCustomerDataRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
         System.out.println("UI: Sending customer data request callback.");
         callbackBuilder.build().reply(JSONParser.sanitizeJson(dataReplyJson));
     }
 
+    /**
+     * Forwards the result of an accounts request to the service that requested it.
+     * @param dataReplyJson Json String containing a data reply with the accounts belonging to a certain customer
+     *                      {@link DataReply}.
+     * @param callbackBuilder Used to send the received reply back to the source of the request.
+     */
     private void sendAccountsRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
         System.out.println("UI: Sending accounts request callback.");
         callbackBuilder.build().reply(JSONParser.sanitizeJson(dataReplyJson));
     }
 
     /**
-     * Sends an incoming transaction request to the User service.
+     * Creates a callback builder to forward the result of the request to the requester, and then forwards the request
+     * to the Users service.
      * @param callback Used to send the reply of User service to the source of the request.
-     * @param transactionRequestJson Body of the transaction request, a Json string representing a Transaction object {@link Transaction}
+     * @param transactionRequestJson Json String representing a Transaction object that is to be processed
+     *                               {@link Transaction}.
      */
     @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
     public void processTransactionRequest(final Callback<String> callback,
@@ -130,9 +152,9 @@ final class UIService {
     }
 
     /**
-     * Forwards transaction request to the User service and wait for a callback.
+     * Forwards transaction request to the User service and forwards the reply or sends a rejection if the request
+     * fails.
      * @param transactionRequestJson Transaction request that should be processed.
-     * @param gson Used for Json conversion.
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
     private void doTransactionRequest(final String transactionRequestJson, final CallbackBuilder callbackBuilder) {
@@ -148,6 +170,11 @@ final class UIService {
                 });
     }
 
+    /**
+     * Forwards the result of a transaction request to the service that sent the request.
+     * @param transactionReplyJson Json String representing the executed transaction {@link Transaction}.
+     * @param callbackBuilder Used to send the received reply back to the source of the request.
+     */
     private void sendTransactionRequestCallback(final String transactionReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
         System.out.println("UI: Transaction successfully executed, sent callback.");
@@ -155,13 +182,11 @@ final class UIService {
     }
 
     /**
-     * Handles customer creation requests by forwarding the request to the users service and waiting for a callback.
+     * Handles customer creation requests by forwarding the request to the users service.
      * @param callback Used to send the result of the request back to the source of the request.
-     * @param newCustomerRequestJson Body of the request, a Json string representing a Customer object that should be
-     *             created {@link Customer}.
+     * @param newCustomerRequestJson Json String representing a Customer that should be created {@link Customer}.
      */
     @RequestMapping(value = "/customer", method = RequestMethod.PUT)
-    //todo rewrite so we can use initials + surname for accountholdername, where does account currently come from?
     public void processNewCustomerRequest(final Callback<String> callback,
                                           @RequestParam("body") final String newCustomerRequestJson) {
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
@@ -169,9 +194,9 @@ final class UIService {
     }
 
     /**
-     * Sends the customer request to the User service and then processes the reply accordingly.
-     * @param customer Customer object that should be created in the system.
-     * @param gson Used for Json conversion.
+     * Sends the customer request to the User service and then processes the reply, or sends a rejection to the
+     * requester if the request fails..
+     * @param newCustomerRequestJson Json String representing a Customer that should be created {@link Customer}.
      * @param callbackBuilder Used to send the response of the creation request back to the source of the request.
      */
     private void doNewCustomerRequest(final String newCustomerRequestJson,
@@ -188,6 +213,11 @@ final class UIService {
                 });
     }
 
+    /**
+     * Forwards the created customer back to the service that sent the customer creation request to this service.
+     * @param newCustomerReplyJson Json String representing a customer that was created in the system.
+     * @param callbackBuilder Json String representing a Customer that should be created {@link Customer}.
+     */
     private void sendNewCustomerRequestCallback(final String newCustomerReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
         System.out.println("UI: Customer creation successfull, sending callback.");
@@ -195,10 +225,10 @@ final class UIService {
     }
 
     /**
-     * Handles customer account link requests by forwarding the request to the users service and waiting for a callback.
+     * Creates a callback builder for the account link request and then forwards the request to the UsersService.
      * @param callback Used to send the result of the request back to the source of the request.
-     * @param accountLinkRequestJson Body of the request, a Json string representing an AccountLink object that should be
-     *             created {@link AccountLink}.
+     * @param accountLinkRequestJson Json string representing an AccountLink that should be created in the
+     *                               database {@link AccountLink}.
      */
     @RequestMapping(value = "/account", method = RequestMethod.PUT)
     public void processAccountLinkRequest(final Callback<String> callback,
@@ -210,6 +240,12 @@ final class UIService {
         doAccountLinkRequest(accountLinkRequestJson, callbackBuilder);
     }
 
+    /**
+     * Forwards a String representing an account link to the Users database, and processes the reply if it is successfull
+     * or sends a rejection to the requesting service if it fails.
+     * @param accountLinkRequestJson String representing an account link that should be executed {@link AccountLink}.
+     * @param callbackBuilder Used to send the result of the request back to the source of the request.
+     */
     private void doAccountLinkRequest(final String accountLinkRequestJson, final CallbackBuilder callbackBuilder) {
         usersClient.putFormAsyncWith1Param("/services/users/account", "body", accountLinkRequestJson,
                 ((httpStatusCode, httpContentType, accountLinkReplyJson) -> {
@@ -221,6 +257,11 @@ final class UIService {
                 }));
     }
 
+    /**
+     * Forwards the result of an account link request to the service that sent the request.
+     * @param accountLinkReplyJson Json String representing the result of an account link request.
+     * @param callbackBuilder Used to send the result of the request back to the source of the request.
+     */
     private void sendAccountLinkRequestCallback(final String accountLinkReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
         System.out.println("UI: Successfull account link, sending callback.");
@@ -228,11 +269,10 @@ final class UIService {
     }
 
     /**
-     * Handles the creation of a new account for an existing customer by forwarding this request to the users service
-     * and waiting for a callback.
+     * Creates a callback builder for the account creation request and then forwards the request to the UsersService.
      * @param callback Used to send the result of the request back to the source of the request.
-     * @param newAccountRequestJson Body of the request, a Json string representing an AccountLink object with a customer id of the
-     *             customer that an account needs to be created for.
+     * @param newAccountRequestJson Json String representing a customer object which is the account owner, with an
+     *                              Account object inside representing the account that should be created.
      */
     @RequestMapping(value = "/account/new", method = RequestMethod.PUT)
     public void processNewAccountRequest(final Callback<String> callback,
@@ -244,6 +284,13 @@ final class UIService {
         doNewAccountRequest(newAccountRequestJson, callbackBuilder);
     }
 
+    /**
+     * Forwards the Json String representing a customer with the account to be created to the Users Service and sends
+     * the result back to the requesting service, or rejects the request if the forwarding fails.
+     * @param newAccountRequestJson Json String representing a customer object which is the account owner, with an
+     *                              Account object inside representing the account that should be created.
+     * @param callbackBuilder Used to send the result of the request back to the source of the request.
+     */
     private void doNewAccountRequest(final String newAccountRequestJson,
                                      final CallbackBuilder callbackBuilder) {
         usersClient.putFormAsyncWith1Param("/services/users/account/new", "body", newAccountRequestJson,
@@ -256,6 +303,11 @@ final class UIService {
                 });
     }
 
+    /**
+     * Sends the result of an account creation request to the service that requested it.
+     * @param newAccountReplyJson Json String representing a customer with a linked account that was newly created.
+     * @param callbackBuilder Used to send the result of the request back to the source of the request.
+     */
     private void sendNewAccountRequestCallback(final String newAccountReplyJson,
                                                final CallbackBuilder callbackBuilder) {
         System.out.println("UI: Successfull account creation request, sending callback.");
