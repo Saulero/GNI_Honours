@@ -8,6 +8,7 @@ import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
 import databeans.Transaction;
+import util.JSONParser;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 import static java.net.HttpURLConnection.HTTP_OK;
@@ -22,8 +23,10 @@ import static java.net.HttpURLConnection.HTTP_OK;
  */
 @RequestMapping("/transactionDispatch")
 class TransactionDispatchService {
-    /** Connection to the Ledger service.*/
+    /** Connection to the Ledger service. */
     private HttpClient ledgerClient;
+    /** Used for Json conversions. */
+    private Gson jsonConverter;
 
     /**
      * Constructor.
@@ -32,45 +35,52 @@ class TransactionDispatchService {
      */
     TransactionDispatchService(final int ledgerPort, final String ledgerHost) {
         ledgerClient = httpClientBuilder().setHost(ledgerHost).setPort(ledgerPort).buildAndStart();
+        jsonConverter = new Gson();
     }
 
     /**
      * Processes transactions from the User and Pin services, sends them to the ledger for processing and then
      * reports the result back to the source of the transaction request.
      * @param callback Used to send the result back to the request source.
-     * @param body Json String containing a Transaction object {@link Transaction}.
+     * @param transactionRequestJson Json String containing a Transaction object {@link Transaction}.
      */
     @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
-    public void processTransactionRequest(final Callback<String> callback, @RequestParam("body") final String body) {
-        Gson gson = new Gson();
-        Transaction request = gson.fromJson(body, Transaction.class);
+    public void processTransactionRequest(final Callback<String> callback,
+                                          @RequestParam("body") final String transactionRequestJson) {
+        Transaction request = jsonConverter.fromJson(transactionRequestJson, Transaction.class);
         System.out.printf("TransactionDispatch: Transaction received, sourceAccount: %s ,destAccount: %s, amount: %f\n",
                             request.getSourceAccountNumber(), request.getDestinationAccountNumber(),
                             request.getTransactionAmount());
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder();
         callbackBuilder.withStringCallback(callback);
+        doTransactionRequest(transactionRequestJson, callbackBuilder);
+    }
+
+    private void doTransactionRequest(final String transactionRequestJson, final CallbackBuilder callbackBuilder) {
         ledgerClient.putFormAsyncWith1Param("/services/ledger/transaction/out", "body",
-                gson.toJson(request), (code, contentType, replyBody) -> {
-            if (code == HTTP_OK) {
-                Transaction reply = gson.fromJson(replyBody.substring(1, replyBody.length() - 1)
-                        .replaceAll("\\\\", ""), Transaction.class);
-                System.out.println("TransactionDispatch: Received reply from ledger");
-                if (reply.isProcessed()) {
-                    if (reply.isSuccessful()) {
-                        System.out.println("TransactionDispatch: Successfull transaction, sending back reply.");
-                        callbackBuilder.build().reply(gson.toJson(reply));
-                        //TODO send outgoing transaction.
+                transactionRequestJson, (httpStatusCode, httpContentType, transactionReplyJson) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        processTransactionReply(transactionReplyJson, callbackBuilder);
                     } else {
-                        System.out.println("TransactionDispatch: Transaction wasn't successfull, rejecting.");
-                        callbackBuilder.build().reject("Unsuccessfull transaction.");
+                        callbackBuilder.build().reject("Recieved an error from ledger.");
                     }
-                } else {
-                    System.out.println("TransactionDispatch: Transaction couldnt be processed, rejecting.");
-                    callbackBuilder.build().reject("Transaction couldn't be processed.");
-                }
-            } else {
-                callbackBuilder.build().reject("Recieved an error from ledger.");
-            }
-        });
+                });
+    }
+
+    private void processTransactionReply(final String transactionReplyJson, final CallbackBuilder callbackBuilder) {
+        Transaction transactionReply = jsonConverter.fromJson(JSONParser.sanitizeJson(transactionReplyJson),
+                                                              Transaction.class);
+        if (transactionReply.isProcessed() && transactionReply.isSuccessful()) {
+            //TODO send outgoing transaction.
+            sendTransactionRequestCallback(transactionReplyJson, callbackBuilder);
+        } else {
+            callbackBuilder.build().reject("Transaction couldn't be processed.");
+        }
+    }
+
+    private void sendTransactionRequestCallback(final String transactionReplyJson,
+                                                final CallbackBuilder callbackBuilder) {
+        System.out.println("TransactionDispatch: Successfull transaction, sending back reply.");
+        callbackBuilder.build().reply(transactionReplyJson);
     }
 }
