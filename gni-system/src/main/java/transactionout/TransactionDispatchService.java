@@ -39,10 +39,10 @@ class TransactionDispatchService {
     }
 
     /**
-     * Processes transactions from the User and Pin services, sends them to the ledger for processing and then
-     * reports the result back to the source of the transaction request.
-     * @param callback Used to send the result back to the request source.
-     * @param transactionRequestJson Json String containing a Transaction object {@link Transaction}.
+     * Creates a callback builder for the transaction request, and then forwards it to the ledger.
+     * @param callback Callback used to send a reply back to the origin of the request.
+     * @param transactionRequestJson Json String containing a Transaction object that should be executed
+     *                               {@link Transaction}.
      */
     @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
     public void processTransactionRequest(final Callback<String> callback,
@@ -51,11 +51,17 @@ class TransactionDispatchService {
         System.out.printf("TransactionDispatch: Transaction received, sourceAccount: %s ,destAccount: %s, amount: %f\n",
                             request.getSourceAccountNumber(), request.getDestinationAccountNumber(),
                             request.getTransactionAmount());
-        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder();
-        callbackBuilder.withStringCallback(callback);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         doTransactionRequest(transactionRequestJson, callbackBuilder);
     }
 
+    /**
+     * Forwards a transaction request to the ledger for execution, and processes the reply if successful, sends a
+     * rejection to the service that sent the transaction request if the ledger request fails.
+     * @param transactionRequestJson Json String representing a transaction that the ledger should execute
+     *                               {@link Transaction}.
+     * @param callbackBuilder Used to send the received reply back to the source of the request.
+     */
     private void doTransactionRequest(final String transactionRequestJson, final CallbackBuilder callbackBuilder) {
         ledgerClient.putFormAsyncWith1Param("/services/ledger/transaction/out", "body",
                 transactionRequestJson, (httpStatusCode, httpContentType, transactionReplyJson) -> {
@@ -67,6 +73,13 @@ class TransactionDispatchService {
                 });
     }
 
+    /**
+     * Checks if the transaction is processed and successful, if it is forwards the reply to the requesting service,
+     * if it is not sends a rejection to the requesting service.
+     * @param transactionReplyJson Json String representing a transaction that the ledger tried to execute
+     *                             {@link Transaction}.
+     * @param callbackBuilder Used to send the received reply back to the source of the request.
+     */
     private void processTransactionReply(final String transactionReplyJson, final CallbackBuilder callbackBuilder) {
         Transaction transactionReply = jsonConverter.fromJson(JSONParser.sanitizeJson(transactionReplyJson),
                                                               Transaction.class);
@@ -78,6 +91,11 @@ class TransactionDispatchService {
         }
     }
 
+    /**
+     * Forwards a String representing a transaction that was executed to the service that sent the transaction request.
+     * @param transactionReplyJson Json String representing a transaction that the ledger executed {@link Transaction}.
+     * @param callbackBuilder Used to send the received reply back to the source of the request.
+     */
     private void sendTransactionRequestCallback(final String transactionReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
         System.out.println("TransactionDispatch: Successfull transaction, sending back reply.");
