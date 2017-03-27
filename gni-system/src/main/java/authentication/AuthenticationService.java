@@ -8,17 +8,12 @@ import io.advantageous.qbit.annotation.RequestMapping;
 import io.advantageous.qbit.annotation.RequestMethod;
 import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.reactive.Callback;
-import util.JSONParser;
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Base64;
-import java.util.LinkedList;
-import java.util.List;
 
 import static database.SQLStatements.*;
 
@@ -33,6 +28,8 @@ class AuthenticationService {
     private ConnectionPool db;
     /** Secure Random Number Generator. */
     private SecureRandom sRand;
+    /** Used for Json conversions. */
+    private Gson jsonConverter;
 
     /**
      * Constructor.
@@ -40,6 +37,7 @@ class AuthenticationService {
     AuthenticationService() {
         this.db = new ConnectionPool();
         this.sRand = new SecureRandom();
+        this.jsonConverter = new Gson();
     }
 
     // TODO Should be invoked when a new user is created
@@ -49,10 +47,8 @@ class AuthenticationService {
      * @param body Json String representing login information
      */
     @RequestMapping(value = "/register", method = RequestMethod.PUT)
-    public void register(final Callback<String> callback, final @RequestParam("body") String body) {
-        Gson gson = new Gson();
-        Authentication authData = gson.fromJson(body, Authentication.class);
-
+    public void registerCustomerLogin(final Callback<String> callback, final @RequestParam("body") String body) {
+        Authentication authData = jsonConverter.fromJson(body, Authentication.class);
         if (authData.getType() == AuthenticationType.CREATENEW) {
             try {
                 SQLConnection connection = db.getConnection();
@@ -64,7 +60,7 @@ class AuthenticationService {
                 ps.executeUpdate();
                 ps.close();
                 db.returnConnection(connection);
-                callback.reply(gson.toJson(authData));
+                callback.reply(jsonConverter.toJson(authData));
                 // TODO Empty callback would suffice
             } catch (SQLException e) {
                 callback.reject(e.getMessage());
@@ -83,9 +79,7 @@ class AuthenticationService {
      */
     @RequestMapping(value = "/login", method = RequestMethod.PUT)
     public void login(final Callback<String> callback, final @RequestParam("body") String body) {
-        Gson gson = new Gson();
-        Authentication authData = gson.fromJson(body, Authentication.class);
-
+        Authentication authData = jsonConverter.fromJson(body, Authentication.class);
         if (authData.getType() == AuthenticationType.LOGIN) {
             try {
                 SQLConnection connection = db.getConnection();
@@ -101,8 +95,9 @@ class AuthenticationService {
                         // Legitimate info
                         // TODO forward request / refer user to correct page
                         long newToken = sRand.nextLong();
-                        updateToken(userID, newToken);
-                        callback.reply(gson.toJson(new Authentication(encodeCookie(userID, newToken), AuthenticationType.REPLY)));
+                        setNewToken(userID, newToken);
+                        callback.reply(jsonConverter.toJson(new Authentication(encodeCookie(userID, newToken),
+                                                            AuthenticationType.REPLY)));
                     } else {
                         // Illegitimate info
                         callback.reject("Invalid username/password combination");
@@ -111,7 +106,6 @@ class AuthenticationService {
                     // username not found
                     callback.reject("Username not found");
                 }
-
                 rs.close();
                 ps.close();
                 db.returnConnection(connection);
@@ -127,14 +121,12 @@ class AuthenticationService {
     // TODO Should be invoked when a user is already logged in
     /**
      * Authenticates a request by checking the token.
-     * @param callback
+     * @param callback Used to send a callback to the requesting service.
      * @param body Json String representing the token
      */
     @RequestMapping(value = "/authenticate", method = RequestMethod.PUT)
-    public void authenticate(final Callback<String> callback, final @RequestParam("body") String body) {
-        Gson gson = new Gson();
-        Authentication authData = gson.fromJson(body, Authentication.class);
-
+    public void authenticateRequest(final Callback<String> callback, final @RequestParam("body") String body) {
+        Authentication authData = jsonConverter.fromJson(body, Authentication.class);
         if (authData.getType() == AuthenticationType.AUTHENTICATE) {
             Long[] cookieData = decodeCookie(authData.getCookie());
             long userID = cookieData[0];
@@ -157,7 +149,7 @@ class AuthenticationService {
                             updateTokenValidity(userID);
                             // TODO forward request / refer user to correct page
                             // TODO Empty callback would suffice
-                            callback.reply(gson.toJson(authData));
+                            callback.reply(jsonConverter.toJson(authData));
                         } else {
                             // Expired token
                             callback.reject("Expired token");
@@ -170,7 +162,6 @@ class AuthenticationService {
                     // username not found
                     callback.reject("UserID not found");
                 }
-
                 rs.close();
                 ps.close();
                 db.returnConnection(connection);
@@ -200,7 +191,7 @@ class AuthenticationService {
      * @param id The user_id of the row to update
      * @param token The token to set
      */
-    private void updateToken(final long id, final long token) {
+    private void setNewToken(final long id, final long token) {
         long validity = System.currentTimeMillis() + Variables.TOKEN_VALIDITY * 1000;
 
         try {
@@ -224,7 +215,6 @@ class AuthenticationService {
      */
     private void updateTokenValidity(final long id) {
         long validity = System.currentTimeMillis() + Variables.TOKEN_VALIDITY * 1000;
-
         try {
             SQLConnection connection = db.getConnection();
             PreparedStatement ps = connection.getConnection().prepareStatement(updateTokenValidity);
