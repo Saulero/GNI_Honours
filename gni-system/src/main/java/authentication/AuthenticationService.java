@@ -48,8 +48,8 @@ class AuthenticationService {
      * @param callback Used to send a reply back to the UserService
      * @param body Json String representing login information
      */
-    @RequestMapping(value = "/createData", method = RequestMethod.PUT)
-    public void createNewData(final Callback<String> callback, final @RequestParam("body") String body) {
+    @RequestMapping(value = "/register", method = RequestMethod.PUT)
+    public void register(final Callback<String> callback, final @RequestParam("body") String body) {
         Gson gson = new Gson();
         Authentication authData = gson.fromJson(body, Authentication.class);
 
