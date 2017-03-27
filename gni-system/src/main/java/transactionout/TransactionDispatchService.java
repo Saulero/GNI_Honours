@@ -15,7 +15,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 
 /**
  * @author Noel
- * @version 1
+ * @version 2
  * Receives outgoing transaction requests.
  * Sends these requests to the ledger for processing.
  * Handles the response from the ledger and sends the transaction to its
@@ -52,7 +52,7 @@ class TransactionDispatchService {
                             request.getSourceAccountNumber(), request.getDestinationAccountNumber(),
                             request.getTransactionAmount());
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        doTransactionRequest(transactionRequestJson, callbackBuilder);
+        doOutgoingTransactionRequest(transactionRequestJson, callbackBuilder);
     }
 
     /**
@@ -62,11 +62,12 @@ class TransactionDispatchService {
      *                               {@link Transaction}.
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
-    private void doTransactionRequest(final String transactionRequestJson, final CallbackBuilder callbackBuilder) {
+    private void doOutgoingTransactionRequest(final String transactionRequestJson,
+                                              final CallbackBuilder callbackBuilder) {
         ledgerClient.putFormAsyncWith1Param("/services/ledger/transaction/out", "body",
                 transactionRequestJson, (httpStatusCode, httpContentType, transactionReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        processTransactionReply(transactionReplyJson, callbackBuilder);
+                        processOutgoingTransactionReply(transactionReplyJson, callbackBuilder);
                     } else {
                         callbackBuilder.build().reject("Recieved an error from ledger.");
                     }
@@ -80,7 +81,8 @@ class TransactionDispatchService {
      *                             {@link Transaction}.
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
-    private void processTransactionReply(final String transactionReplyJson, final CallbackBuilder callbackBuilder) {
+    private void processOutgoingTransactionReply(final String transactionReplyJson,
+                                                 final CallbackBuilder callbackBuilder) {
         Transaction transactionReply = jsonConverter.fromJson(JSONParser.sanitizeJson(transactionReplyJson),
                                                               Transaction.class);
         if (transactionReply.isProcessed() && transactionReply.isSuccessful()) {
