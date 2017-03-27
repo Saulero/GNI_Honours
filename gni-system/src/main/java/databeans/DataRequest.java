@@ -13,16 +13,17 @@ public final class DataRequest implements Serializable {
     /** Type of request {@link RequestType}. */
     private RequestType type;
     /** User id of the customer the request is for. */
-    private Long userId;
+    private Long customerId;
 
     /** Creates a DataRequest objects which is used to send a request to the Ledger service.
      * @param newAccountNumber Account number relating to the request.
      * @param newType Type of data to request {@link RequestType}
+     * @param newCustomerId Identifier of the customer the request is for.
      */
-    public DataRequest(final String newAccountNumber, final RequestType newType, final Long newUserId) {
+    public DataRequest(final String newAccountNumber, final RequestType newType, final Long newCustomerId) {
         this.accountNumber = newAccountNumber;
         this.type = newType;
-        this.userId = newUserId;
+        this.customerId = newCustomerId;
     }
 
     /**
@@ -46,11 +47,11 @@ public final class DataRequest implements Serializable {
         this.type = newType;
     }
 
-    public Long getUserId() {
-        return userId;
+    public Long getCustomerId() {
+        return customerId;
     }
 
-    public void setUserId(final Long newUserId) {
-        this.userId = newUserId;
+    public void setCustomerId(final Long newCustomerId) {
+        this.customerId = newCustomerId;
     }
 }

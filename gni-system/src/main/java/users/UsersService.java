@@ -24,8 +24,8 @@ import static java.net.HttpURLConnection.HTTP_OK;
 
 /**
  * @author Noel
- * @version 1
- * The Users microservice, handles customer information and is used as a gateway for the UI service.
+ * @version 2
+ * The Users Microservice, handles customer information and is used as a gateway for the UI service.
  */
 @RequestMapping("/users")
 class UsersService {
@@ -34,7 +34,9 @@ class UsersService {
     /** Connection to the Transaction Dispatch service.*/
     private HttpClient transactionDispatchClient;
     /** Connection pool with database connections for the User Service. */
-    private ConnectionPool db;
+    private ConnectionPool databaseConnectionPool;
+    /** Gson object used to convert objects to/from json. */
+    private Gson jsonConverter;
 
     /**
      * Constructor.
@@ -44,174 +46,211 @@ class UsersService {
      * @param transactionDispatchHost Host the TransactionDispatch service can be found on.
      */
     UsersService(final int ledgerPort, final String ledgerHost, final int transactionDispatchPort,
-                        final String transactionDispatchHost) {
+                 final String transactionDispatchHost) {
         ledgerClient = httpClientBuilder().setHost(ledgerHost).setPort(ledgerPort).buildAndStart();
         transactionDispatchClient = httpClientBuilder().setHost(transactionDispatchHost)
-                                                        .setPort(transactionDispatchPort).buildAndStart();
-        this.db = new ConnectionPool();
+                                                       .setPort(transactionDispatchPort).buildAndStart();
+        this.databaseConnectionPool = new ConnectionPool();
+        jsonConverter = new Gson();
     }
 
     /**
-     * Processes incoming data requests from the UI service and sends a reply back through a callback, if necessary
-     * sends the request to the LedgerService service and waits for a callback from the LedgerService.
-     * @param callback Used to send result back to the UI service.
-     * @param body Json String representing a DataRequest that is made by the UI service {@link DataRequest}.
+     * Checks if incoming data request needs to be handled internally of externally and then calls the appropriate
+     * function.
+     * @param callback Used to send a reply back to the service that sent the request.
+     * @param dataRequestJson Json String representing a data request.{@link DataRequest}.
      */
     @RequestMapping(value = "/data", method = RequestMethod.GET)
-    public void processDataRequest(final Callback<String> callback, final @RequestParam("body") String body) {
-        Gson gson = new Gson();
-        DataRequest request = gson.fromJson(body, DataRequest.class);
-        RequestType type = request.getType();
+    public void processDataRequest(final Callback<String> callback,
+                                   final @RequestParam("body") String dataRequestJson) {
+        System.out.println(dataRequestJson);
+        DataRequest dataRequest = jsonConverter.fromJson(dataRequestJson, DataRequest.class);
+        RequestType dataRequestType = dataRequest.getType();
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        if (type == RequestType.CUSTOMERDATA || type == RequestType.ACCOUNTS) {
-            System.out.println("Users: Called by UI, fetching customer data.");
-            Long userId = request.getUserId();
-            if (type == RequestType.ACCOUNTS) {
-                DataReply reply = new DataReply();
-                List<String> accountNumbers = getAccountNumbers(userId);
-                reply.setType(request.getType());
-                reply.setAccountNumbers(accountNumbers);
-                callbackBuilder.build().reply(gson.toJson(reply));
-                System.out.println("Users: Sent reply back to UI.");
-            } else {
-                Customer reply = getCustomerData(userId);
-                System.out.println("Users: Sending data back to UI.");
-                callbackBuilder.build().reply(gson.toJson(reply));
-            }
+        if (dataRequestType == RequestType.CUSTOMERDATA || dataRequestType == RequestType.ACCOUNTS) {
+            handleInternalDataRequest(dataRequest, callbackBuilder);
         } else {
-            System.out.println("Users: Called by UI, calling Ledger");
-            doDataRequest(request, gson, callbackBuilder);
+            doLedgerDataRequest(dataRequest, callbackBuilder);
         }
     }
 
     /**
-     * Fetches account numbers from the accounts table for the user with id userId, returns this in a list object.
-     * @param userId User id of the customer we want to fetch accounts for.
-     * @return List containing account number that belong to the customer, null if no account numbers belong to the
-     * customer.
+     * Checks which type if internal data request needs to be processed and then calls the exception handler for the
+     * respective type.
+     * @param dataRequest Data request that needs to be handled.
+     * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private List<String> getAccountNumbers(final Long userId) {
+    private void handleInternalDataRequest(final DataRequest dataRequest, final CallbackBuilder callbackBuilder) {
+        System.out.println("Users: Called by UI, fetching customer data.");
+        if (dataRequest.getType() == RequestType.ACCOUNTS) {
+            handleAccountsRequestExceptions(dataRequest.getCustomerId(), callbackBuilder);
+        } else {             //The request is a Customer Data request.
+            handleCustomerDataRequestExceptions(dataRequest.getCustomerId(), callbackBuilder);
+        }
+    }
+
+    /**
+     * Sends a reject to the calling service if the SQL query in getCustomerAccounts fails.
+     * @param customerId Id of the customer whose accounts we want to fetch.
+     * @param callbackBuilder Used to send a reply back to the service that sent the request.
+     */
+    private void handleAccountsRequestExceptions(final Long customerId, final CallbackBuilder callbackBuilder) {
         try {
-            List<String> reply = new ArrayList<>();
-            SQLConnection connection = db.getConnection();
-            PreparedStatement ps = connection.getConnection().prepareStatement(getAccountNumbers);
-            ps.setLong(1, userId);
-            ResultSet rs = ps.executeQuery();
-            while (rs.next()) {
-                reply.add(rs.getString("account_number"));
-            }
-            ps.close();
-            db.returnConnection(connection);
-            if (reply.isEmpty()) {
-                return null;
-            }
-            return reply;
+            sendAccountsRequestCallback(getCustomerAccounts(customerId), callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
-            return null;
+            callbackBuilder.build().reject(e);
         }
     }
 
     /**
-     * Fetches customer data from the users table for the user with id userId and returns
-     * this data in a Customer object.
-     * @param userId Id of the user to fetch data for.
-     * @return Customer object containing the data for Customer with id=userId
+     * Send a DataReply object containing accounts belonging to a certain customer to the service that requested them.
+     * @param customerAccounts DataReply object containing a list of accounts belonging to a certain customer.
+     * @param callbackBuilder Used to send a reply back to the calling service.
      */
-    private Customer getCustomerData(final Long userId) {
+    private void sendAccountsRequestCallback(final DataReply customerAccounts, final CallbackBuilder callbackBuilder) {
+        callbackBuilder.build().reply(jsonConverter.toJson(customerAccounts));
+        System.out.println("Users: Sent accounts request callback to UI.");
+    }
+
+    /**
+     * Fetches account numbers from the accounts table for the customer with the respective id, returns this in a
+     * list object.
+     * @param customerId Customer id of the customer we want to fetch accounts for.
+     * @return List containing account numbers that belong to the customer.
+     * @throws SQLException Indicates customer accounts could not be fetched.
+     */
+    private DataReply getCustomerAccounts(final Long customerId) throws SQLException {
+        List<String> linkedAccounts = new ArrayList<>();
+        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+        PreparedStatement getAccountsFromDb = databaseConnection.getConnection().prepareStatement(getAccountNumbers);
+        getAccountsFromDb.setLong(1, customerId);
+        ResultSet retrievedAccounts = getAccountsFromDb.executeQuery();
+        DataReply customerAccounts = new DataReply();
+        customerAccounts.setType(RequestType.ACCOUNTS);
+        while (retrievedAccounts.next()) {
+            linkedAccounts.add(retrievedAccounts.getString("account_number"));
+        }
+        getAccountsFromDb.close();
+        databaseConnectionPool.returnConnection(databaseConnection);
+        customerAccounts.setAccounts(linkedAccounts);
+        return customerAccounts;
+    }
+
+    /**
+     * Sends a reject to the service that sent the data request if the SQL query in getCustomerData fails or the
+     * customer does not exist.
+     * @param customerId Id of the customer to request data for.
+     * @param callbackBuilder Used to send a reply back to the service that sent the request.
+     */
+    private void handleCustomerDataRequestExceptions(final Long customerId, final CallbackBuilder callbackBuilder) {
         try {
-            SQLConnection connection = db.getConnection();
-            PreparedStatement ps = connection.getConnection().prepareStatement(getUserInformation);
-            ps.setLong(1, userId);
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) {
-                Customer reply = new Customer();
-                reply.setInitials(rs.getString("initials"));
-                reply.setName(rs.getString("firstname"));
-                reply.setSurname(rs.getString("lastname"));
-                reply.setEmail(rs.getString("email"));
-                reply.setTelephoneNumber(rs.getString("telephone_number"));
-                reply.setAddress(rs.getString("address"));
-                reply.setDob(rs.getString("date_of_birth"));
-                reply.setSsn(rs.getLong("social_security_number"));
-                ps.close();
-                db.returnConnection(connection);
-                return reply;
-            } else {
-                ps.close();
-                db.returnConnection(connection);
-                return null;
-            }
-
-        } catch (SQLException e) {
+            sendCustomerDataRequestCallback(getCustomerData(customerId), callbackBuilder);
+        } catch (SQLException | CustomerDoesNotExistException e) {
             e.printStackTrace();
-            return null;
+            callbackBuilder.build().reject(e);
         }
     }
 
     /**
-     * Sends a data request to the LedgerService and handles the response from the ledger.
-     * Uses the callbackBuilder to send the reply from the ledger back to the UI service.
-     * @param request DataRequest that was sent to the ledger {@link DataRequest}.
-     * @param gson Used for Json conversions.
-     * @param callbackBuilder Used to send the reply of the ledger back to the UI service.
+     * Sends a Customer object containing the customer data of a certain customer to the service that requested it.
+     * Logs this is system.out.
+     * @param customerData Customer information belonging to a certain customer
+     * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void doDataRequest(final DataRequest request, final Gson gson, final CallbackBuilder callbackBuilder) {
-        if (request.getType() == RequestType.BALANCE || request.getType() == RequestType.TRANSACTIONHISTORY) {
-            ledgerClient.getAsyncWith1Param("/services/ledger/data", "body", gson.toJson(request),
-                    (code, contentType, replyBody) -> {
-                if (code == HTTP_OK) {
-                    DataReply reply = gson.fromJson(replyBody.substring(1, replyBody.length() - 1)
-                                                    .replaceAll("\\\\", ""), DataReply.class);
-                    callbackBuilder.build().reply(gson.toJson(reply));
-                } else {
-                    callbackBuilder.build().reject("Recieved an error from ledger.");
-                }
-            });
+    private void sendCustomerDataRequestCallback(final Customer customerData, final CallbackBuilder callbackBuilder) {
+        callbackBuilder.build().reply(jsonConverter.toJson(customerData));
+        System.out.println("Users: Sent customer data request callback to UI.");
+    }
+
+    /**
+     * Fetches customer data from the customers table for a certain customer and returns this data in a Customer object.
+     * @param customerId Id of the customer to fetch data for.
+     * @return Customer object containing the data for Customer with id=customerId
+     * @throws SQLException Indicates customer data could not be fetched.
+     * @throws CustomerDoesNotExistException Indicates there is no customer with that customer id.
+     */
+    private Customer getCustomerData(final Long customerId) throws SQLException, CustomerDoesNotExistException {
+        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+        PreparedStatement getCustomerDataFromDb = databaseConnection.getConnection()
+                                                  .prepareStatement(getUserInformation);
+        getCustomerDataFromDb.setLong(1, customerId);
+        ResultSet retrievedCustomerData = getCustomerDataFromDb.executeQuery();
+        Customer customerData = new Customer();
+        if (retrievedCustomerData.next()) {
+            customerData.setId(customerId);
+            customerData.setInitials(retrievedCustomerData.getString("initials"));
+            customerData.setName(retrievedCustomerData.getString("firstname"));
+            customerData.setSurname(retrievedCustomerData.getString("lastname"));
+            customerData.setEmail(retrievedCustomerData.getString("email"));
+            customerData.setTelephoneNumber(retrievedCustomerData.getString("telephone_number"));
+            customerData.setAddress(retrievedCustomerData.getString("address"));
+            customerData.setDob(retrievedCustomerData.getString("date_of_birth"));
+            customerData.setSsn(retrievedCustomerData.getLong("social_security_number"));
+            getCustomerDataFromDb.close();
+            databaseConnectionPool.returnConnection(databaseConnection);
+            return customerData;
         } else {
-            callbackBuilder.build().reject("Received a request of unknown type.");
+            getCustomerDataFromDb.close();
+            databaseConnectionPool.returnConnection(databaseConnection);
+            throw new CustomerDoesNotExistException("Customer not found in database.");
         }
     }
 
     /**
-     * Processes transaction requests coming from the UI service by forwarding them to the TransactionDispatch service.
-     * @param callback Used to send the result back to the UI service.
-     * @param body Json String containing a Transaction object for a transaction request.
+     * Forwards a data request to the ledger, sends a callback if the request succeeds, else rejects the callback.
+     * @param dataRequest Data request that needs to be sent to the ledger.
+     * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    //TODO handle reply from TransactionDispatch service
+    private void doLedgerDataRequest(final DataRequest dataRequest, final CallbackBuilder callbackBuilder) {
+        System.out.println("Users: Called by UI for a data request, calling Ledger");
+        ledgerClient.getAsyncWith1Param("/services/ledger/data", "body",
+                                        jsonConverter.toJson(dataRequest),
+                                        (httpStatusCode, httpContentType, dataReplyJson) -> {
+            if (httpStatusCode == HTTP_OK) {
+                sendLedgerDataRequestCallback(dataReplyJson, callbackBuilder);
+            } else {
+                callbackBuilder.build().reject("Received an error from ledger.");
+            }
+        });
+    }
+
+    /**
+     * Forwards a data response from the ledger to the service that requested it and then logs this to system.out.
+     * @param dataReplyJson Json reply from the ledger representing a DataReply object.
+     * @param callbackBuilder Used to send a reply back to the service that sent the request.
+     */
+    private void sendLedgerDataRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
+        callbackBuilder.build().reply(JSONParser.sanitizeJson(dataReplyJson));
+        System.out.println("Users: Sent ledger data request callback to UI.");
+    }
+
+
+    /**
+     * Processes a transaction request by forwarding it to the TransactionDispatch service.
+     * @param callback Used to send the result back to the calling service.
+     * @param transactionRequestJson Json String containing a Transaction object representing a transaction request.
+     */
     @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
-    public void processTransactionRequest(final Callback<String> callback, final @RequestParam("body") String body) {
-        Gson gson = new Gson();
-        Transaction request = gson.fromJson(body, Transaction.class);
-        //TODO send transaction to TransactionDispatch service
+    public void processTransaction(final Callback<String> callback,
+                                   final @RequestParam("body") String transactionRequestJson) {
+        Transaction transactionRequest = jsonConverter.fromJson(transactionRequestJson, Transaction.class);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         System.out.println("Users: Sent transaction to TransactionDispatch");
-        doTransactionRequest(request, gson, callbackBuilder);
+        doTransactionRequest(transactionRequest, callbackBuilder);
     }
 
     /**
-     * Sends transaction request to the TransactionDispatch service and sends the reply back to the UI service.
-     * @param request Transaction request made by the UI service {@link Transaction}.
-     * @param gson Used to do Json conversions.
-     * @param callbackBuilder Used to send the result back to the UI service.
+     * Sends transaction request to the TransactionDispatch service and processes the reply.
+     * @param transactionRequest Transaction request made by the UI service {@link Transaction}.
+     * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void doTransactionRequest(final Transaction request, final Gson gson,
-                                      final CallbackBuilder callbackBuilder) {
+    private void doTransactionRequest(final Transaction transactionRequest, final CallbackBuilder callbackBuilder) {
         transactionDispatchClient.putFormAsyncWith1Param("/services/transactionDispatch/transaction",
-                "body", gson.toJson(request), (code, contentType, body) -> {
-            if (code == HTTP_OK) {
-                Transaction reply = gson.fromJson(body.substring(1, body.length() - 1)
-                                                                .replaceAll("\\\\", ""), Transaction.class);
-                if (reply.isProcessed() && reply.equalsRequest(request)) {
-                    if (reply.isSuccessful()) {
-                        System.out.println("Users: Transaction was successfull");
-                        callbackBuilder.build().reply(gson.toJson(reply));
-                    } else {
-                        callbackBuilder.build().reject("Transaction was unsuccessfull.");
-                    }
-                } else {
-                    callbackBuilder.build().reject("Transaction couldn't be processed.");
-                }
+                                                        "body", jsonConverter.toJson(transactionRequest),
+                                                        (httpStatusCode, httpContentType, transactionReplyJson) -> {
+            if (httpStatusCode == HTTP_OK) {
+                processTransactionReply(transactionReplyJson, callbackBuilder);
             } else {
                 callbackBuilder.build().reject("Couldn't reach transactionDispatch.");
             }
@@ -219,249 +258,359 @@ class UsersService {
     }
 
     /**
-     * Processes customer creation requests coming from the UI service, sends the request to the LedgerService service to
-     * obtain an accountNumber for the customer and then processes the customer in the User database.
+     * Checks if the transaction was processed and successful, and then invokes the corresponding callback.
+     * @param transactionReplyJson Json String representing a Transaction resply that was received from the
+     *                  TransactionDispatchService.
+     * @param callbackBuilder Used to send a reply back to the service that sent the request.
+     */
+    private void processTransactionReply(final String transactionReplyJson, final CallbackBuilder callbackBuilder) {
+        Transaction transactionReply = jsonConverter.fromJson(JSONParser.sanitizeJson(transactionReplyJson),
+                                                              Transaction.class);
+        if (transactionReply.isProcessed() && transactionReply.isSuccessful()) {
+            sendTransactionRequestCallback(transactionReplyJson, callbackBuilder);
+        } else {
+            callbackBuilder.build().reject("Transaction failed, processed: "
+                                            + transactionReply.isProcessed() + " successfull: "
+                                            + transactionReply.isSuccessful());
+        }
+    }
+
+    /**
+     * Forwards a transaction reply from the transaction dispatch service to the service that requested the transaction
+     * and then logs this to system.out.
+     * @param transactionReplyJson Reply from the transaction dispatch service.
+     * @param callbackBuilder Used to send a reply back to the calling service.
+     */
+    private void sendTransactionRequestCallback(final String transactionReplyJson,
+                                                final CallbackBuilder callbackBuilder) {
+        callbackBuilder.build().reply(JSONParser.sanitizeJson(transactionReplyJson));
+        System.out.println("Users: Transaction was successfull, sent callback to UI.");
+    }
+
+    /**
+     * Processes customer creation requests by creating a callback builder and then sending the Customer object to the
+     * handler.
      * @param callback Used to send the result of the request back to the UI service.
-     * @param body Json string containing the Customer object the request is for {@link Customer}.
+     * @param customerRequestJson Json string containing the Customer object the request is for {@link Customer}.
      */
     @RequestMapping(value = "/customer", method = RequestMethod.PUT)
-    //todo rewrite so we can use initials + surname for accountholdername.
-    public void processNewCustomer(final Callback<String> callback, final @RequestParam("body") String body) {
-        Gson gson = new Gson();
-        Customer customer = gson.fromJson(body, Customer.class);
+    public void processNewCustomer(final Callback<String> callback,
+                                   final @RequestParam("body") String customerRequestJson) {
+        Customer customerToEnroll = jsonConverter.fromJson(customerRequestJson, Customer.class);
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        doAccountNumberRequest(gson, customer, callbackBuilder);
+        handleNewCustomerRequestExceptions(customerToEnroll, callbackBuilder);
     }
 
     /**
-     * Sends request for obtaining an accountNumber to the ledger, then processes the customer request internally in
-     * the User database and sends a reply back to the UI service.
-     * @param gson Used to do Json conversions.
-     * @param customer Customer object that was used to make a new customer request.
-     * @param callbackBuilder Used to send the result of the customer request back to the UI service.
+     * Sends a rejection to the service that requested the customer to be created if the SQL connection fails.
+     * @param customerToEnroll Customer object containing the customer data of the customer that should be put in the
+     *                         customers database.
+     * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void doAccountNumberRequest(final Gson gson, final Customer customer,
-                                        final CallbackBuilder callbackBuilder) {
-        ledgerClient.putFormAsyncWith1Param("/services/ledger/accountNumber", "body",
-                                        gson.toJson(customer.getAccount()), (code, contentType, replyBody) -> {
-                if (code == HTTP_OK) {
-                    Account ledgerReply = gson.fromJson(replyBody.substring(1, replyBody.length() - 1)
-                            .replaceAll("\\\\", ""), Account.class);
-                    customer.setAccount(ledgerReply);
-
-                    enrollCustomer(customer, callbackBuilder, gson);
-                } else {
-                    callbackBuilder.build().reject("Recieved an error from ledger.");
-                }
-            });
-    }
-
-    /**
-     * Enrolls the customer in the Users database.
-     * @param customer Customer to enroll in the database.
-     * @param callbackBuilder Used to send the outcome to the UIService.
-     * @param gson Used for Json conversions.
-     */
-    private void enrollCustomer(final Customer customer, final CallbackBuilder callbackBuilder, final Gson gson) {
+    private void handleNewCustomerRequestExceptions(final Customer customerToEnroll,
+                                                    final CallbackBuilder callbackBuilder) {
         try {
-            SQLConnection connection = db.getConnection();
-            Long newID = connection.getNextID(getNextUserID);
-            PreparedStatement ps = connection.getConnection().prepareStatement(createNewUser);
-            ps.setLong(1, newID);                           // id
-            ps.setString(2, customer.getInitials());        // initials
-            ps.setString(3, customer.getName());            // firstname
-            ps.setString(4, customer.getSurname());         // lastname
-            ps.setString(5, customer.getEmail());           // email
-            ps.setString(6, customer.getTelephoneNumber()); //telephone_number
-            ps.setString(7, customer.getAddress());         //address
-            ps.setString(8, customer.getDob());             //date_of_birth
-            ps.setLong(9, customer.getSsn());               //social_security_number
-            ps.executeUpdate();
-            ps.close();
-            db.returnConnection(connection);
-            System.out.printf("Users: Added users %s %s to the customer database\n",
-                    customer.getName(), customer.getSurname());
-            boolean addedAccount = addAccountToCustomerDb(newID, customer.getAccount().getAccountNumber());
-            if (addedAccount) {
-                callbackBuilder.build().reply(gson.toJson(customer));
-            } else {
-                callbackBuilder.build().reject("SQLException when adding account to accounts table.");
-            }
+            customerToEnroll.setId(getNewCustomerId());
+            enrollCustomer(customerToEnroll);
+            doNewAccountRequest(customerToEnroll, callbackBuilder);
         } catch (SQLException e) {
-            callbackBuilder.build().reject(e.getMessage());
             e.printStackTrace();
+            callbackBuilder.build().reject(e);
         }
     }
 
     /**
-     * Links an account to a user in the Users database by inserting the userID and the accountnumber into the
-     * accounts table.
+     * Fetches a customer Id for a new customer.
+     * @return CustomerId to be assigned to a new customer.
+     * @throws SQLException If the query fails the handler will reject the request.
+     */
+    private Long getNewCustomerId() throws SQLException {
+        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+        Long newCustomerId = databaseConnection.getNextID(getNextUserID);
+        databaseConnectionPool.returnConnection(databaseConnection);
+        return newCustomerId;
+    }
+
+    /**
+     * Enrolls a customer into the customers database.
+     * @param customer Customer object containing the customers data to enroll in the database.
+     * @throws SQLException Indicates that something went wrong when enrolling the user into the system, the handler
+     *                      will then reject the new customer request.
+     */
+    //todo implement check to see if the customer already exists in the database.
+    private void enrollCustomer(final Customer customer) throws SQLException {
+        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+        PreparedStatement createNewCustomer = databaseConnection.getConnection().prepareStatement(createNewUser);
+        createNewCustomer.setLong(1, customer.getId());                // id
+        createNewCustomer.setString(2, customer.getInitials());        // initials
+        createNewCustomer.setString(3, customer.getName());            // firstname
+        createNewCustomer.setString(4, customer.getSurname());         // lastname
+        createNewCustomer.setString(5, customer.getEmail());           // email
+        createNewCustomer.setString(6, customer.getTelephoneNumber()); //telephone_number
+        createNewCustomer.setString(7, customer.getAddress());         //address
+        createNewCustomer.setString(8, customer.getDob());             //date_of_birth
+        createNewCustomer.setLong(9, customer.getSsn());               //social_security_number
+        createNewCustomer.executeUpdate();
+        createNewCustomer.close();
+        databaseConnectionPool.returnConnection(databaseConnection);
+        System.out.println("Users: New customer successfully enrolled.");
+    }
+
+    /**
+     * Sends a request to the ledger asking for the ledger to create a new account, if the ledger sends back
+     * an account number it sends that off for processing, if the ledger call fails it sends a rejection to the
+     * service that sent the request to this service.
+     * @param accountOwner Customer object representing the owner of the account to be created, should also contain an
+     *                     account object with a specified accountHolderName, balance and spendingLimit.
+     * @param callbackBuilder Used to send a reply back to the service that sent the request.
+     */
+    private void doNewAccountRequest(final Customer accountOwner, final CallbackBuilder callbackBuilder) {
+        ledgerClient.putFormAsyncWith1Param("/services/ledger/accountNumber", "body",
+                                            jsonConverter.toJson(accountOwner.getAccount()),
+                                            (httpStatusCode, httpContentType, replyAccountJson) -> {
+            if (httpStatusCode == HTTP_OK) {
+                processNewAccountReply(replyAccountJson, accountOwner, callbackBuilder);
+            } else {
+                callbackBuilder.build().reject("Received an error from ledger.");
+            }
+        });
+    }
+
+    /**
+     * Processes a reply from the ledger containing a new account which is to be linked to a customer.
+     * @param replyAccountJson Json String representing an account object that should be linked to a customer.
+     * @param accountOwner The customer that the account should be linked to.
+     * @param callbackBuilder Used to send a reply back to the service that sent the request.
+     */
+    private void processNewAccountReply(final String replyAccountJson, final Customer accountOwner,
+                                        final CallbackBuilder callbackBuilder) {
+        Account assignedAccount = jsonConverter.fromJson(JSONParser.sanitizeJson(replyAccountJson), Account.class);
+        accountOwner.setAccount(assignedAccount);
+        handleNewAccountLinkExceptions(accountOwner, callbackBuilder);
+    }
+
+    /**
+     * Rejects the request if setting up the account link fails.
+     * @param accountOwner Customer object that contains information about the owner of the account, and that contains
+     *                     an account object that is to be linked to this customer.
+     * @param callbackBuilder Used to send a reply back to the service that sent the request.
+     */
+    private void handleNewAccountLinkExceptions(final Customer accountOwner, final CallbackBuilder callbackBuilder) {
+        try {
+            linkAccountToCustomer(accountOwner.getAccount().getAccountNumber(), accountOwner.getId());
+            sendNewAccountLinkCallback(jsonConverter.toJson(accountOwner), callbackBuilder);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reject(e);
+        }
+    }
+
+
+    /**
+     * Links an Account to a Customer in the Customers database by inserting the customerID and the accountnumber
+     * into the accounts table.
+     * @throws SQLException Indicates customer account could not be linked.
      * @param customerId Id of the customer to link the account to.
      * @param accountNumber Account number to link to the customer.
-     * @return boolean indicating if the account is successfully linked to the customer.
      */
-    private boolean addAccountToCustomerDb(final Long customerId, final String accountNumber) {
-        try {
-            boolean linkExists = false;
-            SQLConnection connection = db.getConnection();
-            PreparedStatement check = connection.getConnection().prepareStatement(getAccountNumbers);
-            check.setLong(1, customerId);
-            ResultSet rs = check.executeQuery();
-            while (rs.next()) {
-                if (rs.getString("account_number").equals(accountNumber.trim())) {
-                    linkExists = true;
-                }
-            }
-            check.close();
-            if (linkExists) {
-                System.out.println("Users: Account link already exists.");
-                return true;
-            }
-            PreparedStatement ps = connection.getConnection().prepareStatement(addAccountToUser);
-            ps.setLong(1, customerId);
-            ps.setString(2, accountNumber);
-            ps.executeUpdate();
-            ps.close();
-            db.returnConnection(connection);
+    private void linkAccountToCustomer(final String accountNumber, final Long customerId) throws SQLException {
+        if (!getAccountLinkExistence(accountNumber, customerId)) {
+            SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+            PreparedStatement linkAccountToCustomer = databaseConnection.getConnection()
+                                                                        .prepareStatement(addAccountToUser);
+            linkAccountToCustomer.setLong(1, customerId);
+            linkAccountToCustomer.setString(2, accountNumber);
+            linkAccountToCustomer.executeUpdate();
+            linkAccountToCustomer.close();
+            databaseConnectionPool.returnConnection(databaseConnection);
             System.out.printf("Users: Added Accountnumber %s to userid %d\n", accountNumber, customerId);
-            return true;
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return false;
         }
     }
 
     /**
-     * Takes an account link request and links the account to the specified customer id.
-     * @param callback Used to send the result back to the UI Service.
-     * @param body Json string representing an AccountLink{@link AccountLink} object containing
-     *             an account number which is to be attached to a customer with the specified customerId.
+     * Checks if an account link for this accountNumber and customerId already exists in the accounts table.
+     * @param accountNumber AccountNumber to check for.
+     * @param customerId Customer that owns the account.
+     * @return If a link exists between accountNumber and customerId.
+     * @throws SQLException Indicated the existence could not be verified due to an SQL error.
+     */
+    private boolean getAccountLinkExistence(final String accountNumber, final Long customerId) throws SQLException {
+        boolean accountLinkExists = false;
+        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+        PreparedStatement fetchAccountLinkCount = databaseConnection.getConnection()
+                .prepareStatement(getAccountLinkCount);
+        fetchAccountLinkCount.setLong(1, customerId);
+        fetchAccountLinkCount.setString(2, accountNumber);
+        ResultSet accountLinkCount = fetchAccountLinkCount.executeQuery();
+        if (accountLinkCount.next() && accountLinkCount.getLong(1) > 0) {
+            accountLinkExists = true;
+        }
+        accountLinkCount.close();
+        databaseConnectionPool.returnConnection(databaseConnection);
+        return accountLinkExists;
+    }
+
+    /**
+     * Sends a callback to the service that requested the account link/customer creation indicating that the request
+     * was successfull.
+     * @param newCustomerJson String representing a Customer object containing an account object with an account
+     *                        that was linked to the customer.
+     * @param callbackBuilder Used to send a reply back to the service that sent the request.
+     */
+    private void sendNewAccountLinkCallback(final String newCustomerJson, final CallbackBuilder callbackBuilder) {
+        callbackBuilder.build().reply(newCustomerJson);
+        System.out.println("Users: New account successfully linked, sent callback to UI.");
+    }
+
+    /**
+     * Takes an account link request, extracts the needed variables and then invokes a check to see if this link
+     * already exists.
+     * @param callback Used to send a reply back to the service that sent the request.
+     * @param accountLinkRequestJson Json string representing an AccountLink{@link AccountLink} object containing
+     *             an account number which is to be attached to the customer with the specified customerId.
      */
     @RequestMapping(value = "/account", method = RequestMethod.PUT)
-    public void linkCustomerAccount(final Callback<String> callback, final @RequestParam("body") String body) {
-        Gson gson = new Gson();
-        AccountLink request = gson.fromJson(body, AccountLink.class);
-        Long customerId = request.getCustomerId();
-        String accountNumber = request.getAccountNumber();
-        if (customerId == null || customerId < 0 || accountNumber == null) {
-            callback.reject("CustomerId or AccountNumber not specified.");
-        }
-        DataRequest dataRequest = JSONParser.createAccountExistsRequest(accountNumber);
+    public void processAccountLink(final Callback<String> callback,
+                                   final @RequestParam("body") String accountLinkRequestJson) {
+        AccountLink accountLink = jsonConverter.fromJson(accountLinkRequestJson, AccountLink.class);
+        Long customerId = accountLink.getCustomerId();
+        String accountNumber = accountLink.getAccountNumber();
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        doAccountLink(gson, dataRequest, customerId, callbackBuilder);
+        doAccountExistsRequest(accountNumber, customerId, callbackBuilder);
     }
 
     /**
-     * Checks if an account exists in the ledger, if it does this is an existing account that will be added to the
-     * user specified in request. Otherwise the request will be rejected.
-     * @param gson Used for json conversions.
-     * @param request DataRequest object containing an account link request.
-     * @param callbackBuilder Used to send a callback to UI.
+     * Sends a request to the ledger to check if an account exists, if the ledger gives a successfull reply it sends
+     * this reply off for processing, otherwise it rejects the request that invoked this method. Used to check if
+     * an account exists before linking it to a customer.
+     * @param accountNumber AccountNumber to check for.
+     * @param customerId Used to link a customer to the account.
+     * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void doAccountLink(final Gson gson, final DataRequest request, final Long customerId,
-                               final CallbackBuilder callbackBuilder) {
+    private void doAccountExistsRequest(final String accountNumber, final Long customerId,
+                                        final CallbackBuilder callbackBuilder) {
+        DataRequest accountExistsRequest = JSONParser.createAccountExistsRequest(accountNumber);
         ledgerClient.getAsyncWith1Param("/services/ledger/data", "body",
-                                                            gson.toJson(request), (code, contentType, replyBody) -> {
-            if (code == HTTP_OK) {
-                DataReply ledgerReply = gson.fromJson(replyBody.substring(1, replyBody.length() - 1)
-                        .replaceAll("\\\\", ""), DataReply.class);
-                if (ledgerReply.isAccountInLedger()) {
-                    if (customerExists(customerId)) {
-                        boolean addedAccount = addAccountToCustomerDb(customerId, request.getAccountNumber());
-                        AccountLink reply = new AccountLink(customerId, request.getAccountNumber(),
-                                addedAccount);
-                        System.out.println("Users: Account link successfull.");
-                        callbackBuilder.build().reply(gson.toJson(reply));
-                    } else {
-                        System.out.println("Users: Account link failed, UserId does not exist.");
-                        callbackBuilder.build().reject("UserId does not exist.");
-                    }
-                } else {
-                    System.out.println("Users: Account link failed, account does not exist.");
-                    callbackBuilder.build().reject("Account does not exist.");
-                }
+                                        jsonConverter.toJson(accountExistsRequest),
+                                        (httpStatusCode, httpContentType, dataReplyJson) -> {
+            if (httpStatusCode == HTTP_OK) {
+                processAccountExistsReply(dataReplyJson, customerId, callbackBuilder);
             } else {
-                System.out.println("Users: Unsuccessfull ledger call.");
-                callbackBuilder.build().reject("Unsuccessfull call, code: " + code);
+                callbackBuilder.build().reject("Unsuccessfull call, code: " + httpStatusCode);
             }
-        });
-    }
-
-    @RequestMapping(value = "/account/new", method = RequestMethod.PUT)
-    public void createNewCustomerAccount(final Callback<String> callback, final @RequestParam("body") String body) {
-        System.out.println("Users: Received account creation request.");
-        Gson gson = new Gson();
-        AccountLink request = gson.fromJson(body, AccountLink.class);
-        Long customerId = request.getCustomerId();
-        if (customerId == null || customerId < 0) {
-            callback.reject("CustomerId not specified.");
-        }
-        System.out.println("Customerid: " + customerId);
-        Customer customer = getCustomerData(customerId);
-        if (customer != null) {
-            final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-            doAccountCreation(gson, request, customer, callbackBuilder);
-        } else {
-            callback.reject("Customer does not exist.");
-        }
-    }
-
-    private void doAccountCreation(final Gson gson, final AccountLink accountLink, final Customer customer,
-                                                                            final CallbackBuilder callbackBuilder) {
-        System.out.println("Creating account");
-        String accountHolderName = customer.getInitials() + customer.getSurname();
-        System.out.println("accountholdername: " + accountHolderName);
-        Account account = JSONParser.createJsonAccount(0, 0, accountHolderName);
-        ledgerClient.putFormAsyncWith1Param("/services/ledger/accountNumber", "body",
-                                                                gson.toJson(account), (code, contentType, body) -> {
-            if (code == HTTP_OK) {
-                Account ledgerReply = gson.fromJson(body.substring(1, body.length() - 1).replaceAll("\\\\", ""),
-                                                                                                        Account.class);
-                if (ledgerReply.getAccountNumber() != null && ledgerReply.getAccountHolderName() != null &&
-                        ledgerReply.getAccountHolderName().equals(accountHolderName)) {
-                    //Ledger successfully generated a new account for our user, create the link in the users db.
-                    boolean accountLinked = addAccountToCustomerDb(accountLink.getCustomerId(),
-                                                                                    ledgerReply.getAccountNumber());
-                    accountLink.setAccountNumber(ledgerReply.getAccountNumber());
-                    accountLink.setSuccessfull(accountLinked);
-                    callbackBuilder.build().reply(gson.toJson(accountLink));
-                    System.out.println("Users: Successfully created account.");
-                } else {
-                    System.out.println("Users: Failed to create account.");
-                    callbackBuilder.build().reject("Reply from the ledger contained incorrect data.");
-                }
-            } else {
-                System.out.println("Users: Failed to create account.");
-                callbackBuilder.build().reject("Could not reach ledger.");
-            }
-
         });
     }
 
     /**
-     * Checks if a customer with id customerId exists in the users database.
-     * @param customerId Id of the customer to look for.
-     * @return Boolean indicating if the customer exists in the users database.
+     * Checks if the account exists in the ledger, if it does calls the exception handler so the account link can be
+     * done, if not it will reject the accountLink request.
+     * @param dataReplyJson Json String representing a DataReply object that was received from the ledger.
+     * @param customerId Id of the customer the account should be linked to.
+     * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private boolean customerExists(final Long customerId) {
-        boolean customerExists = false;
+    private void processAccountExistsReply(final String dataReplyJson, final Long customerId,
+                                           final CallbackBuilder callbackBuilder) {
+        DataReply ledgerReply = jsonConverter.fromJson(JSONParser.sanitizeJson(dataReplyJson), DataReply.class);
+        if (ledgerReply.isAccountInLedger()) {
+            handleAccountLinkExceptions(ledgerReply.getAccountNumber(), customerId, callbackBuilder);
+        } else {
+            callbackBuilder.build().reject("Account does not exist.");
+        }
+    }
+
+    /**
+     * Rejects the accountLinkRequest if an SQLException occurs or the customer the account should be linked to does
+     * not exist.
+     * @param accountNumber AccountNumber of the account to be linked to the customer.
+     * @param customerId CustomerId of the customer the account should be linked to.
+     * @param callbackBuilder Used to send a reply back to the service that sent the request.
+     */
+    private void handleAccountLinkExceptions(final String accountNumber, final Long customerId,
+                                             final CallbackBuilder callbackBuilder) {
         try {
-            SQLConnection connection = db.getConnection();
-            PreparedStatement check = connection.getConnection().prepareStatement(getUserCount);
-            check.setLong(1, customerId);
-            ResultSet rs = check.executeQuery();
-            if (rs.next()) {
-                Long customerCount = rs.getLong(1);
-                if (customerCount > 0) {
-                    customerExists = true;
-                }
-            }
-            rs.close();
-            db.returnConnection(connection);
-            return customerExists;
-        } catch (SQLException e) {
+            verifyAccountOwnerExistence(customerId);
+            linkAccountToCustomer(accountNumber, customerId);
+            sendAccountLinkCallback(accountNumber, customerId, callbackBuilder);
+        } catch (SQLException | CustomerDoesNotExistException e) {
             e.printStackTrace();
-            return false;
+            callbackBuilder.build().reject(e);
+        }
+    }
+
+    /**
+     * Throws a CustomerDoesNotExistException if there is no customer in the customers database with Id=customerId.
+     * @param customerId Id to look for in the databse.
+     * @throws SQLException Exception indicating that something went wrong with our SQL connection.
+     * @throws CustomerDoesNotExistException Indicates there is no customer with Id=customerId.
+     */
+    private void verifyAccountOwnerExistence(final Long customerId) throws SQLException, CustomerDoesNotExistException {
+        if (!getCustomerExistence(customerId)) {
+            throw new CustomerDoesNotExistException("Account link failed, customer with customerId does not exist.");
+        }
+    }
+
+    /**
+     * Sends a callback to the service that sent the accountLinkRequest to this service containing an AccountLink object
+     * that represents the executed account link.
+     * @param accountNumber AccountNumber of the account that was linked to the customer.
+     * @param customerId Id of the customer the account was linked to.
+     * @param callbackBuilder Used to send a reply back to the service that sent the request.
+     */
+    private void sendAccountLinkCallback(final String accountNumber, final Long customerId,
+                                         final CallbackBuilder callbackBuilder) {
+        AccountLink reply = JSONParser.createJsonAccountLink(accountNumber, customerId, true);
+        System.out.println("Users: Account link successfull, sent callback to UI..");
+        callbackBuilder.build().reply(jsonConverter.toJson(reply));
+    }
+
+    /**
+     * Checks if a customer with id customerId exists in the Customer database.
+     * @throws SQLException Indicates customer data could not be fetched.
+     * @param customerId Id of the customer to look for.
+     * @return Boolean indicating if the customer exists in the Customer database.
+     */
+    private boolean getCustomerExistence(final Long customerId) throws SQLException {
+        boolean customerExists = false;
+        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+        PreparedStatement fetchCustomerCount = databaseConnection.getConnection().prepareStatement(getUserCount);
+        fetchCustomerCount.setLong(1, customerId);
+        ResultSet customerCount = fetchCustomerCount.executeQuery();
+        if (customerCount.next() && customerCount.getLong(1) > 0) {
+            customerExists = true;
+        }
+        customerCount.close();
+        databaseConnectionPool.returnConnection(databaseConnection);
+        return customerExists;
+    }
+
+    /**
+     * Processes a new account request for an existing customer by creating a customer object from the request
+     * that contains the customer data of the customer and inside this customer object an Account Object that should
+     * have an accountHolderName, balance and spendingLimit.
+     * @param callback Used to send a reply back to the service that sent the request.
+     * @param accountRequestJson Json String representing a customer that a new Account should be created for.
+     */
+    @RequestMapping(value = "/account/new", method = RequestMethod.PUT)
+    public void processNewAccount(final Callback<String> callback,
+                                             final @RequestParam("body") String accountRequestJson) {
+        System.out.println("Users: Received account creation request.");
+        final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        Customer accountOwner = jsonConverter.fromJson(accountRequestJson, Customer.class);
+        handleNewAccountExceptions(accountOwner, callbackBuilder);
+    }
+
+    /**
+     * Rejects a new account request if the customer that the account should be created for does not exist or something
+     * goes wrong during the database communication.
+     * @param accountOwner Customer the account should be created for.
+     * @param callbackBuilder Used to send a reply back to the service that sent the request.
+     */
+    private void handleNewAccountExceptions(final Customer accountOwner, final CallbackBuilder callbackBuilder) {
+        try {
+            verifyAccountOwnerExistence(accountOwner.getId());
+            doNewAccountRequest(accountOwner, callbackBuilder);
+        } catch (SQLException | CustomerDoesNotExistException e) {
+            callbackBuilder.build().reject(e);
         }
     }
 }

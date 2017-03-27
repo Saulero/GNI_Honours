@@ -299,7 +299,7 @@ class LedgerService {
         } else {
             transaction.setProcessed(true);
             transaction.setSuccessful(false);
-            System.out.println("Ledger: failed to processed the transaction.");
+            System.out.println("Ledger: failed to process the transaction.");
             callback.reply(gson.toJson(transaction));
         }
     }
@@ -321,8 +321,6 @@ class LedgerService {
                 PreparedStatement ps = connection.getConnection().prepareStatement(getAccountInformation);
                 ps.setString(1, dataRequest.getAccountNumber());     // account_number
                 ResultSet rs = ps.executeQuery();
-
-                DataReply dataReply;
                 if (rs.next()) {
                     String accountNumber = dataRequest.getAccountNumber();
                     String name = rs.getString("name");
@@ -330,7 +328,7 @@ class LedgerService {
                     double balance = rs.getDouble("balance");
                     Account account = new Account(name, spendingLimit, balance);
                     account.setAccountNumber(accountNumber);
-                    dataReply = JSONParser.createJsonReply(accountNumber, requestType, account);
+                    DataReply dataReply = JSONParser.createJsonReply(accountNumber, requestType, account);
                     callback.reply(gson.toJson(dataReply));
                 }
 
@@ -355,7 +353,8 @@ class LedgerService {
                 fillTransactionList(transactions, rs1);
                 fillTransactionList(transactions, rs2);
 
-                DataReply dataReply = new DataReply(dataRequest.getAccountNumber(), requestType, transactions);
+                DataReply dataReply = JSONParser.createJsonReply(dataRequest.getAccountNumber(),
+                                                                 requestType, transactions);
                 callback.reply(gson.toJson(dataReply));
 
                 rs1.close();
@@ -380,8 +379,8 @@ class LedgerService {
                         accountExists = true;
                     }
                 }
-                DataReply dataReply = new DataReply(dataRequest.getType(), dataRequest.getAccountNumber(),
-                                                                                                        accountExists);
+                DataReply dataReply = JSONParser.createJsonReply(dataRequest.getAccountNumber(), dataRequest.getType(),
+                                                                 accountExists);
                 callback.reply(gson.toJson(dataReply));
                 rs.close();
                 db.returnConnection(connection);

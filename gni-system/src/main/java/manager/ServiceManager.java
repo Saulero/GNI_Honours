@@ -6,8 +6,6 @@ import io.advantageous.boon.core.Sys;
 import io.advantageous.qbit.http.client.HttpClient;
 import util.JSONParser;
 
-import java.util.List;
-
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 import static java.net.HttpURLConnection.HTTP_OK;
 
@@ -45,20 +43,20 @@ public final class ServiceManager {
         pinClient.start();
         Sys.sleep(1000);
         doGet(uiClient, "", RequestType.ACCOUNTS, batsId);
-        doAccountLink(uiClient, batsId, batsNumber);
+        doAccountLinkRequest(uiClient, batsId, batsNumber);
         doAccountCreation(uiClient, batsId);
-        /*doPin(pinClient, batsNumber, testAccountNumber, "De wilde", "8888",
+        doPin(pinClient, batsNumber, testAccountNumber, "De wilde", "8888",
                 "730", 20.00);
-        makeNewAccount(uiClient, "test", "test", "test", "mats@bats.nl",
+        doNewCustomerRequest(uiClient, "test", "test", "test", "mats@bats.nl",
                 "061212121212", "Batslaan 25", "20-04-1889",
                 new Long("1234567890"),1000, 0);
         doTransaction(externalBankClient, testAccountNumber, batsNumber, "Bats",
                 "Moneys",200.00, true);
-        doTransaction(uiClient, batsNumber, testDestinationNumber, "De Boer",
+        doTransaction(uiClient, testAccountNumber, testDestinationNumber, "De Boer",
                 "moar moneys",250.00, false);
         doGet(uiClient, batsNumber, RequestType.TRANSACTIONHISTORY, batsId);
         doGet(uiClient, testAccountNumber, RequestType.BALANCE, batsId);
-        doGet(uiClient, testAccountNumber, RequestType.CUSTOMERDATA, batsId);*/
+        doGet(uiClient, testAccountNumber, RequestType.CUSTOMERDATA, batsId);
     }
 
     /**
@@ -87,8 +85,7 @@ public final class ServiceManager {
         httpClient.putFormAsyncWith1Param(uri, "body", gson.toJson(transaction),
                                         (code, contentType, body) -> {
             if (code == 200) {
-                Transaction reply = gson.fromJson(body.substring(1, body.length() - 1).replaceAll("\\\\", ""),
-                                                    Transaction.class);
+                Transaction reply = gson.fromJson(JSONParser.sanitizeJson(body), Transaction.class);
                 if (reply.isSuccessful() && reply.isProcessed()) {
                     long transactionId = reply.getTransactionID();
                     System.out.printf("Transaction %d successfull.\n", transactionId);
@@ -117,17 +114,16 @@ public final class ServiceManager {
      * @param spendingLimit Spendinglimit of the account.
      * @param balance Balance of the account.
      */
-    private static void makeNewAccount(final HttpClient uiClient, final String initials, final String name,
-                                       final String surname, final String email, final String telephoneNumber,
-                                       final String address, final String dob, final Long ssn,
-                                       final double spendingLimit, final double balance) {
+    private static void doNewCustomerRequest(final HttpClient uiClient, final String initials, final String name,
+                                             final String surname, final String email, final String telephoneNumber,
+                                             final String address, final String dob, final Long ssn,
+                                             final double spendingLimit, final double balance) {
         Customer customer = JSONParser.createJsonCustomer(initials, name, surname, email, telephoneNumber, address, dob,
                                                             ssn, spendingLimit, balance);
         Gson gson = new Gson();
         uiClient.putFormAsyncWith1Param("/services/ui/customer", "body", gson.toJson(customer),
                 (code, contentType, body) -> { if (code == 200) {
-                    Customer reply = gson.fromJson(body.substring(1, body.length() - 1)
-                                                        .replaceAll("\\\\", ""), Customer.class);
+                    Customer reply = gson.fromJson(JSONParser.sanitizeJson(body), Customer.class);
                         System.out.println("Customer successfully created in the system.");
                 } else {
                     System.out.println("Customer creation request failed, body: " + body);
@@ -151,37 +147,33 @@ public final class ServiceManager {
                     if (code == 200) {
                         switch (type) {
                             case BALANCE:
-                                DataReply balanceReply = gson.fromJson(body.substring(1, body.length() - 1)
-                                                .replaceAll("\\\\", ""), DataReply.class);
+                                DataReply balanceReply = gson.fromJson(JSONParser.sanitizeJson(body), DataReply.class);
                                 System.out.printf("Request successfull, balance: %f\n",
                                         balanceReply.getAccountData().getBalance());
                                 break;
                             case TRANSACTIONHISTORY:
-                                DataReply transactionReply = gson.fromJson(body.substring(1, body.length() - 1)
-                                        .replaceAll("\\\\", ""), DataReply.class);
+                                DataReply transactionReply = gson.fromJson(JSONParser.sanitizeJson(body),
+                                                                            DataReply.class);
                                 for (Transaction x : transactionReply.getTransactions()) {
                                     System.out.println(x.toString());
                                 }
                                 break;
                             case CUSTOMERDATA:
-                                Customer customerReply = gson.fromJson(body.substring(1, body.length() - 1)
-                                        .replaceAll("\\\\", ""), Customer.class);
+                                Customer customerReply = gson.fromJson(JSONParser.sanitizeJson(body), Customer.class);
                                 System.out.printf("Request successfull, Name: %s, dob: %s\n",
                                                             customerReply.getInitials() + customerReply.getSurname(),
                                                             customerReply.getDob());
                                 break;
                             case ACCOUNTS:
-                                DataReply accountsReply = gson.fromJson(body.substring(1, body.length() - 1)
-                                        .replaceAll("\\\\", ""), DataReply.class);
-                                System.out.printf("Request successfull, accounts: %s\n",
-                                                                                    accountsReply.getAccountNumbers());
+                                DataReply accountsReply = gson.fromJson(JSONParser.sanitizeJson(body), DataReply.class);
+                                System.out.printf("Request successfull, accounts: %s\n", accountsReply.getAccounts());
                                 break;
                             default:
                                 System.out.println("couldnt get reply data.");
                                 break;
                         }
                     } else {
-                        System.out.println("Transaction history request not successfull, body: " + body);
+                        System.out.println("Request not successfull, body: " + body);
                     }
                 });
     }
@@ -205,8 +197,7 @@ public final class ServiceManager {
         pinClient.putFormAsyncWith1Param("/services/pin/transaction", "body", gson.toJson(pin),
                                         (code, contentType, body) -> {
             if (code == HTTP_OK) {
-                Transaction reply = gson.fromJson(body.substring(1, body.length() - 1).replaceAll("\\\\", ""),
-                        Transaction.class);
+                Transaction reply = gson.fromJson(JSONParser.sanitizeJson(body), Transaction.class);
                 if (reply.isSuccessful() && reply.isProcessed()) {
                     System.out.println("Pin transaction successfull.");
                 } else if (!reply.isProcessed()) {
@@ -220,14 +211,14 @@ public final class ServiceManager {
         });
     }
 
-    private static void doAccountLink(final HttpClient uiClient, final Long customerId, final String accountNumber) {
-        AccountLink request = JSONParser.createJsonAccountLink(customerId, accountNumber);
+    private static void doAccountLinkRequest(final HttpClient uiClient, final Long customerId,
+                                             final String accountNumber) {
+        AccountLink request = JSONParser.createJsonAccountLink(accountNumber, customerId);
         Gson gson = new Gson();
         uiClient.putFormAsyncWith1Param("/services/ui/account", "body", gson.toJson(request),
                                             (code, contentType, body) -> {
             if (code == HTTP_OK) {
-                AccountLink reply = gson.fromJson(body.substring(1, body.length() - 1).replaceAll("\\\\", ""),
-                        AccountLink.class);
+                AccountLink reply = gson.fromJson(JSONParser.sanitizeJson(body), AccountLink.class);
                 if (reply.isSuccessfull()) {
                     System.out.printf("Account link successfull for Account Holder: %s, AccountNumber: %s\n",
                                                                     reply.getCustomerId(), reply.getAccountNumber());
@@ -241,21 +232,21 @@ public final class ServiceManager {
     }
 
     private static void doAccountCreation(final HttpClient uiClient, final Long customerId) {
-        AccountLink request = JSONParser.createJsonAccountLink(customerId);
+        Customer accountOwner = JSONParser.createJsonCustomer("M.S.", "Mats", "Bats",
+                                                              "mats@bats.nl", "0656579876",
+                                                              "Batslaan 35", "20-04-1889",
+                                                               new Long("1234567890"), 0,
+                                                              0, customerId);
         Gson gson = new Gson();
-        uiClient.putFormAsyncWith1Param("/services/ui/account/new", "body", gson.toJson(request),
+        uiClient.putFormAsyncWith1Param("/services/ui/account/new", "body", gson.toJson(accountOwner),
                                                                                     (code, contentType, body) -> {
             if (code == HTTP_OK) {
-                AccountLink reply = gson.fromJson(body.substring(1, body.length() - 1).replaceAll("\\\\", ""),
-                    AccountLink.class);
-                if (reply.isSuccessfull()) {
+                Customer reply = gson.fromJson(JSONParser.sanitizeJson(body), Customer.class);
                 System.out.printf("New Account creation successfull, Account Holder: %s, AccountNumber: %s\n",
-                                                                    reply.getCustomerId(), reply.getAccountNumber());
-                } else {
-                System.out.println("New Account creation unsuccessfull.");
-                }
+                                  reply.getId(), reply.getAccount().getAccountNumber());
             } else {
                 System.out.println("Account creation failed.");
+                System.out.println(body);
             }
         });
     }
