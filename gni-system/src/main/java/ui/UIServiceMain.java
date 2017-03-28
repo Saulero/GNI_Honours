@@ -25,7 +25,7 @@ final class UIServiceMain {
                 ManagedServiceBuilder.managedServiceBuilder()
                         .setRootURI("/services") //Defaults to services
                         .setPort(9990);
-        managedServiceBuilder.addEndpointService(new UIService(9991, "localhost"))
+        managedServiceBuilder.addEndpointService(new UIService(9996, "localhost"))
                 .getEndpointServerBuilder()
                 .build().startServer();
         System.out.println("UI service started");

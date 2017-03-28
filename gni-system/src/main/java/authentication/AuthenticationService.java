@@ -7,7 +7,10 @@ import databeans.*;
 import io.advantageous.qbit.annotation.RequestMapping;
 import io.advantageous.qbit.annotation.RequestMethod;
 import io.advantageous.qbit.annotation.RequestParam;
+import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
+import io.advantageous.qbit.reactive.CallbackBuilder;
+import util.JSONParser;
 
 import java.security.SecureRandom;
 import java.sql.PreparedStatement;
@@ -16,88 +19,287 @@ import java.sql.SQLException;
 import java.util.Base64;
 
 import static database.SQLStatements.*;
+import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
+import static java.net.HttpURLConnection.HTTP_OK;
 
 /**
- * @author Saul
- * @version 1
+ * @author Saul/Noel
+ * @version 2
  */
 @RequestMapping("/authentication")
 class AuthenticationService {
-
+    /** Connection to the users service. */
+    private HttpClient usersClient;
     /** Database connection pool containing persistent database connections. */
-    private ConnectionPool db;
+    private ConnectionPool databaseConnectionPool;
     /** Secure Random Number Generator. */
-    private SecureRandom sRand;
+    private SecureRandom randomNumberGenerator;
     /** Used for Json conversions. */
     private Gson jsonConverter;
 
     /**
      * Constructor.
      */
-    AuthenticationService() {
-        this.db = new ConnectionPool();
-        this.sRand = new SecureRandom();
+    AuthenticationService(final int usersPort, final String usersHost) {
+        this.usersClient = httpClientBuilder().setHost(usersHost).setPort(usersPort).buildAndStart();
+        this.databaseConnectionPool = new ConnectionPool();
+        this.randomNumberGenerator = new SecureRandom();
         this.jsonConverter = new Gson();
+    }
+
+    @RequestMapping(value = "/data", method = RequestMethod.GET)
+    public void processDataRequest(final Callback<String> callback,
+                                   @RequestParam("request") final String dataRequestJson,
+                                   @RequestParam("cookie") final String cookie) {
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleDataRequestExceptions(dataRequestJson, cookie, callbackBuilder);
+    }
+
+    private void handleDataRequestExceptions(final String dataRequestJson, final String cookie,
+                                             final CallbackBuilder callbackBuilder) {
+        try {
+            authenticateRequest(cookie);
+            DataRequest dataRequest = jsonConverter.fromJson(dataRequestJson, DataRequest.class);
+            dataRequest.setCustomerId(getCustomerId(cookie));
+            doDataRequest(jsonConverter.toJson(dataRequest), callbackBuilder);
+        } catch (SQLException e) {
+            callbackBuilder.build().reject("Failed to query database.");
+        } catch (UserNotAuthorizedException e) {
+            callbackBuilder.build().reject("CookieData does not belong to an authorized user.");
+        }
+    }
+
+    public void authenticateRequest(final String cookie) throws UserNotAuthorizedException, SQLException {
+        Long[] cookieData = decodeCookie(cookie);
+        long customerId = cookieData[0];
+        long cookieToken = cookieData[1];
+        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+        PreparedStatement getAuthenticationData = databaseConnection.getConnection()
+                                                                    .prepareStatement(getAuthenticationData2);
+        getAuthenticationData.setLong(1, customerId);
+        ResultSet authenticationData = getAuthenticationData.executeQuery();
+        if (authenticationData.next()) {
+            long customerToken = authenticationData.getLong("token");
+            long tokenValidity = authenticationData.getLong("token_validity");
+            if (cookieToken == customerToken && System.currentTimeMillis() < tokenValidity) {
+                updateTokenValidity(customerId);
+            } else {
+                throw new UserNotAuthorizedException("Token not legitimate or expired.");
+            }
+        } else {
+            throw new UserNotAuthorizedException("UserId not found.");
+        }
+        authenticationData.close();
+        getAuthenticationData.close();
+        databaseConnectionPool.returnConnection(databaseConnection);
+    }
+
+    private Long[] decodeCookie(final String cookie) {
+        String[] cookieParts = cookie.split(":");
+        Long[] cookieData = new Long[2];
+        cookieData[0] = Long.parseLong(cookieParts[0]); //customerId
+        cookieData[1] = Long.parseLong(new String(Base64.getDecoder().decode(cookieParts[1].getBytes()))); //customerToken
+        return cookieData;
+    }
+
+    /**
+     * Updates the validity of the token upon reuse.
+     * @param id The user_id of the row to update
+     */
+    private void updateTokenValidity(final long id) {
+        long validity = System.currentTimeMillis() + Variables.TOKEN_VALIDITY * 1000;
+        try {
+            SQLConnection connection = databaseConnectionPool.getConnection();
+            PreparedStatement ps = connection.getConnection().prepareStatement(updateTokenValidity);
+            ps.setLong(1, validity);    // validity
+            ps.setLong(2, id);          // id
+            ps.executeUpdate();
+
+            ps.close();
+            databaseConnectionPool.returnConnection(connection);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private Long getCustomerId(final String cookie) {
+        Long[] cookieData = decodeCookie(cookie);
+        return cookieData[0];
+    }
+
+    /**
+     * Forwards the data request to the Users service and sends the reply off to processing, or rejects the request if
+     * the forward fails.
+     * @param dataRequestJson Json string representing a dataRequest that should be sent to the UsersService.
+     * @param callbackBuilder Used to send the received reply back to the source of the request.
+     */
+    private void doDataRequest(final String dataRequestJson, final CallbackBuilder callbackBuilder) {
+        System.out.println("UI: Sending data request to Authentication Service.");
+        usersClient.getAsyncWith1Param("/services/users/data", "request",
+                                        dataRequestJson, (httpStatusCode, httpContentType, dataReplyJson) -> {
+            if (httpStatusCode == HTTP_OK) {
+                sendDataRequestCallback(dataReplyJson, callbackBuilder);
+            } else {
+                callbackBuilder.build().reject("Transaction history request failed.");
+            }
+        });
+    }
+
+    private void sendDataRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
+        System.out.println("Auth: Sending data reply back to UI.");
+        callbackBuilder.build().reply(JSONParser.sanitizeJson(dataReplyJson));
+    }
+
+    /**
+     * Creates a callback builder to forward the result of the request to the requester, and then forwards the request
+     * to the Users service.
+     * @param callback Used to send the reply of User service to the source of the request.
+     * @param transactionRequestJson Json String representing a Transaction object that is to be processed
+     *                               {@link Transaction}.
+     */
+    @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
+    public void processTransactionRequest(final Callback<String> callback,
+                                          @RequestParam("request") final String transactionRequestJson,
+                                          @RequestParam("cookie") final String cookie) {
+        final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleTransactionRequestExceptions(transactionRequestJson, cookie, callbackBuilder);
+    }
+
+    private void handleTransactionRequestExceptions(final String transactionRequestJson, final String cookie,
+                                                    final CallbackBuilder callbackBuilder) {
+        try {
+            authenticateRequest(cookie);
+            //todo check if customer is allowed to send money from this sourceAccount.
+            doTransactionRequest(transactionRequestJson, callbackBuilder);
+        } catch (SQLException e) {
+            callbackBuilder.build().reject("Failed to query database.");
+        } catch (UserNotAuthorizedException e) {
+            callbackBuilder.build().reject("CookieData does not belong to an authorized user.");
+        }
+    }
+
+    /**
+     * Forwards transaction request to the User service and forwards the reply or sends a rejection if the request
+     * fails.
+     * @param transactionRequestJson Transaction request that should be processed.
+     * @param callbackBuilder Used to send the received reply back to the source of the request.
+     */
+    private void doTransactionRequest(final String transactionRequestJson, final CallbackBuilder callbackBuilder) {
+        System.out.println("UI: Forwarding transaction request.");
+        usersClient.putFormAsyncWith1Param("/services/users/transaction", "body",
+                transactionRequestJson,
+                (httpStatusCode, httpContentType, transactionReplyJson) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        sendTransactionRequestCallback(transactionReplyJson, callbackBuilder);
+                    } else {
+                        callbackBuilder.build().reject("Transaction request failed.");
+                    }
+                });
+    }
+
+    /**
+     * Forwards the result of a transaction request to the service that sent the request.
+     * @param transactionReplyJson Json String representing the executed transaction {@link Transaction}.
+     * @param callbackBuilder Used to send the received reply back to the source of the request.
+     */
+    private void sendTransactionRequestCallback(final String transactionReplyJson,
+                                                final CallbackBuilder callbackBuilder) {
+        System.out.println("UI: Transaction successfully executed, sent callback.");
+        callbackBuilder.build().reply(JSONParser.sanitizeJson(transactionReplyJson));
     }
 
     // TODO Should be invoked when a new user is created
     /**
      * Creates new login credentials for a customer.
      * @param callback Used to send a reply back to the UserService
-     * @param body Json String representing login information
+     * @param newCustomerRequestJson Json String representing login information
      */
-    @RequestMapping(value = "/register", method = RequestMethod.PUT)
-    public void registerCustomerLogin(final Callback<String> callback, final @RequestParam("body") String body) {
-        Authentication authData = jsonConverter.fromJson(body, Authentication.class);
-        if (authData.getType() == AuthenticationType.CREATENEW) {
-            try {
-                SQLConnection connection = db.getConnection();
-                PreparedStatement ps = connection.getConnection().prepareStatement(createAuthenticationData);
-                ps.setLong(1, authData.getUserID());       // id
-                ps.setString(2, authData.getUsername());    // username
-                ps.setString(3, authData.getPassword());    // password
+    @RequestMapping(value = "/customer", method = RequestMethod.PUT)
+    public void processNewCustomerRequest(final Callback<String> callback,
+                                          @RequestParam("customer") final String newCustomerRequestJson) {
+        final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        doNewCustomerRequest(newCustomerRequestJson, callbackBuilder);
+    }
 
-                ps.executeUpdate();
-                ps.close();
-                db.returnConnection(connection);
-                callback.reply(jsonConverter.toJson(authData));
-                // TODO Empty callback would suffice
-            } catch (SQLException e) {
-                callback.reject(e.getMessage());
-                e.printStackTrace();
-            }
-        } else {
-            callback.reject("Wrong Data Received");
+    /**
+     * Sends the customer request to the User service and then processes the reply, or sends a rejection to the
+     * requester if the request fails..
+     * @param newCustomerRequestJson Json String representing a Customer that should be created {@link Customer}.
+     * @param callbackBuilder Used to send the response of the creation request back to the source of the request.
+     */
+    private void doNewCustomerRequest(final String newCustomerRequestJson,
+                                      final CallbackBuilder callbackBuilder) {
+        System.out.println("UI: Sending customer creation request to Users");
+        usersClient.putFormAsyncWith1Param("/services/users/customer", "body",
+                newCustomerRequestJson,
+                (httpStatusCode, httpContentType, newCustomerReplyJson) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        handleLoginCreationExceptions(newCustomerReplyJson, callbackBuilder);
+                    } else {
+                        callbackBuilder.build().reject("Customer creation request failed.");
+                    }
+                });
+    }
+
+    private void handleLoginCreationExceptions(final String newCustomerReplyJson, final CallbackBuilder callbackBuilder) {
+        Customer customerToEnroll = jsonConverter.fromJson(newCustomerReplyJson, Customer.class);
+        try {
+            registerNewCustomerLogin(customerToEnroll);
+            sendNewCustomerRequestCallback(newCustomerReplyJson, callbackBuilder);
+        } catch (SQLException e) {
+            //todo revert customer creation in users database.
+            callbackBuilder.build().reject("Couldn't create login data.");
         }
+    }
+
+    private void registerNewCustomerLogin(final Customer customerToEnroll) throws SQLException {
+        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+        PreparedStatement createCustomerLogin = databaseConnection.getConnection()
+                                                                  .prepareStatement(createAuthenticationData);
+        createCustomerLogin.setLong(1, customerToEnroll.getId());       // id
+        createCustomerLogin.setString(2, customerToEnroll.getUsername());    // username
+        createCustomerLogin.setString(3, customerToEnroll.getPassword());    // password
+        createCustomerLogin.executeUpdate();
+        createCustomerLogin.close();
+        databaseConnectionPool.returnConnection(databaseConnection);
+    }
+
+    /**
+     * Forwards the created customer back to the service that sent the customer creation request to this service.
+     * @param newCustomerReplyJson Json String representing a customer that was created in the system.
+     * @param callbackBuilder Json String representing a Customer that should be created {@link Customer}.
+     */
+    private void sendNewCustomerRequestCallback(final String newCustomerReplyJson,
+                                                final CallbackBuilder callbackBuilder) {
+        System.out.println("UI: Customer creation successfull, sending callback.");
+        callbackBuilder.build().reply(JSONParser.sanitizeJson(newCustomerReplyJson));
     }
 
     // TODO Should be invoked when login credentials are entered
     /**
      * Checks the login credentials and generates a login token if they're correct.
-     * @param callback
-     * @param body Json String representing login information
+     * @param callback Used to send a reply to the requesting service.
+     * @param authDataJson Json String representing login information
      */
     @RequestMapping(value = "/login", method = RequestMethod.PUT)
-    public void login(final Callback<String> callback, final @RequestParam("body") String body) {
-        Authentication authData = jsonConverter.fromJson(body, Authentication.class);
+    public void login(final Callback<String> callback, final @RequestParam("authData") String authDataJson) {
+        System.out.println(authDataJson);
+        Authentication authData = jsonConverter.fromJson(authDataJson, Authentication.class);
         if (authData.getType() == AuthenticationType.LOGIN) {
             try {
-                SQLConnection connection = db.getConnection();
+                SQLConnection connection = databaseConnectionPool.getConnection();
                 PreparedStatement ps = connection.getConnection().prepareStatement(getAuthenticationData1);
                 ps.setString(1, authData.getUsername());    // username
                 ResultSet rs = ps.executeQuery();
-
                 if (rs.next()) {
-                    long userID = rs.getLong("user_id");
+                    long userId = rs.getLong("user_id");
                     String password = rs.getString("password");
-
                     if (password.equals(authData.getPassword())) {
                         // Legitimate info
-                        // TODO forward request / refer user to correct page
-                        long newToken = sRand.nextLong();
-                        setNewToken(userID, newToken);
-                        callback.reply(jsonConverter.toJson(new Authentication(encodeCookie(userID, newToken),
-                                                            AuthenticationType.REPLY)));
+                        long newToken = randomNumberGenerator.nextLong();
+                        setNewToken(userId, newToken);
+                        callback.reply(jsonConverter.toJson(JSONParser.createJsonAuthentication(
+                                                    encodeCookie(userId, newToken), AuthenticationType.REPLY)));
                     } else {
                         // Illegitimate info
                         callback.reject("Invalid username/password combination");
@@ -108,7 +310,7 @@ class AuthenticationService {
                 }
                 rs.close();
                 ps.close();
-                db.returnConnection(connection);
+                databaseConnectionPool.returnConnection(connection);
             } catch (SQLException e) {
                 callback.reject(e.getMessage());
                 e.printStackTrace();
@@ -116,70 +318,6 @@ class AuthenticationService {
         } else {
             callback.reject("Wrong Data Received");
         }
-    }
-
-    // TODO Should be invoked when a user is already logged in
-    /**
-     * Authenticates a request by checking the token.
-     * @param callback Used to send a callback to the requesting service.
-     * @param body Json String representing the token
-     */
-    @RequestMapping(value = "/authenticate", method = RequestMethod.PUT)
-    public void authenticateRequest(final Callback<String> callback, final @RequestParam("body") String body) {
-        Authentication authData = jsonConverter.fromJson(body, Authentication.class);
-        if (authData.getType() == AuthenticationType.AUTHENTICATE) {
-            Long[] cookieData = decodeCookie(authData.getCookie());
-            long userID = cookieData[0];
-            long tokenGiven = cookieData[1];
-
-            try {
-                SQLConnection connection = db.getConnection();
-                PreparedStatement ps = connection.getConnection().prepareStatement(getAuthenticationData2);
-                ps.setLong(1, userID);    // user_id
-                ResultSet rs = ps.executeQuery();
-
-                if (rs.next()) {
-                    long tokenActual = rs.getLong("token");
-                    long validity = rs.getLong("token_validity");
-
-                    if (tokenGiven == tokenActual) {
-                        // Legitimate token
-                        if (System.currentTimeMillis() < validity) {
-                            // Valid token
-                            updateTokenValidity(userID);
-                            // TODO forward request / refer user to correct page
-                            // TODO Empty callback would suffice
-                            callback.reply(jsonConverter.toJson(authData));
-                        } else {
-                            // Expired token
-                            callback.reject("Expired token");
-                        }
-                    } else {
-                        // Illegitimate token
-                        callback.reject("Invalid token");
-                    }
-                } else {
-                    // username not found
-                    callback.reject("UserID not found");
-                }
-                rs.close();
-                ps.close();
-                db.returnConnection(connection);
-            } catch (SQLException e) {
-                callback.reject(e.getMessage());
-                e.printStackTrace();
-            }
-        } else {
-            callback.reject("Wrong Data Received");
-        }
-    }
-
-    private Long[] decodeCookie(final String cookie) {
-        String[] cookieParts = cookie.split(":");
-        Long[] res = new Long[2];
-        res[0] = Long.parseLong(cookieParts[0]);
-        res[1] = Long.parseLong(new String(Base64.getDecoder().decode(cookieParts[1].getBytes())));
-        return res;
     }
 
     private String encodeCookie(final long userID, final long token) {
@@ -193,9 +331,8 @@ class AuthenticationService {
      */
     private void setNewToken(final long id, final long token) {
         long validity = System.currentTimeMillis() + Variables.TOKEN_VALIDITY * 1000;
-
         try {
-            SQLConnection connection = db.getConnection();
+            SQLConnection connection = databaseConnectionPool.getConnection();
             PreparedStatement ps = connection.getConnection().prepareStatement(updateToken);
             ps.setLong(1, token);       // new token
             ps.setLong(2, validity);    // validity
@@ -203,36 +340,134 @@ class AuthenticationService {
             ps.executeUpdate();
 
             ps.close();
-            db.returnConnection(connection);
+            databaseConnectionPool.returnConnection(connection);
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
     /**
-     * Updates the validity of the token upon reuse.
-     * @param id The user_id of the row to update
+     * Creates a callback builder for the account link request and then forwards the request to the UsersService.
+     * @param callback Used to send the result of the request back to the source of the request.
+     * @param accountLinkRequestJson Json string representing an AccountLink that should be created in the
+     *                               database {@link AccountLink}.
      */
-    private void updateTokenValidity(final long id) {
-        long validity = System.currentTimeMillis() + Variables.TOKEN_VALIDITY * 1000;
-        try {
-            SQLConnection connection = db.getConnection();
-            PreparedStatement ps = connection.getConnection().prepareStatement(updateTokenValidity);
-            ps.setLong(1, validity);    // validity
-            ps.setLong(2, id);          // id
-            ps.executeUpdate();
+    @RequestMapping(value = "/account", method = RequestMethod.PUT)
+    public void processAccountLinkRequest(final Callback<String> callback,
+                                          @RequestParam("request") final String accountLinkRequestJson,
+                                          @RequestParam("cookie") final String cookie) {
+        AccountLink accountLinkRequest = jsonConverter.fromJson(accountLinkRequestJson, AccountLink.class);
+        System.out.printf("UI: Received account link request for customer %d account number %s\n",
+                accountLinkRequest.getCustomerId(), accountLinkRequest.getAccountNumber());
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleAccountLinkExceptions(accountLinkRequest, cookie, callbackBuilder);
+    }
 
-            ps.close();
-            db.returnConnection(connection);
+    private void handleAccountLinkExceptions(final AccountLink accountLinkRequest, final String cookie,
+                                             final CallbackBuilder callbackBuilder) {
+        try {
+            authenticateRequest(cookie);
+            accountLinkRequest.setCustomerId(getCustomerId(cookie));
+            doAccountLinkRequest(jsonConverter.toJson(accountLinkRequest), callbackBuilder);
         } catch (SQLException e) {
-            e.printStackTrace();
+            callbackBuilder.build().reject("Error connecting to authentication database.");
+        } catch (UserNotAuthorizedException e) {
+            callbackBuilder.build().reject("User not authorized, please login.");
         }
+    }
+
+    /**
+     * Forwards a String representing an account link to the Users database, and processes the reply if it is successfull
+     * or sends a rejection to the requesting service if it fails.
+     * @param accountLinkRequestJson String representing an account link that should be executed {@link AccountLink}.
+     * @param callbackBuilder Used to send the result of the request back to the source of the request.
+     */
+    private void doAccountLinkRequest(final String accountLinkRequestJson, final CallbackBuilder callbackBuilder) {
+        usersClient.putFormAsyncWith1Param("/services/users/account", "body", accountLinkRequestJson,
+                ((httpStatusCode, httpContentType, accountLinkReplyJson) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        sendAccountLinkRequestCallback(accountLinkReplyJson, callbackBuilder);
+                    } else {
+                        callbackBuilder.build().reject("AccountLink request failed.");
+                    }
+                }));
+    }
+
+    /**
+     * Forwards the result of an account link request to the service that sent the request.
+     * @param accountLinkReplyJson Json String representing the result of an account link request.
+     * @param callbackBuilder Used to send the result of the request back to the source of the request.
+     */
+    private void sendAccountLinkRequestCallback(final String accountLinkReplyJson,
+                                                final CallbackBuilder callbackBuilder) {
+        System.out.println("Auth: Successfull account link, sending callback.");
+        callbackBuilder.build().reply(JSONParser.sanitizeJson(accountLinkReplyJson));
+    }
+
+    /**
+     * Creates a callback builder for the account creation request and then forwards the request to the UsersService.
+     * @param callback Used to send the result of the request back to the source of the request.
+     * @param newAccountRequestJson Json String representing a customer object which is the account owner, with an
+     *                              Account object inside representing the account that should be created.
+     */
+    //todo refactor so that only customerId from cookie is needed.
+    @RequestMapping(value = "/account/new", method = RequestMethod.PUT)
+    public void processNewAccountRequest(final Callback<String> callback,
+                                         @RequestParam("request") final String newAccountRequestJson,
+                                         @RequestParam("cookie") final String cookie) {
+        Customer accountOwner = jsonConverter.fromJson(newAccountRequestJson, Customer.class);
+        System.out.printf("UI: Received account creation request for customer %d\n", accountOwner.getId());
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder()
+                .withStringCallback(callback);
+        doNewAccountRequest(newAccountRequestJson, callbackBuilder);
+    }
+
+    private void handleNewAccountExceptions(final String newAccountRequestJson, final String cookie,
+                                            final CallbackBuilder callbackBuilder) {
+        try {
+            authenticateRequest(cookie);
+            doNewAccountRequest(newAccountRequestJson, callbackBuilder);
+        } catch (SQLException e) {
+            callbackBuilder.build().reject("Error connecting to authentication database.");
+        } catch (UserNotAuthorizedException e) {
+            callbackBuilder.build().reject("User not authorized, please login.");
+        }
+    }
+
+    /**
+     * Forwards the Json String representing a customer with the account to be created to the Users Service and sends
+     * the result back to the requesting service, or rejects the request if the forwarding fails.
+     * @param newAccountRequestJson Json String representing a customer object which is the account owner, with an
+     *                              Account object inside representing the account that should be created.
+     * @param callbackBuilder Used to send the result of the request back to the source of the request.
+     */
+    private void doNewAccountRequest(final String newAccountRequestJson,
+                                     final CallbackBuilder callbackBuilder) {
+        usersClient.putFormAsyncWith1Param("/services/users/account/new", "body", newAccountRequestJson,
+                (httpStatusCode, httpContentType, newAccountReplyJson) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        sendNewAccountRequestCallback(newAccountReplyJson, callbackBuilder);
+                    } else {
+                        callbackBuilder.build().reject("NewAccount request failed.");
+                    }
+                });
+    }
+
+    /**
+     * Sends the result of an account creation request to the service that requested it.
+     * @param newAccountReplyJson Json String representing a customer with a linked account that was newly created.
+     * @param callbackBuilder Used to send the result of the request back to the source of the request.
+     */
+    private void sendNewAccountRequestCallback(final String newAccountReplyJson,
+                                               final CallbackBuilder callbackBuilder) {
+        System.out.println("UI: Successfull account creation request, sending callback.");
+        callbackBuilder.build().reply(JSONParser.sanitizeJson(newAccountReplyJson));
     }
 
     /**
      * Safely shuts down the AuthenticationService.
      */
     public void shutdown() {
-        db.close();
+        databaseConnectionPool.close();
     }
 }

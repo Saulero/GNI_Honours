@@ -16,7 +16,7 @@ public class AuthenticationServiceMain {
                         .setPort(9996); //Defaults to 8080 or environment variable PORT
 
         /* Start the service. */
-        managedServiceBuilder.addEndpointService(new AuthenticationService()) //Register TodoService
+        managedServiceBuilder.addEndpointService(new AuthenticationService(9991, "localhost")) //Register TodoService
                 .getEndpointServerBuilder()
                 .build().startServer();
 

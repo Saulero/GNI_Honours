@@ -62,7 +62,7 @@ class UsersService {
      */
     @RequestMapping(value = "/data", method = RequestMethod.GET)
     public void processDataRequest(final Callback<String> callback,
-                                   final @RequestParam("body") String dataRequestJson) {
+                                   final @RequestParam("request") String dataRequestJson) {
         System.out.println(dataRequestJson);
         DataRequest dataRequest = jsonConverter.fromJson(dataRequestJson, DataRequest.class);
         RequestType dataRequestType = dataRequest.getType();

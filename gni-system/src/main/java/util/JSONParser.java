@@ -172,7 +172,8 @@ public final class JSONParser {
                                               final String newEmail, final String newTelephoneNumber,
                                               final String newAddress, final String newDob, final Long newSsn,
                                               final double newSpendingLimit, final double newBalance,
-                                              final Long newCustomerId) {
+                                              final Long newCustomerId, final String newUsername,
+                                              final String newPassword) {
         Customer customer = new Customer();
         customer.setInitials(newInitials);
         customer.setName(newName);
@@ -183,6 +184,8 @@ public final class JSONParser {
         customer.setDob(newDob);
         customer.setSsn(newSsn);
         customer.setId(newCustomerId);
+        customer.setUsername(newUsername);
+        customer.setPassword(newPassword);
         customer.setAccount(new Account(newInitials + newSurname, newSpendingLimit, newBalance));
         return customer;
     }
@@ -252,6 +255,22 @@ public final class JSONParser {
         request.setAccountNumber(newAccountNumber);
         request.setSuccessfull(newSuccessfull);
         return request;
+    }
+
+    public static Authentication createJsonAuthentication(final String cookie,
+                                                          final AuthenticationType authenticationType) {
+        Authentication authentication = new Authentication();
+        authentication.setType(authenticationType);
+        authentication.setCookie(cookie);
+        return authentication;
+    }
+
+    public static Authentication createJsonAuthenticationLogin(final String username, final String password) {
+        Authentication authentication = new Authentication();
+        authentication.setType(AuthenticationType.LOGIN);
+        authentication.setUsername(username);
+        authentication.setPassword(password);
+        return authentication;
     }
 
     public static String sanitizeJson(final String json){

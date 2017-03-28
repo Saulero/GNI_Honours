@@ -37,6 +37,8 @@ public class Authentication implements Serializable {
         this.cookie = cookie;
     }
 
+    public Authentication() { }
+
     public AuthenticationType getType() {
         return type;
     }

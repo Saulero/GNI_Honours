@@ -25,6 +25,10 @@ public final class Customer implements Serializable {
     private String dob;
     /** Social security number of the customer. */
     private Long ssn;
+    /** Username for logging into the account. */
+    private String username;
+    /** Password for logging into the account. */
+    private String password;
     /** Account of the customer. */
     private Account account;
     /** Id of the customer. */
@@ -168,5 +172,21 @@ public final class Customer implements Serializable {
 
     public void setId(final Long newId) {
         Id = newId;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(final String newUsername) {
+        username = newUsername;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(final String newPassword) {
+        password = newPassword;
     }
 }

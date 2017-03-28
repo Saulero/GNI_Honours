@@ -33,6 +33,7 @@ public final class ServiceManager {
         String testDestinationNumber = "NL52GNIB0987890998";
         String batsNumber = "NL02GNIB0516754934";
         Long batsId = 2L;
+        String cookie = "";
 
         //Start http client
         HttpClient uiClient = httpClientBuilder().setHost("localhost").setPort(9990).build();
@@ -49,7 +50,7 @@ public final class ServiceManager {
                 "730", 20.00);
         doNewCustomerRequest(uiClient, "test", "test", "test", "mats@bats.nl",
                 "061212121212", "Batslaan 25", "20-04-1889",
-                new Long("1234567890"),1000, 0);
+                new Long("1234567890"),1000, 0, "matsbats", "matsbats");
         doTransaction(externalBankClient, testAccountNumber, batsNumber, "Bats",
                 "Moneys",200.00, true);
         doTransaction(uiClient, testAccountNumber, testDestinationNumber, "De Boer",
@@ -117,9 +118,11 @@ public final class ServiceManager {
     private static void doNewCustomerRequest(final HttpClient uiClient, final String initials, final String name,
                                              final String surname, final String email, final String telephoneNumber,
                                              final String address, final String dob, final Long ssn,
-                                             final double spendingLimit, final double balance) {
+                                             final double spendingLimit, final double balance, final String username,
+                                             final String password) {
         Customer customer = JSONParser.createJsonCustomer(initials, name, surname, email, telephoneNumber, address, dob,
-                                                            ssn, spendingLimit, balance);
+                                                            ssn, spendingLimit, balance, new Long("0"),
+                                                            username, password);
         Gson gson = new Gson();
         uiClient.putFormAsyncWith1Param("/services/ui/customer", "body", gson.toJson(customer),
                 (code, contentType, body) -> { if (code == 200) {
@@ -236,7 +239,8 @@ public final class ServiceManager {
                                                               "mats@bats.nl", "0656579876",
                                                               "Batslaan 35", "20-04-1889",
                                                                new Long("1234567890"), 0,
-                                                              0, customerId);
+                                                              0, customerId,  "matsbats",
+                                                              "matsbats");
         Gson gson = new Gson();
         uiClient.putFormAsyncWith1Param("/services/ui/account/new", "body", gson.toJson(accountOwner),
                                                                                     (code, contentType, body) -> {
@@ -249,5 +253,19 @@ public final class ServiceManager {
                 System.out.println(body);
             }
         });
+    }
+
+    private static void doLogin(final HttpClient uiClient, final String username, final String password) {
+        Authentication authentication = JSONParser.createJsonAuthenticationLogin(username, password);
+        Gson gson = new Gson();
+        uiClient.putFormAsyncWith1Param("/services/ui/login", "authData", gson.toJson(authentication),
+                (code, contentType, body) -> {
+            if (code == HTTP_OK) {
+                System.out.println("successfull login, cookie:");
+                System.out.println(body);
+            } else {
+                System.out.println("login failed.");
+            }
+                });
     }
 }
