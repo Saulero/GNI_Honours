@@ -34,6 +34,7 @@ public final class ServiceManager {
         String batsNumber = "NL02GNIB0516754934";
         Long batsId = 2L;
         String cookie = "";
+        //TODO fill this cookie, else the other calls will NOT work.
 
         //Start http client
         HttpClient uiClient = httpClientBuilder().setHost("localhost").setPort(9990).build();
@@ -43,21 +44,22 @@ public final class ServiceManager {
         HttpClient pinClient = httpClientBuilder().setHost("localhost").setPort(9995).build();
         pinClient.start();
         Sys.sleep(1000);
-        doGet(uiClient, "", RequestType.ACCOUNTS, batsId);
-        doAccountLinkRequest(uiClient, batsId, batsNumber);
-        doAccountCreation(uiClient, batsId);
+        doGet(uiClient, "", RequestType.ACCOUNTS, batsId, cookie);
+        doAccountLinkRequest(uiClient, batsId, batsNumber, cookie);
+        doNewAccountRequest(uiClient, batsId);
         doPin(pinClient, batsNumber, testAccountNumber, "De wilde", "8888",
-                "730", 20.00);
+                "730", 20.00, cookie);
         doNewCustomerRequest(uiClient, "test", "test", "test", "mats@bats.nl",
-                "061212121212", "Batslaan 25", "20-04-1889",
-                new Long("1234567890"),1000, 0, "matsbats", "matsbats");
+                             "061212121212", "Batslaan 25", "20-04-1889",
+                              new Long("1234567890"),1000, 0, "matsbats",
+                             "matsbats", cookie);
         doTransaction(externalBankClient, testAccountNumber, batsNumber, "Bats",
-                "Moneys",200.00, true);
+                     "Moneys",200.00, true, cookie);
         doTransaction(uiClient, testAccountNumber, testDestinationNumber, "De Boer",
-                "moar moneys",250.00, false);
-        doGet(uiClient, batsNumber, RequestType.TRANSACTIONHISTORY, batsId);
-        doGet(uiClient, testAccountNumber, RequestType.BALANCE, batsId);
-        doGet(uiClient, testAccountNumber, RequestType.CUSTOMERDATA, batsId);
+                     "moar moneys",250.00, false, cookie);
+        doGet(uiClient, batsNumber, RequestType.TRANSACTIONHISTORY, batsId, cookie);
+        doGet(uiClient, testAccountNumber, RequestType.BALANCE, batsId, cookie);
+        doGet(uiClient, testAccountNumber, RequestType.CUSTOMERDATA, batsId, cookie);
     }
 
     /**
@@ -72,7 +74,8 @@ public final class ServiceManager {
      */
     private static void doTransaction(final HttpClient httpClient, final String sourceAccountNumber,
                                final String destinationAccountNumber, final String destinationAccountHolderName,
-                               final String description, final double transactionAmount, final boolean isExternal) {
+                               final String description, final double transactionAmount, final boolean isExternal,
+                                      final String cookie) {
         Transaction transaction = JSONParser.createJsonTransaction(-1, sourceAccountNumber,
                                     destinationAccountNumber, destinationAccountHolderName, description,
                                     transactionAmount,false, false);
@@ -83,9 +86,9 @@ public final class ServiceManager {
         } else {
             uri = "/services/ui/transaction";
         }
-        httpClient.putFormAsyncWith1Param(uri, "body", gson.toJson(transaction),
-                                        (code, contentType, body) -> {
-            if (code == 200) {
+        httpClient.putFormAsyncWith2Params(uri, "request", gson.toJson(transaction), "cookie",
+                                            cookie, (code, contentType, body) -> {
+            if (code == HTTP_OK) {
                 Transaction reply = gson.fromJson(JSONParser.sanitizeJson(body), Transaction.class);
                 if (reply.isSuccessful() && reply.isProcessed()) {
                     long transactionId = reply.getTransactionID();
@@ -119,13 +122,14 @@ public final class ServiceManager {
                                              final String surname, final String email, final String telephoneNumber,
                                              final String address, final String dob, final Long ssn,
                                              final double spendingLimit, final double balance, final String username,
-                                             final String password) {
+                                             final String password, final String cookie) {
         Customer customer = JSONParser.createJsonCustomer(initials, name, surname, email, telephoneNumber, address, dob,
                                                             ssn, spendingLimit, balance, new Long("0"),
                                                             username, password);
         Gson gson = new Gson();
-        uiClient.putFormAsyncWith1Param("/services/ui/customer", "body", gson.toJson(customer),
-                (code, contentType, body) -> { if (code == 200) {
+        uiClient.putFormAsyncWith2Params("/services/ui/customer", "customer", gson.toJson(customer),
+                                         "cookie", cookie,
+                                          (code, contentType, body) -> { if (code == HTTP_OK) {
                     Customer reply = gson.fromJson(JSONParser.sanitizeJson(body), Customer.class);
                         System.out.println("Customer successfully created in the system.");
                 } else {
@@ -142,12 +146,12 @@ public final class ServiceManager {
      * @param userId Id of the customer we want to request information for.
      */
     private static void doGet(final HttpClient uiClient, final String accountNumber, final RequestType type,
-                              final Long userId) {
+                              final Long userId, final String cookie) {
         DataRequest request = JSONParser.createJsonRequest(accountNumber, type, userId);
         Gson gson = new Gson();
-        uiClient.getAsyncWith1Param("/services/ui/data", "body", gson.toJson(request),
-                (code, contentType, body) -> {
-                    if (code == 200) {
+        uiClient.getAsyncWith2Params("/services/ui/data", "request", gson.toJson(request),
+                                     "cookie", cookie, (code, contentType, body) -> {
+                    if (code == HTTP_OK) {
                         switch (type) {
                             case BALANCE:
                                 DataReply balanceReply = gson.fromJson(JSONParser.sanitizeJson(body), DataReply.class);
@@ -193,12 +197,13 @@ public final class ServiceManager {
      */
     private static void doPin(final HttpClient pinClient, final String sourceAccountNumber,
                               final String destinationAccountNumber, final String destinationAccountHolderName,
-                              final String pinCode, final String cardNumber, final double transactionAmount) {
+                              final String pinCode, final String cardNumber, final double transactionAmount,
+                              final String cookie) {
         PinTransaction pin = JSONParser.createJsonPinTransaction(sourceAccountNumber, destinationAccountNumber,
                 destinationAccountHolderName, pinCode, cardNumber, transactionAmount);
         Gson gson = new Gson();
-        pinClient.putFormAsyncWith1Param("/services/pin/transaction", "body", gson.toJson(pin),
-                                        (code, contentType, body) -> {
+        pinClient.putFormAsyncWith2Params("/services/pin/transaction", "request", gson.toJson(pin),
+                                          "cookie", cookie, (code, contentType, body) -> {
             if (code == HTTP_OK) {
                 Transaction reply = gson.fromJson(JSONParser.sanitizeJson(body), Transaction.class);
                 if (reply.isSuccessful() && reply.isProcessed()) {
@@ -215,11 +220,11 @@ public final class ServiceManager {
     }
 
     private static void doAccountLinkRequest(final HttpClient uiClient, final Long customerId,
-                                             final String accountNumber) {
+                                             final String accountNumber, final String cookie) {
         AccountLink request = JSONParser.createJsonAccountLink(accountNumber, customerId);
         Gson gson = new Gson();
-        uiClient.putFormAsyncWith1Param("/services/ui/account", "body", gson.toJson(request),
-                                            (code, contentType, body) -> {
+        uiClient.putFormAsyncWith2Params("/services/ui/account", "request", gson.toJson(request),
+                                         "cookie", cookie, (code, contentType, body) -> {
             if (code == HTTP_OK) {
                 AccountLink reply = gson.fromJson(JSONParser.sanitizeJson(body), AccountLink.class);
                 if (reply.isSuccessfull()) {
@@ -234,7 +239,7 @@ public final class ServiceManager {
         });
     }
 
-    private static void doAccountCreation(final HttpClient uiClient, final Long customerId) {
+    private static void doNewAccountRequest(final HttpClient uiClient, final Long customerId) {
         Customer accountOwner = JSONParser.createJsonCustomer("M.S.", "Mats", "Bats",
                                                               "mats@bats.nl", "0656579876",
                                                               "Batslaan 35", "20-04-1889",
@@ -242,7 +247,7 @@ public final class ServiceManager {
                                                               0, customerId,  "matsbats",
                                                               "matsbats");
         Gson gson = new Gson();
-        uiClient.putFormAsyncWith1Param("/services/ui/account/new", "body", gson.toJson(accountOwner),
+        uiClient.putFormAsyncWith1Param("/services/ui/account/new", "request", gson.toJson(accountOwner),
                                                                                     (code, contentType, body) -> {
             if (code == HTTP_OK) {
                 Customer reply = gson.fromJson(JSONParser.sanitizeJson(body), Customer.class);
@@ -261,6 +266,7 @@ public final class ServiceManager {
         uiClient.putFormAsyncWith1Param("/services/ui/login", "authData", gson.toJson(authentication),
                 (code, contentType, body) -> {
             if (code == HTTP_OK) {
+                //TODO put this cookie in the variables.
                 System.out.println("successfull login, cookie:");
                 System.out.println(body);
             } else {

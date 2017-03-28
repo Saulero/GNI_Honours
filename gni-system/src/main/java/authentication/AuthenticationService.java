@@ -33,7 +33,7 @@ class AuthenticationService {
     /** Database connection pool containing persistent database connections. */
     private ConnectionPool databaseConnectionPool;
     /** Secure Random Number Generator. */
-    private SecureRandom randomNumberGenerator;
+    private SecureRandom secureRandomNumberGenerator;
     /** Used for Json conversions. */
     private Gson jsonConverter;
 
@@ -43,7 +43,7 @@ class AuthenticationService {
     AuthenticationService(final int usersPort, final String usersHost) {
         this.usersClient = httpClientBuilder().setHost(usersHost).setPort(usersPort).buildAndStart();
         this.databaseConnectionPool = new ConnectionPool();
-        this.randomNumberGenerator = new SecureRandom();
+        this.secureRandomNumberGenerator = new SecureRandom();
         this.jsonConverter = new Gson();
     }
 
@@ -296,7 +296,7 @@ class AuthenticationService {
                     String password = rs.getString("password");
                     if (password.equals(authData.getPassword())) {
                         // Legitimate info
-                        long newToken = randomNumberGenerator.nextLong();
+                        long newToken = secureRandomNumberGenerator.nextLong();
                         setNewToken(userId, newToken);
                         callback.reply(jsonConverter.toJson(JSONParser.createJsonAuthentication(
                                                     encodeCookie(userId, newToken), AuthenticationType.REPLY)));
