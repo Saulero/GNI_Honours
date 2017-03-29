@@ -300,6 +300,7 @@ class AuthenticationService {
                         // Legitimate info
                         long newToken = secureRandomNumberGenerator.nextLong();
                         setNewToken(userId, newToken);
+                        System.out.println(encodeCookie(userId, newToken));
                         callback.reply(jsonConverter.toJson(JSONParser.createJsonAuthentication(
                                                     encodeCookie(userId, newToken), AuthenticationType.REPLY)));
                     } else {

@@ -350,10 +350,10 @@ final class UIService {
                 });
     }
 
-    private void sendLoginRequestCallback(final String cookie, final CallbackBuilder callbackBuilder) {
-        System.out.println(cookie);
+    private void sendLoginRequestCallback(final String loginReplyJson, final CallbackBuilder callbackBuilder) {
+        System.out.println(loginReplyJson);
         System.out.println("UI: Login successfull, sending back cookie.");
-        callbackBuilder.build().reply(cookie);
+        callbackBuilder.build().reply(JSONParser.sanitizeJson(loginReplyJson));
     }
 }
 

@@ -33,7 +33,7 @@ public final class ServiceManager {
         String testDestinationNumber = "NL52GNIB0987890998";
         String batsNumber = "NL02GNIB0516754934";
         Long batsId = 2L;
-        String cookie = "";
+        String cookie = "108:LTM5NzIyMzEzODY3MDQzMjMzNjEu003d";
         //TODO fill this cookie, else the other calls will NOT work.
 
         //Start http client
@@ -44,10 +44,11 @@ public final class ServiceManager {
         HttpClient pinClient = httpClientBuilder().setHost("localhost").setPort(9995).build();
         pinClient.start();
         Sys.sleep(1000);
-        doNewCustomerRequest(uiClient, "test", "test", "test", "mats@bats.nl",
+        doLogin(uiClient, "test", "test");
+        /*doNewCustomerRequest(uiClient, "test", "test", "test", "mats@bats.nl",
                 "061212121212", "Batslaan 25", "20-04-1889",
                 new Long("1234567890"),1000, 0, "test",
-                "test");
+                "test");*/
         /*doGet(uiClient, "", RequestType.ACCOUNTS, batsId, cookie);
         doAccountLinkRequest(uiClient, batsId, batsNumber, cookie);
         doNewAccountRequest(uiClient, batsId);
@@ -269,6 +270,8 @@ public final class ServiceManager {
                 //TODO put this cookie in the variables.
                 System.out.println("successfull login, cookie:");
                 System.out.println(body);
+                Authentication authenticationReply = gson.fromJson(JSONParser.sanitizeJson(body), Authentication.class);
+                System.out.println(authenticationReply.getCookie());
             } else {
                 System.out.println("login failed.");
             }
