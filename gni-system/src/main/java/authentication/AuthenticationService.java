@@ -217,6 +217,7 @@ class AuthenticationService {
     @RequestMapping(value = "/customer", method = RequestMethod.PUT)
     public void processNewCustomerRequest(final Callback<String> callback,
                                           @RequestParam("customer") final String newCustomerRequestJson) {
+        System.out.println(newCustomerRequestJson);
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         doNewCustomerRequest(newCustomerRequestJson, callbackBuilder);
     }
@@ -230,11 +231,11 @@ class AuthenticationService {
     private void doNewCustomerRequest(final String newCustomerRequestJson,
                                       final CallbackBuilder callbackBuilder) {
         System.out.println("UI: Sending customer creation request to Users");
-        usersClient.putFormAsyncWith1Param("/services/users/customer", "body",
+        usersClient.putFormAsyncWith1Param("/services/users/customer", "customer",
                 newCustomerRequestJson,
                 (httpStatusCode, httpContentType, newCustomerReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        handleLoginCreationExceptions(newCustomerReplyJson, callbackBuilder);
+                        handleLoginCreationExceptions(JSONParser.sanitizeJson(newCustomerReplyJson), callbackBuilder);
                     } else {
                         callbackBuilder.build().reject("Customer creation request failed.");
                     }
@@ -242,6 +243,7 @@ class AuthenticationService {
     }
 
     private void handleLoginCreationExceptions(final String newCustomerReplyJson, final CallbackBuilder callbackBuilder) {
+        System.out.println(newCustomerReplyJson);
         Customer customerToEnroll = jsonConverter.fromJson(newCustomerReplyJson, Customer.class);
         try {
             registerNewCustomerLogin(customerToEnroll);
@@ -272,7 +274,7 @@ class AuthenticationService {
     private void sendNewCustomerRequestCallback(final String newCustomerReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
         System.out.println("UI: Customer creation successfull, sending callback.");
-        callbackBuilder.build().reply(JSONParser.sanitizeJson(newCustomerReplyJson));
+        callbackBuilder.build().reply(newCustomerReplyJson);
     }
 
     // TODO Should be invoked when login credentials are entered
@@ -463,6 +465,8 @@ class AuthenticationService {
         System.out.println("UI: Successfull account creation request, sending callback.");
         callbackBuilder.build().reply(JSONParser.sanitizeJson(newAccountReplyJson));
     }
+
+
 
     /**
      * Safely shuts down the AuthenticationService.

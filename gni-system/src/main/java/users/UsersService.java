@@ -295,7 +295,8 @@ class UsersService {
      */
     @RequestMapping(value = "/customer", method = RequestMethod.PUT)
     public void processNewCustomer(final Callback<String> callback,
-                                   final @RequestParam("body") String customerRequestJson) {
+                                   final @RequestParam("customer") String customerRequestJson) {
+        System.out.println(customerRequestJson);
         Customer customerToEnroll = jsonConverter.fromJson(customerRequestJson, Customer.class);
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         handleNewCustomerRequestExceptions(customerToEnroll, callbackBuilder);

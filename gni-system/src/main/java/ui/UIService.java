@@ -24,8 +24,6 @@ import static java.net.HttpURLConnection.HTTP_OK;
  */
 @RequestMapping("/ui")
 final class UIService {
-    /** Connection to the users service. */
-    private HttpClient usersClient;
     /** Connection to the authentication service. */
     private HttpClient authenticationClient;
     /** Used for json conversions. */
@@ -170,7 +168,7 @@ final class UIService {
     private void doTransactionRequest(final String transactionRequestJson, final String cookie,
                                       final CallbackBuilder callbackBuilder) {
         System.out.println("UI: Forwarding transaction request.");
-        usersClient.putFormAsyncWith2Params("/services/authentication/transaction", "request",
+        authenticationClient.putFormAsyncWith2Params("/services/authentication/transaction", "request",
                                             transactionRequestJson, "cookie", cookie,
                                             (httpStatusCode, httpContentType, transactionReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
@@ -199,10 +197,9 @@ final class UIService {
      */
     @RequestMapping(value = "/customer", method = RequestMethod.PUT)
     public void processNewCustomerRequest(final Callback<String> callback,
-                                          @RequestParam("request") final String newCustomerRequestJson,
-                                          @RequestParam("cookie") final String cookie) {
+                                          @RequestParam("customer") final String newCustomerRequestJson) {
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        doNewCustomerRequest(newCustomerRequestJson, cookie, callbackBuilder);
+        doNewCustomerRequest(newCustomerRequestJson, callbackBuilder);
     }
 
     /**
@@ -211,15 +208,18 @@ final class UIService {
      * @param newCustomerRequestJson Json String representing a Customer that should be created {@link Customer}.
      * @param callbackBuilder Used to send the response of the creation request back to the source of the request.
      */
-    private void doNewCustomerRequest(final String newCustomerRequestJson, final String cookie,
-                                      final CallbackBuilder callbackBuilder) {
-        System.out.println("UI: Sending customer creation request to Users");
-        usersClient.putFormAsyncWith2Params("/services/authentication/customer", "request",
-                                            newCustomerRequestJson, "cookie", cookie,
+    private void doNewCustomerRequest(final String newCustomerRequestJson, final CallbackBuilder callbackBuilder) {
+        System.out.println("UI: Sending customer creation request to Authentication");
+        System.out.println(newCustomerRequestJson);
+        authenticationClient.putFormAsyncWith1Param("/services/authentication/customer", "customer",
+                                            newCustomerRequestJson,
                                             (httpStatusCode, httpContentType, newCustomerReplyJson) -> {
+                                                System.out.println("adasdasdas");
                     if (httpStatusCode == HTTP_OK) {
+                        System.out.println("sending callback");
                         sendNewCustomerRequestCallback(newCustomerReplyJson, callbackBuilder);
                     } else {
+                        System.out.println("fail: " + newCustomerReplyJson);
                         callbackBuilder.build().reject("Customer creation request failed.");
                     }
                 });
@@ -261,7 +261,7 @@ final class UIService {
      */
     private void doAccountLinkRequest(final String accountLinkRequestJson, final String cookie,
                                       final CallbackBuilder callbackBuilder) {
-        usersClient.putFormAsyncWith2Params("/services/authentication/account", "request",
+        authenticationClient.putFormAsyncWith2Params("/services/authentication/account", "request",
                 accountLinkRequestJson, "cookie", cookie,
                 ((httpStatusCode, httpContentType, accountLinkReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
@@ -309,7 +309,7 @@ final class UIService {
      */
     private void doNewAccountRequest(final String newAccountRequestJson, final String cookie,
                                      final CallbackBuilder callbackBuilder) {
-        usersClient.putFormAsyncWith2Params("/services/authentication/account/new", "request",
+        authenticationClient.putFormAsyncWith2Params("/services/authentication/account/new", "request",
                 newAccountRequestJson, "cookie", cookie,
                 (httpStatusCode, httpContentType, newAccountReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
@@ -331,7 +331,30 @@ final class UIService {
         callbackBuilder.build().reply(JSONParser.sanitizeJson(newAccountReplyJson));
     }
 
-    //todo create login methods.
+    @RequestMapping(value = "/login", method = RequestMethod.PUT)
+    public void processLoginRequest(final Callback<String> callback,
+                                    @RequestParam("authData") final String authDataJson) {
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        doLoginRequest(authDataJson, callbackBuilder);
+    }
+
+    private void doLoginRequest(final String authDataJson, final CallbackBuilder callbackBuilder) {
+        authenticationClient.putFormAsyncWith1Param("/services/authentication/login", "authData",
+                authDataJson, (code, contentType, body) -> {
+            if (code == HTTP_OK) {
+                sendLoginRequestCallback(body, callbackBuilder);
+            } else {
+                System.out.println(body);
+                callbackBuilder.build().reject("Login not successfull.");
+            }
+                });
+    }
+
+    private void sendLoginRequestCallback(final String cookie, final CallbackBuilder callbackBuilder) {
+        System.out.println(cookie);
+        System.out.println("UI: Login successfull, sending back cookie.");
+        callbackBuilder.build().reply(cookie);
+    }
 }
 
 

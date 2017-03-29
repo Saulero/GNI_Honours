@@ -44,22 +44,22 @@ public final class ServiceManager {
         HttpClient pinClient = httpClientBuilder().setHost("localhost").setPort(9995).build();
         pinClient.start();
         Sys.sleep(1000);
-        doGet(uiClient, "", RequestType.ACCOUNTS, batsId, cookie);
+        doNewCustomerRequest(uiClient, "test", "test", "test", "mats@bats.nl",
+                "061212121212", "Batslaan 25", "20-04-1889",
+                new Long("1234567890"),1000, 0, "test",
+                "test");
+        /*doGet(uiClient, "", RequestType.ACCOUNTS, batsId, cookie);
         doAccountLinkRequest(uiClient, batsId, batsNumber, cookie);
         doNewAccountRequest(uiClient, batsId);
         doPin(pinClient, batsNumber, testAccountNumber, "De wilde", "8888",
                 "730", 20.00, cookie);
-        doNewCustomerRequest(uiClient, "test", "test", "test", "mats@bats.nl",
-                             "061212121212", "Batslaan 25", "20-04-1889",
-                              new Long("1234567890"),1000, 0, "matsbats",
-                             "matsbats", cookie);
         doTransaction(externalBankClient, testAccountNumber, batsNumber, "Bats",
                      "Moneys",200.00, true, cookie);
         doTransaction(uiClient, testAccountNumber, testDestinationNumber, "De Boer",
                      "moar moneys",250.00, false, cookie);
         doGet(uiClient, batsNumber, RequestType.TRANSACTIONHISTORY, batsId, cookie);
         doGet(uiClient, testAccountNumber, RequestType.BALANCE, batsId, cookie);
-        doGet(uiClient, testAccountNumber, RequestType.CUSTOMERDATA, batsId, cookie);
+        doGet(uiClient, testAccountNumber, RequestType.CUSTOMERDATA, batsId, cookie);*/
     }
 
     /**
@@ -122,13 +122,13 @@ public final class ServiceManager {
                                              final String surname, final String email, final String telephoneNumber,
                                              final String address, final String dob, final Long ssn,
                                              final double spendingLimit, final double balance, final String username,
-                                             final String password, final String cookie) {
+                                             final String password) {
+        //todo make sure customer cant set his own balance/spendingLimit
         Customer customer = JSONParser.createJsonCustomer(initials, name, surname, email, telephoneNumber, address, dob,
                                                             ssn, spendingLimit, balance, new Long("0"),
                                                             username, password);
         Gson gson = new Gson();
-        uiClient.putFormAsyncWith2Params("/services/ui/customer", "customer", gson.toJson(customer),
-                                         "cookie", cookie,
+        uiClient.putFormAsyncWith1Param("/services/ui/customer", "customer", gson.toJson(customer),
                                           (code, contentType, body) -> { if (code == HTTP_OK) {
                     Customer reply = gson.fromJson(JSONParser.sanitizeJson(body), Customer.class);
                         System.out.println("Customer successfully created in the system.");
