@@ -46,11 +46,11 @@ public final class ServiceManager {
         Sys.sleep(1000);
         //TODO dologin does not return the correct cookie.
         //doLogin(uiClient, "test", "test");
-        /*doNewCustomerRequest(uiClient, "test", "test", "test", "mats@bats.nl",
+        doNewCustomerRequest(uiClient, "test", "test", "test", "mats@bats.nl",
                 "061212121212", "Batslaan 25", "20-04-1889",
-                new Long("1234567890"),1000, 0, "test",
-                "test");*/
-        //doNewAccountRequest(uiClient, batsId);
+                new Long("1234567890"),1000, 100000, "test",
+                "test");
+        /*doNewAccountRequest(uiClient, batsId);
         doGet(uiClient, "", RequestType.ACCOUNTS, batsId, cookie);
         doAccountLinkRequest(uiClient, batsId, batsNumber, cookie);
         doPin(pinClient, batsNumber, testAccountNumber, "De wilde", "8888",
@@ -58,10 +58,10 @@ public final class ServiceManager {
         doExternalTransaction(externalBankClient, testAccountNumber, batsNumber, "Bats",
                      "Moneys",200.00);
         doInternalTransaction(uiClient, testAccountNumber, testDestinationNumber, "De Boer",
-                     "moar moneys",2.00, cookie);
-        doGet(uiClient, batsNumber, RequestType.TRANSACTIONHISTORY, batsId, cookie);
-        doGet(uiClient, testAccountNumber, RequestType.BALANCE, batsId, cookie);
-        doGet(uiClient, testAccountNumber, RequestType.CUSTOMERDATA, batsId, cookie);
+                     "moar moneys",2.00, cookie);*/
+        //doGet(uiClient, batsNumber, RequestType.TRANSACTIONHISTORY, batsId, cookie);
+        /*doGet(uiClient, testAccountNumber, RequestType.BALANCE, batsId, cookie);
+        doGet(uiClient, testAccountNumber, RequestType.CUSTOMERDATA, batsId, cookie);*/
     }
 
     /**

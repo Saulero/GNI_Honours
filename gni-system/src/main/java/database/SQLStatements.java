@@ -28,4 +28,5 @@ public final class SQLStatements {
     public static final String updateToken = "UPDATE authentication SET authentication.token = ?, authentication.token_validity = ? WHERE authentication.user_id = ?";
     public static final String updateTokenValidity = "UPDATE authentication SET authentication.token_validity = ? WHERE authentication.user_id = ?";
     public static final String getAccountLinkCount = "SELECT count(*) FROM accounts WHERE user_id = ? AND account_number = ?";
+    public static final String getLoginUsernameCount = "SELECT count(*) FROM authentication WHERE username = ?";
 }

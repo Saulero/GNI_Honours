@@ -58,20 +58,13 @@ class AuthenticationService {
     private void handleDataRequestExceptions(final String dataRequestJson, final String cookie,
                                              final CallbackBuilder callbackBuilder) {
         try {
-            System.out.println(cookie);
-            System.out.println(dataRequestJson);
             authenticateRequest(cookie);
-            System.out.println("after authentication");
             DataRequest dataRequest = jsonConverter.fromJson(dataRequestJson, DataRequest.class);
-            System.out.println("converted");
             dataRequest.setCustomerId(getCustomerId(cookie));
-            System.out.println("setid");
             doDataRequest(jsonConverter.toJson(dataRequest), callbackBuilder);
         } catch (SQLException e) {
-            System.out.println("sql fail");
             callbackBuilder.build().reject("Failed to query database.");
         } catch (UserNotAuthorizedException e) {
-            System.out.println("not authorized");
             callbackBuilder.build().reject("CookieData does not belong to an authorized user.");
         }
     }
@@ -230,7 +223,32 @@ class AuthenticationService {
                                           @RequestParam("customer") final String newCustomerRequestJson) {
         System.out.println(newCustomerRequestJson);
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        doNewCustomerRequest(newCustomerRequestJson, callbackBuilder);
+        handleUsernameValidationExceptions(newCustomerRequestJson, callbackBuilder);
+    }
+
+    private void handleUsernameValidationExceptions(final String newCustomerRequestJson,
+                                                    final CallbackBuilder callbackBuilder) {
+        try {
+            validateUsername(jsonConverter.fromJson(newCustomerRequestJson, Customer.class));
+            doNewCustomerRequest(newCustomerRequestJson, callbackBuilder);
+        } catch (SQLException e) {
+            callbackBuilder.build().reject("Error connecting to authentication databse.");
+        } catch (UsernameTakenException e) {
+            callbackBuilder.build().reject("Username taken, please choose a different username.");
+        }
+    }
+
+    private void validateUsername(final Customer customerToEnroll) throws SQLException, UsernameTakenException {
+        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+        PreparedStatement getUsernameCount = databaseConnection.getConnection()
+                .prepareStatement(getLoginUsernameCount);
+        getUsernameCount.setString(1, customerToEnroll.getUsername());
+        ResultSet userNameOccurences = getUsernameCount.executeQuery();
+        if (userNameOccurences.next() && userNameOccurences.getLong(1) > 0) {
+            throw new UsernameTakenException("Username already exists in database.");
+        }
+        getUsernameCount.close();
+        databaseConnectionPool.returnConnection(databaseConnection);
     }
 
     /**
