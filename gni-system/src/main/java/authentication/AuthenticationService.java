@@ -58,13 +58,20 @@ class AuthenticationService {
     private void handleDataRequestExceptions(final String dataRequestJson, final String cookie,
                                              final CallbackBuilder callbackBuilder) {
         try {
+            System.out.println(cookie);
+            System.out.println(dataRequestJson);
             authenticateRequest(cookie);
+            System.out.println("after authentication");
             DataRequest dataRequest = jsonConverter.fromJson(dataRequestJson, DataRequest.class);
+            System.out.println("converted");
             dataRequest.setCustomerId(getCustomerId(cookie));
+            System.out.println("setid");
             doDataRequest(jsonConverter.toJson(dataRequest), callbackBuilder);
         } catch (SQLException e) {
+            System.out.println("sql fail");
             callbackBuilder.build().reject("Failed to query database.");
         } catch (UserNotAuthorizedException e) {
+            System.out.println("not authorized");
             callbackBuilder.build().reject("CookieData does not belong to an authorized user.");
         }
     }
@@ -73,6 +80,8 @@ class AuthenticationService {
         Long[] cookieData = decodeCookie(cookie);
         long customerId = cookieData[0];
         long cookieToken = cookieData[1];
+        System.out.println(customerId);
+        System.out.println(cookieToken);
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement getAuthenticationData = databaseConnection.getConnection()
                                                                     .prepareStatement(getAuthenticationData2);
@@ -98,7 +107,9 @@ class AuthenticationService {
         String[] cookieParts = cookie.split(":");
         Long[] cookieData = new Long[2];
         cookieData[0] = Long.parseLong(cookieParts[0]); //customerId
+        System.out.println("parsed customerId");
         cookieData[1] = Long.parseLong(new String(Base64.getDecoder().decode(cookieParts[1].getBytes()))); //customerToken
+        System.out.println("returning");
         return cookieData;
     }
 
@@ -147,7 +158,7 @@ class AuthenticationService {
 
     private void sendDataRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
         System.out.println("Auth: Sending data reply back to UI.");
-        callbackBuilder.build().reply(JSONParser.sanitizeJson(dataReplyJson));
+        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(dataReplyJson));
     }
 
     /**
@@ -205,7 +216,7 @@ class AuthenticationService {
     private void sendTransactionRequestCallback(final String transactionReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
         System.out.println("UI: Transaction successfully executed, sent callback.");
-        callbackBuilder.build().reply(JSONParser.sanitizeJson(transactionReplyJson));
+        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(transactionReplyJson));
     }
 
     // TODO Should be invoked when a new user is created
@@ -235,7 +246,7 @@ class AuthenticationService {
                 newCustomerRequestJson,
                 (httpStatusCode, httpContentType, newCustomerReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        handleLoginCreationExceptions(JSONParser.sanitizeJson(newCustomerReplyJson), callbackBuilder);
+                        handleLoginCreationExceptions(JSONParser.removeEscapeCharacters(newCustomerReplyJson), callbackBuilder);
                     } else {
                         callbackBuilder.build().reject("Customer creation request failed.");
                     }
@@ -300,9 +311,12 @@ class AuthenticationService {
                         // Legitimate info
                         long newToken = secureRandomNumberGenerator.nextLong();
                         setNewToken(userId, newToken);
-                        System.out.println(encodeCookie(userId, newToken));
-                        callback.reply(jsonConverter.toJson(JSONParser.createJsonAuthentication(
-                                                    encodeCookie(userId, newToken), AuthenticationType.REPLY)));
+                        System.out.println(jsonConverter.toJson(JSONParser.createJsonAuthentication(
+                                encodeCookie(userId, newToken), AuthenticationType.REPLY)));
+                        callback.resolve(jsonConverter.toJson(JSONParser.createJsonAuthentication(
+                                encodeCookie(userId, newToken), AuthenticationType.REPLY)));
+                        //callback.reply(jsonConverter.toJson(JSONParser.createJsonAuthentication(
+                        //                            encodeCookie(userId, newToken), AuthenticationType.REPLY)));
                     } else {
                         // Illegitimate info
                         callback.reject("Invalid username/password combination");
@@ -404,7 +418,7 @@ class AuthenticationService {
     private void sendAccountLinkRequestCallback(final String accountLinkReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
         System.out.println("Auth: Successfull account link, sending callback.");
-        callbackBuilder.build().reply(JSONParser.sanitizeJson(accountLinkReplyJson));
+        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(accountLinkReplyJson));
     }
 
     /**
@@ -464,7 +478,7 @@ class AuthenticationService {
     private void sendNewAccountRequestCallback(final String newAccountReplyJson,
                                                final CallbackBuilder callbackBuilder) {
         System.out.println("UI: Successfull account creation request, sending callback.");
-        callbackBuilder.build().reply(JSONParser.sanitizeJson(newAccountReplyJson));
+        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(newAccountReplyJson));
     }
 
 

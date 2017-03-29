@@ -221,7 +221,7 @@ class UsersService {
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
     private void sendLedgerDataRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
-        callbackBuilder.build().reply(JSONParser.sanitizeJson(dataReplyJson));
+        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(dataReplyJson));
         System.out.println("Users: Sent ledger data request callback to UI.");
     }
 
@@ -264,7 +264,7 @@ class UsersService {
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
     private void processTransactionReply(final String transactionReplyJson, final CallbackBuilder callbackBuilder) {
-        Transaction transactionReply = jsonConverter.fromJson(JSONParser.sanitizeJson(transactionReplyJson),
+        Transaction transactionReply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson),
                                                               Transaction.class);
         if (transactionReply.isProcessed() && transactionReply.isSuccessful()) {
             sendTransactionRequestCallback(transactionReplyJson, callbackBuilder);
@@ -283,7 +283,7 @@ class UsersService {
      */
     private void sendTransactionRequestCallback(final String transactionReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
-        callbackBuilder.build().reply(JSONParser.sanitizeJson(transactionReplyJson));
+        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(transactionReplyJson));
         System.out.println("Users: Transaction was successfull, sent callback to UI.");
     }
 
@@ -385,7 +385,7 @@ class UsersService {
      */
     private void processNewAccountReply(final String replyAccountJson, final Customer accountOwner,
                                         final CallbackBuilder callbackBuilder) {
-        Account assignedAccount = jsonConverter.fromJson(JSONParser.sanitizeJson(replyAccountJson), Account.class);
+        Account assignedAccount = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyAccountJson), Account.class);
         accountOwner.setAccount(assignedAccount);
         handleNewAccountLinkExceptions(accountOwner, callbackBuilder);
     }
@@ -511,7 +511,7 @@ class UsersService {
      */
     private void processAccountExistsReply(final String dataReplyJson, final Long customerId,
                                            final CallbackBuilder callbackBuilder) {
-        DataReply ledgerReply = jsonConverter.fromJson(JSONParser.sanitizeJson(dataReplyJson), DataReply.class);
+        DataReply ledgerReply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(dataReplyJson), DataReply.class);
         if (ledgerReply.isAccountInLedger()) {
             handleAccountLinkExceptions(ledgerReply.getAccountNumber(), customerId, callbackBuilder);
         } else {

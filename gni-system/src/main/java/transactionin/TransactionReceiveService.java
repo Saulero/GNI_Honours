@@ -71,7 +71,7 @@ public class TransactionReceiveService {
 
     private void processIncomingTransactionReply(final String transactionReplyJson,
                                                  final CallbackBuilder callbackBuilder) {
-        Transaction reply = jsonConverter.fromJson(JSONParser.sanitizeJson(transactionReplyJson), Transaction.class);
+        Transaction reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson), Transaction.class);
         if (reply.isProcessed() && reply.isSuccessful()) {
             sendIncomingTransactionRequestCallback(transactionReplyJson, callbackBuilder);
             //TODO send reply to external bank.
@@ -83,6 +83,6 @@ public class TransactionReceiveService {
     private void sendIncomingTransactionRequestCallback(final String transactionReplyJson,
                                                         final CallbackBuilder callbackBuilder) {
         System.out.println("TransactionReceive: Successfully processed incoming transaction");
-        callbackBuilder.build().reply(JSONParser.sanitizeJson(transactionReplyJson));
+        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(transactionReplyJson));
     }
 }

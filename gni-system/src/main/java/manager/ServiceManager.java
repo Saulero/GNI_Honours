@@ -33,7 +33,7 @@ public final class ServiceManager {
         String testDestinationNumber = "NL52GNIB0987890998";
         String batsNumber = "NL02GNIB0516754934";
         Long batsId = 2L;
-        String cookie = "108:LTM5NzIyMzEzODY3MDQzMjMzNjEu003d";
+        String cookie = "108:LTIzMjc4MDE4NzUyMzAxNjYwNzc=";
         //TODO fill this cookie, else the other calls will NOT work.
 
         //Start http client
@@ -44,23 +44,24 @@ public final class ServiceManager {
         HttpClient pinClient = httpClientBuilder().setHost("localhost").setPort(9995).build();
         pinClient.start();
         Sys.sleep(1000);
-        doLogin(uiClient, "test", "test");
+        //TODO dologin does not return the correct cookie.
+        //doLogin(uiClient, "test", "test");
         /*doNewCustomerRequest(uiClient, "test", "test", "test", "mats@bats.nl",
                 "061212121212", "Batslaan 25", "20-04-1889",
                 new Long("1234567890"),1000, 0, "test",
                 "test");*/
-        /*doGet(uiClient, "", RequestType.ACCOUNTS, batsId, cookie);
+        //doNewAccountRequest(uiClient, batsId);
+        doGet(uiClient, "", RequestType.ACCOUNTS, batsId, cookie);
         doAccountLinkRequest(uiClient, batsId, batsNumber, cookie);
-        doNewAccountRequest(uiClient, batsId);
         doPin(pinClient, batsNumber, testAccountNumber, "De wilde", "8888",
-                "730", 20.00, cookie);
-        doTransaction(externalBankClient, testAccountNumber, batsNumber, "Bats",
-                     "Moneys",200.00, true, cookie);
-        doTransaction(uiClient, testAccountNumber, testDestinationNumber, "De Boer",
-                     "moar moneys",250.00, false, cookie);
+                "730", 20.00);
+        doExternalTransaction(externalBankClient, testAccountNumber, batsNumber, "Bats",
+                     "Moneys",200.00);
+        doInternalTransaction(uiClient, testAccountNumber, testDestinationNumber, "De Boer",
+                     "moar moneys",2.00, cookie);
         doGet(uiClient, batsNumber, RequestType.TRANSACTIONHISTORY, batsId, cookie);
         doGet(uiClient, testAccountNumber, RequestType.BALANCE, batsId, cookie);
-        doGet(uiClient, testAccountNumber, RequestType.CUSTOMERDATA, batsId, cookie);*/
+        doGet(uiClient, testAccountNumber, RequestType.CUSTOMERDATA, batsId, cookie);
     }
 
     /**
@@ -70,39 +71,63 @@ public final class ServiceManager {
      * @param destinationAccountNumber Destination account for the transaction.
      * @param destinationAccountHolderName Name of the destination account holder.
      * @param transactionAmount Amount to transfer.
-     * @param isExternal Boolean indicating if the transaction is from an external bank(so to the transaction receive
-     *                   service) or from a user (so to the ui service).
      */
-    private static void doTransaction(final HttpClient httpClient, final String sourceAccountNumber,
+    private static void doInternalTransaction(final HttpClient httpClient, final String sourceAccountNumber,
                                final String destinationAccountNumber, final String destinationAccountHolderName,
-                               final String description, final double transactionAmount, final boolean isExternal,
-                                      final String cookie) {
+                               final String description, final double transactionAmount, final String cookie) {
         Transaction transaction = JSONParser.createJsonTransaction(-1, sourceAccountNumber,
                                     destinationAccountNumber, destinationAccountHolderName, description,
                                     transactionAmount,false, false);
         Gson gson = new Gson();
-        String uri;
-        if (isExternal) {
-            uri = "/services/transactionReceive/transaction";
-        } else {
-            uri = "/services/ui/transaction";
-        }
-        httpClient.putFormAsyncWith2Params(uri, "request", gson.toJson(transaction), "cookie",
+        httpClient.putFormAsyncWith2Params("/services/ui/transaction", "request", gson.toJson(transaction), "cookie",
                                             cookie, (code, contentType, body) -> {
             if (code == HTTP_OK) {
-                Transaction reply = gson.fromJson(JSONParser.sanitizeJson(body), Transaction.class);
+                Transaction reply = gson.fromJson(JSONParser.removeEscapeCharacters(body), Transaction.class);
                 if (reply.isSuccessful() && reply.isProcessed()) {
                     long transactionId = reply.getTransactionID();
-                    System.out.printf("Transaction %d successfull.\n", transactionId);
+                    System.out.printf("Internal transaction %d successfull.\n", transactionId);
                 } else if (!reply.isProcessed()) {
-                    System.out.println("Transaction couldn't be processed");
+                    System.out.println("Internal transaction couldn't be processed");
                 } else {
-                    System.out.println("Transaction was not successfull");
+                    System.out.println("Internal transaction was not successfull");
                 }
             } else {
                 System.out.println("Transaction request failed.");
             }
         });
+    }
+
+    /**
+     * Performs a transaction by calling the transaction receive service or the ui service.
+     * @param httpClient Client connected to the service to be called.
+     * @param sourceAccountNumber Source account for the transaction.
+     * @param destinationAccountNumber Destination account for the transaction.
+     * @param destinationAccountHolderName Name of the destination account holder.
+     * @param transactionAmount Amount to transfer.
+     */
+    private static void doExternalTransaction(final HttpClient httpClient, final String sourceAccountNumber,
+                                              final String destinationAccountNumber, final String destinationAccountHolderName,
+                                              final String description, final double transactionAmount) {
+        Transaction transaction = JSONParser.createJsonTransaction(-1, sourceAccountNumber,
+                destinationAccountNumber, destinationAccountHolderName, description,
+                transactionAmount,false, false);
+        Gson gson = new Gson();
+        httpClient.putFormAsyncWith1Param("/services/transactionReceive/transaction", "request", gson.toJson(transaction),
+                (code, contentType, body) -> {
+                    if (code == HTTP_OK) {
+                        Transaction reply = gson.fromJson(JSONParser.removeEscapeCharacters(body), Transaction.class);
+                        if (reply.isSuccessful() && reply.isProcessed()) {
+                            long transactionId = reply.getTransactionID();
+                            System.out.printf("Transaction %d successfull.\n", transactionId);
+                        } else if (!reply.isProcessed()) {
+                            System.out.println("Transaction couldn't be processed");
+                        } else {
+                            System.out.println("Transaction was not successfull");
+                        }
+                    } else {
+                        System.out.println("Transaction request failed.");
+                    }
+                });
     }
 
     /**
@@ -131,7 +156,7 @@ public final class ServiceManager {
         Gson gson = new Gson();
         uiClient.putFormAsyncWith1Param("/services/ui/customer", "customer", gson.toJson(customer),
                                           (code, contentType, body) -> { if (code == HTTP_OK) {
-                    Customer reply = gson.fromJson(JSONParser.sanitizeJson(body), Customer.class);
+                    Customer reply = gson.fromJson(JSONParser.removeEscapeCharacters(body), Customer.class);
                         System.out.println("Customer successfully created in the system.");
                 } else {
                     System.out.println("Customer creation request failed, body: " + body);
@@ -155,25 +180,25 @@ public final class ServiceManager {
                     if (code == HTTP_OK) {
                         switch (type) {
                             case BALANCE:
-                                DataReply balanceReply = gson.fromJson(JSONParser.sanitizeJson(body), DataReply.class);
+                                DataReply balanceReply = gson.fromJson(JSONParser.removeEscapeCharacters(body), DataReply.class);
                                 System.out.printf("Request successfull, balance: %f\n",
                                         balanceReply.getAccountData().getBalance());
                                 break;
                             case TRANSACTIONHISTORY:
-                                DataReply transactionReply = gson.fromJson(JSONParser.sanitizeJson(body),
+                                DataReply transactionReply = gson.fromJson(JSONParser.removeEscapeCharacters(body),
                                                                             DataReply.class);
                                 for (Transaction x : transactionReply.getTransactions()) {
                                     System.out.println(x.toString());
                                 }
                                 break;
                             case CUSTOMERDATA:
-                                Customer customerReply = gson.fromJson(JSONParser.sanitizeJson(body), Customer.class);
+                                Customer customerReply = gson.fromJson(JSONParser.removeEscapeCharacters(body), Customer.class);
                                 System.out.printf("Request successfull, Name: %s, dob: %s\n",
                                                             customerReply.getInitials() + customerReply.getSurname(),
                                                             customerReply.getDob());
                                 break;
                             case ACCOUNTS:
-                                DataReply accountsReply = gson.fromJson(JSONParser.sanitizeJson(body), DataReply.class);
+                                DataReply accountsReply = gson.fromJson(JSONParser.removeEscapeCharacters(body), DataReply.class);
                                 System.out.printf("Request successfull, accounts: %s\n", accountsReply.getAccounts());
                                 break;
                             default:
@@ -198,15 +223,14 @@ public final class ServiceManager {
      */
     private static void doPin(final HttpClient pinClient, final String sourceAccountNumber,
                               final String destinationAccountNumber, final String destinationAccountHolderName,
-                              final String pinCode, final String cardNumber, final double transactionAmount,
-                              final String cookie) {
+                              final String pinCode, final String cardNumber, final double transactionAmount) {
         PinTransaction pin = JSONParser.createJsonPinTransaction(sourceAccountNumber, destinationAccountNumber,
                 destinationAccountHolderName, pinCode, cardNumber, transactionAmount);
         Gson gson = new Gson();
-        pinClient.putFormAsyncWith2Params("/services/pin/transaction", "request", gson.toJson(pin),
-                                          "cookie", cookie, (code, contentType, body) -> {
+        pinClient.putFormAsyncWith1Param("/services/pin/transaction", "request", gson.toJson(pin),
+                                        (code, contentType, body) -> {
             if (code == HTTP_OK) {
-                Transaction reply = gson.fromJson(JSONParser.sanitizeJson(body), Transaction.class);
+                Transaction reply = gson.fromJson(JSONParser.removeEscapeCharacters(body), Transaction.class);
                 if (reply.isSuccessful() && reply.isProcessed()) {
                     System.out.println("Pin transaction successfull.");
                 } else if (!reply.isProcessed()) {
@@ -227,7 +251,7 @@ public final class ServiceManager {
         uiClient.putFormAsyncWith2Params("/services/ui/account", "request", gson.toJson(request),
                                          "cookie", cookie, (code, contentType, body) -> {
             if (code == HTTP_OK) {
-                AccountLink reply = gson.fromJson(JSONParser.sanitizeJson(body), AccountLink.class);
+                AccountLink reply = gson.fromJson(JSONParser.removeEscapeCharacters(body), AccountLink.class);
                 if (reply.isSuccessfull()) {
                     System.out.printf("Account link successfull for Account Holder: %s, AccountNumber: %s\n",
                                                                     reply.getCustomerId(), reply.getAccountNumber());
@@ -251,7 +275,7 @@ public final class ServiceManager {
         uiClient.putFormAsyncWith1Param("/services/ui/account/new", "request", gson.toJson(accountOwner),
                                                                                     (code, contentType, body) -> {
             if (code == HTTP_OK) {
-                Customer reply = gson.fromJson(JSONParser.sanitizeJson(body), Customer.class);
+                Customer reply = gson.fromJson(JSONParser.removeEscapeCharacters(body), Customer.class);
                 System.out.printf("New Account creation successfull, Account Holder: %s, AccountNumber: %s\n",
                                   reply.getId(), reply.getAccount().getAccountNumber());
             } else {
@@ -270,7 +294,7 @@ public final class ServiceManager {
                 //TODO put this cookie in the variables.
                 System.out.println("successfull login, cookie:");
                 System.out.println(body);
-                Authentication authenticationReply = gson.fromJson(JSONParser.sanitizeJson(body), Authentication.class);
+                Authentication authenticationReply = gson.fromJson(JSONParser.removeEscapeCharacters(body), Authentication.class);
                 System.out.println(authenticationReply.getCookie());
             } else {
                 System.out.println("login failed.");

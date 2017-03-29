@@ -83,7 +83,7 @@ class TransactionDispatchService {
      */
     private void processOutgoingTransactionReply(final String transactionReplyJson,
                                                  final CallbackBuilder callbackBuilder) {
-        Transaction transactionReply = jsonConverter.fromJson(JSONParser.sanitizeJson(transactionReplyJson),
+        Transaction transactionReply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson),
                                                               Transaction.class);
         if (transactionReply.isProcessed() && transactionReply.isSuccessful()) {
             //TODO send outgoing transaction.

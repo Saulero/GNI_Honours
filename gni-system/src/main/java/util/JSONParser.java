@@ -2,7 +2,9 @@ package util;
 
 import databeans.*;
 
+import java.util.Arrays;
 import java.util.LinkedList;
+import java.util.stream.IntStream;
 
 /**
  * Creates objects by initializing them using empty constructors and then setting all variables. Needed to use the
@@ -273,7 +275,17 @@ public final class JSONParser {
         return authentication;
     }
 
-    public static String sanitizeJson(final String json){
-        return json.substring(1, json.length() - 1).replaceAll("\\\\", "");
+    public static String removeEscapeCharacters(final String dataString) {
+        char[] characters = dataString.substring(1, dataString.length() - 1).toCharArray();
+        String stringWithoutEscapes = "";
+        for(int i = 0; i < characters.length; i++) {
+            if (characters[i] == '\\') {
+                stringWithoutEscapes += characters[i + 1];
+                i++;
+            } else {
+                stringWithoutEscapes += characters[i];
+            }
+        }
+        return stringWithoutEscapes;
     }
 }
