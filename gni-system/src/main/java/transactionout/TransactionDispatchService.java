@@ -27,6 +27,8 @@ class TransactionDispatchService {
     private HttpClient ledgerClient;
     /** Used for Json conversions. */
     private Gson jsonConverter;
+    /** Prefix used when printing to indicate the message is coming from the Transaction Dispatch Service. */
+    private static final String prefix = "[TransactionDispatch] :";
 
     /**
      * Constructor.
@@ -48,7 +50,7 @@ class TransactionDispatchService {
     public void processTransactionRequest(final Callback<String> callback,
                                           @RequestParam("body") final String transactionRequestJson) {
         Transaction request = jsonConverter.fromJson(transactionRequestJson, Transaction.class);
-        System.out.printf("TransactionDispatch: Transaction received, sourceAccount: %s ,destAccount: %s, amount: %f\n",
+        System.out.printf("%s Transaction received, sourceAccount: %s ,destAccount: %s, amount: %f\n", prefix,
                             request.getSourceAccountNumber(), request.getDestinationAccountNumber(),
                             request.getTransactionAmount());
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
@@ -89,6 +91,11 @@ class TransactionDispatchService {
             //TODO send outgoing transaction.
             sendTransactionRequestCallback(transactionReplyJson, callbackBuilder);
         } else {
+            if (transactionReply.isProcessed()) {
+                System.out.printf("%s Transaction unsuccessfull, sending rejection.\n", prefix);
+            } else {
+                System.out.printf("%s Transaction couldn't be processed, sending rejection.\n", prefix);
+            }
             callbackBuilder.build().reject("Transaction couldn't be processed.");
         }
     }
@@ -100,7 +107,7 @@ class TransactionDispatchService {
      */
     private void sendTransactionRequestCallback(final String transactionReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
-        System.out.println("TransactionDispatch: Successfull transaction, sending back reply.");
+        System.out.printf("%s Successfull transaction, sending callback.\n", prefix);
         callbackBuilder.build().reply(transactionReplyJson);
     }
 }

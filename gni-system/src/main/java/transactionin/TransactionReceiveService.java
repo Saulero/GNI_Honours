@@ -25,6 +25,8 @@ public class TransactionReceiveService {
     private HttpClient ledgerClient;
     /** Used for json conversions. */
     private Gson jsonConverter;
+    /** Prefix used when printing to indicate the message is coming from the Transaction Receive Service. */
+    private static final String prefix = "[TransactionReceive]  :";
 
     /**
      * Constructor.
@@ -46,7 +48,7 @@ public class TransactionReceiveService {
     @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
     public void processIncomingTransaction(final Callback<String> callback,
                                            final @RequestParam("body") String transactionRequestJson) {
-        System.out.println("TransactionReceive: Received incoming transaction request.");
+        System.out.printf("%s Received incoming transaction request.\n", prefix);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         doIncomingTransactionRequest(transactionRequestJson, callbackBuilder);
     }
@@ -64,6 +66,7 @@ public class TransactionReceiveService {
                         processIncomingTransactionReply(transactionReplyJson, callbackBuilder);
                     } else {
                         //TODO send unsuccessfull reply instead of rejection
+                        System.out.printf("%s Received a rejection from ledger, sending rejection.\n", prefix);
                         callbackBuilder.build().reject("Recieved an error from ledger.");
                     }
                 });
@@ -76,13 +79,19 @@ public class TransactionReceiveService {
             sendIncomingTransactionRequestCallback(transactionReplyJson, callbackBuilder);
             //TODO send reply to external bank.
         } else {
+            if (reply.isProcessed()) {
+                System.out.printf("%s Transaction unsuccessfull, sending rejection.\n", prefix);
+            } else {
+                System.out.printf("%s Transaction couldn't be processed, sending rejection.\n", prefix);
+            }
+            //TODO convert to json-rpc reply when protocol is known.
             callbackBuilder.build().reject("Transaction couldn't be processed.");
         }
     }
 
     private void sendIncomingTransactionRequestCallback(final String transactionReplyJson,
                                                         final CallbackBuilder callbackBuilder) {
-        System.out.println("TransactionReceive: Successfully processed incoming transaction");
+        System.out.printf("%s Successfully processed incoming transaction, sending callback.\n", prefix);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(transactionReplyJson));
     }
 }

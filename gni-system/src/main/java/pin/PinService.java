@@ -25,6 +25,8 @@ import static java.net.HttpURLConnection.HTTP_OK;
 class PinService {
     /** Connection to the Transaction Dispatch service.*/
     private HttpClient transactionDispatchClient;
+    /** Prefix used when printing to indicate the message is coming from the PIN Service. */
+    private static final String prefix = "[PIN]                 :";
 
     PinService(final int transactionDispatchPort, final String transactionDispatchHost) {
         transactionDispatchClient = httpClientBuilder().setHost(transactionDispatchHost)
@@ -35,7 +37,7 @@ class PinService {
     public void processPinTransaction(final Callback<String> callback, final @RequestParam("body") String body) {
         Gson gson = new Gson();
         PinTransaction request = gson.fromJson(body, PinTransaction.class);
-        System.out.println("PIN: Received new Pin request from a customer.");
+        System.out.printf("%s Received new Pin request from a customer.\n", prefix);
         Transaction transaction = JSONParser.createJsonTransaction(-1, request.getSourceAccountNumber(),
                 request.getDestinationAccountNumber(), request.getDestinationAccountHolderName(),
                 "PIN Transaction card #" + request.getCardNumber(),
@@ -49,17 +51,18 @@ class PinService {
                         .replaceAll("\\\\", ""), Transaction.class);
                 if (reply.isProcessed() && reply.equalsRequest(transaction)) {
                     if (reply.isSuccessful()) {
-                        System.out.println("PIN: Pin transaction was successfull");
+                        System.out.printf("%s Pin transaction was successfull, sending callback.\n", prefix);
                         callbackBuilder.build().reply(gson.toJson(reply));
                     } else {
-                        callbackBuilder.build()
-                                .reject("PIN: Pin Transaction was unsuccessfull.");
+                        System.out.printf("%s Pin transaction was unsuccessfull, sending rejection.\n", prefix);
+                        callbackBuilder.build().reject("PIN: Pin Transaction was unsuccessfull.");
                     }
                 } else {
-                    callbackBuilder.build()
-                            .reject("PIN: Pin Transaction couldn't be processed.");
+                    System.out.printf("%s Pin transaction couldn't be processed, sending rejection.\n", prefix);
+                    callbackBuilder.build().reject("PIN: Pin Transaction couldn't be processed.");
                 }
             } else {
+                System.out.printf("%s Failed to reach transactionDispatch, sending rejection.\n", prefix);
                 callbackBuilder.build().reject("PIN: Couldn't reach transactionDispatch.");
             }
         });

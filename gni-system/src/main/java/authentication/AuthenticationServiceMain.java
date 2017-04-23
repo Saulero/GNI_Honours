@@ -8,7 +8,7 @@ import io.advantageous.qbit.admin.ManagedServiceBuilder;
  */
 public class AuthenticationServiceMain {
 
-    public static void main(final String[] args) {
+    public static void main() {
                 /* Create the ManagedServiceBuilder which manages a clean shutdown, health, stats, etc. */
         final ManagedServiceBuilder managedServiceBuilder =
                 ManagedServiceBuilder.managedServiceBuilder()

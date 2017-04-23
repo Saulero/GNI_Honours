@@ -27,6 +27,8 @@ final class UIService {
     private HttpClient authenticationClient;
     /** Used for json conversions. */
     private Gson jsonConverter;
+    /** Prefix used when printing to indicate the message is coming from the UI Service. */
+    private static final String prefix = "[UI]                  :";
 
     /**
      * Constructor.
@@ -60,7 +62,7 @@ final class UIService {
      */
     private void doDataRequest(final String dataRequestJson, final String cookie,
                                final CallbackBuilder callbackBuilder) {
-        System.out.println("UI: Sending data request to Authentication Service.");
+        System.out.printf("%s Forwarding data request.\n", prefix);
         authenticationClient.getAsyncWith2Params("/services/authentication/data", "request",
                                                   dataRequestJson, "cookie", cookie,
                                                   (httpStatusCode, httpContentType, dataReplyJson) -> {
@@ -107,7 +109,7 @@ final class UIService {
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
     private void sendBalanceRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
-        System.out.println("UI: Sending balance request callback.");
+        System.out.printf("%s Sending balance request callback.\n", prefix);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(dataReplyJson));
     }
 
@@ -118,7 +120,7 @@ final class UIService {
      */
     private void sendTransactionHistoryRequestCallback(final String dataReplyJson,
                                                        final CallbackBuilder callbackBuilder) {
-        System.out.println("UI: Sending transaction history request callback.");
+        System.out.printf("%s Sending transaction history request callback.\n", prefix);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(dataReplyJson));
     }
 
@@ -128,7 +130,7 @@ final class UIService {
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
     private void sendCustomerDataRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
-        System.out.println("UI: Sending customer data request callback.");
+        System.out.printf("%s Sending customer data request callback.\n", prefix);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(dataReplyJson));
     }
 
@@ -139,7 +141,7 @@ final class UIService {
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
     private void sendAccountsRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
-        System.out.println("UI: Sending accounts request callback.");
+        System.out.printf("%s Sending accounts request callback.\n", prefix);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(dataReplyJson));
     }
 
@@ -166,7 +168,7 @@ final class UIService {
      */
     private void doTransactionRequest(final String transactionRequestJson, final String cookie,
                                       final CallbackBuilder callbackBuilder) {
-        System.out.println("UI: Forwarding transaction request.");
+        System.out.printf("%s Forwarding transaction request.\n", prefix);
         authenticationClient.putFormAsyncWith2Params("/services/authentication/transaction", "request",
                                             transactionRequestJson, "cookie", cookie,
                                             (httpStatusCode, httpContentType, transactionReplyJson) -> {
@@ -185,7 +187,7 @@ final class UIService {
      */
     private void sendTransactionRequestCallback(final String transactionReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
-        System.out.println("UI: Transaction successfully executed, sent callback.");
+        System.out.printf("%s Transaction successfully executed, sending callback.\n", prefix);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(transactionReplyJson));
     }
 
@@ -208,17 +210,16 @@ final class UIService {
      * @param callbackBuilder Used to send the response of the creation request back to the source of the request.
      */
     private void doNewCustomerRequest(final String newCustomerRequestJson, final CallbackBuilder callbackBuilder) {
-        System.out.println("UI: Sending customer creation request to Authentication");
-        System.out.println(newCustomerRequestJson);
+        System.out.printf("%s Forwarding customer creation request.\n", prefix);
+        //System.out.println(newCustomerRequestJson);
         authenticationClient.putFormAsyncWith1Param("/services/authentication/customer", "customer",
                                             newCustomerRequestJson,
                                             (httpStatusCode, httpContentType, newCustomerReplyJson) -> {
-                                                System.out.println("adasdasdas");
                     if (httpStatusCode == HTTP_OK) {
-                        System.out.println("sending callback");
+                        //System.out.println("sending callback");
                         sendNewCustomerRequestCallback(newCustomerReplyJson, callbackBuilder);
                     } else {
-                        System.out.println("fail: " + newCustomerReplyJson);
+                        //System.out.println("fail: " + newCustomerReplyJson);
                         callbackBuilder.build().reject("Customer creation request failed.");
                     }
                 });
@@ -231,7 +232,7 @@ final class UIService {
      */
     private void sendNewCustomerRequestCallback(final String newCustomerReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
-        System.out.println("UI: Customer creation successfull, sending callback.");
+        System.out.printf("%s Customer creation successfull, sending callback.\n", prefix);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(newCustomerReplyJson));
     }
 
@@ -246,8 +247,8 @@ final class UIService {
                                           @RequestParam("request") final String accountLinkRequestJson,
                                           @RequestParam("cookie") final String cookie) {
         AccountLink accountLinkRequest = jsonConverter.fromJson(accountLinkRequestJson, AccountLink.class);
-        System.out.printf("UI: Received account link request for customer %d account number %s\n",
-                          accountLinkRequest.getCustomerId(), accountLinkRequest.getAccountNumber());
+        System.out.printf("%s Forwarding account link request for customer %d account number %s.\n",
+                          prefix, accountLinkRequest.getCustomerId(), accountLinkRequest.getAccountNumber());
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         doAccountLinkRequest(accountLinkRequestJson, cookie, callbackBuilder);
     }
@@ -278,7 +279,7 @@ final class UIService {
      */
     private void sendAccountLinkRequestCallback(final String accountLinkReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
-        System.out.println("UI: Successfull account link, sending callback.");
+        System.out.printf("%s Successfull account link, sending callback.\n", prefix);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(accountLinkReplyJson));
     }
 
@@ -293,7 +294,7 @@ final class UIService {
                                          @RequestParam("request") final String newAccountRequestJson,
                                          @RequestParam("cookie") final String cookie) {
         Customer accountOwner = jsonConverter.fromJson(newAccountRequestJson, Customer.class);
-        System.out.printf("UI: Received account creation request for customer %d\n", accountOwner.getId());
+        System.out.printf("%s Forwarding account creation request for customer %d.\n", prefix, accountOwner.getId());
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder()
                                                                    .withStringCallback(callback);
         doNewAccountRequest(newAccountRequestJson, cookie, callbackBuilder);
@@ -326,13 +327,14 @@ final class UIService {
      */
     private void sendNewAccountRequestCallback(final String newAccountReplyJson,
                                                final CallbackBuilder callbackBuilder) {
-        System.out.println("UI: Successfull account creation request, sending callback.");
+        System.out.printf("%s Successfull account creation request, sending callback.\n", prefix);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(newAccountReplyJson));
     }
 
     @RequestMapping(value = "/login", method = RequestMethod.PUT)
     public void processLoginRequest(final Callback<String> callback,
                                     @RequestParam("authData") final String authDataJson) {
+        System.out.printf("%s Forwarding login request.\n", prefix);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         doLoginRequest(authDataJson, callbackBuilder);
     }
@@ -343,16 +345,14 @@ final class UIService {
             if (code == HTTP_OK) {
                 sendLoginRequestCallback(body, callbackBuilder);
             } else {
-                System.out.println(body);
+                //System.out.println(body);
                 callbackBuilder.build().reject("Login not successfull.");
             }
                 });
     }
 
     private void sendLoginRequestCallback(final String loginReplyJson, final CallbackBuilder callbackBuilder) {
-        System.out.println(loginReplyJson);
-        System.out.println(JSONParser.removeEscapeCharacters(loginReplyJson));
-        System.out.println("UI: Login successfull, sending back cookie.");
+        System.out.printf("%s Login successfull, sending callback containing cookie.\n", prefix);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(loginReplyJson));
     }
 }

@@ -37,6 +37,8 @@ class UsersService {
     private ConnectionPool databaseConnectionPool;
     /** Gson object used to convert objects to/from json. */
     private Gson jsonConverter;
+    /** Prefix used when printing to indicate the message is coming from the Users Service. */
+    private static final String prefix = "[Users]               :";
 
     /**
      * Constructor.
@@ -63,7 +65,7 @@ class UsersService {
     @RequestMapping(value = "/data", method = RequestMethod.GET)
     public void processDataRequest(final Callback<String> callback,
                                    final @RequestParam("request") String dataRequestJson) {
-        System.out.println(dataRequestJson);
+        //System.out.println(dataRequestJson);
         DataRequest dataRequest = jsonConverter.fromJson(dataRequestJson, DataRequest.class);
         RequestType dataRequestType = dataRequest.getType();
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
@@ -81,7 +83,7 @@ class UsersService {
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
     private void handleInternalDataRequest(final DataRequest dataRequest, final CallbackBuilder callbackBuilder) {
-        System.out.println("Users: Called by UI, fetching customer data.");
+        System.out.printf("%s Received customer data request, fetching data.\n", prefix);
         if (dataRequest.getType() == RequestType.ACCOUNTS) {
             handleAccountsRequestExceptions(dataRequest.getCustomerId(), callbackBuilder);
         } else {             //The request is a Customer Data request.
@@ -109,8 +111,8 @@ class UsersService {
      * @param callbackBuilder Used to send a reply back to the calling service.
      */
     private void sendAccountsRequestCallback(final DataReply customerAccounts, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Sending accounts request callback.\n", prefix);
         callbackBuilder.build().reply(jsonConverter.toJson(customerAccounts));
-        System.out.println("Users: Sent accounts request callback to UI.");
     }
 
     /**
@@ -159,8 +161,8 @@ class UsersService {
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
     private void sendCustomerDataRequestCallback(final Customer customerData, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Sending customer data request callback.\n", prefix);
         callbackBuilder.build().reply(jsonConverter.toJson(customerData));
-        System.out.println("Users: Sent customer data request callback to UI.");
     }
 
     /**
@@ -203,7 +205,7 @@ class UsersService {
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
     private void doLedgerDataRequest(final DataRequest dataRequest, final CallbackBuilder callbackBuilder) {
-        System.out.println("Users: Called by UI for a data request, calling Ledger");
+        System.out.printf("%s Called for a data request, calling Ledger.\n", prefix);
         ledgerClient.getAsyncWith1Param("/services/ledger/data", "body",
                                         jsonConverter.toJson(dataRequest),
                                         (httpStatusCode, httpContentType, dataReplyJson) -> {
@@ -221,8 +223,8 @@ class UsersService {
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
     private void sendLedgerDataRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Sending data request callback.\n", prefix);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(dataReplyJson));
-        System.out.println("Users: Sent ledger data request callback to UI.");
     }
 
 
@@ -236,7 +238,7 @@ class UsersService {
                                    final @RequestParam("body") String transactionRequestJson) {
         Transaction transactionRequest = jsonConverter.fromJson(transactionRequestJson, Transaction.class);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        System.out.println("Users: Sent transaction to TransactionDispatch");
+        System.out.printf("%s Sending transaction to TransactionDispatch.\n", prefix);
         doTransactionRequest(transactionRequest, callbackBuilder);
     }
 
@@ -283,8 +285,8 @@ class UsersService {
      */
     private void sendTransactionRequestCallback(final String transactionReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Transaction was successfull, sending callback.\n", prefix);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(transactionReplyJson));
-        System.out.println("Users: Transaction was successfull, sent callback to UI.");
     }
 
     /**
@@ -296,7 +298,7 @@ class UsersService {
     @RequestMapping(value = "/customer", method = RequestMethod.PUT)
     public void processNewCustomer(final Callback<String> callback,
                                    final @RequestParam("customer") String customerRequestJson) {
-        System.out.println(customerRequestJson);
+        //System.out.println(customerRequestJson);
         Customer customerToEnroll = jsonConverter.fromJson(customerRequestJson, Customer.class);
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         handleNewCustomerRequestExceptions(customerToEnroll, callbackBuilder);
@@ -354,7 +356,7 @@ class UsersService {
         createNewCustomer.executeUpdate();
         createNewCustomer.close();
         databaseConnectionPool.returnConnection(databaseConnection);
-        System.out.println("Users: New customer successfully enrolled.");
+        System.out.printf("%s New customer successfully enrolled.\n", prefix);
     }
 
     /**
@@ -424,7 +426,7 @@ class UsersService {
             linkAccountToCustomer.executeUpdate();
             linkAccountToCustomer.close();
             databaseConnectionPool.returnConnection(databaseConnection);
-            System.out.printf("Users: Added Accountnumber %s to userid %d\n", accountNumber, customerId);
+            System.out.printf("%s Added Accountnumber %s to userid %d\n", prefix, accountNumber, customerId);
         }
     }
 
@@ -459,8 +461,8 @@ class UsersService {
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
     private void sendNewAccountLinkCallback(final String newCustomerJson, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s New account successfully linked, sending callback.\n", prefix);
         callbackBuilder.build().reply(newCustomerJson);
-        System.out.println("Users: New account successfully linked, sent callback to UI.");
     }
 
     /**
@@ -560,7 +562,7 @@ class UsersService {
     private void sendAccountLinkCallback(final String accountNumber, final Long customerId,
                                          final CallbackBuilder callbackBuilder) {
         AccountLink reply = JSONParser.createJsonAccountLink(accountNumber, customerId, true);
-        System.out.println("Users: Account link successfull, sent callback to UI..");
+        System.out.printf("%s Account link successfull, sending callback.\n", prefix);
         callbackBuilder.build().reply(jsonConverter.toJson(reply));
     }
 
@@ -594,7 +596,7 @@ class UsersService {
     @RequestMapping(value = "/account/new", method = RequestMethod.PUT)
     public void processNewAccount(final Callback<String> callback,
                                              final @RequestParam("body") String accountRequestJson) {
-        System.out.println("Users: Received account creation request.");
+        System.out.printf("%s Received account creation request.\n", prefix);
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         Customer accountOwner = jsonConverter.fromJson(accountRequestJson, Customer.class);
         handleNewAccountExceptions(accountOwner, callbackBuilder);

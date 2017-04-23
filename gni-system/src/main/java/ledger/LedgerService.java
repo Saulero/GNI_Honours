@@ -32,6 +32,8 @@ class LedgerService {
 
     /** Database connection pool containing persistent database connections. */
     private ConnectionPool db;
+    /** Prefix used when printing to indicate the message is coming from the Ledger Service. */
+    private static final String prefix = "[Ledger]              :";
 
     /**
      * Constructor.
@@ -50,6 +52,8 @@ class LedgerService {
     public void createNewAccount(final Callback<String> callback, final @RequestParam("body") String body) {
         Gson gson = new Gson();
         Account newAccount = gson.fromJson(body, Account.class);
+        System.out.printf("%s Received account creation request for customer with name: %s\n", prefix,
+                          newAccount.getAccountHolderName());
         newAccount.setAccountNumber(generateNewAccountNumber(newAccount));
         try {
             SQLConnection connection = db.getConnection();
@@ -64,7 +68,7 @@ class LedgerService {
             ps.executeUpdate();
             ps.close();
             db.returnConnection(connection);
-            System.out.printf("Ledger: Added user %s with accountNumber %s to ledger\n",
+            System.out.printf("%s Added user %s with accountNumber %s to ledger, sending callback.\n", prefix,
                     newAccount.getAccountHolderName(), newAccount.getAccountNumber());
             callback.reply(gson.toJson(newAccount));
         } catch (SQLException e) {
@@ -236,6 +240,7 @@ class LedgerService {
      */
     @RequestMapping(value = "/transaction/in", method = RequestMethod.PUT)
     public void processIncomingTransaction(final Callback<String> callback, final @RequestParam("body") String body) {
+        System.out.printf("%s Received an incoming transaction request.\n", prefix);
         Gson gson = new Gson();
         Transaction transaction = gson.fromJson(body, Transaction.class);
         // Check if account info is correct
@@ -258,12 +263,12 @@ class LedgerService {
 
             transaction.setProcessed(true);
             transaction.setSuccessful(true);
-            System.out.println("Ledger: Successfully processed the transaction.");
+            System.out.printf("%s Successfully processed incoming transaction, sending callback.\n", prefix);
             callback.reply(gson.toJson(transaction));
         } else {
             transaction.setProcessed(true);
             transaction.setSuccessful(false);
-            System.out.println("Ledger: Transaction was not successful.");
+            System.out.printf("%s Incoming transaction was not successfull, sending callback.\n", prefix);
             callback.reply(gson.toJson(transaction));
         }
     }
@@ -276,6 +281,7 @@ class LedgerService {
      */
     @RequestMapping(value = "/transaction/out", method = RequestMethod.PUT)
     public void processOutgoingTransaction(final Callback<String> callback, final @RequestParam("body") String body) {
+        System.out.printf("%s Received outgoing transaction request.\n", prefix);
         Gson gson = new Gson();
         Transaction transaction = gson.fromJson(body, Transaction.class);
         Account account = getAccountInfo(transaction.getSourceAccountNumber());
@@ -294,12 +300,12 @@ class LedgerService {
 
             transaction.setProcessed(true);
             transaction.setSuccessful(true);
-            System.out.println("Ledger: Successfully processed the transaction.");
+            System.out.printf("%s Successfully processed outgoing transaction, sending callback.\n", prefix);
             callback.reply(gson.toJson(transaction));
         } else {
             transaction.setProcessed(true);
             transaction.setSuccessful(false);
-            System.out.println("Ledger: failed to process the transaction.");
+            System.out.printf("%s Outgoing transaction was not successfull, sending callback.\n", prefix);
             callback.reply(gson.toJson(transaction));
         }
     }
@@ -315,6 +321,7 @@ class LedgerService {
         Gson gson = new Gson();
         DataRequest dataRequest = gson.fromJson(body, DataRequest.class);
         RequestType requestType = dataRequest.getType();
+        System.out.printf("%s Received data request of type %s.\n", prefix, requestType.toString());
         if (requestType == RequestType.BALANCE) {
             try {
                 SQLConnection connection = db.getConnection();
@@ -329,6 +336,7 @@ class LedgerService {
                     Account account = new Account(name, spendingLimit, balance);
                     account.setAccountNumber(accountNumber);
                     DataReply dataReply = JSONParser.createJsonReply(accountNumber, requestType, account);
+                    System.out.printf("%s Data request successfull, sending callback.\n", prefix);
                     callback.reply(gson.toJson(dataReply));
                 }
 
@@ -336,6 +344,7 @@ class LedgerService {
                 ps.close();
                 db.returnConnection(connection);
             } catch (SQLException e) {
+                System.out.printf("%s Data request failed, sending rejection.\n", prefix);
                 callback.reject(e.getMessage());
                 e.printStackTrace();
             }
@@ -355,6 +364,7 @@ class LedgerService {
 
                 DataReply dataReply = JSONParser.createJsonReply(dataRequest.getAccountNumber(),
                                                                  requestType, transactions);
+                System.out.printf("%s Data request successfull, sending callback.\n", prefix);
                 callback.reply(gson.toJson(dataReply));
 
                 rs1.close();
@@ -363,6 +373,7 @@ class LedgerService {
                 ps2.close();
                 db.returnConnection(connection);
             } catch (SQLException e) {
+                System.out.printf("%s Data request failed, sending rejection.\n", prefix);
                 callback.reject(e.getMessage());
                 e.printStackTrace();
             }
@@ -381,10 +392,12 @@ class LedgerService {
                 }
                 DataReply dataReply = JSONParser.createJsonReply(dataRequest.getAccountNumber(), dataRequest.getType(),
                                                                  accountExists);
+                System.out.printf("%s Data request successfull, sending callback.\n", prefix);
                 callback.reply(gson.toJson(dataReply));
                 rs.close();
                 db.returnConnection(connection);
             } catch (SQLException e) {
+                System.out.printf("%s Data request failed, sending rejection.\n", prefix);
                 callback.reject(e.getMessage());
                 e.printStackTrace();
             }

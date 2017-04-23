@@ -36,6 +36,8 @@ class AuthenticationService {
     private SecureRandom secureRandomNumberGenerator;
     /** Used for Json conversions. */
     private Gson jsonConverter;
+    /** Prefix used when printing to indicate the message is coming from the Authentication Service. */
+    private static final String prefix = "[Auth]                :";
 
     /**
      * Constructor.
@@ -73,8 +75,8 @@ class AuthenticationService {
         Long[] cookieData = decodeCookie(cookie);
         long customerId = cookieData[0];
         long cookieToken = cookieData[1];
-        System.out.println(customerId);
-        System.out.println(cookieToken);
+        //System.out.println(customerId);
+        //System.out.println(cookieToken);
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement getAuthenticationData = databaseConnection.getConnection()
                                                                     .prepareStatement(getAuthenticationData2);
@@ -100,9 +102,9 @@ class AuthenticationService {
         String[] cookieParts = cookie.split(":");
         Long[] cookieData = new Long[2];
         cookieData[0] = Long.parseLong(cookieParts[0]); //customerId
-        System.out.println("parsed customerId");
+        //System.out.println("parsed customerId");
         cookieData[1] = Long.parseLong(new String(Base64.getDecoder().decode(cookieParts[1].getBytes()))); //customerToken
-        System.out.println("returning");
+        //System.out.println("returning");
         return cookieData;
     }
 
@@ -138,7 +140,7 @@ class AuthenticationService {
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
     private void doDataRequest(final String dataRequestJson, final CallbackBuilder callbackBuilder) {
-        System.out.println("UI: Sending data request to Authentication Service.");
+        System.out.printf("%s Forwarding data request.\n", prefix);
         usersClient.getAsyncWith1Param("/services/users/data", "request",
                                         dataRequestJson, (httpStatusCode, httpContentType, dataReplyJson) -> {
             if (httpStatusCode == HTTP_OK) {
@@ -150,7 +152,7 @@ class AuthenticationService {
     }
 
     private void sendDataRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
-        System.out.println("Auth: Sending data reply back to UI.");
+        System.out.printf("%s Data request successfull, sending callback.\n", prefix);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(dataReplyJson));
     }
 
@@ -189,7 +191,7 @@ class AuthenticationService {
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
     private void doTransactionRequest(final String transactionRequestJson, final CallbackBuilder callbackBuilder) {
-        System.out.println("UI: Forwarding transaction request.");
+        System.out.printf("%s Forwarding transaction request.\n", prefix);
         usersClient.putFormAsyncWith1Param("/services/users/transaction", "body",
                 transactionRequestJson,
                 (httpStatusCode, httpContentType, transactionReplyJson) -> {
@@ -208,7 +210,7 @@ class AuthenticationService {
      */
     private void sendTransactionRequestCallback(final String transactionReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
-        System.out.println("UI: Transaction successfully executed, sent callback.");
+        System.out.printf("%s Transaction successfull, sending callback.\n", prefix);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(transactionReplyJson));
     }
 
@@ -221,7 +223,8 @@ class AuthenticationService {
     @RequestMapping(value = "/customer", method = RequestMethod.PUT)
     public void processNewCustomerRequest(final Callback<String> callback,
                                           @RequestParam("customer") final String newCustomerRequestJson) {
-        System.out.println(newCustomerRequestJson);
+        //System.out.println(newCustomerRequestJson);
+        System.out.printf("%s Registering new customer login information.\n", prefix);
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         handleUsernameValidationExceptions(newCustomerRequestJson, callbackBuilder);
     }
@@ -232,7 +235,7 @@ class AuthenticationService {
             validateUsername(jsonConverter.fromJson(newCustomerRequestJson, Customer.class));
             doNewCustomerRequest(newCustomerRequestJson, callbackBuilder);
         } catch (SQLException e) {
-            callbackBuilder.build().reject("Error connecting to authentication databse.");
+            callbackBuilder.build().reject("Error connecting to authentication database.");
         } catch (UsernameTakenException e) {
             callbackBuilder.build().reject("Username taken, please choose a different username.");
         }
@@ -259,7 +262,7 @@ class AuthenticationService {
      */
     private void doNewCustomerRequest(final String newCustomerRequestJson,
                                       final CallbackBuilder callbackBuilder) {
-        System.out.println("UI: Sending customer creation request to Users");
+        System.out.printf("%s Forwarding customer creation request.\n", prefix);
         usersClient.putFormAsyncWith1Param("/services/users/customer", "customer",
                 newCustomerRequestJson,
                 (httpStatusCode, httpContentType, newCustomerReplyJson) -> {
@@ -272,7 +275,7 @@ class AuthenticationService {
     }
 
     private void handleLoginCreationExceptions(final String newCustomerReplyJson, final CallbackBuilder callbackBuilder) {
-        System.out.println(newCustomerReplyJson);
+        //System.out.println(newCustomerReplyJson);
         Customer customerToEnroll = jsonConverter.fromJson(newCustomerReplyJson, Customer.class);
         try {
             registerNewCustomerLogin(customerToEnroll);
@@ -302,7 +305,7 @@ class AuthenticationService {
      */
     private void sendNewCustomerRequestCallback(final String newCustomerReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
-        System.out.println("UI: Customer creation successfull, sending callback.");
+        System.out.printf("%s Customer creation successfull, sending callback.\n", prefix);
         callbackBuilder.build().reply(newCustomerReplyJson);
     }
 
@@ -314,7 +317,7 @@ class AuthenticationService {
      */
     @RequestMapping(value = "/login", method = RequestMethod.PUT)
     public void login(final Callback<String> callback, final @RequestParam("authData") String authDataJson) {
-        System.out.println(authDataJson);
+        //System.out.println(authDataJson);
         Authentication authData = jsonConverter.fromJson(authDataJson, Authentication.class);
         if (authData.getType() == AuthenticationType.LOGIN) {
             try {
@@ -329,12 +332,14 @@ class AuthenticationService {
                         // Legitimate info
                         long newToken = secureRandomNumberGenerator.nextLong();
                         setNewToken(userId, newToken);
-                        System.out.println(jsonConverter.toJson(JSONParser.createJsonAuthentication(
-                                encodeCookie(userId, newToken), AuthenticationType.REPLY)));
-                        callback.resolve(jsonConverter.toJson(JSONParser.createJsonAuthentication(
-                                encodeCookie(userId, newToken), AuthenticationType.REPLY)));
-                        //callback.reply(jsonConverter.toJson(JSONParser.createJsonAuthentication(
-                        //                            encodeCookie(userId, newToken), AuthenticationType.REPLY)));
+                        //System.out.println(jsonConverter.toJson(JSONParser.createJsonAuthentication(
+                        //        encodeCookie(userId, newToken), AuthenticationType.REPLY)));
+                        //callback.resolve(jsonConverter.toJson(JSONParser.createJsonAuthentication(
+                        //        encodeCookie(userId, newToken), AuthenticationType.REPLY)));
+                        System.out.printf("%s Successfull login for user %s, sending callback.\n", prefix,
+                                          authData.getUsername());
+                        callback.reply(jsonConverter.toJson(JSONParser.createJsonAuthentication(
+                                                    encodeCookie(userId, newToken), AuthenticationType.REPLY)));
                     } else {
                         // Illegitimate info
                         callback.reject("Invalid username/password combination");
@@ -392,7 +397,7 @@ class AuthenticationService {
                                           @RequestParam("request") final String accountLinkRequestJson,
                                           @RequestParam("cookie") final String cookie) {
         AccountLink accountLinkRequest = jsonConverter.fromJson(accountLinkRequestJson, AccountLink.class);
-        System.out.printf("UI: Received account link request for customer %d account number %s\n",
+        System.out.printf("%s Forwarding account link request for customer %d account number %s.\n", prefix,
                 accountLinkRequest.getCustomerId(), accountLinkRequest.getAccountNumber());
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         handleAccountLinkExceptions(accountLinkRequest, cookie, callbackBuilder);
@@ -435,7 +440,7 @@ class AuthenticationService {
      */
     private void sendAccountLinkRequestCallback(final String accountLinkReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
-        System.out.println("Auth: Successfull account link, sending callback.");
+        System.out.printf("%s Successfull account link, sending callback.\n", prefix);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(accountLinkReplyJson));
     }
 
@@ -451,7 +456,7 @@ class AuthenticationService {
                                          @RequestParam("request") final String newAccountRequestJson,
                                          @RequestParam("cookie") final String cookie) {
         Customer accountOwner = jsonConverter.fromJson(newAccountRequestJson, Customer.class);
-        System.out.printf("UI: Received account creation request for customer %d\n", accountOwner.getId());
+        System.out.printf("%s Forwarding account creation request for customer %d.\n", prefix, accountOwner.getId());
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder()
                 .withStringCallback(callback);
         doNewAccountRequest(newAccountRequestJson, callbackBuilder);
@@ -495,11 +500,9 @@ class AuthenticationService {
      */
     private void sendNewAccountRequestCallback(final String newAccountReplyJson,
                                                final CallbackBuilder callbackBuilder) {
-        System.out.println("UI: Successfull account creation request, sending callback.");
+        System.out.printf("%s Account creation request successfull, sending callback.\n", prefix);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(newAccountReplyJson));
     }
-
-
 
     /**
      * Safely shuts down the AuthenticationService.
