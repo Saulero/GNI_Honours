@@ -12,6 +12,3 @@
 # IntelliJ files
 *.iml
 **/.idea
-
-# project specific file
-/home/noel/GitHub/GNI_Honours/gni-system/src/main/java/database/Variables.java
