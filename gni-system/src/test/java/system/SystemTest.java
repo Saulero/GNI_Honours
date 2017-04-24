@@ -38,14 +38,7 @@ public class SystemTest {
      * @param args should be empty argument
      */
     public static void main(final String[] args) {
-        LedgerServiceMain.main();
-        UsersServiceMain.main();
-        UIServiceMain.main();
-        AuthenticationServiceMain.main();
-        PinServiceMain.main();
-        TransactionDispatchServiceMain.main();
-        TransactionReceiveServiceMain.main();
-        System.out.println("\n\n\n");
+        initializeServices();
         Sys.sleep(1000);
         //test variables
         String externalNumber = "NL00IIIB5695575206";
@@ -67,9 +60,9 @@ public class SystemTest {
                 new Long("1234567890"),1000, 100000, "test",
                 "test");
           Sys.sleep(2000);*/
-        //doNewAccountRequest(uiClient, batsId);
-        //Sys.sleep(2000);
-        doGet(uiClient, "", RequestType.ACCOUNTS, batsId, cookie);
+        doNewAccountRequest(uiClient, batsId);
+        Sys.sleep(2000);
+        /*doGet(uiClient, "", RequestType.ACCOUNTS, batsId, cookie);
         Sys.sleep(2000);
         //doAccountLinkRequest(uiClient, batsId, batsNumber, cookie);
         //Sys.sleep(1000);
@@ -86,7 +79,18 @@ public class SystemTest {
         Sys.sleep(2000);
         doGet(uiClient, ownAccountNumber, RequestType.BALANCE, batsId, cookie);
         Sys.sleep(2000);
-        doGet(uiClient, ownAccountNumber, RequestType.CUSTOMERDATA, batsId, cookie);
+        doGet(uiClient, ownAccountNumber, RequestType.CUSTOMERDATA, batsId, cookie);*/
+    }
+
+    private static void initializeServices() {
+        LedgerServiceMain.main();
+        UsersServiceMain.main();
+        UIServiceMain.main();
+        AuthenticationServiceMain.main();
+        PinServiceMain.main();
+        TransactionDispatchServiceMain.main();
+        TransactionReceiveServiceMain.main();
+        System.out.println("\n\n\n");
     }
 
     /**

@@ -41,6 +41,8 @@ class AuthenticationService {
 
     /**
      * Constructor.
+     * @param usersPort port on which the Users service can be found.
+     * @param usersHost Host on which the Users service can be found.
      */
     AuthenticationService(final int usersPort, final String usersHost) {
         this.usersClient = httpClientBuilder().setHost(usersHost).setPort(usersPort).buildAndStart();
@@ -49,6 +51,12 @@ class AuthenticationService {
         this.jsonConverter = new Gson();
     }
 
+    /**
+     * Creates a callback for the datarequest and then forwards the request to exception handling.
+     * @param callback Used to send the reply of User service to the source of the request.
+     * @param dataRequestJson Json string representing a dataRequest object.
+     * @param cookie Cookie of the person performing the datarequest, used to check if the request is allowed.
+     */
     @RequestMapping(value = "/data", method = RequestMethod.GET)
     public void processDataRequest(final Callback<String> callback,
                                    @RequestParam("request") final String dataRequestJson,
@@ -57,6 +65,12 @@ class AuthenticationService {
         handleDataRequestExceptions(dataRequestJson, cookie, callbackBuilder);
     }
 
+    /**
+     * Authenticates a datarequest and then forwards the datarequest to the Users service.
+     * @param dataRequestJson Json String representing the datarequest.
+     * @param cookie Cookie of the customer that sent the request, used to authenticate the request.
+     * @param callbackBuilder Used to send a callback to the service that sent the request.
+     */
     private void handleDataRequestExceptions(final String dataRequestJson, final String cookie,
                                              final CallbackBuilder callbackBuilder) {
         try {
@@ -71,6 +85,13 @@ class AuthenticationService {
         }
     }
 
+    /**
+     * Checks if a request is authorized by checking if the token in the cookie is the correct token for that customer
+     * and the token is still valid if one of these conditions is not met a UserNotAuthorizedException is thrown.
+     * @param cookie Cookie of a customer
+     * @throws UserNotAuthorizedException thrown when the token is not legitimate/expired or the userId does not exist.
+     * @throws SQLException thrown when there is a problem fetching the authentication data from the database.
+     */
     public void authenticateRequest(final String cookie) throws UserNotAuthorizedException, SQLException {
         Long[] cookieData = decodeCookie(cookie);
         long customerId = cookieData[0];
@@ -98,6 +119,11 @@ class AuthenticationService {
         databaseConnectionPool.returnConnection(databaseConnection);
     }
 
+    /**
+     * Decodes a cookie into an array with the data of the cookie inside of it.
+     * @param cookie Cookie String to convert to its data.
+     * @return Long[] containing in index 0 the customerId of the customer and in index 1 the token of the customer.
+     */
     private Long[] decodeCookie(final String cookie) {
         String[] cookieParts = cookie.split(":");
         Long[] cookieData = new Long[2];
@@ -128,6 +154,11 @@ class AuthenticationService {
         }
     }
 
+    /**
+     * Fetches the customerId from a cookie.
+     * @param cookie Cookie of a customer.
+     * @return the id of the customer the cookie belongs to.
+     */
     private Long getCustomerId(final String cookie) {
         Long[] cookieData = decodeCookie(cookie);
         return cookieData[0];
@@ -151,6 +182,11 @@ class AuthenticationService {
         });
     }
 
+    /**
+     * Sends the result of a data request back to the service that requested it.
+     * @param dataReplyJson Json String containing the reply that was received.
+     * @param callbackBuilder Used to send back the reply to the service that requested it.
+     */
     private void sendDataRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Data request successfull, sending callback.\n", prefix);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(dataReplyJson));
@@ -171,6 +207,12 @@ class AuthenticationService {
         handleTransactionRequestExceptions(transactionRequestJson, cookie, callbackBuilder);
     }
 
+    /**
+     * Checks if the request is authorized and then forwards the transaction to the TransactionDispatch service.
+     * @param transactionRequestJson Json String representing a transaction request.
+     * @param cookie Cookie of the customer that made the request.
+     * @param callbackBuilder Used to send the reply back to the service that sent the request.
+     */
     private void handleTransactionRequestExceptions(final String transactionRequestJson, final String cookie,
                                                     final CallbackBuilder callbackBuilder) {
         try {
@@ -229,6 +271,12 @@ class AuthenticationService {
         handleUsernameValidationExceptions(newCustomerRequestJson, callbackBuilder);
     }
 
+    /**
+     * Checks if the username for a new customer is a valid username, and then forwards the new customer request to
+     * the Users service.
+     * @param newCustomerRequestJson Json String representing a new customer request.
+     * @param callbackBuilder Used to send a reply back to the requesting service.
+     */
     private void handleUsernameValidationExceptions(final String newCustomerRequestJson,
                                                     final CallbackBuilder callbackBuilder) {
         try {
@@ -241,6 +289,12 @@ class AuthenticationService {
         }
     }
 
+    /**
+     * Checks if the username of the customer to enroll already exists in the database.
+     * @param customerToEnroll Customer of which the username should be checked.
+     * @throws SQLException Thrown if something goes wrong when connecting to the database.
+     * @throws UsernameTakenException Thrown if the username exists in the database.
+     */
     private void validateUsername(final Customer customerToEnroll) throws SQLException, UsernameTakenException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement getUsernameCount = databaseConnection.getConnection()
@@ -274,6 +328,12 @@ class AuthenticationService {
                 });
     }
 
+    /**
+     * Creates login information for the customer in the users database and then sends a callback to the service that
+     * sent the customer creation request.
+     * @param newCustomerReplyJson Json String representing the customer that should be created in the system.
+     * @param callbackBuilder used to send a reply to the service that sent the request.
+     */
     private void handleLoginCreationExceptions(final String newCustomerReplyJson, final CallbackBuilder callbackBuilder) {
         //System.out.println(newCustomerReplyJson);
         Customer customerToEnroll = jsonConverter.fromJson(newCustomerReplyJson, Customer.class);
@@ -286,6 +346,11 @@ class AuthenticationService {
         }
     }
 
+    /**
+     * Adds login information of a customer to the database.
+     * @param customerToEnroll Customer that is to be enrolled into the system.
+     * @throws SQLException Thrown if something goes wrong during the enrollment of the customer.
+     */
     private void registerNewCustomerLogin(final Customer customerToEnroll) throws SQLException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement createCustomerLogin = databaseConnection.getConnection()
@@ -360,6 +425,12 @@ class AuthenticationService {
         }
     }
 
+    /**
+     * Used to encode the cookie of a user.
+     * @param userID Id of the user.
+     * @param token token belonging to this user.
+     * @return Cookie with the userId and token of the customer.
+     */
     private String encodeCookie(final long userID, final long token) {
         return "" + userID + ":" + new String(Base64.getEncoder().encode(("" + token).getBytes()));
     }
@@ -403,6 +474,12 @@ class AuthenticationService {
         handleAccountLinkExceptions(accountLinkRequest, cookie, callbackBuilder);
     }
 
+    /**
+     * Authenticated the account link request and then forwards the request to the Users service.
+     * @param accountLinkRequest Account Link that should be executed.
+     * @param cookie Cookie of the customer requesting the account link.
+     * @param callbackBuilder Used to send the reply back to the requesting service.
+     */
     private void handleAccountLinkExceptions(final AccountLink accountLinkRequest, final String cookie,
                                              final CallbackBuilder callbackBuilder) {
         try {
@@ -462,6 +539,12 @@ class AuthenticationService {
         doNewAccountRequest(newAccountRequestJson, callbackBuilder);
     }
 
+    /**
+     * Authenticates the request and then forwards the request to the Users service.
+     * @param newAccountRequestJson Json String representing the new account request.
+     * @param cookie Cookie of the customer making the request.
+     * @param callbackBuilder Used to send the reply back to the requesting service.
+     */
     private void handleNewAccountExceptions(final String newAccountRequestJson, final String cookie,
                                             final CallbackBuilder callbackBuilder) {
         try {
