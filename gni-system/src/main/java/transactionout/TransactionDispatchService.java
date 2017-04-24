@@ -108,6 +108,6 @@ class TransactionDispatchService {
     private void sendTransactionRequestCallback(final String transactionReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Successfull transaction, sending callback.\n", prefix);
-        callbackBuilder.build().reply(transactionReplyJson);
+        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(transactionReplyJson));
     }
 }

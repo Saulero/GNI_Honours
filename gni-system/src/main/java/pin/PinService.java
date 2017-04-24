@@ -34,7 +34,7 @@ class PinService {
     }
 
     @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
-    public void processPinTransaction(final Callback<String> callback, final @RequestParam("body") String body) {
+    public void processPinTransaction(final Callback<String> callback, final @RequestParam("request") String body) {
         Gson gson = new Gson();
         PinTransaction request = gson.fromJson(body, PinTransaction.class);
         System.out.printf("%s Received new Pin request from a customer.\n", prefix);
@@ -47,8 +47,7 @@ class PinService {
         transactionDispatchClient.putFormAsyncWith1Param("/services/transactionDispatch/transaction",
                 "body", gson.toJson(transaction), (code, contentType, replyBody) -> {
             if (code == HTTP_OK) {
-                Transaction reply = gson.fromJson(replyBody.substring(1, replyBody.length() - 1)
-                        .replaceAll("\\\\", ""), Transaction.class);
+                Transaction reply = gson.fromJson(JSONParser.removeEscapeCharacters(replyBody), Transaction.class);
                 if (reply.isProcessed() && reply.equalsRequest(transaction)) {
                     if (reply.isSuccessful()) {
                         System.out.printf("%s Pin transaction was successfull, sending callback.\n", prefix);

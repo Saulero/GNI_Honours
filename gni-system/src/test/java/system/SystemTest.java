@@ -219,9 +219,9 @@ public class SystemTest {
                             case TRANSACTIONHISTORY:
                                 DataReply transactionReply = gson.fromJson(JSONParser.removeEscapeCharacters(body),
                                         DataReply.class);
-                                System.out.printf("%s Transaction history request successfull, history: ", prefix);
+                                System.out.printf("%s Transaction history request successfull, history:\n", prefix);
                                 for (Transaction x : transactionReply.getTransactions()) {
-                                    System.out.printf("%s %s ", prefix, x.toString());
+                                    System.out.printf("%s %s \n", prefix, x.toString());
                                 }
                                 System.out.println("\n\n\n");
                                 break;
