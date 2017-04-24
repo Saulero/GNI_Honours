@@ -69,13 +69,13 @@ public class SystemTest {
           Sys.sleep(2000);*/
         //doNewAccountRequest(uiClient, batsId);
         //Sys.sleep(2000);
-        doGet(uiClient, "", RequestType.ACCOUNTS, batsId, cookie);
-        Sys.sleep(2000);
+        //doGet(uiClient, "", RequestType.ACCOUNTS, batsId, cookie);
+        //Sys.sleep(2000);
         //doAccountLinkRequest(uiClient, batsId, batsNumber, cookie);
         //Sys.sleep(1000);
-        doPin(pinClient, ownAccountNumber, externalNumber, "De wilde", "8888",
-                "730", 20.00);
-        Sys.sleep(2000);
+        //doPin(pinClient, ownAccountNumber, externalNumber, "De wilde", "8888",
+        //        "730", 20.00);
+        //Sys.sleep(2000);
         doExternalTransaction(externalBankClient, externalNumber, ownAccountNumber, "Bats",
                 "Moneys",2000.00);
         Sys.sleep(2000);

@@ -239,7 +239,8 @@ class LedgerService {
      * @param body Json String representing a Transaction
      */
     @RequestMapping(value = "/transaction/in", method = RequestMethod.PUT)
-    public void processIncomingTransaction(final Callback<String> callback, final @RequestParam("body") String body) {
+    public void processIncomingTransaction(final Callback<String> callback,
+                                           final @RequestParam("request") String body) {
         System.out.printf("%s Received an incoming transaction request.\n", prefix);
         Gson gson = new Gson();
         Transaction transaction = gson.fromJson(body, Transaction.class);
@@ -248,8 +249,8 @@ class LedgerService {
         // TODO Implement better system for checking destination_account_holder_name
         String calculatedAccountNumber = attemptAccountNumberGeneration(transaction.getDestinationAccountHolderName(),
                                         Integer.parseInt(transaction.getDestinationAccountNumber().substring(2, 4)));
-
-        if (account != null && transaction.getDestinationAccountNumber().equals(calculatedAccountNumber)) {
+        //if (account != null && transaction.getDestinationAccountNumber().equals(calculatedAccountNumber)) { // TODO update this statement
+        if (account != null) {
             // Update the object
             account.processDeposit(transaction);
 
