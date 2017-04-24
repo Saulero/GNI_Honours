@@ -235,7 +235,7 @@ class UsersService {
      */
     @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
     public void processTransaction(final Callback<String> callback,
-                                   final @RequestParam("body") String transactionRequestJson) {
+                                   final @RequestParam("request") String transactionRequestJson) {
         Transaction transactionRequest = jsonConverter.fromJson(transactionRequestJson, Transaction.class);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         System.out.printf("%s Sending transaction to TransactionDispatch.\n", prefix);

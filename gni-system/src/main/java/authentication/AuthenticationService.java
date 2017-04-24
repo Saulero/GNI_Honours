@@ -192,7 +192,7 @@ class AuthenticationService {
      */
     private void doTransactionRequest(final String transactionRequestJson, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Forwarding transaction request.\n", prefix);
-        usersClient.putFormAsyncWith1Param("/services/users/transaction", "body",
+        usersClient.putFormAsyncWith1Param("/services/users/transaction", "request",
                 transactionRequestJson,
                 (httpStatusCode, httpContentType, transactionReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {

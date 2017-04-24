@@ -157,7 +157,7 @@ final class UIService {
                                           @RequestParam("request") final String transactionRequestJson,
                                           @RequestParam("cookie") final String cookie) {
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        doTransactionRequest(JSONParser.removeEscapeCharacters(transactionRequestJson), cookie, callbackBuilder);
+        doTransactionRequest(transactionRequestJson, cookie, callbackBuilder);
     }
 
     /**

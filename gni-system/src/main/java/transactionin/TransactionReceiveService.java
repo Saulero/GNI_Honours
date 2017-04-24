@@ -50,7 +50,6 @@ public class TransactionReceiveService {
                                            final @RequestParam("request") String transactionRequestJson) {
         System.out.printf("%s Received incoming transaction request.\n", prefix);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        System.out.println(transactionRequestJson);
         doIncomingTransactionRequest(transactionRequestJson, callbackBuilder);
     }
 
@@ -67,8 +66,6 @@ public class TransactionReceiveService {
                         processIncomingTransactionReply(transactionReplyJson, callbackBuilder);
                     } else {
                         //TODO send unsuccessfull reply instead of rejection
-                        System.out.println(httpStatusCode);
-                        System.out.println(transactionReplyJson);
                         System.out.printf("%s Received a rejection from ledger, sending rejection.\n", prefix);
                         callbackBuilder.build().reject("Recieved an error from ledger.");
                     }

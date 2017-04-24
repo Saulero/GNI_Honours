@@ -50,7 +50,7 @@ class TransactionDispatchService {
     public void processTransactionRequest(final Callback<String> callback,
                                           @RequestParam("body") final String transactionRequestJson) {
         Transaction request = jsonConverter.fromJson(transactionRequestJson, Transaction.class);
-        System.out.printf("%s Transaction received, sourceAccount: %s ,destAccount: %s, amount: %f\n", prefix,
+        System.out.printf("%s Transaction received, sourceAccount: %s ,destAccount: %s, amount: %.2f\n", prefix,
                             request.getSourceAccountNumber(), request.getDestinationAccountNumber(),
                             request.getTransactionAmount());
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
