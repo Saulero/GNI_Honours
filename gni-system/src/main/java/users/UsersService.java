@@ -180,7 +180,7 @@ class UsersService {
         ResultSet retrievedCustomerData = getCustomerDataFromDb.executeQuery();
         Customer customerData = new Customer();
         if (retrievedCustomerData.next()) {
-            customerData.setId(customerId);
+            customerData.setCustomerId(customerId);
             customerData.setInitials(retrievedCustomerData.getString("initials"));
             customerData.setName(retrievedCustomerData.getString("firstname"));
             customerData.setSurname(retrievedCustomerData.getString("lastname"));
@@ -235,11 +235,12 @@ class UsersService {
      */
     @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
     public void processTransaction(final Callback<String> callback,
-                                   final @RequestParam("request") String transactionRequestJson) {
+                                   final @RequestParam("request") String transactionRequestJson,
+                                   final @RequestParam("customerId") String customerId) {
         Transaction transactionRequest = jsonConverter.fromJson(transactionRequestJson, Transaction.class);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         System.out.printf("%s Sending transaction to TransactionDispatch.\n", prefix);
-        doTransactionRequest(transactionRequest, callbackBuilder);
+        doTransactionRequest(transactionRequest, customerId, callbackBuilder);
     }
 
     /**
@@ -247,9 +248,11 @@ class UsersService {
      * @param transactionRequest Transaction request made by the UI service {@link Transaction}.
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void doTransactionRequest(final Transaction transactionRequest, final CallbackBuilder callbackBuilder) {
-        transactionDispatchClient.putFormAsyncWith1Param("/services/transactionDispatch/transaction",
-                                                        "body", jsonConverter.toJson(transactionRequest),
+    private void doTransactionRequest(final Transaction transactionRequest, final String customerId,
+                                      final CallbackBuilder callbackBuilder) {
+        transactionDispatchClient.putFormAsyncWith2Params("/services/transactionDispatch/transaction",
+                                                        "request", jsonConverter.toJson(transactionRequest),
+                                                        "customerId", customerId,
                                                         (httpStatusCode, httpContentType, transactionReplyJson) -> {
             if (httpStatusCode == HTTP_OK) {
                 processTransactionReply(transactionReplyJson, callbackBuilder);
@@ -313,7 +316,7 @@ class UsersService {
     private void handleNewCustomerRequestExceptions(final Customer customerToEnroll,
                                                     final CallbackBuilder callbackBuilder) {
         try {
-            customerToEnroll.setId(getNewCustomerId());
+            customerToEnroll.setCustomerId(getNewCustomerId());
             enrollCustomer(customerToEnroll);
             doNewAccountRequest(customerToEnroll, callbackBuilder);
         } catch (SQLException e) {
@@ -344,7 +347,7 @@ class UsersService {
     private void enrollCustomer(final Customer customer) throws SQLException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement createNewCustomer = databaseConnection.getConnection().prepareStatement(createNewUser);
-        createNewCustomer.setLong(1, customer.getId());                // id
+        createNewCustomer.setLong(1, customer.getCustomerId());                // id
         createNewCustomer.setString(2, customer.getInitials());        // initials
         createNewCustomer.setString(3, customer.getName());            // firstname
         createNewCustomer.setString(4, customer.getSurname());         // lastname
@@ -400,7 +403,7 @@ class UsersService {
      */
     private void handleNewAccountLinkExceptions(final Customer accountOwner, final CallbackBuilder callbackBuilder) {
         try {
-            linkAccountToCustomer(accountOwner.getAccount().getAccountNumber(), accountOwner.getId());
+            linkAccountToCustomer(accountOwner.getAccount().getAccountNumber(), accountOwner.getCustomerId());
             sendNewAccountLinkCallback(jsonConverter.toJson(accountOwner), callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
@@ -610,7 +613,7 @@ class UsersService {
      */
     private void handleNewAccountExceptions(final Customer accountOwner, final CallbackBuilder callbackBuilder) {
         try {
-            verifyAccountOwnerExistence(accountOwner.getId());
+            verifyAccountOwnerExistence(accountOwner.getCustomerId());
             doNewAccountRequest(accountOwner, callbackBuilder);
         } catch (SQLException | CustomerDoesNotExistException e) {
             callbackBuilder.build().reject(e);

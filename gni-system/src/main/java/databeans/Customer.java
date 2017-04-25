@@ -1,7 +1,6 @@
 package databeans;
 
 import java.io.Serializable;
-import java.sql.Date;
 
 /**
  * @author Noel
@@ -32,7 +31,7 @@ public final class Customer implements Serializable {
     /** Account of the customer. */
     private Account account;
     /** Id of the customer. */
-    private Long Id;
+    private Long customerId;
 
     /** Initializes customer object and assigns its variables.
      * @param newInitials initials of the customer.
@@ -84,7 +83,7 @@ public final class Customer implements Serializable {
         this.dob = newDob;
         this.ssn = newSsn;
         this.account = new Account(newSurname, newSpendingLimit, newBalance);
-        this.Id = newId;
+        this.customerId = newId;
     }
 
     /**
@@ -166,12 +165,12 @@ public final class Customer implements Serializable {
         this.ssn = newSsn;
     }
 
-    public Long getId() {
-        return Id;
+    public Long getCustomerId() {
+        return customerId;
     }
 
-    public void setId(final Long newId) {
-        Id = newId;
+    public void setCustomerId(final Long newId) {
+        customerId = newId;
     }
 
     public String getUsername() {

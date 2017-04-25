@@ -3,6 +3,7 @@ package ledger;
 import com.google.gson.Gson;
 import database.ConnectionPool;
 import database.SQLConnection;
+import database.SQLStatements;
 import databeans.*;
 import io.advantageous.qbit.annotation.RequestMapping;
 import io.advantageous.qbit.annotation.RequestMethod;
@@ -11,6 +12,7 @@ import io.advantageous.qbit.reactive.Callback;
 import databeans.DataReply;
 import databeans.DataRequest;
 import databeans.RequestType;
+import io.advantageous.qbit.reactive.CallbackBuilder;
 import util.JSONParser;
 
 import java.security.MessageDigest;
@@ -278,16 +280,26 @@ class LedgerService {
      * Processes an outgoing transaction.
      * Checks if the account making the transaction is allowed to do this. (has a high enough spending limit)
      * @param callback Used to send result back to the UserService.
-     * @param body Json String representing a Transaction
+     * @param requestJson Json String representing a Transaction request.
+     * @param customerId The id of the customer making the request.
      */
     @RequestMapping(value = "/transaction/out", method = RequestMethod.PUT)
-    public void processOutgoingTransaction(final Callback<String> callback, final @RequestParam("body") String body) {
-        System.out.printf("%s Received outgoing transaction request.\n", prefix);
+    public void processOutgoingTransaction(final Callback<String> callback,
+                                           @RequestParam("request") final String requestJson,
+                                           @RequestParam("customerId") final String customerId) {
+        System.out.printf("%s Received outgoing transaction request for customer %s.\n", prefix, customerId);
         Gson gson = new Gson();
-        Transaction transaction = gson.fromJson(body, Transaction.class);
+        Transaction transaction = gson.fromJson(requestJson, Transaction.class);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        boolean customerIsAuthorized = getCustomerAuthorization(transaction.getSourceAccountNumber(), customerId,
+                                                                callbackBuilder);
+        if (!customerIsAuthorized) {
+            System.out.printf("%s Customer with id %s is not authorized to make transactions from this account.\n",
+                              prefix, customerId);
+        }
         Account account = getAccountInfo(transaction.getSourceAccountNumber());
 
-        if (account != null && account.withdrawTransactionIsAllowed(transaction)) {
+        if (account != null && account.withdrawTransactionIsAllowed(transaction) && customerIsAuthorized) {
             // Update the object
             account.processWithdraw(transaction);
 
@@ -308,6 +320,31 @@ class LedgerService {
             transaction.setSuccessful(false);
             System.out.printf("%s Outgoing transaction was not successfull, sending callback.\n", prefix);
             callback.reply(gson.toJson(transaction));
+        }
+    }
+
+    private boolean getCustomerAuthorization(final String accountNumber, final String customerId,
+                                      final CallbackBuilder callbackBuilder) {
+        try {
+            SQLConnection databaseConnection = db.getConnection();
+            PreparedStatement getAccountNumbers = databaseConnection.getConnection()
+                                                      .prepareStatement(SQLStatements.getAccountNumbers);
+            getAccountNumbers.setString(1, customerId);
+            ResultSet accountRows = getAccountNumbers.executeQuery();
+            boolean authorized = false;
+            while (accountRows.next() && !authorized) {
+                if (accountRows.getString("account_number").equals(accountNumber)) {
+                    authorized = true;
+                }
+            }
+            accountRows.close();
+            getAccountNumbers.close();
+            db.returnConnection(databaseConnection);
+            return authorized;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reject("SQL exception during authorization check.");
+            return false;
         }
     }
 

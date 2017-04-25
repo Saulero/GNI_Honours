@@ -48,13 +48,14 @@ class TransactionDispatchService {
      */
     @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
     public void processTransactionRequest(final Callback<String> callback,
-                                          @RequestParam("body") final String transactionRequestJson) {
+                                          @RequestParam("request") final String transactionRequestJson,
+                                          @RequestParam("customerId") final String customerId) {
         Transaction request = jsonConverter.fromJson(transactionRequestJson, Transaction.class);
-        System.out.printf("%s Transaction received, sourceAccount: %s ,destAccount: %s, amount: %.2f\n", prefix,
-                            request.getSourceAccountNumber(), request.getDestinationAccountNumber(),
-                            request.getTransactionAmount());
+        System.out.printf("%s Transaction received, sourceAccount: %s ,destAccount: %s, amount: %.2f, customerId %s\n",
+                            prefix, request.getSourceAccountNumber(), request.getDestinationAccountNumber(),
+                            request.getTransactionAmount(), customerId);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        doOutgoingTransactionRequest(transactionRequestJson, callbackBuilder);
+        doOutgoingTransactionRequest(transactionRequestJson, customerId, callbackBuilder);
     }
 
     /**
@@ -64,10 +65,11 @@ class TransactionDispatchService {
      *                               {@link Transaction}.
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
-    private void doOutgoingTransactionRequest(final String transactionRequestJson,
+    private void doOutgoingTransactionRequest(final String transactionRequestJson, final String customerId,
                                               final CallbackBuilder callbackBuilder) {
-        ledgerClient.putFormAsyncWith1Param("/services/ledger/transaction/out", "body",
-                transactionRequestJson, (httpStatusCode, httpContentType, transactionReplyJson) -> {
+        ledgerClient.putFormAsyncWith2Params("/services/ledger/transaction/out", "request",
+                transactionRequestJson, "customerId", customerId,
+                (httpStatusCode, httpContentType, transactionReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         processOutgoingTransactionReply(transactionReplyJson, callbackBuilder);
                     } else {

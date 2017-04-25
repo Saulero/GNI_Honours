@@ -2,9 +2,7 @@ package util;
 
 import databeans.*;
 
-import java.util.Arrays;
 import java.util.LinkedList;
-import java.util.stream.IntStream;
 
 /**
  * Creates objects by initializing them using empty constructors and then setting all variables. Needed to use the
@@ -185,7 +183,7 @@ public final class JSONParser {
         customer.setAddress(newAddress);
         customer.setDob(newDob);
         customer.setSsn(newSsn);
-        customer.setId(newCustomerId);
+        customer.setCustomerId(newCustomerId);
         customer.setUsername(newUsername);
         customer.setPassword(newPassword);
         customer.setAccount(new Account(newInitials + newSurname, newSpendingLimit, newBalance));

@@ -43,6 +43,8 @@ public class SystemTest {
         //test variables
         String externalNumber = "NL00IIIB5695575206";
         String ownAccountNumber = "NL00GNIB4134192911";
+        String deboerNumber = "NL00GNIB4633920918";
+        Long deboerId = 2L;
         Long batsId = 1L;
 
         //Start http client
@@ -53,33 +55,34 @@ public class SystemTest {
         HttpClient pinClient = httpClientBuilder().setHost("localhost").setPort(9995).build();
         pinClient.start();
         Sys.sleep(2000);
-        doLogin(uiClient, "test", "test");
+        doLogin(uiClient, "henkdeboer", "henkdeboer");
+        //doLogin(uiClient, "test", "test");
         Sys.sleep(2000);
-        /*doNewCustomerRequest(uiClient, "test", "test", "test", "mats@bats.nl",
-                "061212121212", "Batslaan 25", "20-04-1889",
-                new Long("1234567890"),1000, 100000, "test",
-                "test");
+        /*doNewCustomerRequest(uiClient, "H.", "Henk", "de Boer", "hdb@kpn.planet.nl",
+                "061212121212", "Batslaan 25", "20-04-1992",
+                new Long("1234567890"),100000, 100000, "henkdeboer",
+                "henkdeboer");
           Sys.sleep(2000);*/
-        doNewAccountRequest(uiClient, batsId);
-        Sys.sleep(2000);
-        /*doGet(uiClient, "", RequestType.ACCOUNTS, batsId, cookie);
-        Sys.sleep(2000);
+        //doNewAccountRequest(uiClient, cookie);
+        //Sys.sleep(2000);
+        //doGet(uiClient, "", RequestType.ACCOUNTS, cookie);
+        //Sys.sleep(2000);
         //doAccountLinkRequest(uiClient, batsId, batsNumber, cookie);
         //Sys.sleep(1000);
-        doPin(pinClient, ownAccountNumber, externalNumber, "De wilde", "8888",
+        /*doPin(pinClient, deboerNumber, externalNumber, "De wilde", "8888",
                 "730", 20.00);
         Sys.sleep(2000);
-        doExternalTransaction(externalBankClient, externalNumber, ownAccountNumber, "Bats",
+        doExternalTransaction(externalBankClient, externalNumber, deboerNumber, "H. de Boer",
                 "Moneys",2000.00);
-        Sys.sleep(2000);
-        doInternalTransaction(uiClient, ownAccountNumber, externalNumber, "De Boer",
+        Sys.sleep(2000);*/
+        doInternalTransaction(uiClient, deboerNumber, externalNumber, "De Boer",
                 "moar moneys",2.00, cookie);
         Sys.sleep(2000);
-        doGet(uiClient, ownAccountNumber, RequestType.TRANSACTIONHISTORY, batsId, cookie);
+        /*doGet(uiClient, deboerNumber, RequestType.TRANSACTIONHISTORY, cookie);
         Sys.sleep(2000);
-        doGet(uiClient, ownAccountNumber, RequestType.BALANCE, batsId, cookie);
+        doGet(uiClient, deboerNumber, RequestType.BALANCE, cookie);
         Sys.sleep(2000);
-        doGet(uiClient, ownAccountNumber, RequestType.CUSTOMERDATA, batsId, cookie);*/
+        doGet(uiClient, deboerNumber, RequestType.CUSTOMERDATA, cookie);*/
     }
 
     private static void initializeServices() {
@@ -203,11 +206,10 @@ public class SystemTest {
      * @param uiClient Client connected to the UI service.
      * @param accountNumber Accountnumber of the customer we want to request information for.
      * @param type Type of request we want to do{@link RequestType}.
-     * @param userId Id of the customer we want to request information for.
      */
     private static void doGet(final HttpClient uiClient, final String accountNumber, final RequestType type,
-                              final Long userId, final String cookie) {
-        DataRequest request = JSONParser.createJsonRequest(accountNumber, type, userId);
+                              final String cookie) {
+        DataRequest request = JSONParser.createJsonRequest(accountNumber, type, 0L);
         Gson gson = new Gson();
         System.out.printf("%s Sending data request of type %s\n", prefix, type.toString());
         uiClient.getAsyncWith2Params("/services/ui/data", "request", gson.toJson(request),
@@ -287,9 +289,10 @@ public class SystemTest {
                 });
     }
 
-    private static void doAccountLinkRequest(final HttpClient uiClient, final Long customerId,
-                                             final String accountNumber, final String cookie) {
-        AccountLink request = JSONParser.createJsonAccountLink(accountNumber, customerId);
+    //TODO update format when new protocol arrives
+    private static void doAccountLinkRequest(final HttpClient uiClient, final String accountNumber,
+                                             final String cookie) {
+        AccountLink request = JSONParser.createJsonAccountLink(accountNumber, 0L);
         Gson gson = new Gson();
         System.out.printf("%s Sending account link request.\n", prefix);
         uiClient.putFormAsyncWith2Params("/services/ui/account", "request", gson.toJson(request),
@@ -308,21 +311,23 @@ public class SystemTest {
                 });
     }
 
-    private static void doNewAccountRequest(final HttpClient uiClient, final Long customerId) {
+    //TODO update format when new protocol arrives
+    private static void doNewAccountRequest(final HttpClient uiClient, final String cookie) {
         Customer accountOwner = JSONParser.createJsonCustomer("M.S.", "Mats", "Bats",
                 "mats@bats.nl", "0656579876",
                 "Batslaan 35", "20-04-1889",
                 new Long("1234567890"), 0,
-                0, customerId,  "matsbats",
+                0, 0L,  "matsbats",
                 "matsbats");
         Gson gson = new Gson();
         System.out.printf("%s Sending new account request.\n", prefix);
-        uiClient.putFormAsyncWith1Param("/services/ui/account/new", "request", gson.toJson(accountOwner),
+        uiClient.putFormAsyncWith2Params("/services/ui/account/new", "request",
+                gson.toJson(accountOwner), "cookie", cookie,
                 (code, contentType, body) -> {
                     if (code == HTTP_OK) {
                         Customer reply = gson.fromJson(JSONParser.removeEscapeCharacters(body), Customer.class);
                         System.out.printf("%s New Account creation successfull, Account Holder: %s, AccountNumber: %s\n\n\n\n",
-                                prefix, reply.getId(), reply.getAccount().getAccountNumber());
+                                prefix, reply.getCustomerId(), reply.getAccount().getAccountNumber());
                     } else {
                         System.out.printf("%s Account creation failed. body: %s\n\n\n\n", prefix, body);
                     }

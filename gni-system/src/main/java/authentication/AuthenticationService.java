@@ -129,7 +129,7 @@ class AuthenticationService {
         Long[] cookieData = new Long[2];
         cookieData[0] = Long.parseLong(cookieParts[0]); //customerId
         //System.out.println("parsed customerId");
-        cookieData[1] = Long.parseLong(new String(Base64.getDecoder().decode(cookieParts[1].getBytes()))); //customerToken
+        cookieData[1] = Long.parseLong(new String(Base64.getDecoder().decode(cookieParts[1].getBytes()))); //token
         //System.out.println("returning");
         return cookieData;
     }
@@ -217,8 +217,7 @@ class AuthenticationService {
                                                     final CallbackBuilder callbackBuilder) {
         try {
             authenticateRequest(cookie);
-            //todo check if customer is allowed to send money from this sourceAccount.
-            doTransactionRequest(transactionRequestJson, callbackBuilder);
+            doTransactionRequest(transactionRequestJson, getCustomerId(cookie), callbackBuilder);
         } catch (SQLException e) {
             callbackBuilder.build().reject("Failed to query database.");
         } catch (UserNotAuthorizedException e) {
@@ -232,10 +231,11 @@ class AuthenticationService {
      * @param transactionRequestJson Transaction request that should be processed.
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
-    private void doTransactionRequest(final String transactionRequestJson, final CallbackBuilder callbackBuilder) {
+    private void doTransactionRequest(final String transactionRequestJson, final Long customerId,
+                                      final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Forwarding transaction request.\n", prefix);
-        usersClient.putFormAsyncWith1Param("/services/users/transaction", "request",
-                transactionRequestJson,
+        usersClient.putFormAsyncWith2Params("/services/users/transaction", "request",
+                transactionRequestJson, "customerId", customerId.toString(),
                 (httpStatusCode, httpContentType, transactionReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         sendTransactionRequestCallback(transactionReplyJson, callbackBuilder);
@@ -321,7 +321,8 @@ class AuthenticationService {
                 newCustomerRequestJson,
                 (httpStatusCode, httpContentType, newCustomerReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        handleLoginCreationExceptions(JSONParser.removeEscapeCharacters(newCustomerReplyJson), callbackBuilder);
+                        handleLoginCreationExceptions(JSONParser.removeEscapeCharacters(newCustomerReplyJson),
+                                                      callbackBuilder);
                     } else {
                         callbackBuilder.build().reject("Customer creation request failed.");
                     }
@@ -334,7 +335,8 @@ class AuthenticationService {
      * @param newCustomerReplyJson Json String representing the customer that should be created in the system.
      * @param callbackBuilder used to send a reply to the service that sent the request.
      */
-    private void handleLoginCreationExceptions(final String newCustomerReplyJson, final CallbackBuilder callbackBuilder) {
+    private void handleLoginCreationExceptions(final String newCustomerReplyJson,
+                                               final CallbackBuilder callbackBuilder) {
         //System.out.println(newCustomerReplyJson);
         Customer customerToEnroll = jsonConverter.fromJson(newCustomerReplyJson, Customer.class);
         try {
@@ -355,7 +357,7 @@ class AuthenticationService {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement createCustomerLogin = databaseConnection.getConnection()
                                                                   .prepareStatement(createAuthenticationData);
-        createCustomerLogin.setLong(1, customerToEnroll.getId());       // id
+        createCustomerLogin.setLong(1, customerToEnroll.getCustomerId());       // id
         createCustomerLogin.setString(2, customerToEnroll.getUsername());    // username
         createCustomerLogin.setString(3, customerToEnroll.getPassword());    // password
         createCustomerLogin.executeUpdate();
@@ -458,7 +460,7 @@ class AuthenticationService {
     }
 
     /**
-     * Creates a callback builder for the account link request and then forwards the request to the UsersService.
+     * Creates a callback builder for an account link request and then forwards the request to the UsersService.
      * @param callback Used to send the result of the request back to the source of the request.
      * @param accountLinkRequestJson Json string representing an AccountLink that should be created in the
      *                               database {@link AccountLink}.
@@ -468,8 +470,9 @@ class AuthenticationService {
                                           @RequestParam("request") final String accountLinkRequestJson,
                                           @RequestParam("cookie") final String cookie) {
         AccountLink accountLinkRequest = jsonConverter.fromJson(accountLinkRequestJson, AccountLink.class);
+        accountLinkRequest.setCustomerId(getCustomerId(cookie));
         System.out.printf("%s Forwarding account link request for customer %d account number %s.\n", prefix,
-                accountLinkRequest.getCustomerId(), accountLinkRequest.getAccountNumber());
+                          accountLinkRequest.getCustomerId(), accountLinkRequest.getAccountNumber());
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         handleAccountLinkExceptions(accountLinkRequest, cookie, callbackBuilder);
     }
@@ -494,8 +497,8 @@ class AuthenticationService {
     }
 
     /**
-     * Forwards a String representing an account link to the Users database, and processes the reply if it is successfull
-     * or sends a rejection to the requesting service if it fails.
+     * Forwards a String representing an account link to the Users database, and processes the reply if it is
+     * successfull or sends a rejection to the requesting service if it fails.
      * @param accountLinkRequestJson String representing an account link that should be executed {@link AccountLink}.
      * @param callbackBuilder Used to send the result of the request back to the source of the request.
      */
@@ -533,10 +536,11 @@ class AuthenticationService {
                                          @RequestParam("request") final String newAccountRequestJson,
                                          @RequestParam("cookie") final String cookie) {
         Customer accountOwner = jsonConverter.fromJson(newAccountRequestJson, Customer.class);
-        System.out.printf("%s Forwarding account creation request for customer %d.\n", prefix, accountOwner.getId());
-        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder()
-                .withStringCallback(callback);
-        doNewAccountRequest(newAccountRequestJson, callbackBuilder);
+        accountOwner.setCustomerId(getCustomerId(cookie));
+        System.out.printf("%s Forwarding account creation request for customer %d.\n", prefix,
+                          accountOwner.getCustomerId());
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleNewAccountExceptions(jsonConverter.toJson(accountOwner), cookie, callbackBuilder);
     }
 
     /**

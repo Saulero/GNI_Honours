@@ -1,16 +1,12 @@
 package ui;
 
 import com.google.gson.Gson;
-import database.ConnectionPool;
 import databeans.*;
 import io.advantageous.qbit.annotation.*;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
 import util.JSONParser;
-
-import javax.xml.ws.RequestWrapper;
-import java.security.SecureRandom;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 import static java.net.HttpURLConnection.HTTP_OK;
@@ -294,7 +290,7 @@ final class UIService {
                                          @RequestParam("request") final String newAccountRequestJson,
                                          @RequestParam("cookie") final String cookie) {
         Customer accountOwner = jsonConverter.fromJson(newAccountRequestJson, Customer.class);
-        System.out.printf("%s Forwarding account creation request for customer %d.\n", prefix, accountOwner.getId());
+        System.out.printf("%s Forwarding account creation request.\n", prefix);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder()
                                                                    .withStringCallback(callback);
         doNewAccountRequest(newAccountRequestJson, cookie, callbackBuilder);
