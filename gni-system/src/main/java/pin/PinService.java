@@ -45,7 +45,7 @@ class PinService {
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder();
         callbackBuilder.withStringCallback(callback);
         transactionDispatchClient.putFormAsyncWith1Param("/services/transactionDispatch/transaction",
-                "body", gson.toJson(transaction), (code, contentType, replyBody) -> {
+                "request", gson.toJson(transaction), (code, contentType, replyBody) -> {
             if (code == HTTP_OK) {
                 Transaction reply = gson.fromJson(JSONParser.removeEscapeCharacters(replyBody), Transaction.class);
                 if (reply.isProcessed() && reply.equalsRequest(transaction)) {

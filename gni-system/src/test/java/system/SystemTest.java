@@ -63,26 +63,26 @@ public class SystemTest {
                 new Long("1234567890"),100000, 100000, "henkdeboer",
                 "henkdeboer");
           Sys.sleep(2000);*/
-        //doNewAccountRequest(uiClient, cookie);
-        //Sys.sleep(2000);
-        //doGet(uiClient, "", RequestType.ACCOUNTS, cookie);
-        //Sys.sleep(2000);
+        doNewAccountRequest(uiClient, cookie);
+        Sys.sleep(2000);
+        doGet(uiClient, "", RequestType.ACCOUNTS, cookie);
+        Sys.sleep(2000);
         //doAccountLinkRequest(uiClient, batsId, batsNumber, cookie);
         //Sys.sleep(1000);
         /*doPin(pinClient, deboerNumber, externalNumber, "De wilde", "8888",
                 "730", 20.00);
-        Sys.sleep(2000);
+        Sys.sleep(2000);*/
         doExternalTransaction(externalBankClient, externalNumber, deboerNumber, "H. de Boer",
                 "Moneys",2000.00);
-        Sys.sleep(2000);*/
+        Sys.sleep(2000);
         doInternalTransaction(uiClient, deboerNumber, externalNumber, "De Boer",
                 "moar moneys",2.00, cookie);
         Sys.sleep(2000);
-        /*doGet(uiClient, deboerNumber, RequestType.TRANSACTIONHISTORY, cookie);
+        doGet(uiClient, deboerNumber, RequestType.TRANSACTIONHISTORY, cookie);
         Sys.sleep(2000);
         doGet(uiClient, deboerNumber, RequestType.BALANCE, cookie);
         Sys.sleep(2000);
-        doGet(uiClient, deboerNumber, RequestType.CUSTOMERDATA, cookie);*/
+        doGet(uiClient, deboerNumber, RequestType.CUSTOMERDATA, cookie);
     }
 
     private static void initializeServices() {
