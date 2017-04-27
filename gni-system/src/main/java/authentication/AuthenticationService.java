@@ -109,9 +109,15 @@ class AuthenticationService {
             if (cookieToken == customerToken && System.currentTimeMillis() < tokenValidity) {
                 updateTokenValidity(customerId);
             } else {
+                authenticationData.close();
+                getAuthenticationData.close();
+                databaseConnectionPool.returnConnection(databaseConnection);
                 throw new UserNotAuthorizedException("Token not legitimate or expired.");
             }
         } else {
+            authenticationData.close();
+            getAuthenticationData.close();
+            databaseConnectionPool.returnConnection(databaseConnection);
             throw new UserNotAuthorizedException("UserId not found.");
         }
         authenticationData.close();
@@ -301,6 +307,8 @@ class AuthenticationService {
         getUsernameCount.setString(1, customerToEnroll.getUsername());
         ResultSet userNameOccurences = getUsernameCount.executeQuery();
         if (userNameOccurences.next() && userNameOccurences.getLong(1) > 0) {
+            getUsernameCount.close();
+            databaseConnectionPool.returnConnection(databaseConnection);
             throw new UsernameTakenException("Username already exists in database.");
         }
         getUsernameCount.close();

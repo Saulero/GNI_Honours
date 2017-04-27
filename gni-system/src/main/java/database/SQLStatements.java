@@ -29,4 +29,7 @@ public final class SQLStatements {
     public static final String updateTokenValidity = "UPDATE authentication SET authentication.token_validity = ? WHERE authentication.user_id = ?";
     public static final String getAccountLinkCount = "SELECT count(*) FROM accounts WHERE user_id = ? AND account_number = ?";
     public static final String getLoginUsernameCount = "SELECT count(*) FROM authentication WHERE username = ?";
+    public static final String addPinCard = "INSERT INTO pin (user_id, card_number, pin_code) VALUES (?, ?, ?)";
+    public static final String getCustomerIdFromPinCombination = "SELECT user_id FROM pin WHERE card_number = ? AND pin_code = ?";
+    public static final String removePinCard = "DELETE FROM pin WHERE user_id = ? AND card_number = ? AND pin_code = ?";
 }
