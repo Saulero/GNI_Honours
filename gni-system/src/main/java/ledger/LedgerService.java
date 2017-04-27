@@ -366,86 +366,72 @@ class LedgerService {
         if (!getCustomerAuthorization(dataRequest.getAccountNumber(), customerId.toString(), callbackBuilder)) {
             callback.reject("Customer not authorized to request data for this accountNumber.");
         } else {
-            // Todo rewrite to single try catch with switch statement
-            if (requestType == RequestType.BALANCE) {
-                try {
-                    SQLConnection connection = db.getConnection();
-                    PreparedStatement ps = connection.getConnection().prepareStatement(getAccountInformation);
-                    ps.setString(1, dataRequest.getAccountNumber());     // account_number
-                    ResultSet rs = ps.executeQuery();
-                    if (rs.next()) {
-                        String accountNumber = dataRequest.getAccountNumber();
-                        String name = rs.getString("name");
-                        double spendingLimit = rs.getDouble("spending_limit");
-                        double balance = rs.getDouble("balance");
-                        Account account = new Account(name, spendingLimit, balance);
-                        account.setAccountNumber(accountNumber);
-                        DataReply dataReply = JSONParser.createJsonReply(accountNumber, requestType, account);
+            try {
+                SQLConnection connection = db.getConnection();
+                switch (requestType) {
+                    case BALANCE:
+                        PreparedStatement ps = connection.getConnection().prepareStatement(getAccountInformation);
+                        ps.setString(1, dataRequest.getAccountNumber());     // account_number
+                        ResultSet rs = ps.executeQuery();
+                        if (rs.next()) {
+                            String accountNumber = dataRequest.getAccountNumber();
+                            String name = rs.getString("name");
+                            double spendingLimit = rs.getDouble("spending_limit");
+                            double balance = rs.getDouble("balance");
+                            Account account = new Account(name, spendingLimit, balance);
+                            account.setAccountNumber(accountNumber);
+                            DataReply dataReply = JSONParser.createJsonReply(accountNumber, requestType, account);
+                            System.out.printf("%s Data request successfull, sending callback.\n", prefix);
+                            callback.reply(gson.toJson(dataReply));
+                        }
+                        rs.close();
+                        ps.close();
+                        break;
+                    case TRANSACTIONHISTORY:
+                        PreparedStatement ps1 = connection.getConnection()
+                                                          .prepareStatement(getIncomingTransactionHistory);
+                        PreparedStatement ps2 = connection.getConnection()
+                                                          .prepareStatement(getOutgoingTransactionHistory);
+                        ps1.setString(1, dataRequest.getAccountNumber());     // account_number
+                        ps2.setString(1, dataRequest.getAccountNumber());     // account_number
+                        ResultSet rs1 = ps1.executeQuery();
+                        ResultSet rs2 = ps2.executeQuery();
+                        LinkedList<Transaction> transactions = new LinkedList<>();
+                        fillTransactionList(transactions, rs1);
+                        fillTransactionList(transactions, rs2);
+                        DataReply dataReply = JSONParser.createJsonReply(dataRequest.getAccountNumber(),
+                                                                         requestType, transactions);
                         System.out.printf("%s Data request successfull, sending callback.\n", prefix);
                         callback.reply(gson.toJson(dataReply));
-                    }
-
-                    rs.close();
-                    ps.close();
-                    db.returnConnection(connection);
-                } catch (SQLException e) {
-                    System.out.printf("%s Data request failed, sending rejection.\n", prefix);
-                    callback.reject(e.getMessage());
-                    e.printStackTrace();
-                }
-            } else if (requestType == RequestType.TRANSACTIONHISTORY) {
-                try {
-                    SQLConnection connection = db.getConnection();
-                    PreparedStatement ps1 = connection.getConnection().prepareStatement(getIncomingTransactionHistory);
-                    PreparedStatement ps2 = connection.getConnection().prepareStatement(getOutgoingTransactionHistory);
-                    ps1.setString(1, dataRequest.getAccountNumber());     // account_number
-                    ps2.setString(1, dataRequest.getAccountNumber());     // account_number
-                    ResultSet rs1 = ps1.executeQuery();
-                    ResultSet rs2 = ps2.executeQuery();
-
-                    LinkedList<Transaction> transactions = new LinkedList<>();
-                    fillTransactionList(transactions, rs1);
-                    fillTransactionList(transactions, rs2);
-
-                    DataReply dataReply = JSONParser.createJsonReply(dataRequest.getAccountNumber(),
-                            requestType, transactions);
-                    System.out.printf("%s Data request successfull, sending callback.\n", prefix);
-                    callback.reply(gson.toJson(dataReply));
-
-                    rs1.close();
-                    rs2.close();
-                    ps1.close();
-                    ps2.close();
-                    db.returnConnection(connection);
-                } catch (SQLException e) {
-                    System.out.printf("%s Data request failed, sending rejection.\n", prefix);
-                    callback.reject(e.getMessage());
-                    e.printStackTrace();
-                }
-            } else if (requestType == RequestType.ACCOUNTEXISTS) {
-                try {
-                    boolean accountExists = false;
-                    SQLConnection connection = db.getConnection();
-                    PreparedStatement ps = connection.getConnection().prepareStatement(getAccountNumberCount);
-                    ps.setString(1, dataRequest.getAccountNumber());
-                    ResultSet rs = ps.executeQuery();
-                    if (rs.next()) {
-                        int accountCount = rs.getInt(1);
-                        if (accountCount > 0) {
-                            accountExists = true;
+                        rs1.close();
+                        rs2.close();
+                        ps1.close();
+                        ps2.close();
+                        break;
+                    case ACCOUNTEXISTS:
+                        boolean accountExists = false;
+                        PreparedStatement getAccountNumberCount = connection.getConnection()
+                                                                .prepareStatement(SQLStatements.getAccountNumberCount);
+                        getAccountNumberCount.setString(1, dataRequest.getAccountNumber());
+                        ResultSet accountNumberCount = getAccountNumberCount.executeQuery();
+                        if (accountNumberCount.next()) {
+                            int accountCount = accountNumberCount.getInt(1);
+                            if (accountCount > 0) {
+                                accountExists = true;
+                            }
                         }
-                    }
-                    DataReply dataReply = JSONParser.createJsonReply(dataRequest.getAccountNumber(), dataRequest.getType(),
-                            accountExists);
-                    System.out.printf("%s Data request successfull, sending callback.\n", prefix);
-                    callback.reply(gson.toJson(dataReply));
-                    rs.close();
-                    db.returnConnection(connection);
-                } catch (SQLException e) {
-                    System.out.printf("%s Data request failed, sending rejection.\n", prefix);
-                    callback.reject(e.getMessage());
-                    e.printStackTrace();
+                        DataReply accountExistsReply = JSONParser.createJsonReply(dataRequest.getAccountNumber(),
+                                                                                  dataRequest.getType(), accountExists);
+                        System.out.printf("%s Data request successfull, sending callback.\n", prefix);
+                        callback.reply(gson.toJson(accountExistsReply));
+                        accountNumberCount.close();
+                        break;
                 }
+                db.returnConnection(connection);
+            } catch (SQLException e) {
+                System.out.printf("%s Data request failed, sending rejection.\n", prefix);
+                callback.reject(e.getMessage());
+                e.printStackTrace();
             }
         }
     }
