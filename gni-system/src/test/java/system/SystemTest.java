@@ -72,12 +72,12 @@ public class SystemTest {
         /*doPin(pinClient, deboerNumber, externalNumber, "De wilde", "8888",
                 "730", 20.00);
         Sys.sleep(2000);*/
-        doExternalTransaction(externalBankClient, externalNumber, deboerNumber, "H. de Boer",
+        /*doExternalTransaction(externalBankClient, externalNumber, deboerNumber, "H. de Boer",
                 "Moneys",2000.00);
         Sys.sleep(2000);
         doInternalTransaction(uiClient, deboerNumber, externalNumber, "De Boer",
                 "moar moneys",2.00, cookie);
-        Sys.sleep(2000);
+        Sys.sleep(2000);*/
         doGet(uiClient, deboerNumber, RequestType.TRANSACTIONHISTORY, cookie);
         Sys.sleep(2000);
         doGet(uiClient, deboerNumber, RequestType.BALANCE, cookie);

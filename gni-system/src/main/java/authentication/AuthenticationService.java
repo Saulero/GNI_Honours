@@ -256,7 +256,6 @@ class AuthenticationService {
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(transactionReplyJson));
     }
 
-    // TODO Should be invoked when a new user is created
     /**
      * Creates new login credentials for a customer.
      * @param callback Used to send a reply back to the UserService

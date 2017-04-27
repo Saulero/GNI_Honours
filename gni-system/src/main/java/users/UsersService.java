@@ -65,7 +65,6 @@ class UsersService {
     @RequestMapping(value = "/data", method = RequestMethod.GET)
     public void processDataRequest(final Callback<String> callback,
                                    final @RequestParam("request") String dataRequestJson) {
-        //System.out.println(dataRequestJson);
         DataRequest dataRequest = jsonConverter.fromJson(dataRequestJson, DataRequest.class);
         RequestType dataRequestType = dataRequest.getType();
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
@@ -206,7 +205,7 @@ class UsersService {
      */
     private void doLedgerDataRequest(final DataRequest dataRequest, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Called for a data request, calling Ledger.\n", prefix);
-        ledgerClient.getAsyncWith1Param("/services/ledger/data", "body",
+        ledgerClient.getAsyncWith1Param("/services/ledger/data", "request",
                                         jsonConverter.toJson(dataRequest),
                                         (httpStatusCode, httpContentType, dataReplyJson) -> {
             if (httpStatusCode == HTTP_OK) {
