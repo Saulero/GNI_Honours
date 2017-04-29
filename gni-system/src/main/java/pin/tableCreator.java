@@ -12,18 +12,35 @@ import java.sql.SQLException;
  * @Author noel
  */
 public class tableCreator {
-    private final static String createPinTable = "CREATE TABLE `pin` ( `user_id` int(11) NOT NULL, `card_number` varchar(255) NOT NULL, `pin_code` varchar(255) NOT NULL);";
     private static ConnectionPool databaseConnectionPool = new ConnectionPool();
+    /** SQL statements to create all necessary tables in the database. */
+    private static final String[] CREATE_TABLE_ARRAY = {SQLStatements.createAccountsTable, SQLStatements.createLedgerTable,
+                                        SQLStatements.createPinTable, SQLStatements.createTransactionsInTable,
+                                        SQLStatements.createTransactionsOutTable, SQLStatements.createAuthTable,
+                                        SQLStatements.createUsersTable};
+    /** SQL statements to drop all necessary tables in the database. */
+    private static final String[] DROP_TABLE_ARRAY = {SQLStatements.dropAccountsTable, SQLStatements.dropLedgerTable,
+                                       SQLStatements.dropPinTable, SQLStatements.dropTransactionsInTable,
+                                       SQLStatements.dropTransactionsOutTable, SQLStatements.dropAuthTable,
+                                       SQLStatements.dropUsersTable};
     public static void main(String[] args) {
         try {
             SQLConnection databaseConnection = databaseConnectionPool.getConnection();
-            databaseConnection.getConnection().prepareStatement(createPinTable).execute();
+            for (String statement : DROP_TABLE_ARRAY) {
+                databaseConnection.getConnection().prepareStatement(statement).execute();
+            }
+            for (String statement : CREATE_TABLE_ARRAY) {
+                databaseConnection.getConnection().prepareStatement(statement).execute();
+            }
+
+            /*//databaseConnection.getConnection().prepareStatement(SQLStatements.createAuthTable).execute();
             PreparedStatement addPin = databaseConnection.getConnection().prepareStatement(SQLStatements.addPinCard);
-            addPin.setInt(1, 1);
-            addPin.setString(2, "123");
-            addPin.setString(3, "0000");
+            addPin.setInt(1, 6);
+            addPin.setString(2, "730");
+            addPin.setString(3, "8888");
             addPin.execute();
             addPin.close();
+            /*
             PreparedStatement getCustId = databaseConnection.getConnection().prepareStatement(SQLStatements.getCustomerIdFromPinCombination);
             getCustId.setString(1, "123");
             getCustId.setString(2, "0000");
@@ -38,7 +55,12 @@ public class tableCreator {
             removePin.setString(2, "123");
             removePin.setString(3, "0000");
             removePin.execute();
-            removePin.close();
+            removePin.close();*/
+            /*PreparedStatement getAuth = databaseConnection.getConnection().prepareStatement(selectAuth);
+            ResultSet rs = getAuth.executeQuery();
+            while (rs.next()) {
+                System.out.println();
+            }*/
             databaseConnectionPool.returnConnection(databaseConnection);
         } catch (SQLException e) {
             e.printStackTrace();

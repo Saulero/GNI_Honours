@@ -351,6 +351,7 @@ class AuthenticationService {
             sendNewCustomerRequestCallback(newCustomerReplyJson, callbackBuilder);
         } catch (SQLException e) {
             //todo revert customer creation in users database.
+            e.printStackTrace();
             callbackBuilder.build().reject("Couldn't create login data.");
         }
     }

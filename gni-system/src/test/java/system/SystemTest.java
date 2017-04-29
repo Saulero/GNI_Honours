@@ -42,10 +42,10 @@ public class SystemTest {
         Sys.sleep(1000);
         //test variables
         String externalNumber = "NL00IIIB5695575206";
-        String ownAccountNumber = "NL00GNIB4134192911";
+        //String ownAccountNumber = "NL00GNIB4134192911";
         String deboerNumber = "NL00GNIB4633920918";
-        Long deboerId = 2L;
-        Long batsId = 1L;
+        Long deboerId = 1L;
+        //Long batsId = 1L;
 
         //Start http client
         HttpClient uiClient = httpClientBuilder().setHost("localhost").setPort(9990).build();
@@ -55,34 +55,34 @@ public class SystemTest {
         HttpClient pinClient = httpClientBuilder().setHost("localhost").setPort(9995).build();
         pinClient.start();
         Sys.sleep(2000);
-        doLogin(uiClient, "henkdeboer", "henkdeboer");
+        //doLogin(uiClient, "henkdeboer", "henkdeboer");
         //doLogin(uiClient, "test", "test");
-        Sys.sleep(2000);
+        //Sys.sleep(2000);
         /*doNewCustomerRequest(uiClient, "H.", "Henk", "de Boer", "hdb@kpn.planet.nl",
                 "061212121212", "Batslaan 25", "20-04-1992",
                 new Long("1234567890"),100000, 100000, "henkdeboer",
                 "henkdeboer");
           Sys.sleep(2000);*/
-        doNewAccountRequest(uiClient, cookie);
+        /*doNewAccountRequest(uiClient, cookie);
         Sys.sleep(2000);
         doGet(uiClient, "", RequestType.ACCOUNTS, cookie);
         Sys.sleep(2000);
         //doAccountLinkRequest(uiClient, batsId, batsNumber, cookie);
         //Sys.sleep(1000);
-        /*doPin(pinClient, deboerNumber, externalNumber, "De wilde", "8888",
+        doPin(pinClient, deboerNumber, externalNumber, "De wilde", "8888",
                 "730", 20.00);
-        Sys.sleep(2000);*/
+        Sys.sleep(2000);
         /*doExternalTransaction(externalBankClient, externalNumber, deboerNumber, "H. de Boer",
                 "Moneys",2000.00);
         Sys.sleep(2000);
         doInternalTransaction(uiClient, deboerNumber, externalNumber, "De Boer",
                 "moar moneys",2.00, cookie);
-        Sys.sleep(2000);*/
+        Sys.sleep(2000);
         doGet(uiClient, deboerNumber, RequestType.TRANSACTIONHISTORY, cookie);
         Sys.sleep(2000);
         doGet(uiClient, deboerNumber, RequestType.BALANCE, cookie);
         Sys.sleep(2000);
-        doGet(uiClient, deboerNumber, RequestType.CUSTOMERDATA, cookie);
+        doGet(uiClient, deboerNumber, RequestType.CUSTOMERDATA, cookie);*/
     }
 
     private static void initializeServices() {

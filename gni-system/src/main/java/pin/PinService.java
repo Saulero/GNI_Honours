@@ -126,15 +126,16 @@ class PinService {
      */
     private void doTransactionRequest(final Transaction request, final Long customerId,
                                       final CallbackBuilder callbackBuilder) {
-        transactionDispatchClient.putFormAsyncWith1Param("/services/transactionDispatch/transaction",
-                "request", jsonConverter.toJson(request), (code, contentType, replyBody) -> {
+        transactionDispatchClient.putFormAsyncWith2Params("/services/transactionDispatch/transaction",
+                "request", jsonConverter.toJson(request), "customerId", customerId,
+                (code, contentType, replyBody) -> {
                     if (code == HTTP_OK) {
                         Transaction reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyBody),
                                                                     Transaction.class);
                         processTransactionReply(reply, request, callbackBuilder);
                     } else {
-                        System.out.printf("%s Failed to reach transactionDispatch, sending rejection.\n", prefix);
-                        callbackBuilder.build().reject("PIN: Couldn't reach transactionDispatch.");
+                        System.out.printf("%s Transaction request failed, sending rejection.\n", prefix);
+                        callbackBuilder.build().reject("PIN: Transaction failed.");
                     }
                 });
     }

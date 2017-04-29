@@ -32,4 +32,20 @@ public final class SQLStatements {
     public static final String addPinCard = "INSERT INTO pin (user_id, card_number, pin_code) VALUES (?, ?, ?)";
     public static final String getCustomerIdFromPinCombination = "SELECT user_id FROM pin WHERE card_number = ? AND pin_code = ?";
     public static final String removePinCard = "DELETE FROM pin WHERE user_id = ? AND card_number = ? AND pin_code = ?";
+
+    // Create statements used for setting up the database
+    public final static String createAccountsTable = "CREATE TABLE `accounts` ( `user_id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL);";
+    public final static String dropAccountsTable = "DROP TABLE `accounts`;";
+    public final static String createLedgerTable = "CREATE TABLE `ledger` ( `id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL, `name` TEXT NOT NULL, `spending_limit` DOUBLE NOT NULL, `balance` DOUBLE NOT NULL, PRIMARY KEY (id));";
+    public final static String dropLedgerTable = "DROP TABLE `ledger`;";
+    public final static String createPinTable = "CREATE TABLE `pin` ( `user_id` BIGINT(20) NOT NULL, `card_number` TEXT NOT NULL, `pin_code` TEXT NOT NULL);";
+    public final static String dropPinTable = "DROP TABLE `pin`;";
+    public final static String createTransactionsInTable = "CREATE TABLE `transactions_in` ( `id` BIGINT(20) NOT NULL, `timestamp` BIGINT(20) NOT NULL, `account_to` TEXT NOT NULL, `account_to_name` TEXT NOT NULL, `account_from` TEXT NOT NULL, `amount` DOUBLE NOT NULL, `description` TEXT NOT NULL, PRIMARY KEY (id));";
+    public final static String dropTransactionsInTable = "DROP TABLE `transactions_in`;";
+    public final static String createTransactionsOutTable = "CREATE TABLE `transactions_out` ( `id` BIGINT(20) NOT NULL, `timestamp` BIGINT(20) NOT NULL, `account_to` TEXT NOT NULL, `account_to_name` TEXT NOT NULL, `account_from` TEXT NOT NULL, `amount` DOUBLE NOT NULL, `description` TEXT NOT NULL, PRIMARY KEY (id));";
+    public final static String dropTransactionsOutTable = "DROP TABLE `transactions_out`;";
+    public final static String createAuthTable = "CREATE TABLE `authentication` ( `user_id` BIGINT(20) NOT NULL, `username` TEXT NOT NULL, `password` TEXT NOT NULL, `token` BIGINT(20), `token_validity` BIGINT(20));";
+    public final static String dropAuthTable = "DROP TABLE `authentication`;";
+    public final static String createUsersTable = "CREATE TABLE `users` ( `id` BIGINT(20) NOT NULL, `initials` TEXT NOT NULL, `firstname` TEXT NOT NULL, `lastname` TEXT NOT NULL, `email` TEXT NOT NULL, `telephone_number` TEXT NOT NULL, `address` TEXT NOT NULL, `date_of_birth` TEXT NOT NULL, `social_security_number` BIGINT(20) NOT NULL, PRIMARY KEY (id));";
+    public final static String dropUsersTable = "DROP TABLE `users`;";
 }

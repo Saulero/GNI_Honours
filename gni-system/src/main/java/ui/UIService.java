@@ -215,7 +215,7 @@ final class UIService {
                         //System.out.println("sending callback");
                         sendNewCustomerRequestCallback(newCustomerReplyJson, callbackBuilder);
                     } else {
-                        //System.out.println("fail: " + newCustomerReplyJson);
+                        System.out.println("fail: " + newCustomerReplyJson);
                         callbackBuilder.build().reject("Customer creation request failed.");
                     }
                 });
