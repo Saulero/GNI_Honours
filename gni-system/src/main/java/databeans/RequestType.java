@@ -14,7 +14,7 @@ public enum RequestType implements Serializable {
     BALANCE,
     /** Used to retrieve data about a certain customer from the Users service.*/
     CUSTOMERDATA,
-    /** Used to retrieve data about which accountNumber belong to a certain customer. */
+    /** Used to retrieve data about which account belongs to a certain customer. */
     ACCOUNTS,
     /** Used to check if an account exists. */
     ACCOUNTEXISTS

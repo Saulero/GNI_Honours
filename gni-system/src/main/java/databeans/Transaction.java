@@ -122,21 +122,6 @@ public class Transaction {
     }
 
     /**
-     * Compares all variables of transaction to the current object and checks if they are equal.
-     * @param transaction object to check for equality.
-     * @return boolean indicating if the objects are equal.
-     */
-    public boolean equals(final Transaction transaction) {
-        return this.getTransactionID() == transaction.getTransactionID() && this.getSourceAccountNumber().equals(
-                transaction.getSourceAccountNumber()) && this.getDestinationAccountNumber().equals(
-                transaction.getDestinationAccountNumber()) && this.getDestinationAccountHolderName()
-                .equals(transaction.getDestinationAccountHolderName()) && this.getDescription()
-                 .equals(transaction.getDescription()) && this.getTransactionAmount()
-                == transaction.getTransactionAmount() && this.isProcessed() == transaction.isProcessed()
-                && this.isSuccessful() == transaction.isSuccessful();
-    }
-
-    /**
      * Used to compare a transaction request where the transactionID is not set to the reply where it is set.
      * @param transaction Transaction request.
      * @return If the request is equal to the reply on every variable except transactionID.
