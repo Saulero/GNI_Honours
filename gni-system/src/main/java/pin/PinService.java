@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import database.ConnectionPool;
 import database.SQLConnection;
 import database.SQLStatements;
+import databeans.PinCard;
 import databeans.PinTransaction;
 import io.advantageous.qbit.annotation.RequestMapping;
 import io.advantageous.qbit.annotation.RequestMethod;
@@ -166,8 +167,23 @@ class PinService {
     }
 
     @RequestMapping(value = "/card", method = RequestMethod.PUT)
-    public void addPinCard(final Callback<String> callback, final @RequestParam("customerId") String customerId) {
+    public void addNewPinCard(final Callback<String> callback, final @RequestParam("customerId") String customerId) {
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleNewPinCardExceptions(customerId, callbackBuilder);
+    }
 
+    private void handleNewPinCardExceptions(final String customerId, final CallbackBuilder callbackBuilder) {
+        try {
+            String cardNumber = getNextAvailableCardNumber();
+            String pinCode = generatePinCode();
+            addPinCardToDatabase(customerId, cardNumber, pinCode);
+        } catch (SQLException e) {
+            callbackBuilder.build().reject("Something went wrong connecting to the pin database.");
+        } catch (NumberFormatException e) {
+            callbackBuilder.build().reject("Something went wrong when parsing the customerId in Pin.");
+        } catch (NoSuchAlgorithmException e) {
+            callbackBuilder.build().reject("Couldn't generate pinCode in PinService.");
+        }
     }
 
     private String getNextAvailableCardNumber() throws SQLException {
@@ -192,4 +208,22 @@ class PinService {
         return String.format("%04d", randomGenerator.nextInt(9999));
     }
 
+    private void addPinCardToDatabase(final String customerId, final String cardNumber, final String pinCode)
+                                      throws SQLException, NumberFormatException {
+        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+        PreparedStatement addPinCard = databaseConnection.getConnection()
+                                                         .prepareStatement(SQLStatements.addPinCard);
+        addPinCard.setLong(1, Long.parseLong(customerId));
+        addPinCard.setString(2, cardNumber);
+        addPinCard.setString(3, pinCode);
+        addPinCard.execute();
+        addPinCard.close();
+        databaseConnectionPool.returnConnection(databaseConnection);
+    }
+
+    private void sendNewPinCardCallback(final String cardNumber, final String pinCode,
+                                        final CallbackBuilder callbackBuilder) {
+        PinCard pinCard = JSONParser.createJsonPinCard(cardNumber, pinCode);
+        callbackBuilder.build().reply(jsonConverter.toJson(pinCard));
+    }
 }

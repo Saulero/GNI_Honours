@@ -273,6 +273,13 @@ public final class JSONParser {
         return authentication;
     }
 
+    public static PinCard createJsonPinCard(final String cardNumber, final String pinCode) {
+        PinCard pinCard = new PinCard();
+        pinCard.setCardNumber(cardNumber);
+        pinCard.setPinCode(pinCode);
+        return pinCard;
+    }
+
     public static String removeEscapeCharacters(final String dataString) {
         char[] characters = dataString.substring(1, dataString.length() - 1).toCharArray();
         String stringWithoutEscapes = "";
