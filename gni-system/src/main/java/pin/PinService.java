@@ -187,4 +187,9 @@ class PinService {
             return "0000";
         }
     }
+    private String generatePinCode() throws NoSuchAlgorithmException {
+        SecureRandom randomGenerator = SecureRandom.getInstance("SHA1PRNG");
+        return String.format("%04d", randomGenerator.nextInt(9999));
+    }
+
 }
