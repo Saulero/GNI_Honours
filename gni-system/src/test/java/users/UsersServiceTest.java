@@ -23,4 +23,34 @@ public class UsersServiceTest {
     public void getCustomerAccounts() throws Exception {
 
     }
+
+    @Test
+    public void getCustomerData() throws Exception {
+
+    }
+
+    @Test
+    public void getNewCustomerId() throws Exception {
+
+    }
+
+    @Test
+    public void enrollCustomer() throws Exception {
+
+    }
+
+    @Test
+    public void linkAccountToCustomer() throws Exception {
+
+    }
+
+    @Test
+    public void getAccountLinkExistence() throws Exception {
+
+    }
+
+    @Test
+    public void getCustomerExitence() throws Exception {
+
+    }
 }
