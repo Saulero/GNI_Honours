@@ -34,7 +34,7 @@ public class LedgerServiceTest {
     @Test
     public void createNewAccount() throws Exception {
         Account testAccount1 = new Account("TestName", 1000, 1000);
-        testAccount1 = ledger.createNewAccount(null, gson.toJson(testAccount1));
+        testAccount1 = ledger.createNewAccount(testAccount1);
         Account testAccount2 = ledger.getAccountInfo(testAccount1.getAccountNumber());
         assertEquals(testAccount1, testAccount2);
 
@@ -76,7 +76,7 @@ public class LedgerServiceTest {
     @Test
     public void updateBalance() throws Exception {
         Account testAccount1 = new Account("TestName", 1000, 1000);
-        testAccount1 = ledger.createNewAccount(null, gson.toJson(testAccount1));
+        testAccount1 = ledger.createNewAccount(testAccount1);
         Account testAccount2 = ledger.getAccountInfo(testAccount1.getAccountNumber());
 
         assertEquals(testAccount1, testAccount2);
@@ -174,16 +174,16 @@ public class LedgerServiceTest {
     @Test
     public void processIncomingTransaction() throws Exception {
         Account testAccount = new Account("TestName", 1000, 1000);
-        testAccount = ledger.createNewAccount(null, gson.toJson(testAccount));
+        testAccount = ledger.createNewAccount(testAccount);
         Transaction transaction = new Transaction(ledger.getHighestTransactionID(), "NL00GNIB0000000000", testAccount.getAccountNumber(), testAccount.getAccountHolderName(), "TestDescription", 50);
         long id = transaction.getTransactionID();
-        transaction = ledger.processIncomingTransaction(null, gson.toJson(transaction));
+        transaction = ledger.processIncomingTransaction(transaction);
 
         assertTrue(transaction.isProcessed());
         assertTrue(transaction.isSuccessful());
 
         transaction = new Transaction(ledger.getHighestTransactionID(), "NL00GNIB0000000001", "NL00GNIB0000000002", "WrongName", "WrongDescription", 50);
-        transaction = ledger.processIncomingTransaction(null, gson.toJson(transaction));
+        transaction = ledger.processIncomingTransaction(transaction);
 
         assertTrue(transaction.isProcessed());
         assertFalse(transaction.isSuccessful());
@@ -200,7 +200,7 @@ public class LedgerServiceTest {
     @Test
     public void processOutgoingTransaction() throws Exception {
         Account testAccount = new Account("TestName", 1000, 1000);
-        testAccount = ledger.createNewAccount(null, gson.toJson(testAccount));
+        testAccount = ledger.createNewAccount(testAccount);
 
         SQLConnection con = new SQLConnection();
         long customer_id = -1;
@@ -212,13 +212,13 @@ public class LedgerServiceTest {
 
         Transaction transaction = new Transaction(ledger.getHighestTransactionID(), testAccount.getAccountNumber(), "NL00GNIB0000000000", "TestName", "TestDescription", 50);
         long transactionID = transaction.getTransactionID();
-        transaction = ledger.processOutgoingTransaction(null, gson.toJson(transaction), "" + customer_id);
+        transaction = ledger.processOutgoingTransaction(transaction, true);
 
         assertTrue(transaction.isProcessed());
         assertTrue(transaction.isSuccessful());
 
         transaction = new Transaction(ledger.getHighestTransactionID(), testAccount.getAccountNumber(), "NL00GNIB0000000000", "TestName", "TestDescription", 2000);
-        transaction = ledger.processIncomingTransaction(null, gson.toJson(transaction));
+        transaction = ledger.processIncomingTransaction(transaction);
 
         assertTrue(transaction.isProcessed());
         assertFalse(transaction.isSuccessful());
@@ -237,7 +237,7 @@ public class LedgerServiceTest {
     @Test
     public void processDataRequest() throws Exception {
         Account testAccount = new Account("TestName1", 1000, 1000);
-        testAccount = ledger.createNewAccount(null, gson.toJson(testAccount));
+        testAccount = ledger.createNewAccount(testAccount);
 
         SQLConnection con = new SQLConnection();
         long customer_id = -1;
@@ -249,8 +249,8 @@ public class LedgerServiceTest {
 
         DataRequest dataRequest1 = new DataRequest(testAccount.getAccountNumber(), RequestType.BALANCE, customer_id);
         DataRequest dataRequest2 = new DataRequest("NL00GNIB0000000000", RequestType.BALANCE, customer_id);
-        DataReply dataReply1 = ledger.processDataRequest(null, gson.toJson(dataRequest1));
-        DataReply dataReply2 = ledger.processDataRequest(null, gson.toJson(dataRequest2));
+        DataReply dataReply1 = ledger.processDataRequest(dataRequest1);
+        DataReply dataReply2 = ledger.processDataRequest(dataRequest2);
 
         assertNotNull(dataReply1);
         assertNull(dataReply2);
@@ -258,11 +258,11 @@ public class LedgerServiceTest {
 
         Transaction transactionIn = new Transaction(ledger.getHighestTransactionID(), "NL00GNIB0000000000", testAccount.getAccountNumber(), testAccount.getAccountHolderName(), "TestDescription1", 50);
         Transaction transactionOut = new Transaction(ledger.getHighestTransactionID(), testAccount.getAccountNumber(), "NL00GNIB0000000001", "TestName2", "TestDescription2", 50);
-        transactionIn = ledger.processIncomingTransaction(null, gson.toJson(transactionIn));
-        transactionOut = ledger.processOutgoingTransaction(null, gson.toJson(transactionOut), "" + customer_id);
+        transactionIn = ledger.processIncomingTransaction(transactionIn);
+        transactionOut = ledger.processOutgoingTransaction(transactionOut, true);
         dataRequest1 = new DataRequest(testAccount.getAccountNumber(), RequestType.TRANSACTIONHISTORY, customer_id);
 
-        dataReply1 = ledger.processDataRequest(null, gson.toJson(dataRequest1));
+        dataReply1 = ledger.processDataRequest(dataRequest1);
 
         assertEquals(2, dataReply1.getTransactions().size());
         System.out.println(transactionIn.toString());
