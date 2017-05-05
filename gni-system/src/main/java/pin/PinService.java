@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import database.ConnectionPool;
 import database.SQLConnection;
 import database.SQLStatements;
-import databeans.Customer;
 import databeans.PinCard;
 import databeans.PinTransaction;
 import io.advantageous.qbit.annotation.RequestMapping;
@@ -21,6 +20,8 @@ import java.security.SecureRandom;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Calendar;
+import java.util.Date;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 import static java.net.HttpURLConnection.HTTP_OK;
@@ -41,6 +42,8 @@ class PinService {
     private Gson jsonConverter;
     /** Prefix used when printing to indicate the message is coming from the PIN Service. */
     private static final String PREFIX = "[PIN]                 :";
+    /** Used to set how long a pin card is valid */
+    private static final int VALID_CARD_DURATION = 5;
 
     PinService(final int transactionDispatchPort, final String transactionDispatchHost) {
         transactionDispatchClient = httpClientBuilder().setHost(transactionDispatchHost)
@@ -179,8 +182,9 @@ class PinService {
         try {
             String cardNumber = getNextAvailableCardNumber();
             String pinCode = generatePinCode();
+            Date expirationDate = generateExpirationDate();
             PinCard pinCard = JSONParser.createJsonPinCard(accountNumber, cardNumber, pinCode,
-                                                            Long.parseLong(customerId));
+                                                            Long.parseLong(customerId), expirationDate);
             addPinCardToDatabase(pinCard);
             sendNewPinCardCallback(pinCard, callbackBuilder);
         } catch (SQLException e) {
@@ -209,9 +213,17 @@ class PinService {
             return "0000";
         }
     }
+
     private String generatePinCode() throws NoSuchAlgorithmException {
         SecureRandom randomGenerator = SecureRandom.getInstance("SHA1PRNG");
         return String.format("%04d", randomGenerator.nextInt(9999));
+    }
+
+    private Date generateExpirationDate() {
+        Calendar c = Calendar.getInstance();
+        c.setTime(new Date());
+        c.add(Calendar.YEAR, VALID_CARD_DURATION);
+        return c.getTime();
     }
 
     private void addPinCardToDatabase(final PinCard pinCard) throws SQLException, NumberFormatException {
@@ -222,10 +234,12 @@ class PinService {
         addPinCard.setLong(2, pinCard.getCustomerId());
         addPinCard.setString(3, pinCard.getCardNumber());
         addPinCard.setString(4, pinCard.getPinCode());
+        addPinCard.setDate(5, new java.sql.Date(pinCard.getExpirationDate().getTime()));
         addPinCard.execute();
         addPinCard.close();
         databaseConnectionPool.returnConnection(databaseConnection);
     }
+
 
     private void sendNewPinCardCallback(final PinCard pinCard, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Successfully created pin card, card #%s, accountno. %s  sending callback", PREFIX,

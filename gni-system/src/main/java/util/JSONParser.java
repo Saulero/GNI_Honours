@@ -2,6 +2,7 @@ package util;
 
 import databeans.*;
 
+import java.util.Date;
 import java.util.LinkedList;
 
 /**
@@ -274,12 +275,13 @@ public final class JSONParser {
     }
 
     public static PinCard createJsonPinCard(final String accountNumber, final String cardNumber, final String pinCode,
-                                            final Long customerId) {
+                                            final Long customerId, final Date expirationDate) {
         PinCard pinCard = new PinCard();
         pinCard.setAccountNumber(accountNumber);
         pinCard.setCardNumber(cardNumber);
         pinCard.setPinCode(pinCode);
         pinCard.setCustomerId(customerId);
+        pinCard.setExpirationDate(expirationDate);
         return pinCard;
     }
 

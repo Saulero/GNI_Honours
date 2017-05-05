@@ -1,5 +1,7 @@
 package databeans;
 
+import java.util.Date;
+
 /**
  * @Author noel
  */
@@ -8,12 +10,15 @@ public class PinCard {
     private String cardNumber;
     private String pinCode;
     private Long customerId;
+    private Date expirationDate;
 
-    public PinCard(final String accountNumber, final String cardNumber, final String pinCode, final Long customerId) {
+    public PinCard(final String accountNumber, final String cardNumber, final String pinCode, final Long customerId,
+                   final Date expirationDate) {
         this.accountNumber = accountNumber;
         this.cardNumber = cardNumber;
         this.pinCode = pinCode;
         this.customerId = customerId;
+        this.expirationDate = expirationDate;
     }
 
     public PinCard() {
@@ -45,5 +50,13 @@ public class PinCard {
 
     public void setCustomerId(final Long newCustomerId) {
         customerId = newCustomerId;
+    }
+
+    public Date getExpirationDate() {
+        return expirationDate;
+    }
+
+    public void setExpirationDate(final Date newExpirationDate) {
+        expirationDate = newExpirationDate;
     }
 }
