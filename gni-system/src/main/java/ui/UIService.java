@@ -36,7 +36,7 @@ final class UIService {
     /** Character limit used to check if a transaction description is too long. */
     private int descriptionLimit = 200;
     /** Prefix used when printing to indicate the message is coming from the UI Service. */
-    private static final String prefix = "[UI]                  :";
+    private static final String PREFIX = "[UI]                  :";
 
     /**
      * Constructor.
@@ -69,10 +69,10 @@ final class UIService {
             verifyDataRequestInput(dataRequestJson);
             doDataRequest(dataRequestJson, cookie, callbackBuilder);
         } catch (IncorrectInputException e) {
-            System.out.printf("%s %s, sending rejection.\n", prefix, e.getMessage());
+            System.out.printf("%s %s, sending rejection.\n", PREFIX, e.getMessage());
             callbackBuilder.build().reject(e.getMessage());
         } catch (JsonSyntaxException e) {
-            System.out.printf("%s Incorrect json syntax detected, sending rejection.\n", prefix);
+            System.out.printf("%s Incorrect json syntax detected, sending rejection.\n", PREFIX);
             callbackBuilder.build().reject("Incorrect json syntax used.");
         }
     }
@@ -102,7 +102,7 @@ final class UIService {
      */
     private void doDataRequest(final String dataRequestJson, final String cookie,
                                final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Forwarding data request.\n", prefix);
+        System.out.printf("%s Forwarding data request.\n", PREFIX);
         authenticationClient.getAsyncWith2Params("/services/authentication/data", "request",
                                                   dataRequestJson, "cookie", cookie,
                                                   (httpStatusCode, httpContentType, dataReplyJson) -> {
@@ -149,7 +149,7 @@ final class UIService {
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
     private void sendBalanceRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Sending balance request callback.\n", prefix);
+        System.out.printf("%s Sending balance request callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(dataReplyJson));
     }
 
@@ -160,7 +160,7 @@ final class UIService {
      */
     private void sendTransactionHistoryRequestCallback(final String dataReplyJson,
                                                        final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Sending transaction history request callback.\n", prefix);
+        System.out.printf("%s Sending transaction history request callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(dataReplyJson));
     }
 
@@ -170,7 +170,7 @@ final class UIService {
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
     private void sendCustomerDataRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Sending customer data request callback.\n", prefix);
+        System.out.printf("%s Sending customer data request callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(dataReplyJson));
     }
 
@@ -181,7 +181,7 @@ final class UIService {
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
     private void sendAccountsRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Sending accounts request callback.\n", prefix);
+        System.out.printf("%s Sending accounts request callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(dataReplyJson));
     }
 
@@ -206,13 +206,13 @@ final class UIService {
             verifyTransactionInput(transactionRequestJson);
             doTransactionRequest(transactionRequestJson, cookie, callbackBuilder);
         } catch (IncorrectInputException e) {
-            System.out.printf("%s %s, sending rejection.\n", prefix, e.getMessage());
+            System.out.printf("%s %s, sending rejection.\n", PREFIX, e.getMessage());
             callbackBuilder.build().reject(e.getMessage());
         } catch (JsonSyntaxException e) {
-            System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", prefix);
+            System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
             callbackBuilder.build().reject("Syntax error when parsing json.");
         } catch (NumberFormatException e) {
-            System.out.printf("%s The transaction amount was incorrectly specified, sending rejection.\n", prefix);
+            System.out.printf("%s The transaction amount was incorrectly specified, sending rejection.\n", PREFIX);
             callbackBuilder.build().reject("The following variable was incorrectly specified:"
                                             + " transactionAmount.");
         }
@@ -251,7 +251,7 @@ final class UIService {
      */
     private void doTransactionRequest(final String transactionRequestJson, final String cookie,
                                       final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Forwarding transaction request.\n", prefix);
+        System.out.printf("%s Forwarding transaction request.\n", PREFIX);
         authenticationClient.putFormAsyncWith2Params("/services/authentication/transaction", "request",
                                             transactionRequestJson, "cookie", cookie,
                                             (httpStatusCode, httpContentType, transactionReplyJson) -> {
@@ -270,7 +270,7 @@ final class UIService {
      */
     private void sendTransactionCallback(final String transactionReplyJson,
                                          final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Transaction successfully executed, sending callback.\n", prefix);
+        System.out.printf("%s Transaction successfully executed, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(transactionReplyJson));
     }
 
@@ -291,13 +291,13 @@ final class UIService {
             verifyNewCustomerInput(newCustomerJson);
             doNewCustomerRequest(newCustomerJson, callbackBuilder);
         } catch (IncorrectInputException e) {
-            System.out.printf("%s %s", prefix, e.getMessage());
+            System.out.printf("%s %s", PREFIX, e.getMessage());
         } catch (JsonSyntaxException e) {
-            System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", prefix);
+            System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
             callbackBuilder.build().reject("Syntax error when parsing json.");
         } catch (NumberFormatException e) {
             System.out.printf("%s The ssn, spendinglimit or balance was incorrectly specified, sending rejection.\n",
-                                prefix);
+                    PREFIX);
             callbackBuilder.build().reject("One of the following variables was incorrectly specified:"
                                             + " ssn, spendingLimit, balance.");
         }
@@ -359,7 +359,7 @@ final class UIService {
      * @param callbackBuilder Used to send the response of the creation request back to the source of the request.
      */
     private void doNewCustomerRequest(final String newCustomerRequestJson, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Forwarding customer creation request.\n", prefix);
+        System.out.printf("%s Forwarding customer creation request.\n", PREFIX);
         //System.out.println(newCustomerRequestJson);
         authenticationClient.putFormAsyncWith1Param("/services/authentication/customer", "customer",
                                             newCustomerRequestJson,
@@ -381,7 +381,7 @@ final class UIService {
      */
     private void sendNewCustomerRequestCallback(final String newCustomerReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Customer creation successfull, sending callback.\n", prefix);
+        System.out.printf("%s Customer creation successfull, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(newCustomerReplyJson));
     }
 
@@ -395,7 +395,7 @@ final class UIService {
     public void processAccountLinkRequest(final Callback<String> callback,
                                           @RequestParam("request") final String accountLinkRequestJson,
                                           @RequestParam("cookie") final String cookie) {
-        System.out.printf("%s Forwarding account link request.\n", prefix);
+        System.out.printf("%s Forwarding account link request.\n", PREFIX);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         handleAccountLinkExceptions(accountLinkRequestJson, cookie, callbackBuilder);
     }
@@ -406,9 +406,9 @@ final class UIService {
             verifyAccountLinkInput(accountLinkRequestJson);
             doAccountLinkRequest(accountLinkRequestJson, cookie, callbackBuilder);
         } catch (IncorrectInputException e) {
-            System.out.printf("%s %s", prefix, e.getMessage());
+            System.out.printf("%s %s", PREFIX, e.getMessage());
         } catch (JsonSyntaxException e) {
-            System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", prefix);
+            System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
             callbackBuilder.build().reject("Syntax error when parsing json.");
         }
     }
@@ -448,7 +448,7 @@ final class UIService {
      */
     private void sendAccountLinkRequestCallback(final String accountLinkReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Successfull account link, sending callback.\n", prefix);
+        System.out.printf("%s Successfull account link, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(accountLinkReplyJson));
     }
 
@@ -462,7 +462,7 @@ final class UIService {
     public void processNewAccountRequest(final Callback<String> callback,
                                          @RequestParam("request") final String accountOwnerJson,
                                          @RequestParam("cookie") final String cookie) {
-        System.out.printf("%s Forwarding account creation request.\n", prefix);
+        System.out.printf("%s Forwarding account creation request.\n", PREFIX);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder()
                                                                    .withStringCallback(callback);
         handleNewAccountExceptions(accountOwnerJson, cookie, callbackBuilder);
@@ -474,9 +474,9 @@ final class UIService {
             verifyNewAccountInput(accountOwnerJson);
             doNewAccountRequest(accountOwnerJson, cookie, callbackBuilder);
         } catch (IncorrectInputException e) {
-            System.out.printf("%s %s", prefix, e.getMessage());
+            System.out.printf("%s %s", PREFIX, e.getMessage());
         } catch (JsonSyntaxException e) {
-            System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", prefix);
+            System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
             callbackBuilder.build().reject("Syntax error when parsing json.");
         }
     }
@@ -523,14 +523,14 @@ final class UIService {
      */
     private void sendNewAccountRequestCallback(final String newAccountReplyJson,
                                                final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Successfull account creation request, sending callback.\n", prefix);
+        System.out.printf("%s Successfull account creation request, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(newAccountReplyJson));
     }
 
     @RequestMapping(value = "/login", method = RequestMethod.PUT)
     public void processLoginRequest(final Callback<String> callback,
                                     @RequestParam("authData") final String authDataJson) {
-        System.out.printf("%s Forwarding login request.\n", prefix);
+        System.out.printf("%s Forwarding login request.\n", PREFIX);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         doLoginRequest(authDataJson, callbackBuilder);
     }
@@ -540,9 +540,9 @@ final class UIService {
             verifyLoginInput(authDataJson);
             doLoginRequest(authDataJson, callbackBuilder);
         } catch (IncorrectInputException e) {
-            System.out.printf("%s %s", prefix, e.getMessage());
+            System.out.printf("%s %s", PREFIX, e.getMessage());
         } catch (JsonSyntaxException e) {
-            System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", prefix);
+            System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
             callbackBuilder.build().reject("Syntax error when parsing json.");
         }
     }
@@ -574,9 +574,53 @@ final class UIService {
     }
 
     private void sendLoginRequestCallback(final String loginReplyJson, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Login successfull, sending callback containing cookie.\n", prefix);
+        System.out.printf("%s Login successfull, sending callback containing cookie.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(loginReplyJson));
     }
+
+    @RequestMapping(value = "/card", method = RequestMethod.PUT)
+    public void processNewPinCard(final Callback<String> callback,
+                                         @RequestParam("accountNumber") final String accountNumber,
+                                         @RequestParam("cookie") final String cookie) {
+        final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleNewPinCardExceptions(accountNumber, cookie, callbackBuilder);
+    }
+
+    private void handleNewPinCardExceptions(final String accountNumber, final String cookie,
+                                            final CallbackBuilder callbackBuilder) {
+        try {
+            verifyNewPinCardInput(accountNumber);
+            doNewPinCardRequest(accountNumber, cookie, callbackBuilder);
+        } catch (IncorrectInputException e) {
+            System.out.printf("%s %s", PREFIX, e.getMessage());
+        }
+    }
+
+    private void verifyNewPinCardInput(final String accountNumber) throws IncorrectInputException {
+        if (accountNumber == null || accountNumber.length() != accountNumberLength) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: accountNumber.");
+        }
+    }
+
+    private void doNewPinCardRequest(final String accountNumber, final String cookie,
+                                     final CallbackBuilder callbackBuilder) {
+        authenticationClient.putFormAsyncWith2Params("/services/authentication/card", "accountNumber",
+                accountNumber, "cookie", cookie, (code, contentType, body) -> {
+                    if (code == HTTP_OK) {
+                        sendNewPinCardCallback(body, callbackBuilder);
+                    } else {
+                        //System.out.println(body);
+                        callbackBuilder.build().reject("new pin card request not successfull.");
+                    }
+                });
+    }
+
+    private void sendNewPinCardCallback(final String jsonReply, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s New pin card request successfull, sending callback.", PREFIX);
+        callbackBuilder.build().reject(JSONParser.removeEscapeCharacters(jsonReply));
+    }
+
+
 }
 
 

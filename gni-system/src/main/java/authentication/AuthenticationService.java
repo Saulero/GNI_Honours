@@ -37,7 +37,7 @@ class AuthenticationService {
     /** Used for Json conversions. */
     private Gson jsonConverter;
     /** Prefix used when printing to indicate the message is coming from the Authentication Service. */
-    private static final String prefix = "[Auth]                :";
+    private static final String PREFIX = "[Auth]                :";
 
     /**
      * Constructor.
@@ -177,7 +177,7 @@ class AuthenticationService {
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
     private void doDataRequest(final String dataRequestJson, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Forwarding data request.\n", prefix);
+        System.out.printf("%s Forwarding data request.\n", PREFIX);
         usersClient.getAsyncWith1Param("/services/users/data", "request",
                                         dataRequestJson, (httpStatusCode, httpContentType, dataReplyJson) -> {
             if (httpStatusCode == HTTP_OK) {
@@ -194,7 +194,7 @@ class AuthenticationService {
      * @param callbackBuilder Used to send back the reply to the service that requested it.
      */
     private void sendDataRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Data request successfull, sending callback.\n", prefix);
+        System.out.printf("%s Data request successfull, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(dataReplyJson));
     }
 
@@ -239,7 +239,7 @@ class AuthenticationService {
      */
     private void doTransactionRequest(final String transactionRequestJson, final Long customerId,
                                       final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Forwarding transaction request.\n", prefix);
+        System.out.printf("%s Forwarding transaction request.\n", PREFIX);
         usersClient.putFormAsyncWith2Params("/services/users/transaction", "request",
                 transactionRequestJson, "customerId", customerId.toString(),
                 (httpStatusCode, httpContentType, transactionReplyJson) -> {
@@ -258,7 +258,7 @@ class AuthenticationService {
      */
     private void sendTransactionRequestCallback(final String transactionReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Transaction successfull, sending callback.\n", prefix);
+        System.out.printf("%s Transaction successfull, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(transactionReplyJson));
     }
 
@@ -271,7 +271,7 @@ class AuthenticationService {
     public void processNewCustomerRequest(final Callback<String> callback,
                                           @RequestParam("customer") final String newCustomerRequestJson) {
         //System.out.println(newCustomerRequestJson);
-        System.out.printf("%s Registering new customer login information.\n", prefix);
+        System.out.printf("%s Registering new customer login information.\n", PREFIX);
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         handleUsernameValidationExceptions(newCustomerRequestJson, callbackBuilder);
     }
@@ -323,7 +323,7 @@ class AuthenticationService {
      */
     private void doNewCustomerRequest(final String newCustomerRequestJson,
                                       final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Forwarding customer creation request.\n", prefix);
+        System.out.printf("%s Forwarding customer creation request.\n", PREFIX);
         usersClient.putFormAsyncWith1Param("/services/users/customer", "customer",
                 newCustomerRequestJson,
                 (httpStatusCode, httpContentType, newCustomerReplyJson) -> {
@@ -380,7 +380,7 @@ class AuthenticationService {
      */
     private void sendNewCustomerRequestCallback(final String newCustomerReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Customer creation successfull, sending callback.\n", prefix);
+        System.out.printf("%s Customer creation successfull, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(newCustomerReplyJson);
     }
 
@@ -411,7 +411,7 @@ class AuthenticationService {
                         //        encodeCookie(userId, newToken), AuthenticationType.REPLY)));
                         //callback.resolve(jsonConverter.toJson(JSONParser.createJsonAuthentication(
                         //        encodeCookie(userId, newToken), AuthenticationType.REPLY)));
-                        System.out.printf("%s Successfull login for user %s, sending callback.\n", prefix,
+                        System.out.printf("%s Successfull login for user %s, sending callback.\n", PREFIX,
                                           authData.getUsername());
                         callback.reply(jsonConverter.toJson(JSONParser.createJsonAuthentication(
                                                     encodeCookie(userId, newToken), AuthenticationType.REPLY)));
@@ -479,7 +479,7 @@ class AuthenticationService {
                                           @RequestParam("cookie") final String cookie) {
         AccountLink accountLinkRequest = jsonConverter.fromJson(accountLinkRequestJson, AccountLink.class);
         accountLinkRequest.setCustomerId(getCustomerId(cookie));
-        System.out.printf("%s Forwarding account link request for customer %d account number %s.\n", prefix,
+        System.out.printf("%s Forwarding account link request for customer %d account number %s.\n", PREFIX,
                           accountLinkRequest.getCustomerId(), accountLinkRequest.getAccountNumber());
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         handleAccountLinkExceptions(accountLinkRequest, cookie, callbackBuilder);
@@ -528,7 +528,7 @@ class AuthenticationService {
      */
     private void sendAccountLinkRequestCallback(final String accountLinkReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Successfull account link, sending callback.\n", prefix);
+        System.out.printf("%s Successfull account link, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(accountLinkReplyJson));
     }
 
@@ -545,7 +545,7 @@ class AuthenticationService {
                                          @RequestParam("cookie") final String cookie) {
         Customer accountOwner = jsonConverter.fromJson(newAccountRequestJson, Customer.class);
         accountOwner.setCustomerId(getCustomerId(cookie));
-        System.out.printf("%s Forwarding account creation request for customer %d.\n", prefix,
+        System.out.printf("%s Forwarding account creation request for customer %d.\n", PREFIX,
                           accountOwner.getCustomerId());
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         handleNewAccountExceptions(jsonConverter.toJson(accountOwner), cookie, callbackBuilder);
@@ -595,9 +595,49 @@ class AuthenticationService {
      */
     private void sendNewAccountRequestCallback(final String newAccountReplyJson,
                                                final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Account creation request successfull, sending callback.\n", prefix);
+        System.out.printf("%s Account creation request successfull, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(newAccountReplyJson));
     }
+
+    @RequestMapping(value = "/card", method = RequestMethod.PUT)
+    public void processNewPinCardRequest(final Callback<String> callback,
+                                         @RequestParam("accountNumber") final String accountNumber,
+                                         @RequestParam("cookie") final String cookie) {
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleNewPinCardExceptions(accountNumber, cookie, callbackBuilder);
+    }
+
+    private void handleNewPinCardExceptions(final String accountNumber, final String cookie,
+                                            final CallbackBuilder callbackBuilder) {
+        try {
+            authenticateRequest(cookie);
+            Long customerId = getCustomerId(cookie);
+            doNewPinCardRequest(accountNumber, Long.toString(customerId), callbackBuilder);
+        } catch (SQLException e) {
+            callbackBuilder.build().reject("Error connecting to authentication database.");
+        } catch (UserNotAuthorizedException e) {
+            callbackBuilder.build().reject("User not authorized, please login.");
+        }
+
+    }
+
+    private void doNewPinCardRequest(final String accountNumber, final String customerId,
+                                     final CallbackBuilder callbackBuilder) {
+        usersClient.putFormAsyncWith2Params("/services/pin/card", "accountNumber", accountNumber,
+                "customerId", customerId, (httpStatusCode, httpContentType, newAccountReplyJson) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        sendNewPinCardCallback(newAccountReplyJson, callbackBuilder);
+                    } else {
+                        callbackBuilder.build().reject("new pin card request failed.");
+                    }
+                });
+    }
+
+    private void sendNewPinCardCallback(final String newPinCardReplyJson, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s New pin card request successfull, sending callback.", PREFIX);
+        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(newPinCardReplyJson));
+    }
+
 
     /**
      * Safely shuts down the AuthenticationService.

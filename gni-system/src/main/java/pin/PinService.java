@@ -168,18 +168,19 @@ class PinService {
     }
 
     @RequestMapping(value = "/card", method = RequestMethod.PUT)
-    public void addNewPinCard(final Callback<String> callback, final @RequestParam("customer") String customerJson) {
+    public void addNewPinCard(final Callback<String> callback, final @RequestParam("customerId") String customerId,
+                              final @RequestParam("accountNumber") String accountNumber) {
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handleNewPinCardExceptions(customerJson, callbackBuilder);
+        handleNewPinCardExceptions(customerId, accountNumber, callbackBuilder);
     }
 
-    private void handleNewPinCardExceptions(final String customerJson, final CallbackBuilder callbackBuilder) {
+    private void handleNewPinCardExceptions(final String customerId, final String accountNumber,
+                                            final CallbackBuilder callbackBuilder) {
         try {
             String cardNumber = getNextAvailableCardNumber();
             String pinCode = generatePinCode();
-            Customer customer = jsonConverter.fromJson(customerJson, Customer.class);
-            PinCard pinCard = JSONParser.createJsonPinCard(customer.getAccount().getAccountNumber(), cardNumber,
-                                                           pinCode, customer.getCustomerId());
+            PinCard pinCard = JSONParser.createJsonPinCard(accountNumber, cardNumber, pinCode,
+                                                            Long.parseLong(customerId));
             addPinCardToDatabase(pinCard);
             sendNewPinCardCallback(pinCard, callbackBuilder);
         } catch (SQLException e) {
