@@ -275,15 +275,15 @@ public final class JSONParser {
 
     public static String removeEscapeCharacters(final String dataString) {
         char[] characters = dataString.substring(1, dataString.length() - 1).toCharArray();
-        String stringWithoutEscapes = "";
-        for(int i = 0; i < characters.length; i++) {
+        StringBuilder stringWithoutEscapes = new StringBuilder();
+        for (int i = 0; i < characters.length; i++) {
             if (characters[i] == '\\') {
-                stringWithoutEscapes += characters[i + 1];
+                stringWithoutEscapes.append(characters[i + 1]);
                 i++;
             } else {
-                stringWithoutEscapes += characters[i];
+                stringWithoutEscapes.append(characters[i]);
             }
         }
-        return stringWithoutEscapes;
+        return stringWithoutEscapes.toString();
     }
 }
