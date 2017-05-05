@@ -86,6 +86,7 @@ public class SystemTest {
         doGet(uiClient, deboerNumber, RequestType.BALANCE, cookie);
         Sys.sleep(2000);
         doGet(uiClient, deboerNumber, RequestType.CUSTOMERDATA, cookie);
+        TableCreator.main(new String[0]);
     }
 
     private static void initializeServices() {
