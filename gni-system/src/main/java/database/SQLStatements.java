@@ -32,6 +32,7 @@ public final class SQLStatements {
     public static final String addPinCard = "INSERT INTO pin (user_id, card_number, pin_code) VALUES (?, ?, ?)";
     public static final String getCustomerIdFromPinCombination = "SELECT user_id FROM pin WHERE card_number = ? AND pin_code = ?";
     public static final String removePinCard = "DELETE FROM pin WHERE user_id = ? AND card_number = ? AND pin_code = ?";
+    public static final String getHighestCardNumber = "SELECT MAX(card_number) FROM pin";
 
     // Create statements used for setting up the database
     public final static String createAccountsTable = "CREATE TABLE `accounts` ( `user_id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL);";

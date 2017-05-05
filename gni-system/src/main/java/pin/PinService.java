@@ -14,6 +14,8 @@ import io.advantageous.qbit.reactive.CallbackBuilder;
 import databeans.Transaction;
 import util.JSONParser;
 
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -162,5 +164,27 @@ class PinService {
             callbackBuilder.build().reject("PIN: Pin Transaction couldn't be processed.");
         }
     }
-    //todo add method to add a pin card.
+
+    @RequestMapping(value = "/card", method = RequestMethod.PUT)
+    public void addPinCard(final Callback<String> callback, final @RequestParam("customerId") String customerId) {
+
+    }
+
+    private String getNextAvailableCardNumber() throws SQLException {
+        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+        PreparedStatement getHighestCardNumber = databaseConnection.getConnection()
+                                                            .prepareStatement(SQLStatements.getHighestCardNumber);
+        ResultSet highestCardNumber = getHighestCardNumber.executeQuery();
+        if (highestCardNumber.next()) {
+            String cardNumber = highestCardNumber.getString(2);
+            getHighestCardNumber.close();
+            databaseConnectionPool.returnConnection(databaseConnection);
+            return String.format("%04d", Integer.parseInt(cardNumber) + 1);
+        } else {
+            //There are no cards in the system
+            getHighestCardNumber.close();
+            databaseConnectionPool.returnConnection(databaseConnection);
+            return "0000";
+        }
+    }
 }
