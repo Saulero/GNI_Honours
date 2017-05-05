@@ -1,6 +1,5 @@
 package ledger;
 
-import com.google.gson.Gson;
 import database.SQLConnection;
 import databeans.*;
 import org.junit.After;
@@ -18,12 +17,10 @@ import static org.junit.Assert.*;
 public class LedgerServiceTest {
 
     private LedgerService ledger;
-    private Gson gson;
 
     @Before
     public void setUp() throws Exception {
         ledger = new LedgerService();
-        gson = new Gson();
     }
 
     @After

@@ -1,19 +1,14 @@
 package ledger;
 
-import com.google.gson.Gson;
 import database.ConnectionPool;
 import database.SQLConnection;
 import database.SQLStatements;
-import databeans.*;
-import io.advantageous.qbit.annotation.RequestMapping;
-import io.advantageous.qbit.annotation.RequestMethod;
-import io.advantageous.qbit.annotation.RequestParam;
-import io.advantageous.qbit.reactive.Callback;
+import databeans.Account;
 import databeans.DataReply;
 import databeans.DataRequest;
-import databeans.RequestType;
-import io.advantageous.qbit.reactive.CallbackBuilder;
+import databeans.Transaction;
 import util.JSONParser;
+
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -22,6 +17,13 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.LinkedList;
 import java.util.List;
+
+import io.advantageous.qbit.annotation.RequestMapping;
+import io.advantageous.qbit.annotation.RequestMethod;
+import io.advantageous.qbit.annotation.RequestParam;
+import io.advantageous.qbit.reactive.Callback;
+import io.advantageous.qbit.reactive.CallbackBuilder;
+import com.google.gson.Gson;
 
 import static database.SQLStatements.*;
 
@@ -44,8 +46,12 @@ class LedgerService {
         db = new ConnectionPool();
     }
 
-    // REST Methods -----------------------------------------------------------------------
-
+    /**
+     * Receives a request for a new account for a customer and sends the data back to UserService,
+     * so that the new account may be properly linked to the customer.
+     * @param callback Used to send a reply to the request source.
+     * @param body JSON String representing customer information
+     */
     @RequestMapping(value = "/accountNumber", method = RequestMethod.PUT)
     public void newAccountListener(final Callback<String> callback, final @RequestParam("body") String body) {
         Gson gson = new Gson();
@@ -65,6 +71,11 @@ class LedgerService {
         }
     }
 
+    /**
+     * Receives a request to process an incoming transaction.
+     * @param callback Used to send a reply to the request source.
+     * @param body JSON String representing a Transaction
+     */
     @RequestMapping(value = "/transaction/in", method = RequestMethod.PUT)
     void incomingTransactionListener(final Callback<String> callback,
                                            final @RequestParam("request") String body) {
@@ -84,16 +95,20 @@ class LedgerService {
         }
     }
 
+    /**
+     * Receives a request to process an outgoing transaction.
+     * @param callback Used to send a reply to the request source.
+     * @param requestJson JSON String representing a Transaction
+     * @param customerId ID of the customer makin the request, for authorization purposes
+     */
     @RequestMapping(value = "/transaction/out", method = RequestMethod.PUT)
     void outgoingTransactionListener(final Callback<String> callback,
-                                           @RequestParam("request") final String requestJson,
-                                           @RequestParam("customerId") final String customerId) {
+                                     @RequestParam("request") final String requestJson,
+                                     @RequestParam("customerId") final String customerId) {
         System.out.printf("%s Received outgoing transaction request for customer %s.\n", prefix, customerId);
         Gson gson = new Gson();
         Transaction transaction = gson.fromJson(requestJson, Transaction.class);
-        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        boolean customerIsAuthorized = getCustomerAuthorization(transaction.getSourceAccountNumber(),
-                Long.parseLong(customerId), callbackBuilder);
+        boolean customerIsAuthorized = getCustomerAuthorization(transaction.getSourceAccountNumber(), Long.parseLong(customerId));
 
         // Method call
         transaction = processOutgoingTransaction(transaction, customerIsAuthorized);
@@ -112,36 +127,39 @@ class LedgerService {
         }
     }
 
+    /**
+     * Receives a request to process a datarequest.
+     * The datarequest is either for account information, a transaction history, or to check if an account exists.
+     * @param callback Used to send a reply to the request source.
+     * @param dataRequestJson JSON String representing a DataRequest containing the request information
+     */
     @RequestMapping(value = "/data", method = RequestMethod.GET)
     void dataRequestListener(final Callback<String> callback,
                                  final @RequestParam("request") String dataRequestJson) {
         Gson gson = new Gson();
         DataRequest dataRequest = gson.fromJson(dataRequestJson, DataRequest.class);
-        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         System.out.printf("%s Received data request of type %s.\n", prefix, dataRequest.getType().toString());
-        if (!getCustomerAuthorization(dataRequest.getAccountNumber(),
-                dataRequest.getCustomerId(), callbackBuilder)) {
+        if (!getCustomerAuthorization(dataRequest.getAccountNumber(), dataRequest.getCustomerId())) {
             callback.reject("Customer not authorized to request data for this accountNumber.");
-        }
-
-        // Method call
-        DataReply dataReply = processDataRequest(dataRequest);
-
-        if (dataReply != null) {
-            System.out.printf("%s Data request successfull, sending callback.\n", prefix);
-            callback.reply(gson.toJson(dataReply));
         } else {
-            System.out.printf("%s Data request failed, sending rejection.\n", prefix);
-            callback.reject("SQLException");
+            // Method call
+            DataReply dataReply = processDataRequest(dataRequest);
+
+            if (dataReply != null) {
+                System.out.printf("%s Data request successfull, sending callback.\n", prefix);
+                callback.reply(gson.toJson(dataReply));
+            } else {
+                System.out.printf("%s Data request failed, sending rejection.\n", prefix);
+                callback.reject("SQLException");
+            }
         }
     }
 
-    //------------------------------------------------------------------------------------
-
     /**
      * Processes a datarequest.
-     * The datarequest is either for account information, or a transaction history.
+     * The datarequest is either for account information, a transaction history, or to check if an account exists.
      * @param dataRequest Object representing a DataRequest containing the request information
+     * @return the dataReply, or null if it failed
      */
     DataReply processDataRequest(final DataRequest dataRequest) {
         try {
@@ -161,6 +179,12 @@ class LedgerService {
         }
     }
 
+    /**
+     * Process a data request for the balance of an account.
+     * @param dataRequest Object representing a DataRequest containing the request information
+     * @return the dataReply
+     * @throws SQLException sql Exception
+     */
     DataReply processBalanceRequest(final DataRequest dataRequest) throws SQLException {
         SQLConnection connection = db.getConnection();
         DataReply dataReply = null;
@@ -185,6 +209,12 @@ class LedgerService {
         return dataReply;
     }
 
+    /**
+     * Process a data request for the transaction history of an account.
+     * @param dataRequest Object representing a DataRequest containing the request information
+     * @return the dataReply
+     * @throws SQLException sql Exception
+     */
     DataReply processTransactionHistoryRequest(final DataRequest dataRequest) throws SQLException {
         SQLConnection connection = db.getConnection();
         PreparedStatement ps1 = connection.getConnection().prepareStatement(getIncomingTransactionHistory);
@@ -207,6 +237,12 @@ class LedgerService {
         return JSONParser.createJsonReply(dataRequest.getAccountNumber(), dataRequest.getType(), transactions);
     }
 
+    /**
+     * Process a data request for the existance of an account.
+     * @param dataRequest Object representing a DataRequest containing the request information
+     * @return the dataReply
+     * @throws SQLException sql Exception
+     */
     DataReply processAccountExistsRequest(final DataRequest dataRequest) throws SQLException {
         SQLConnection connection = db.getConnection();
         boolean accountExists = false;
@@ -232,6 +268,7 @@ class LedgerService {
      * Processes an incoming transaction.
      * Checks if the account exists and then processes the transaction if it does.
      * @param transaction Object representing a Transaction
+     * @return The processed transaction
      */
     Transaction processIncomingTransaction(final Transaction transaction) {
         Account account = getAccountInfo(transaction.getDestinationAccountNumber());
@@ -268,9 +305,10 @@ class LedgerService {
      * Processes an outgoing transaction.
      * Checks if the account making the transaction is allowed to do this. (has a high enough spending limit)
      * @param transaction Object representing a Transaction request.
+     * @param customerIsAuthorized boolean to signify if the outgoing transaction is allowed
+     * @return The processed transaction
      */
     Transaction processOutgoingTransaction(final Transaction transaction, final boolean customerIsAuthorized) {
-
         Account account = getAccountInfo(transaction.getSourceAccountNumber());
         if (account != null && account.withdrawTransactionIsAllowed(transaction) && customerIsAuthorized) {
             // Update the object
@@ -477,9 +515,13 @@ class LedgerService {
         return Math.max(0, Math.max(maxIncoming, maxOutgoing));
     }
 
-
-    private boolean getCustomerAuthorization(final String accountNumber, final long customerId,
-                                      final CallbackBuilder callbackBuilder) {
+    /**
+     * Determines whether a customer has access to a certain account.
+     * @param accountNumber The account to be tested
+     * @param customerId The customer ID to be tested
+     * @return boolean signifying whether the customer is authorized
+     */
+    private boolean getCustomerAuthorization(final String accountNumber, final long customerId) {
         try {
             SQLConnection databaseConnection = db.getConnection();
             PreparedStatement getAccountNumbers = databaseConnection.getConnection()
@@ -498,7 +540,6 @@ class LedgerService {
             return authorized;
         } catch (SQLException e) {
             e.printStackTrace();
-            callbackBuilder.build().reject("SQL exception during authorization check.");
             return false;
         }
     }
