@@ -29,9 +29,10 @@ public final class SQLStatements {
     public static final String updateTokenValidity = "UPDATE authentication SET authentication.token_validity = ? WHERE authentication.user_id = ?";
     public static final String getAccountLinkCount = "SELECT count(*) FROM accounts WHERE user_id = ? AND account_number = ?";
     public static final String getLoginUsernameCount = "SELECT count(*) FROM authentication WHERE username = ?";
-    public static final String addPinCard = "INSERT INTO pin (user_id, card_number, pin_code) VALUES (?, ?, ?)";
+    public static final String addPinCard = "INSERT INTO pin (account_number, user_id, card_number, pin_code) VALUES (?, ?, ?, ?)";
     public static final String getCustomerIdFromPinCombination = "SELECT user_id FROM pin WHERE card_number = ? AND pin_code = ?";
-    public static final String removePinCard = "DELETE FROM pin WHERE user_id = ? AND card_number = ? AND pin_code = ?";
+    public static final String getAccountNumberFromPinCombination = "SELECT account_number FROM pin WHERE user_id = ? AND card_number = ? AND pin_code = ?";
+    public static final String removePinCard = "DELETE FROM pin WHERE account_number = ? AND user_id = ? AND card_number = ? AND pin_code = ?";
     public static final String getHighestCardNumber = "SELECT MAX(card_number) FROM pin";
 
     // Create statements used for setting up the database
@@ -39,7 +40,7 @@ public final class SQLStatements {
     public final static String dropAccountsTable = "DROP TABLE IF EXISTS `accounts`;";
     public final static String createLedgerTable = "CREATE TABLE `ledger` ( `id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL, `name` TEXT NOT NULL, `spending_limit` DOUBLE NOT NULL, `balance` DOUBLE NOT NULL, PRIMARY KEY (id));";
     public final static String dropLedgerTable = "DROP TABLE IF EXISTS `ledger`;";
-    public final static String createPinTable = "CREATE TABLE `pin` ( `user_id` BIGINT(20) NOT NULL, `card_number` TEXT NOT NULL, `pin_code` TEXT NOT NULL);";
+    public final static String createPinTable = "CREATE TABLE `pin` ( `account_number` TEXT NOT NULL, `user_id` BIGINT(20) NOT NULL, `card_number` TEXT NOT NULL, `pin_code` TEXT NOT NULL);";
     public final static String dropPinTable = "DROP TABLE IF EXISTS `pin`;";
     public final static String createTransactionsInTable = "CREATE TABLE `transactions_in` ( `id` BIGINT(20) NOT NULL, `timestamp` BIGINT(20) NOT NULL, `account_to` TEXT NOT NULL, `account_to_name` TEXT NOT NULL, `account_from` TEXT NOT NULL, `amount` DOUBLE NOT NULL, `description` TEXT NOT NULL, PRIMARY KEY (id));";
     public final static String dropTransactionsInTable = "DROP TABLE IF EXISTS `transactions_in`;";

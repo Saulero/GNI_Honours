@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import database.ConnectionPool;
 import database.SQLConnection;
 import database.SQLStatements;
+import databeans.Customer;
 import databeans.PinCard;
 import databeans.PinTransaction;
 import io.advantageous.qbit.annotation.RequestMapping;
@@ -39,7 +40,7 @@ class PinService {
     /** Used for Json conversions. */
     private Gson jsonConverter;
     /** Prefix used when printing to indicate the message is coming from the PIN Service. */
-    private static final String prefix = "[PIN]                 :";
+    private static final String PREFIX = "[PIN]                 :";
 
     PinService(final int transactionDispatchPort, final String transactionDispatchHost) {
         transactionDispatchClient = httpClientBuilder().setHost(transactionDispatchHost)
@@ -58,7 +59,7 @@ class PinService {
     public void processPinTransaction(final Callback<String> callback,
                                       final @RequestParam("request") String pinTransactionRequestJson) {
         PinTransaction request = jsonConverter.fromJson(pinTransactionRequestJson, PinTransaction.class);
-        System.out.printf("%s Received new Pin request from a customer.\n", prefix);
+        System.out.printf("%s Received new Pin request from a customer.\n", PREFIX);
         Transaction transaction = JSONParser.createJsonTransaction(-1, request.getSourceAccountNumber(),
                 request.getDestinationAccountNumber(), request.getDestinationAccountHolderName(),
                 "PIN Transaction card #" + request.getCardNumber(),
@@ -137,7 +138,7 @@ class PinService {
                                                                     Transaction.class);
                         processTransactionReply(reply, request, callbackBuilder);
                     } else {
-                        System.out.printf("%s Transaction request failed, sending rejection.\n", prefix);
+                        System.out.printf("%s Transaction request failed, sending rejection.\n", PREFIX);
                         callbackBuilder.build().reject("PIN: Transaction failed.");
                     }
                 });
@@ -154,29 +155,33 @@ class PinService {
                                          final CallbackBuilder callbackBuilder) {
         if (reply.isProcessed() && reply.equalsRequest(request)) {
             if (reply.isSuccessful()) {
-                System.out.printf("%s Pin transaction was successfull, sending callback.\n", prefix);
+                System.out.printf("%s Pin transaction was successfull, sending callback.\n", PREFIX);
                 callbackBuilder.build().reply(jsonConverter.toJson(reply));
             } else {
-                System.out.printf("%s Pin transaction was unsuccessfull, sending rejection.\n", prefix);
+                System.out.printf("%s Pin transaction was unsuccessfull, sending rejection.\n", PREFIX);
                 callbackBuilder.build().reject("PIN: Pin Transaction was unsuccessfull.");
             }
         } else {
-            System.out.printf("%s Pin transaction couldn't be processed, sending rejection.\n", prefix);
+            System.out.printf("%s Pin transaction couldn't be processed, sending rejection.\n", PREFIX);
             callbackBuilder.build().reject("PIN: Pin Transaction couldn't be processed.");
         }
     }
 
     @RequestMapping(value = "/card", method = RequestMethod.PUT)
-    public void addNewPinCard(final Callback<String> callback, final @RequestParam("customerId") String customerId) {
+    public void addNewPinCard(final Callback<String> callback, final @RequestParam("customer") String customerJson) {
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handleNewPinCardExceptions(customerId, callbackBuilder);
+        handleNewPinCardExceptions(customerJson, callbackBuilder);
     }
 
-    private void handleNewPinCardExceptions(final String customerId, final CallbackBuilder callbackBuilder) {
+    private void handleNewPinCardExceptions(final String customerJson, final CallbackBuilder callbackBuilder) {
         try {
             String cardNumber = getNextAvailableCardNumber();
             String pinCode = generatePinCode();
-            addPinCardToDatabase(customerId, cardNumber, pinCode);
+            Customer customer = jsonConverter.fromJson(customerJson, Customer.class);
+            PinCard pinCard = JSONParser.createJsonPinCard(customer.getAccount().getAccountNumber(), cardNumber,
+                                                           pinCode, customer.getCustomerId());
+            addPinCardToDatabase(pinCard);
+            sendNewPinCardCallback(pinCard, callbackBuilder);
         } catch (SQLException e) {
             callbackBuilder.build().reject("Something went wrong connecting to the pin database.");
         } catch (NumberFormatException e) {
@@ -208,22 +213,22 @@ class PinService {
         return String.format("%04d", randomGenerator.nextInt(9999));
     }
 
-    private void addPinCardToDatabase(final String customerId, final String cardNumber, final String pinCode)
-                                      throws SQLException, NumberFormatException {
+    private void addPinCardToDatabase(final PinCard pinCard) throws SQLException, NumberFormatException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement addPinCard = databaseConnection.getConnection()
                                                          .prepareStatement(SQLStatements.addPinCard);
-        addPinCard.setLong(1, Long.parseLong(customerId));
-        addPinCard.setString(2, cardNumber);
-        addPinCard.setString(3, pinCode);
+        addPinCard.setString(1, pinCard.getAccountNumber());
+        addPinCard.setLong(2, pinCard.getCustomerId());
+        addPinCard.setString(3, pinCard.getCardNumber());
+        addPinCard.setString(4, pinCard.getPinCode());
         addPinCard.execute();
         addPinCard.close();
         databaseConnectionPool.returnConnection(databaseConnection);
     }
 
-    private void sendNewPinCardCallback(final String cardNumber, final String pinCode,
-                                        final CallbackBuilder callbackBuilder) {
-        PinCard pinCard = JSONParser.createJsonPinCard(cardNumber, pinCode);
+    private void sendNewPinCardCallback(final PinCard pinCard, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Successfully created pin card, card #%s, accountno. %s  sending callback", PREFIX,
+                          pinCard.getCardNumber(), pinCard.getAccountNumber());
         callbackBuilder.build().reply(jsonConverter.toJson(pinCard));
     }
 }

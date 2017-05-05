@@ -273,10 +273,13 @@ public final class JSONParser {
         return authentication;
     }
 
-    public static PinCard createJsonPinCard(final String cardNumber, final String pinCode) {
+    public static PinCard createJsonPinCard(final String accountNumber, final String cardNumber, final String pinCode,
+                                            final Long customerId) {
         PinCard pinCard = new PinCard();
+        pinCard.setAccountNumber(accountNumber);
         pinCard.setCardNumber(cardNumber);
         pinCard.setPinCode(pinCode);
+        pinCard.setCustomerId(customerId);
         return pinCard;
     }
 
