@@ -44,6 +44,8 @@ class PinService {
     private static final String PREFIX = "[PIN]                 :";
     /** Used to set how long a pin card is valid */
     private static final int VALID_CARD_DURATION = 5;
+    /** Used to check if a transaction without a pincode is authorized */
+    private static final int CONTACTLESS_TRANSACTION_LIMIT = 25;
 
     PinService(final int transactionDispatchPort, final String transactionDispatchHost) {
         transactionDispatchClient = httpClientBuilder().setHost(transactionDispatchHost)
@@ -83,14 +85,18 @@ class PinService {
     private void handlePinExceptions(final Transaction transaction, final String cardNumber, final String pinCode,
                                      final CallbackBuilder callbackBuilder) {
         try {
-            Long customerId = getCustomerIdFromPinCombination(cardNumber, pinCode);
-            doTransactionRequest(transaction, customerId, callbackBuilder);
+            Long customerId = getCustomerIdFromCardNumber(cardNumber);
+            if (getPinRequestAuthorization(transaction, cardNumber, pinCode)) {
+                doTransactionRequest(transaction, customerId, callbackBuilder);
+            } else {
+                callbackBuilder.build().reject("Unauthorized Pin request.");
+            }
         } catch (SQLException e) {
             e.printStackTrace();
             callbackBuilder.build().reject("Something went wrong when connecting to the pin database.");
         } catch (IncorrectPinException e) {
             e.printStackTrace();
-            callbackBuilder.build().reject("Incorrect PIN.");
+            callbackBuilder.build().reject("Incorrect PIN/CardNumber.");
         }
     }
 
@@ -98,18 +104,15 @@ class PinService {
      * Fetches the customerId of the customer the card belongs to if the card number and pin code are correct and
      * belong to a customer, otherwise throws an IncorrectPinException.
      * @param cardNumber Card number of the card used.
-     * @param pinCode Pin code entered that should belong to the card used.
      * @return CustomerId of the owner of the card.
      * @throws SQLException Thrown when a database issue occurs.
      * @throws IncorrectPinException Thrown when the cardNumber and pinCode don't match.
      */
-    private Long getCustomerIdFromPinCombination(final String cardNumber, final String pinCode) throws SQLException,
-                                                IncorrectPinException {
+    private Long getCustomerIdFromCardNumber(final String cardNumber) throws SQLException, IncorrectPinException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement getCustomerId = databaseConnection.getConnection().prepareStatement(SQLStatements
-                                                                                .getCustomerIdFromPinCombination);
+                                                                                .getCustomerIdFromCardNumber);
         getCustomerId.setString(1, cardNumber);
-        getCustomerId.setString(2, pinCode);
         ResultSet fetchedCustomerId = getCustomerId.executeQuery();
         if (fetchedCustomerId.next()) {
             Long customerId = fetchedCustomerId.getLong(1);
@@ -119,8 +122,29 @@ class PinService {
         } else {
             getCustomerId.close();
             databaseConnectionPool.returnConnection(databaseConnection);
-            throw new IncorrectPinException("There does not exist a customer with this cardnumber & pincode.");
+            throw new IncorrectPinException("There does not exist a customer with this cardnumber.");
         }
+    }
+
+    private boolean getPinRequestAuthorization(final Transaction transaction, final String cardNumber,
+                                               final String pinCode) throws SQLException {
+        boolean authorized = false;
+        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+        PreparedStatement getCardInfo = databaseConnection.getConnection()
+                                                    .prepareStatement(SQLStatements.getPinCard);
+        getCardInfo.setString(1, cardNumber);
+        ResultSet cardInfo = getCardInfo.executeQuery();
+        if (cardInfo.next()) {
+            if (transaction.getSourceAccountNumber().equals(cardInfo.getString("account_number"))) {
+                if ((transaction.getTransactionAmount() < CONTACTLESS_TRANSACTION_LIMIT && pinCode == null)
+                    || (pinCode.equals(cardInfo.getString("pin_code")))) {
+                    if (cardInfo.getDate("expiration_date").after(new Date())) { //check if expiration date is after current date
+                        authorized = true;
+                    }
+                }
+            }
+        }
+        return authorized;
     }
 
     /**

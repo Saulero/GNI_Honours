@@ -23,6 +23,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 //todo needs method to add and remove pin cards.
 //todo needs method to remove customer
 //todo needs method to remove accountNumbers from customerAccounts.
+//todo move initial ui from pin and transaction to ui
 @RequestMapping("/ui")
 final class UIService {
     /** Connection to the authentication service. */
