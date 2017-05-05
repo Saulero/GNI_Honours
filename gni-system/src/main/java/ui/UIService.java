@@ -1,12 +1,15 @@
 package ui;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 import databeans.*;
 import io.advantageous.qbit.annotation.*;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
 import util.JSONParser;
+
+import java.util.Arrays;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 import static java.net.HttpURLConnection.HTTP_OK;
@@ -26,6 +29,12 @@ final class UIService {
     private HttpClient authenticationClient;
     /** Used for json conversions. */
     private Gson jsonConverter;
+    /** Used to check if accountNumber are of the correct length. */
+    private int accountNumberLength = 18;
+    /** Character limit used to check if a fields value is too long. */
+    private int characterLimit = 50;
+    /** Character limit used to check if a transaction description is too long. */
+    private int descriptionLimit = 200;
     /** Prefix used when printing to indicate the message is coming from the UI Service. */
     private static final String prefix = "[UI]                  :";
 
@@ -44,13 +53,45 @@ final class UIService {
      * Creates a callback builder for the data request and then forwards the request to the UsersService.
      * @param callback Callback used to send a reply back to the origin of the request.
      * @param dataRequestJson A Json String representing a DataRequest object {@link DataRequest}.
+     * @param cookie Cookie belonging to the user making the request.
      */
     @RequestMapping(value = "/data", method = RequestMethod.GET)
     public void processDataRequest(final Callback<String> callback,
                                    @RequestParam("request") final String dataRequestJson,
                                    @RequestParam("cookie") final String cookie) {
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        doDataRequest(dataRequestJson, cookie, callbackBuilder);
+        handleDataRequestExceptions(dataRequestJson, cookie, callbackBuilder);
+    }
+
+    private void handleDataRequestExceptions(final String dataRequestJson, final String cookie,
+                                             final CallbackBuilder callbackBuilder) {
+        try {
+            verifyDataRequestInput(dataRequestJson);
+            doDataRequest(dataRequestJson, cookie, callbackBuilder);
+        } catch (IncorrectInputException e) {
+            System.out.printf("%s %s, sending rejection.\n", prefix, e.getMessage());
+            callbackBuilder.build().reject(e.getMessage());
+        } catch (JsonSyntaxException e) {
+            System.out.printf("%s Incorrect json syntax detected, sending rejection.\n", prefix);
+            callbackBuilder.build().reject("Incorrect json syntax used.");
+        }
+    }
+
+    private void verifyDataRequestInput(final String dataRequestJson)
+                                        throws IncorrectInputException, JsonSyntaxException {
+        DataRequest dataRequest = jsonConverter.fromJson(dataRequestJson, DataRequest.class);
+        RequestType requestType = dataRequest.getType();
+        String accountNumber = dataRequest.getAccountNumber();
+        if (requestType == null || !Arrays.asList(RequestType.values()).contains(dataRequest.getType())) {
+            throw new IncorrectInputException("RequestType not correctly specified.");
+        } else if (accountNumber == null || (isAccountNumberRelated(dataRequest.getType())
+                                                && accountNumber.length() != accountNumberLength)) {
+            throw new IncorrectInputException("AccountNumber specified is of an incorrect length.");
+        }
+    }
+
+    private boolean isAccountNumberRelated(final RequestType requestType) {
+        return requestType != RequestType.CUSTOMERDATA && requestType != RequestType.ACCOUNTS;
     }
 
     /**
@@ -156,7 +197,50 @@ final class UIService {
                                           @RequestParam("request") final String transactionRequestJson,
                                           @RequestParam("cookie") final String cookie) {
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        doTransactionRequest(transactionRequestJson, cookie, callbackBuilder);
+        handleTransactionExceptions(transactionRequestJson, cookie, callbackBuilder);
+    }
+
+    private void handleTransactionExceptions(final String transactionRequestJson, final String cookie,
+                                             final CallbackBuilder callbackBuilder) {
+        try {
+            verifyTransactionInput(transactionRequestJson);
+            doTransactionRequest(transactionRequestJson, cookie, callbackBuilder);
+        } catch (IncorrectInputException e) {
+            System.out.printf("%s %s, sending rejection.\n", prefix, e.getMessage());
+            callbackBuilder.build().reject(e.getMessage());
+        } catch (JsonSyntaxException e) {
+            System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", prefix);
+            callbackBuilder.build().reject("Syntax error when parsing json.");
+        } catch (NumberFormatException e) {
+            System.out.printf("%s The transaction amount was incorrectly specified, sending rejection.\n", prefix);
+            callbackBuilder.build().reject("The following variable was incorrectly specified:"
+                                            + " transactionAmount.");
+        }
+    }
+
+    private void verifyTransactionInput(final String transactionRequestJson)
+                                        throws IncorrectInputException, JsonSyntaxException, NumberFormatException {
+        Transaction request = jsonConverter.fromJson(transactionRequestJson, Transaction.class);
+        final String sourceAccountNumber = request.getSourceAccountNumber();
+        final String destinationAccountNumber = request.getDestinationAccountNumber();
+        final String destinationAccountHolderName = request.getDestinationAccountHolderName();
+        final String transactionDescription = request.getDescription();
+        final double transactionAmount = request.getTransactionAmount();
+        if (sourceAccountNumber == null || sourceAccountNumber.length() != accountNumberLength) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: sourceAccountNumber.");
+        } else if (destinationAccountNumber == null || destinationAccountNumber.length() != accountNumberLength) {
+            throw new IncorrectInputException("The following variable was incorrectly specified:"
+                                                + " destinationAccountNumber.");
+        } else if (destinationAccountHolderName == null || !valueHasCorrectLength(destinationAccountHolderName)) {
+            throw new IncorrectInputException("The following variable was incorrectly specified:"
+                                                + " destinationAccountHolderName.");
+        } else if (transactionDescription == null || transactionDescription.length() > descriptionLimit
+                    || transactionDescription.length() < 0) {
+            throw new IncorrectInputException("The following variable was incorrectly specified:"
+                                                + " transactionDescription.");
+        } else if (transactionAmount < 0) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: transactionAmount.");
+        }
     }
 
     /**
@@ -172,7 +256,7 @@ final class UIService {
                                             transactionRequestJson, "cookie", cookie,
                                             (httpStatusCode, httpContentType, transactionReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        sendTransactionRequestCallback(transactionReplyJson, callbackBuilder);
+                        sendTransactionCallback(transactionReplyJson, callbackBuilder);
                     } else {
                         callbackBuilder.build().reject("Transaction request failed.");
                     }
@@ -184,8 +268,8 @@ final class UIService {
      * @param transactionReplyJson Json String representing the executed transaction {@link Transaction}.
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
-    private void sendTransactionRequestCallback(final String transactionReplyJson,
-                                                final CallbackBuilder callbackBuilder) {
+    private void sendTransactionCallback(final String transactionReplyJson,
+                                         final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Transaction successfully executed, sending callback.\n", prefix);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(transactionReplyJson));
     }
@@ -193,13 +277,79 @@ final class UIService {
     /**
      * Handles customer creation requests by forwarding the request to the users service.
      * @param callback Used to send the result of the request back to the source of the request.
-     * @param newCustomerRequestJson Json String representing a Customer that should be created {@link Customer}.
+     * @param newCustomerJson Json String representing a Customer that should be created {@link Customer}.
      */
     @RequestMapping(value = "/customer", method = RequestMethod.PUT)
     public void processNewCustomerRequest(final Callback<String> callback,
-                                          @RequestParam("customer") final String newCustomerRequestJson) {
+                                          @RequestParam("customer") final String newCustomerJson) {
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        doNewCustomerRequest(newCustomerRequestJson, callbackBuilder);
+        handleNewCustomerExceptions(newCustomerJson, callbackBuilder);
+    }
+
+    private void handleNewCustomerExceptions(final String newCustomerJson, final CallbackBuilder callbackBuilder) {
+        try {
+            verifyNewCustomerInput(newCustomerJson);
+            doNewCustomerRequest(newCustomerJson, callbackBuilder);
+        } catch (IncorrectInputException e) {
+            System.out.printf("%s %s", prefix, e.getMessage());
+        } catch (JsonSyntaxException e) {
+            System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", prefix);
+            callbackBuilder.build().reject("Syntax error when parsing json.");
+        } catch (NumberFormatException e) {
+            System.out.printf("%s The ssn, spendinglimit or balance was incorrectly specified, sending rejection.\n",
+                                prefix);
+            callbackBuilder.build().reject("One of the following variables was incorrectly specified:"
+                                            + " ssn, spendingLimit, balance.");
+        }
+    }
+
+    private void verifyNewCustomerInput(final String newCustomerJson)
+                                        throws IncorrectInputException, JsonSyntaxException, NumberFormatException {
+        Customer newCustomer = jsonConverter.fromJson(newCustomerJson, Customer.class);
+        final String initials = newCustomer.getInitials();
+        final String name = newCustomer.getName();
+        final String surname = newCustomer.getSurname();
+        final String email = newCustomer.getEmail();
+        final String telephoneNumber = newCustomer.getTelephoneNumber();
+        final String address = newCustomer.getAddress();
+        final String dob = newCustomer.getDob();
+        final Long ssn = newCustomer.getSsn();
+        final double spendingLimit = newCustomer.getAccount().getSpendingLimit();
+        final double balance = newCustomer.getAccount().getBalance();
+        final String username = newCustomer.getUsername();
+        final String password = newCustomer.getPassword();
+        if (initials == null || !valueHasCorrectLength(initials)) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: initials.");
+        } else if (name == null || !valueHasCorrectLength(name)) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: name.");
+        } else if (surname == null || !valueHasCorrectLength(surname)) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: surname.");
+        } else if (email == null || !valueHasCorrectLength(email)) {
+            //todo check more formally if its actually an email address
+            throw new IncorrectInputException("The following variable was incorrectly specified: email.");
+        } else if (telephoneNumber == null || telephoneNumber.length() > 15 || telephoneNumber.length() < 10) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: telephoneNumber.");
+        } else if (address == null || !valueHasCorrectLength(address)) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: address.");
+        } else if (dob == null || !valueHasCorrectLength(dob)) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: dob.");
+        } else if (ssn < 0) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: ssn.");
+        } else if (spendingLimit < 0) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: spendingLimit.");
+        } else if (balance < 0) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: balance.");
+        } else if (username == null || !valueHasCorrectLength(username)) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: username.");
+        } else if (password == null || !valueHasCorrectLength(password)) {
+            //todo specify more formal password requirements
+            throw new IncorrectInputException("The following variable was incorrectly specified: password.");
+        }
+    }
+
+    private boolean valueHasCorrectLength(final String fieldValue) {
+        int valueLength = fieldValue.length();
+        return valueLength > 0 && valueLength < characterLimit;
     }
 
     /**
@@ -245,16 +395,36 @@ final class UIService {
     public void processAccountLinkRequest(final Callback<String> callback,
                                           @RequestParam("request") final String accountLinkRequestJson,
                                           @RequestParam("cookie") final String cookie) {
-        AccountLink accountLinkRequest = jsonConverter.fromJson(accountLinkRequestJson, AccountLink.class);
-        System.out.printf("%s Forwarding account link request for customer %d account number %s.\n",
-                          prefix, accountLinkRequest.getCustomerId(), accountLinkRequest.getAccountNumber());
+        System.out.printf("%s Forwarding account link request.\n", prefix);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        doAccountLinkRequest(accountLinkRequestJson, cookie, callbackBuilder);
+        handleAccountLinkExceptions(accountLinkRequestJson, cookie, callbackBuilder);
+    }
+
+    private void handleAccountLinkExceptions(final String accountLinkRequestJson, final String cookie,
+                                            final CallbackBuilder callbackBuilder) {
+        try {
+            verifyAccountLinkInput(accountLinkRequestJson);
+            doAccountLinkRequest(accountLinkRequestJson, cookie, callbackBuilder);
+        } catch (IncorrectInputException e) {
+            System.out.printf("%s %s", prefix, e.getMessage());
+        } catch (JsonSyntaxException e) {
+            System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", prefix);
+            callbackBuilder.build().reject("Syntax error when parsing json.");
+        }
+    }
+
+    private void verifyAccountLinkInput(final String accountLinkRequestJson)
+                                        throws IncorrectInputException, JsonSyntaxException {
+        AccountLink accountLink = jsonConverter.fromJson(accountLinkRequestJson, AccountLink.class);
+        final String accountNumber = accountLink.getAccountNumber();
+        if (accountNumber == null || accountNumber.length() != accountNumberLength) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: accountNumber.");
+        }
     }
 
     /**
-     * Forwards a String representing an account link to the Users database, and processes the reply if it is successfull
-     * or sends a rejection to the requesting service if it fails.
+     * Forwards a String representing an account link to the Users database, and processes the reply if it is
+     * successfull or sends a rejection to the requesting service if it fails.
      * @param accountLinkRequestJson String representing an account link that should be executed {@link AccountLink}.
      * @param callbackBuilder Used to send the result of the request back to the source of the request.
      */
@@ -285,18 +455,45 @@ final class UIService {
     /**
      * Creates a callback builder for the account creation request and then forwards the request to the UsersService.
      * @param callback Used to send the result of the request back to the source of the request.
-     * @param newAccountRequestJson Json String representing a customer object which is the account owner, with an
+     * @param accountOwnerJson Json String representing a customer object which is the account owner, with an
      *                              Account object inside representing the account that should be created.
      */
     @RequestMapping(value = "/account/new", method = RequestMethod.PUT)
     public void processNewAccountRequest(final Callback<String> callback,
-                                         @RequestParam("request") final String newAccountRequestJson,
+                                         @RequestParam("request") final String accountOwnerJson,
                                          @RequestParam("cookie") final String cookie) {
-        Customer accountOwner = jsonConverter.fromJson(newAccountRequestJson, Customer.class);
         System.out.printf("%s Forwarding account creation request.\n", prefix);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder()
                                                                    .withStringCallback(callback);
-        doNewAccountRequest(newAccountRequestJson, cookie, callbackBuilder);
+        handleNewAccountExceptions(accountOwnerJson, cookie, callbackBuilder);
+    }
+
+    private void handleNewAccountExceptions(final String accountOwnerJson, final String cookie,
+                                            final CallbackBuilder callbackBuilder) {
+        try {
+            verifyNewAccountInput(accountOwnerJson);
+            doNewAccountRequest(accountOwnerJson, cookie, callbackBuilder);
+        } catch (IncorrectInputException e) {
+            System.out.printf("%s %s", prefix, e.getMessage());
+        } catch (JsonSyntaxException e) {
+            System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", prefix);
+            callbackBuilder.build().reject("Syntax error when parsing json.");
+        }
+    }
+
+    private void verifyNewAccountInput(final String accountOwnerJson)
+                                        throws IncorrectInputException, JsonSyntaxException {
+        Customer accountOwner = jsonConverter.fromJson(accountOwnerJson, Customer.class);
+        final String initials = accountOwner.getInitials();
+        final String name = accountOwner.getName();
+        final String surname = accountOwner.getSurname();
+        if (initials == null || !valueHasCorrectLength(initials)) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: initials.");
+        } else if (name == null || !valueHasCorrectLength(name)) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: name.");
+        } else if (surname == null || !valueHasCorrectLength(surname)) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: surname.");
+        }
     }
 
     /**
@@ -336,6 +533,32 @@ final class UIService {
         System.out.printf("%s Forwarding login request.\n", prefix);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         doLoginRequest(authDataJson, callbackBuilder);
+    }
+
+    private void handleLoginExceptions(final String authDataJson, final CallbackBuilder callbackBuilder) {
+        try {
+            verifyLoginInput(authDataJson);
+            doLoginRequest(authDataJson, callbackBuilder);
+        } catch (IncorrectInputException e) {
+            System.out.printf("%s %s", prefix, e.getMessage());
+        } catch (JsonSyntaxException e) {
+            System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", prefix);
+            callbackBuilder.build().reject("Syntax error when parsing json.");
+        }
+    }
+
+    private void verifyLoginInput(final String authDataJson) throws IncorrectInputException, JsonSyntaxException {
+        Authentication authentication = jsonConverter.fromJson(authDataJson, Authentication.class);
+        final String username = authentication.getUsername();
+        final String password = authentication.getPassword();
+        final AuthenticationType authenticationType = authentication.getType();
+        if (username == null || !valueHasCorrectLength(username)) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: username.");
+        } else if (password == null || !valueHasCorrectLength(password)) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: password.");
+        } else if ((authenticationType == null) || (authenticationType != AuthenticationType.LOGIN)) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: authenticationType.");
+        }
     }
 
     private void doLoginRequest(final String authDataJson, final CallbackBuilder callbackBuilder) {
