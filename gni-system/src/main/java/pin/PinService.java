@@ -162,4 +162,5 @@ class PinService {
             callbackBuilder.build().reject("PIN: Pin Transaction couldn't be processed.");
         }
     }
+    //todo add method to add a pin card.
 }

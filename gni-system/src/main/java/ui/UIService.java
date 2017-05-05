@@ -17,6 +17,9 @@ import static java.net.HttpURLConnection.HTTP_OK;
  * Interface that outside users can use to view their balance, transaction history, customer information, create
  * new accounts and make transactions.
  */
+//todo needs method to add and remove pin cards.
+//todo needs method to remove customer
+//todo needs method to remove accountNumbers from customerAccounts.
 @RequestMapping("/ui")
 final class UIService {
     /** Connection to the authentication service. */
