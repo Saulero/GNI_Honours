@@ -300,7 +300,6 @@ class UsersService {
     @RequestMapping(value = "/customer", method = RequestMethod.PUT)
     public void processNewCustomer(final Callback<String> callback,
                                    final @RequestParam("customer") String customerRequestJson) {
-        //System.out.println(customerRequestJson);
         Customer customerToEnroll = jsonConverter.fromJson(customerRequestJson, Customer.class);
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         handleNewCustomerRequestExceptions(customerToEnroll, callbackBuilder);
@@ -346,7 +345,7 @@ class UsersService {
     private void enrollCustomer(final Customer customer) throws SQLException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement createNewCustomer = databaseConnection.getConnection().prepareStatement(createNewUser);
-        createNewCustomer.setLong(1, customer.getCustomerId());                // id
+        createNewCustomer.setLong(1, customer.getCustomerId());        // id
         createNewCustomer.setString(2, customer.getInitials());        // initials
         createNewCustomer.setString(3, customer.getName());            // firstname
         createNewCustomer.setString(4, customer.getSurname());         // lastname
