@@ -270,4 +270,38 @@ class PinService {
                           pinCard.getCardNumber(), pinCard.getAccountNumber());
         callbackBuilder.build().reply(jsonConverter.toJson(pinCard));
     }
+
+    @RequestMapping(value = "/card", method = RequestMethod.DELETE)
+    public void removePinCard(final Callback<String> callback, final @RequestParam("pinCard") String pinCardJson) {
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleRemovePinCardExceptions(pinCardJson, callbackBuilder);
+    }
+
+    private void handleRemovePinCardExceptions(final String pinCardJson, final CallbackBuilder callbackBuilder) {
+        try {
+            PinCard pinCard = jsonConverter.fromJson(pinCardJson, PinCard.class);
+            deletePinCardFromDatabase(pinCard);
+        } catch (SQLException e) {
+            callbackBuilder.build().reject("Something went wrong connecting to the pin database.");
+        } catch (NumberFormatException e) {
+            callbackBuilder.build().reject("Something went wrong when parsing the customerId in Pin.");
+        }
+    }
+
+    private void deletePinCardFromDatabase(final PinCard pinCard) throws SQLException, NumberFormatException {
+        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+        PreparedStatement removePinCard = databaseConnection.getConnection()
+                                                            .prepareStatement(SQLStatements.removePinCard);
+        removePinCard.setString(1, pinCard.getAccountNumber());
+        removePinCard.setLong(2, pinCard.getCustomerId());
+        removePinCard.setString(3, pinCard.getCardNumber());
+        removePinCard.setString(4, pinCard.getPinCode());
+        removePinCard.execute();
+    }
+
+    private void sendDeletePinCardCallback(final PinCard pinCard, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Pin card #%s successfully deleted from the system, sending callback.", PREFIX,
+                          pinCard.getCardNumber());
+        callbackBuilder.build().reply(jsonConverter.toJson(pinCard));
+    }
 }

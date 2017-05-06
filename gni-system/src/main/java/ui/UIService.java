@@ -31,11 +31,11 @@ final class UIService {
     /** Used for json conversions. */
     private Gson jsonConverter;
     /** Used to check if accountNumber are of the correct length. */
-    private int accountNumberLength = 18;
+    private static int ACCOUNT_NUMBER_LENGTH = 18;
     /** Character limit used to check if a fields value is too long. */
-    private int characterLimit = 50;
+    private static int CHARACTER_LIMIT = 50;
     /** Character limit used to check if a transaction description is too long. */
-    private int descriptionLimit = 200;
+    private static int DESCRIPTION_LIMIT = 200;
     /** Prefix used when printing to indicate the message is coming from the UI Service. */
     private static final String PREFIX = "[UI]                  :";
 
@@ -86,7 +86,7 @@ final class UIService {
         if (requestType == null || !Arrays.asList(RequestType.values()).contains(dataRequest.getType())) {
             throw new IncorrectInputException("RequestType not correctly specified.");
         } else if (accountNumber == null || (isAccountNumberRelated(dataRequest.getType())
-                                                && accountNumber.length() != accountNumberLength)) {
+                                                && accountNumber.length() != ACCOUNT_NUMBER_LENGTH)) {
             throw new IncorrectInputException("AccountNumber specified is of an incorrect length.");
         }
     }
@@ -227,15 +227,15 @@ final class UIService {
         final String destinationAccountHolderName = request.getDestinationAccountHolderName();
         final String transactionDescription = request.getDescription();
         final double transactionAmount = request.getTransactionAmount();
-        if (sourceAccountNumber == null || sourceAccountNumber.length() != accountNumberLength) {
+        if (sourceAccountNumber == null || sourceAccountNumber.length() != ACCOUNT_NUMBER_LENGTH) {
             throw new IncorrectInputException("The following variable was incorrectly specified: sourceAccountNumber.");
-        } else if (destinationAccountNumber == null || destinationAccountNumber.length() != accountNumberLength) {
+        } else if (destinationAccountNumber == null || destinationAccountNumber.length() != ACCOUNT_NUMBER_LENGTH) {
             throw new IncorrectInputException("The following variable was incorrectly specified:"
                                                 + " destinationAccountNumber.");
         } else if (destinationAccountHolderName == null || !valueHasCorrectLength(destinationAccountHolderName)) {
             throw new IncorrectInputException("The following variable was incorrectly specified:"
                                                 + " destinationAccountHolderName.");
-        } else if (transactionDescription == null || transactionDescription.length() > descriptionLimit
+        } else if (transactionDescription == null || transactionDescription.length() > DESCRIPTION_LIMIT
                     || transactionDescription.length() < 0) {
             throw new IncorrectInputException("The following variable was incorrectly specified:"
                                                 + " transactionDescription.");
@@ -293,6 +293,7 @@ final class UIService {
             doNewCustomerRequest(newCustomerJson, callbackBuilder);
         } catch (IncorrectInputException e) {
             System.out.printf("%s %s", PREFIX, e.getMessage());
+            callbackBuilder.build().reject(e.getMessage());
         } catch (JsonSyntaxException e) {
             System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
             callbackBuilder.build().reject("Syntax error when parsing json.");
@@ -350,7 +351,7 @@ final class UIService {
 
     private boolean valueHasCorrectLength(final String fieldValue) {
         int valueLength = fieldValue.length();
-        return valueLength > 0 && valueLength < characterLimit;
+        return valueLength > 0 && valueLength < CHARACTER_LIMIT;
     }
 
     /**
@@ -408,6 +409,7 @@ final class UIService {
             doAccountLinkRequest(accountLinkRequestJson, cookie, callbackBuilder);
         } catch (IncorrectInputException e) {
             System.out.printf("%s %s", PREFIX, e.getMessage());
+            callbackBuilder.build().reject(e.getMessage());
         } catch (JsonSyntaxException e) {
             System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
             callbackBuilder.build().reject("Syntax error when parsing json.");
@@ -418,7 +420,7 @@ final class UIService {
                                         throws IncorrectInputException, JsonSyntaxException {
         AccountLink accountLink = jsonConverter.fromJson(accountLinkRequestJson, AccountLink.class);
         final String accountNumber = accountLink.getAccountNumber();
-        if (accountNumber == null || accountNumber.length() != accountNumberLength) {
+        if (accountNumber == null || accountNumber.length() != ACCOUNT_NUMBER_LENGTH) {
             throw new IncorrectInputException("The following variable was incorrectly specified: accountNumber.");
         }
     }
@@ -476,6 +478,7 @@ final class UIService {
             doNewAccountRequest(accountOwnerJson, cookie, callbackBuilder);
         } catch (IncorrectInputException e) {
             System.out.printf("%s %s", PREFIX, e.getMessage());
+            callbackBuilder.build().reject(e.getMessage());
         } catch (JsonSyntaxException e) {
             System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
             callbackBuilder.build().reject("Syntax error when parsing json.");
@@ -542,6 +545,7 @@ final class UIService {
             doLoginRequest(authDataJson, callbackBuilder);
         } catch (IncorrectInputException e) {
             System.out.printf("%s %s", PREFIX, e.getMessage());
+            callbackBuilder.build().reject(e.getMessage());
         } catch (JsonSyntaxException e) {
             System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
             callbackBuilder.build().reject("Syntax error when parsing json.");
@@ -594,11 +598,12 @@ final class UIService {
             doNewPinCardRequest(accountNumber, cookie, callbackBuilder);
         } catch (IncorrectInputException e) {
             System.out.printf("%s %s", PREFIX, e.getMessage());
+            callbackBuilder.build().reject(e.getMessage());
         }
     }
 
     private void verifyNewPinCardInput(final String accountNumber) throws IncorrectInputException {
-        if (accountNumber == null || accountNumber.length() != accountNumberLength) {
+        if (accountNumber == null || accountNumber.length() != ACCOUNT_NUMBER_LENGTH) {
             throw new IncorrectInputException("The following variable was incorrectly specified: accountNumber.");
         }
     }
@@ -620,6 +625,7 @@ final class UIService {
         System.out.printf("%s New pin card request successfull, sending callback.", PREFIX);
         callbackBuilder.build().reject(JSONParser.removeEscapeCharacters(jsonReply));
     }
+
 
 
 }
