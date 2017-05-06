@@ -10,6 +10,7 @@ import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
+import jdk.nashorn.internal.codegen.CompilerConstants;
 import util.JSONParser;
 
 import java.security.SecureRandom;
@@ -30,6 +31,8 @@ import static java.net.HttpURLConnection.HTTP_OK;
 class AuthenticationService {
     /** Connection to the users service. */
     private HttpClient usersClient;
+    /** Connection to the pin service. */
+    private HttpClient pinClient;
     /** Database connection pool containing persistent database connections. */
     private ConnectionPool databaseConnectionPool;
     /** Secure Random Number Generator. */
@@ -44,8 +47,9 @@ class AuthenticationService {
      * @param usersPort port on which the Users service can be found.
      * @param usersHost Host on which the Users service can be found.
      */
-    AuthenticationService(final int usersPort, final String usersHost) {
+    AuthenticationService(final int usersPort, final String usersHost, final int pinPort, final String pinHost) {
         this.usersClient = httpClientBuilder().setHost(usersHost).setPort(usersPort).buildAndStart();
+        this.pinClient = httpClientBuilder().setHost(pinHost).setPort(pinPort).buildAndStart();
         this.databaseConnectionPool = new ConnectionPool();
         this.secureRandomNumberGenerator = new SecureRandom();
         this.jsonConverter = new Gson();
@@ -623,7 +627,7 @@ class AuthenticationService {
 
     private void doNewPinCardRequest(final String accountNumber, final String customerId,
                                      final CallbackBuilder callbackBuilder) {
-        usersClient.putFormAsyncWith2Params("/services/pin/card", "accountNumber", accountNumber,
+        pinClient.putFormAsyncWith2Params("/services/pin/card", "accountNumber", accountNumber,
                 "customerId", customerId, (httpStatusCode, httpContentType, newAccountReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         sendNewPinCardCallback(newAccountReplyJson, callbackBuilder);
@@ -636,6 +640,45 @@ class AuthenticationService {
     private void sendNewPinCardCallback(final String newPinCardReplyJson, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s New pin card request successfull, sending callback.", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(newPinCardReplyJson));
+    }
+
+    @RequestMapping(value = "/card", method = RequestMethod.DELETE)
+    public void processPinCardRemovalRequest(final Callback<String> callback,
+                                         @RequestParam("pinCard") final String pinCardJson,
+                                         @RequestParam("cookie") final String cookie) {
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleNewPinCardExceptions(pinCardJson, cookie, callbackBuilder);
+    }
+
+    private void handlePinCardRemovalExceptions(final String pinCardJson, final String cookie,
+                                                final CallbackBuilder callbackBuilder) {
+        try {
+            authenticateRequest(cookie);
+            PinCard pinCard = jsonConverter.fromJson(pinCardJson, PinCard.class);
+            pinCard.setCustomerId(getCustomerId(cookie));
+            doPinCardRemovalRequest(jsonConverter.toJson(pinCard), callbackBuilder);
+        } catch (SQLException e) {
+            callbackBuilder.build().reject("Error connecting to authentication database.");
+        } catch (UserNotAuthorizedException e) {
+            callbackBuilder.build().reject("User not authorized, please login.");
+        }
+    }
+
+    private void doPinCardRemovalRequest(final String pinCardJson, final CallbackBuilder callbackBuilder) {
+        pinClient.sendAsyncRequestWith1Param("/services/pin/card", "DELETE",
+                "pinCard", pinCardJson, (code, contentType, body) -> {
+                    if (code == HTTP_OK) {
+                        sendPinCardRemovalCallback(body, callbackBuilder);
+                    } else {
+                        //System.out.println(body);
+                        callbackBuilder.build().reject("Remove pin card request not successfull.");
+                    }
+                });
+    }
+
+    private void sendPinCardRemovalCallback(final String jsonReply, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Pin card removal successfull, sending callback.", PREFIX);
+        callbackBuilder.build().reject(JSONParser.removeEscapeCharacters(jsonReply));
     }
 
 
