@@ -626,6 +626,62 @@ final class UIService {
         callbackBuilder.build().reject(JSONParser.removeEscapeCharacters(jsonReply));
     }
 
+    @RequestMapping(value = "/card", method = RequestMethod.DELETE)
+    public void processPinCardRemoval(final Callback<String> callback,
+                                      @RequestParam("pinCard") final String pinCardJson,
+                                      @RequestParam("cookie") final String cookie) {
+        final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handlePinCardRemovalExceptions(pinCardJson, cookie, callbackBuilder);
+    }
+
+    private void handlePinCardRemovalExceptions(final String pinCardJson, final String cookie,
+                                                final CallbackBuilder callbackBuilder) {
+        try {
+            verifyPinCardRemovalInput(pinCardJson);
+            doPinCardRemovalRequest(pinCardJson, cookie, callbackBuilder);
+        } catch (IncorrectInputException e) {
+            System.out.printf("%s %s", PREFIX, e.getMessage());
+            callbackBuilder.build().reject(e.getMessage());
+        } catch (JsonSyntaxException e) {
+            System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
+            callbackBuilder.build().reject("Syntax error when parsing json.");
+        }
+    }
+
+    private void verifyPinCardRemovalInput(final String pinCardJson) throws IncorrectInputException,
+            JsonSyntaxException {
+        PinCard pinCard = jsonConverter.fromJson(pinCardJson, PinCard.class);
+        String accountNumber = pinCard.getAccountNumber();
+        String cardNumber = pinCard.getCardNumber();
+        String pinCode = pinCard.getPinCode();
+        if (accountNumber == null || accountNumber.length() != ACCOUNT_NUMBER_LENGTH) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: accountNumber.");
+        }
+        if (cardNumber == null) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: cardNumber.");
+        }
+        if (pinCode == null) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: pinCode.");
+        }
+    }
+
+    private void doPinCardRemovalRequest(final String pinCardJson, final String cookie,
+                                         final CallbackBuilder callbackBuilder) {
+        authenticationClient.sendAsyncRequestWith2Params("/services/authentication/card", "DELETE",
+                "pinCard", pinCardJson, "cookie", cookie, (code, contentType, body) -> {
+                    if (code == HTTP_OK) {
+                        sendPinCardRemovalCallback(body, callbackBuilder);
+                    } else {
+                        //System.out.println(body);
+                        callbackBuilder.build().reject("Remove pin card request not successfull.");
+                    }
+                });
+    }
+
+    private void sendPinCardRemovalCallback(final String jsonReply, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Pin card removal successfull, sending callback.", PREFIX);
+        callbackBuilder.build().reject(JSONParser.removeEscapeCharacters(jsonReply));
+    }
 
 
 }
