@@ -361,12 +361,10 @@ final class UIService {
      */
     private void doNewCustomerRequest(final String newCustomerRequestJson, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Forwarding customer creation request.\n", PREFIX);
-        //System.out.println(newCustomerRequestJson);
         authenticationClient.putFormAsyncWith1Param("/services/authentication/customer", "customer",
                                             newCustomerRequestJson,
                                             (httpStatusCode, httpContentType, newCustomerReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        //System.out.println("sending callback");
                         sendNewCustomerRequestCallback(newCustomerReplyJson, callbackBuilder);
                     } else {
                         System.out.println("fail: " + newCustomerReplyJson);
@@ -571,7 +569,6 @@ final class UIService {
             if (code == HTTP_OK) {
                 sendLoginRequestCallback(body, callbackBuilder);
             } else {
-                //System.out.println(body);
                 callbackBuilder.build().reject("Login not successfull.");
             }
                 });
@@ -614,7 +611,6 @@ final class UIService {
                     if (code == HTTP_OK) {
                         sendNewPinCardCallback(body, callbackBuilder);
                     } else {
-                        //System.out.println(body);
                         callbackBuilder.build().reject("new pin card request not successfull.");
                     }
                 });
@@ -671,7 +667,6 @@ final class UIService {
                     if (code == HTTP_OK) {
                         sendPinCardRemovalCallback(body, callbackBuilder);
                     } else {
-                        //System.out.println(body);
                         callbackBuilder.build().reject("Remove pin card request not successfull.");
                     }
                 });
