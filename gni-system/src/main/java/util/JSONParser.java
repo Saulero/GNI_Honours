@@ -204,7 +204,7 @@ public final class JSONParser {
     public static PinTransaction createJsonPinTransaction(final String newSourceAccountNumber,
                                                           final String newDestinationAccountNumber,
                                                           final String newDestinationAccountHolderName,
-                                                          final String newPinCode, final String newCardNumber,
+                                                          final String newPinCode, Long newCardNumber,
                                                           final double newTransactionAmount) {
         PinTransaction pinTransaction = new PinTransaction();
         pinTransaction.setSourceAccountNumber(newSourceAccountNumber);
@@ -274,7 +274,7 @@ public final class JSONParser {
         return authentication;
     }
 
-    public static PinCard createJsonPinCard(final String accountNumber, final String cardNumber, final String pinCode,
+    public static PinCard createJsonPinCard(final String accountNumber, final Long cardNumber, final String pinCode,
                                             final Long customerId, final Date expirationDate) {
         PinCard pinCard = new PinCard();
         pinCard.setAccountNumber(accountNumber);

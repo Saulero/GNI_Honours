@@ -7,12 +7,12 @@ import java.util.Date;
  */
 public class PinCard {
     private String accountNumber;
-    private String cardNumber;
+    private Long cardNumber;
     private String pinCode;
     private Long customerId;
     private Date expirationDate;
 
-    public PinCard(final String accountNumber, final String cardNumber, final String pinCode, final Long customerId,
+    public PinCard(final String accountNumber, final Long cardNumber, final String pinCode, final Long customerId,
                    final Date expirationDate) {
         this.accountNumber = accountNumber;
         this.cardNumber = cardNumber;
@@ -30,11 +30,11 @@ public class PinCard {
         accountNumber = newAccountNumber;
     }
 
-    public String getCardNumber() {
+    public Long getCardNumber() {
         return cardNumber;
     }
 
-    public void setCardNumber(final String newCardNumber) {
+    public void setCardNumber(final Long newCardNumber) {
         cardNumber = newCardNumber;
     }
 

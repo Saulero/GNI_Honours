@@ -11,12 +11,12 @@ public class PinTransaction {
     private String destinationAccountNumber;
     private String destinationAccountHolderName;
     private String pinCode;
-    private String cardNumber;
+    private Long cardNumber;
     private double transactionAmount;
 
     public PinTransaction(final String newSourceAccountNumber, final String newDestinationAccountNumber,
                           final String newDestinationAccountHolderName, final String newPinCode,
-                          final String newCardNumber, final double newTransactionAmount) {
+                          final Long newCardNumber, final double newTransactionAmount) {
         this.sourceAccountNumber = newSourceAccountNumber;
         this.destinationAccountNumber = newDestinationAccountNumber;
         this.destinationAccountHolderName = newDestinationAccountHolderName;
@@ -60,11 +60,11 @@ public class PinTransaction {
         this.pinCode = newPinCode;
     }
 
-    public String getCardNumber() {
+    public Long getCardNumber() {
         return cardNumber;
     }
 
-    public void setCardNumber(final String newCardNumber) {
+    public void setCardNumber(final Long newCardNumber) {
         this.cardNumber = newCardNumber;
     }
 

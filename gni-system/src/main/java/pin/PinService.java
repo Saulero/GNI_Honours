@@ -82,7 +82,7 @@ class PinService {
      * @param pinCode Pin code entered during the transaction request.
      * @param callbackBuilder Used to send a reply to the request source.
      */
-    private void handlePinExceptions(final Transaction transaction, final String cardNumber, final String pinCode,
+    private void handlePinExceptions(final Transaction transaction, final Long cardNumber, final String pinCode,
                                      final CallbackBuilder callbackBuilder) {
         try {
             Long customerId = getCustomerIdFromCardNumber(cardNumber);
@@ -108,11 +108,11 @@ class PinService {
      * @throws SQLException Thrown when a database issue occurs.
      * @throws IncorrectPinException Thrown when the cardNumber and pinCode don't match.
      */
-    private Long getCustomerIdFromCardNumber(final String cardNumber) throws SQLException, IncorrectPinException {
+    private Long getCustomerIdFromCardNumber(final Long cardNumber) throws SQLException, IncorrectPinException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement getCustomerId = databaseConnection.getConnection().prepareStatement(SQLStatements
                                                                                 .getCustomerIdFromCardNumber);
-        getCustomerId.setString(1, cardNumber);
+        getCustomerId.setLong(1, cardNumber);
         ResultSet fetchedCustomerId = getCustomerId.executeQuery();
         if (fetchedCustomerId.next()) {
             Long customerId = fetchedCustomerId.getLong(1);
@@ -126,13 +126,13 @@ class PinService {
         }
     }
 
-    private boolean getPinRequestAuthorization(final Transaction transaction, final String cardNumber,
+    private boolean getPinRequestAuthorization(final Transaction transaction, final Long cardNumber,
                                                final String pinCode) throws SQLException {
         boolean authorized = false;
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement getCardInfo = databaseConnection.getConnection()
                                                     .prepareStatement(SQLStatements.getPinCard);
-        getCardInfo.setString(1, cardNumber);
+        getCardInfo.setLong(1, cardNumber);
         ResultSet cardInfo = getCardInfo.executeQuery();
         if (cardInfo.next()) {
             if (transaction.getSourceAccountNumber().equals(cardInfo.getString("account_number"))) {
@@ -197,6 +197,7 @@ class PinService {
     @RequestMapping(value = "/card", method = RequestMethod.PUT)
     public void addNewPinCard(final Callback<String> callback, final @RequestParam("customerId") String customerId,
                               final @RequestParam("accountNumber") String accountNumber) {
+        System.out.printf("%s Received new pin card request.\n", PREFIX);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         handleNewPinCardExceptions(customerId, accountNumber, callbackBuilder);
     }
@@ -204,7 +205,7 @@ class PinService {
     private void handleNewPinCardExceptions(final String customerId, final String accountNumber,
                                             final CallbackBuilder callbackBuilder) {
         try {
-            String cardNumber = getNextAvailableCardNumber();
+            Long cardNumber = getNextAvailableCardNumber();
             String pinCode = generatePinCode();
             Date expirationDate = generateExpirationDate();
             PinCard pinCard = JSONParser.createJsonPinCard(accountNumber, cardNumber, pinCode,
@@ -220,21 +221,21 @@ class PinService {
         }
     }
 
-    private String getNextAvailableCardNumber() throws SQLException {
+    private Long getNextAvailableCardNumber() throws SQLException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement getHighestCardNumber = databaseConnection.getConnection()
                                                             .prepareStatement(SQLStatements.getHighestCardNumber);
         ResultSet highestCardNumber = getHighestCardNumber.executeQuery();
         if (highestCardNumber.next()) {
-            String cardNumber = highestCardNumber.getString(2);
+            Long cardNumber = highestCardNumber.getLong(1);
             getHighestCardNumber.close();
             databaseConnectionPool.returnConnection(databaseConnection);
-            return String.format("%04d", Integer.parseInt(cardNumber) + 1);
+            return cardNumber + 1;
         } else {
             //There are no cards in the system
             getHighestCardNumber.close();
             databaseConnectionPool.returnConnection(databaseConnection);
-            return "0000";
+            return 0L;
         }
     }
 
@@ -250,13 +251,13 @@ class PinService {
         return c.getTime();
     }
 
-    private void addPinCardToDatabase(final PinCard pinCard) throws SQLException, NumberFormatException {
+    private void addPinCardToDatabase(final PinCard pinCard) throws SQLException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement addPinCard = databaseConnection.getConnection()
                                                          .prepareStatement(SQLStatements.addPinCard);
         addPinCard.setString(1, pinCard.getAccountNumber());
         addPinCard.setLong(2, pinCard.getCustomerId());
-        addPinCard.setString(3, pinCard.getCardNumber());
+        addPinCard.setLong(3, pinCard.getCardNumber());
         addPinCard.setString(4, pinCard.getPinCode());
         addPinCard.setDate(5, new java.sql.Date(pinCard.getExpirationDate().getTime()));
         addPinCard.execute();
@@ -266,12 +267,12 @@ class PinService {
 
 
     private void sendNewPinCardCallback(final PinCard pinCard, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Successfully created pin card, card #%s, accountno. %s  sending callback", PREFIX,
+        System.out.printf("%s Successfully created pin card, card #%s, accountno. %s  sending callback\n", PREFIX,
                           pinCard.getCardNumber(), pinCard.getAccountNumber());
         callbackBuilder.build().reply(jsonConverter.toJson(pinCard));
     }
 
-    @RequestMapping(value = "/card", method = RequestMethod.DELETE)
+    @RequestMapping(value = "/card/remove", method = RequestMethod.PUT)
     public void removePinCard(final Callback<String> callback, final @RequestParam("pinCard") String pinCardJson) {
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         handleRemovePinCardExceptions(pinCardJson, callbackBuilder);
@@ -281,6 +282,7 @@ class PinService {
         try {
             PinCard pinCard = jsonConverter.fromJson(pinCardJson, PinCard.class);
             deletePinCardFromDatabase(pinCard);
+            sendDeletePinCardCallback(pinCard, callbackBuilder);
         } catch (SQLException e) {
             callbackBuilder.build().reject("Something went wrong connecting to the pin database.");
         } catch (NumberFormatException e) {
@@ -294,13 +296,13 @@ class PinService {
                                                             .prepareStatement(SQLStatements.removePinCard);
         removePinCard.setString(1, pinCard.getAccountNumber());
         removePinCard.setLong(2, pinCard.getCustomerId());
-        removePinCard.setString(3, pinCard.getCardNumber());
+        removePinCard.setLong(3, pinCard.getCardNumber());
         removePinCard.setString(4, pinCard.getPinCode());
         removePinCard.execute();
     }
 
     private void sendDeletePinCardCallback(final PinCard pinCard, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Pin card #%s successfully deleted from the system, sending callback.", PREFIX,
+        System.out.printf("%s Pin card #%s successfully deleted from the system, sending callback.\n", PREFIX,
                           pinCard.getCardNumber());
         callbackBuilder.build().reply(jsonConverter.toJson(pinCard));
     }

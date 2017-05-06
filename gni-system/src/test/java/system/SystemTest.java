@@ -4,6 +4,7 @@ import authentication.AuthenticationServiceMain;
 import com.google.gson.Gson;
 import databeans.*;
 import io.advantageous.boon.core.Sys;
+import io.advantageous.qbit.annotation.RequestMethod;
 import io.advantageous.qbit.http.client.HttpClient;
 import ledger.LedgerServiceMain;
 import pin.PinServiceMain;
@@ -94,6 +95,7 @@ public class SystemTest {
         doGet(uiClient, deboerNumber, RequestType.CUSTOMERDATA, cookie);
         Sys.sleep(2000);
         TableCreator.truncateTable();
+        System.exit(0);
     }
 
     private static void initializeServices() {
@@ -379,7 +381,7 @@ public class SystemTest {
 
     private static void doPinCardRemovalRequest(final HttpClient uiClient, final PinCard pinCardtoRemove) {
         Gson gson = new Gson();
-        uiClient.sendAsyncRequestWith2Params("/services/ui/card", "DELETE", "pinCard",
+        uiClient.putFormAsyncWith2Params("/services/ui/card/remove", "pinCard",
                 gson.toJson(pinCardtoRemove), "cookie", cookie, (code, contentType, body) -> {
                     if (code == HTTP_OK) {
                         PinCard removedPinCard = gson.fromJson(JSONParser.removeEscapeCharacters(body), PinCard.class);

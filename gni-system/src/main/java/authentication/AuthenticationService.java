@@ -596,6 +596,7 @@ class AuthenticationService {
     public void processNewPinCardRequest(final Callback<String> callback,
                                          @RequestParam("accountNumber") final String accountNumber,
                                          @RequestParam("cookie") final String cookie) {
+        System.out.printf("%s Received new Pin card request, attempting to forward request.\n", PREFIX);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         handleNewPinCardExceptions(accountNumber, cookie, callbackBuilder);
     }
@@ -627,16 +628,16 @@ class AuthenticationService {
     }
 
     private void sendNewPinCardCallback(final String newPinCardReplyJson, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s New pin card request successfull, sending callback.", PREFIX);
+        System.out.printf("%s New pin card request successfull, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(newPinCardReplyJson));
     }
 
-    @RequestMapping(value = "/card", method = RequestMethod.DELETE)
+    @RequestMapping(value = "/card/remove", method = RequestMethod.PUT)
     public void processPinCardRemovalRequest(final Callback<String> callback,
                                          @RequestParam("pinCard") final String pinCardJson,
                                          @RequestParam("cookie") final String cookie) {
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handleNewPinCardExceptions(pinCardJson, cookie, callbackBuilder);
+        handlePinCardRemovalExceptions(pinCardJson, cookie, callbackBuilder);
     }
 
     private void handlePinCardRemovalExceptions(final String pinCardJson, final String cookie,
@@ -654,7 +655,7 @@ class AuthenticationService {
     }
 
     private void doPinCardRemovalRequest(final String pinCardJson, final CallbackBuilder callbackBuilder) {
-        pinClient.sendAsyncRequestWith1Param("/services/pin/card", "DELETE",
+        pinClient.putFormAsyncWith1Param("/services/pin/card/remove",
                 "pinCard", pinCardJson, (code, contentType, body) -> {
                     if (code == HTTP_OK) {
                         sendPinCardRemovalCallback(body, callbackBuilder);
@@ -665,8 +666,8 @@ class AuthenticationService {
     }
 
     private void sendPinCardRemovalCallback(final String jsonReply, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Pin card removal successfull, sending callback.", PREFIX);
-        callbackBuilder.build().reject(JSONParser.removeEscapeCharacters(jsonReply));
+        System.out.printf("%s Pin card removal successfull, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(jsonReply));
     }
 
 

@@ -583,6 +583,7 @@ final class UIService {
     public void processNewPinCard(final Callback<String> callback,
                                          @RequestParam("accountNumber") final String accountNumber,
                                          @RequestParam("cookie") final String cookie) {
+        System.out.printf("%s Received new Pin card request, attempting to forward request.\n", PREFIX);
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         handleNewPinCardExceptions(accountNumber, cookie, callbackBuilder);
     }
@@ -617,11 +618,11 @@ final class UIService {
     }
 
     private void sendNewPinCardCallback(final String jsonReply, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s New pin card request successfull, sending callback.", PREFIX);
-        callbackBuilder.build().reject(JSONParser.removeEscapeCharacters(jsonReply));
+        System.out.printf("%s New pin card request successfull, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(jsonReply));
     }
 
-    @RequestMapping(value = "/card", method = RequestMethod.DELETE)
+    @RequestMapping(value = "/card/remove", method = RequestMethod.PUT)
     public void processPinCardRemoval(final Callback<String> callback,
                                       @RequestParam("pinCard") final String pinCardJson,
                                       @RequestParam("cookie") final String cookie) {
@@ -647,7 +648,7 @@ final class UIService {
             JsonSyntaxException {
         PinCard pinCard = jsonConverter.fromJson(pinCardJson, PinCard.class);
         String accountNumber = pinCard.getAccountNumber();
-        String cardNumber = pinCard.getCardNumber();
+        Long cardNumber = pinCard.getCardNumber();
         String pinCode = pinCard.getPinCode();
         if (accountNumber == null || accountNumber.length() != ACCOUNT_NUMBER_LENGTH) {
             throw new IncorrectInputException("The following variable was incorrectly specified: accountNumber.");
@@ -662,7 +663,7 @@ final class UIService {
 
     private void doPinCardRemovalRequest(final String pinCardJson, final String cookie,
                                          final CallbackBuilder callbackBuilder) {
-        authenticationClient.sendAsyncRequestWith2Params("/services/authentication/card", "DELETE",
+        authenticationClient.putFormAsyncWith2Params("/services/authentication/card/remove",
                 "pinCard", pinCardJson, "cookie", cookie, (code, contentType, body) -> {
                     if (code == HTTP_OK) {
                         sendPinCardRemovalCallback(body, callbackBuilder);
@@ -673,8 +674,8 @@ final class UIService {
     }
 
     private void sendPinCardRemovalCallback(final String jsonReply, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Pin card removal successfull, sending callback.", PREFIX);
-        callbackBuilder.build().reject(JSONParser.removeEscapeCharacters(jsonReply));
+        System.out.printf("%s Pin card removal successfull, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(jsonReply));
     }
 
 
