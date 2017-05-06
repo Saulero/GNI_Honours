@@ -25,7 +25,12 @@ import static java.net.HttpURLConnection.HTTP_OK;
 public class SystemTest {
 
     private static String cookie = "1:LTYzNzg4NDUzNTE2MzMzMjc2";
-    private static PinCard pinCard = null;
+    private static PinCard pinCard = new PinCard();
+    private static String accountNumber = "";
+    private static String externalAccountNumber = "NL00IIIB5695575206";
+    private static Long customerId = null;
+    private static String userName = "henkdeboer";
+    private static String password = "henkdeboer";
     private static String PREFIX = "[Test]                :";
 
     /**
@@ -40,14 +45,14 @@ public class SystemTest {
      * @param args should be empty argument
      */
     public static void main(final String[] args) {
+        TableCreator.truncateTable();
+        Sys.sleep(1000);
         initializeServices();
         Sys.sleep(1000);
         //test variables
-        String externalNumber = "NL00IIIB5695575206";
         //String ownAccountNumber = "NL00GNIB4134192911";
         String deboerNumber = "NL00GNIB4633920918";
         Long deboerId = 1L;
-        //Long batsId = 1L;
 
         //Start http client
         HttpClient uiClient = httpClientBuilder().setHost("localhost").setPort(9990).build();
@@ -58,36 +63,37 @@ public class SystemTest {
         pinClient.start();
         Sys.sleep(2000);
         //reset database
-        TableCreator.main(new String[0]);
-        Sys.sleep(2000);
         doNewCustomerRequest(uiClient, "H.", "Henk", "de Boer", "hdb@kpn.planet.nl",
         "061212121212", "Batslaan 25", "20-04-1992",
-        new Long("1234567890"),100000, 100000, "henkdeboer",
-        "henkdeboer");
+        new Long("12"),100000, 100000, userName, password);
         Sys.sleep(2000);
-        doLogin(uiClient, "henkdeboer", "henkdeboer");
+        doLogin(uiClient, userName, password);
         Sys.sleep(2000);
-        doNewAccountRequest(uiClient, cookie);
+        doNewPinCardRequest(uiClient, accountNumber);
+        Sys.sleep(2000);
+        doPin(pinClient, pinCard, externalAccountNumber, "De Wilde", 20.00);
+        Sys.sleep(2000);
+        doPinCardRemovalRequest(uiClient, pinCard);
+        Sys.sleep(2000);
+        /*doNewAccountRequest(uiClient, cookie);
         Sys.sleep(2000);
         doGet(uiClient, "", RequestType.ACCOUNTS, cookie);
         Sys.sleep(2000);
-        //doAccountLinkRequest(uiClient, batsId, batsNumber, cookie);
-        //Sys.sleep(1000);
-        /*doPin(pinClient, deboerNumber, externalNumber, "De wilde", "8888",
-                "730", 20.00);
-        Sys.sleep(2000);*/
-        doExternalTransaction(externalBankClient, externalNumber, deboerNumber, "H. de Boer",
-                "Moneys",2000.00);
+        doAccountLinkRequest(uiClient, batsId, batsNumber, cookie);
         Sys.sleep(2000);
-        doInternalTransaction(uiClient, deboerNumber, externalNumber, "De Boer",
-                "moar moneys",2.00, cookie);
+        doExternalTransaction(externalBankClient, externalAccountNumber, deboerNumber, "H. de Boer",
+                "Moneys",2000.00);
+                Sys.sleep(2000);
+        doInternalTransaction(uiClient, deboerNumber, externalAccountNumber, "De Boer",
+                "moar moneys",2.00, cookie);*/
         Sys.sleep(2000);
         doGet(uiClient, deboerNumber, RequestType.TRANSACTIONHISTORY, cookie);
         Sys.sleep(2000);
         doGet(uiClient, deboerNumber, RequestType.BALANCE, cookie);
         Sys.sleep(2000);
         doGet(uiClient, deboerNumber, RequestType.CUSTOMERDATA, cookie);
-        TableCreator.main(new String[0]);
+        Sys.sleep(2000);
+        TableCreator.truncateTable();
     }
 
     private static void initializeServices() {
@@ -200,6 +206,8 @@ public class SystemTest {
                 (code, contentType, body) -> { if (code == HTTP_OK) {
                     Customer reply = gson.fromJson(JSONParser.removeEscapeCharacters(body), Customer.class);
                     System.out.printf("%s Customer successfully created in the system.\n\n\n\n", PREFIX);
+                    customerId = reply.getCustomerId();
+                    accountNumber = reply.getAccount().getAccountNumber();
                 } else {
                     System.out.printf("%s Customer creation request failed, body: %s\n\n\n\n", PREFIX, body);
                 }

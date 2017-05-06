@@ -36,18 +36,26 @@ public final class SQLStatements {
     public static final String getHighestCardNumber = "SELECT MAX(card_number) FROM pin";
 
     // Create statements used for setting up the database
-    public final static String createAccountsTable = "CREATE TABLE `accounts` ( `user_id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL);";
+    public final static String createAccountsTable = "CREATE TABLE IF NOT EXISTS `accounts` ( `user_id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL);";
     public final static String dropAccountsTable = "DROP TABLE IF EXISTS `accounts`;";
-    public final static String createLedgerTable = "CREATE TABLE `ledger` ( `id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL, `name` TEXT NOT NULL, `spending_limit` DOUBLE NOT NULL, `balance` DOUBLE NOT NULL, PRIMARY KEY (id));";
+    public final static String createLedgerTable = "CREATE TABLE IF NOT EXISTS `ledger` ( `id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL, `name` TEXT NOT NULL, `spending_limit` DOUBLE NOT NULL, `balance` DOUBLE NOT NULL, PRIMARY KEY (id));";
     public final static String dropLedgerTable = "DROP TABLE IF EXISTS `ledger`;";
-    public final static String createPinTable = "CREATE TABLE `pin` ( `account_number` TEXT NOT NULL, `user_id` BIGINT(20) NOT NULL, `card_number` TEXT NOT NULL, `pin_code` TEXT NOT NULL, `expiration_date` DATE NOT NULL, PRIMARY KEY(card_number));";
+    public final static String createPinTable = "CREATE TABLE IF NOT EXISTS `pin`( `account_number` TEXT NOT NULL, `user_id` BIGINT(20) NOT NULL, `card_number` TEXT NOT NULL, `pin_code` TEXT NOT NULL, `expiration_date` DATE NOT NULL);";
     public final static String dropPinTable = "DROP TABLE IF EXISTS `pin`;";
-    public final static String createTransactionsInTable = "CREATE TABLE `transactions_in` ( `id` BIGINT(20) NOT NULL, `timestamp` BIGINT(20) NOT NULL, `account_to` TEXT NOT NULL, `account_to_name` TEXT NOT NULL, `account_from` TEXT NOT NULL, `amount` DOUBLE NOT NULL, `description` TEXT NOT NULL, PRIMARY KEY (id));";
+    public final static String createTransactionsInTable = "CREATE TABLE IF NOT EXISTS `transactions_in`( `id` BIGINT(20) NOT NULL, `timestamp` BIGINT(20) NOT NULL, `account_to` TEXT NOT NULL, `account_to_name` TEXT NOT NULL, `account_from` TEXT NOT NULL, `amount` DOUBLE NOT NULL, `description` TEXT NOT NULL, PRIMARY KEY (id));";
     public final static String dropTransactionsInTable = "DROP TABLE IF EXISTS `transactions_in`;";
-    public final static String createTransactionsOutTable = "CREATE TABLE `transactions_out` ( `id` BIGINT(20) NOT NULL, `timestamp` BIGINT(20) NOT NULL, `account_to` TEXT NOT NULL, `account_to_name` TEXT NOT NULL, `account_from` TEXT NOT NULL, `amount` DOUBLE NOT NULL, `description` TEXT NOT NULL, PRIMARY KEY (id));";
+    public final static String createTransactionsOutTable = "CREATE TABLE IF NOT EXISTS `transactions_out`( `id` BIGINT(20) NOT NULL, `timestamp` BIGINT(20) NOT NULL, `account_to` TEXT NOT NULL, `account_to_name` TEXT NOT NULL, `account_from` TEXT NOT NULL, `amount` DOUBLE NOT NULL, `description` TEXT NOT NULL, PRIMARY KEY (id));";
     public final static String dropTransactionsOutTable = "DROP TABLE IF EXISTS `transactions_out`;";
-    public final static String createAuthTable = "CREATE TABLE `authentication` ( `user_id` BIGINT(20) NOT NULL, `username` TEXT NOT NULL, `password` TEXT NOT NULL, `token` BIGINT(20), `token_validity` BIGINT(20), PRIMARY KEY (user_id));";
+    public final static String createAuthTable = "CREATE TABLE IF NOT EXISTS `authentication`( `user_id` BIGINT(20) NOT NULL, `username` TEXT NOT NULL, `password` TEXT NOT NULL, `token` BIGINT(20), `token_validity` BIGINT(20), PRIMARY KEY (user_id));";
     public final static String dropAuthTable = "DROP TABLE IF EXISTS `authentication`;";
-    public final static String createUsersTable = "CREATE TABLE `users` ( `id` BIGINT(20) NOT NULL, `initials` TEXT NOT NULL, `firstname` TEXT NOT NULL, `lastname` TEXT NOT NULL, `email` TEXT NOT NULL, `telephone_number` TEXT NOT NULL, `address` TEXT NOT NULL, `date_of_birth` TEXT NOT NULL, `social_security_number` BIGINT(20) NOT NULL, PRIMARY KEY (id));";
+    public final static String createUsersTable = "CREATE TABLE IF NOT EXISTS `users`( `id` BIGINT(20) NOT NULL, `initials` TEXT NOT NULL, `firstname` TEXT NOT NULL, `lastname` TEXT NOT NULL, `email` TEXT NOT NULL, `telephone_number` TEXT NOT NULL, `address` TEXT NOT NULL, `date_of_birth` TEXT NOT NULL, `social_security_number` BIGINT(20) NOT NULL, PRIMARY KEY (id));";
     public final static String dropUsersTable = "DROP TABLE IF EXISTS `users`;";
+    public final static String truncateAccountsTable = "TRUNCATE TABLE `accounts`";
+    public final static String truncateLedgerTable = "TRUNCATE TABLE `ledger`";
+    public final static String truncatePinTable = "TRUNCATE TABLE `pin`";
+    public final static String truncateTransactionsInTable = "TRUNCATE TABLE `transactions_in`";
+    public final static String truncateTransactionsOutTable = "TRUNCATE TABLE `transactions_out`";
+    public final static String truncateAuthTable = "TRUNCATE TABLE `authentication`";
+    public final static String truncateUsersTable = "TRUNCATE TABLE `users`";
+
 }

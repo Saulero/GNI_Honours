@@ -3,6 +3,7 @@ package util;
 import database.ConnectionPool;
 import database.SQLConnection;
 import database.SQLStatements;
+import io.advantageous.boon.core.Sys;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -26,19 +27,28 @@ public class TableCreator {
                                        SQLStatements.dropPinTable, SQLStatements.dropTransactionsInTable,
                                        SQLStatements.dropTransactionsOutTable, SQLStatements.dropAuthTable,
                                        SQLStatements.dropUsersTable};
+    /** SQL statements to truncate all tables in the database. */
+    private static final String[] TRUNCATE_ARRAY = { SQLStatements.truncateAccountsTable,
+            SQLStatements.truncateLedgerTable, SQLStatements.truncatePinTable,
+            SQLStatements.truncateTransactionsInTable, SQLStatements.truncateTransactionsOutTable,
+            SQLStatements.truncateAuthTable, SQLStatements.truncateUsersTable };
     /** Drops all tables and creates new tables to use the system with.
      * @param args Arguments are not used, just there so we can run the main method. */
     public static void main(final String[] args) {
+        executeStatements(CREATE_TABLE_ARRAY);
+    }
+    public static void truncateTable() {
+        executeStatements(TRUNCATE_ARRAY);
+    }
+
+    public static void executeStatements(String[] statements) {
         try {
             SQLConnection databaseConnection = databaseConnectionPool.getConnection();
-            for (String statement : DROP_TABLE_ARRAY) {
-                databaseConnection.getConnection().prepareStatement(statement).execute();
-            }
-            for (String statement : CREATE_TABLE_ARRAY) {
+            for (String statement : TRUNCATE_ARRAY) {
                 databaseConnection.getConnection().prepareStatement(statement).execute();
             }
             databaseConnectionPool.returnConnection(databaseConnection);
-        } catch (SQLException e) {
+        }  catch (SQLException e) {
             e.printStackTrace();
         }
     }
