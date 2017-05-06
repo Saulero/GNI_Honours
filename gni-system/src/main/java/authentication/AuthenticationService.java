@@ -100,8 +100,6 @@ class AuthenticationService {
         Long[] cookieData = decodeCookie(cookie);
         long customerId = cookieData[0];
         long cookieToken = cookieData[1];
-        //System.out.println(customerId);
-        //System.out.println(cookieToken);
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement getAuthenticationData = databaseConnection.getConnection()
                                                                     .prepareStatement(getAuthenticationData2);
@@ -138,9 +136,7 @@ class AuthenticationService {
         String[] cookieParts = cookie.split(":");
         Long[] cookieData = new Long[2];
         cookieData[0] = Long.parseLong(cookieParts[0]); //customerId
-        //System.out.println("parsed customerId");
         cookieData[1] = Long.parseLong(new String(Base64.getDecoder().decode(cookieParts[1].getBytes()))); //token
-        //System.out.println("returning");
         return cookieData;
     }
 
@@ -274,7 +270,6 @@ class AuthenticationService {
     @RequestMapping(value = "/customer", method = RequestMethod.PUT)
     public void processNewCustomerRequest(final Callback<String> callback,
                                           @RequestParam("customer") final String newCustomerRequestJson) {
-        //System.out.println(newCustomerRequestJson);
         System.out.printf("%s Registering new customer login information.\n", PREFIX);
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         handleUsernameValidationExceptions(newCustomerRequestJson, callbackBuilder);
@@ -348,7 +343,6 @@ class AuthenticationService {
      */
     private void handleLoginCreationExceptions(final String newCustomerReplyJson,
                                                final CallbackBuilder callbackBuilder) {
-        //System.out.println(newCustomerReplyJson);
         Customer customerToEnroll = jsonConverter.fromJson(newCustomerReplyJson, Customer.class);
         try {
             registerNewCustomerLogin(customerToEnroll);
@@ -396,7 +390,6 @@ class AuthenticationService {
      */
     @RequestMapping(value = "/login", method = RequestMethod.PUT)
     public void login(final Callback<String> callback, final @RequestParam("authData") String authDataJson) {
-        //System.out.println(authDataJson);
         Authentication authData = jsonConverter.fromJson(authDataJson, Authentication.class);
         if (authData.getType() == AuthenticationType.LOGIN) {
             try {
@@ -411,10 +404,6 @@ class AuthenticationService {
                         // Legitimate info
                         long newToken = secureRandomNumberGenerator.nextLong();
                         setNewToken(userId, newToken);
-                        //System.out.println(jsonConverter.toJson(JSONParser.createJsonAuthentication(
-                        //        encodeCookie(userId, newToken), AuthenticationType.REPLY)));
-                        //callback.resolve(jsonConverter.toJson(JSONParser.createJsonAuthentication(
-                        //        encodeCookie(userId, newToken), AuthenticationType.REPLY)));
                         System.out.printf("%s Successfull login for user %s, sending callback.\n", PREFIX,
                                           authData.getUsername());
                         callback.reply(jsonConverter.toJson(JSONParser.createJsonAuthentication(
@@ -670,7 +659,6 @@ class AuthenticationService {
                     if (code == HTTP_OK) {
                         sendPinCardRemovalCallback(body, callbackBuilder);
                     } else {
-                        //System.out.println(body);
                         callbackBuilder.build().reject("Remove pin card request not successfull.");
                     }
                 });
