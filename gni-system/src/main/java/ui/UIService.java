@@ -27,11 +27,11 @@ final class UIService {
     /** Used for json conversions. */
     private Gson jsonConverter;
     /** Used to check if accountNumber are of the correct length. */
-    private static int ACCOUNT_NUMBER_LENGTH = 18;
+    private static int accountNumberLength = 18;
     /** Character limit used to check if a fields value is too long. */
-    private static int CHARACTER_LIMIT = 50;
+    private static int characterLimit = 50;
     /** Character limit used to check if a transaction description is too long. */
-    private static int DESCRIPTION_LIMIT = 200;
+    private static int descriptionLimit = 200;
     /** Prefix used when printing to indicate the message is coming from the UI Service. */
     private static final String PREFIX = "[UI]                  :";
 
@@ -60,6 +60,13 @@ final class UIService {
         handleDataRequestExceptions(dataRequestJson, cookie, callbackBuilder);
     }
 
+    /**
+     * Handles the exceptions that occur when verifying the input of the data request, and sends a rejection
+     * if the input for the request is incorrect.
+     * @param dataRequestJson Json string of the data request that was received.
+     * @param cookie Cookie of the user that sent the data request.
+     * @param callbackBuilder Used to send the received reply back to the source of the request.
+     */
     private void handleDataRequestExceptions(final String dataRequestJson, final String cookie,
                                              final CallbackBuilder callbackBuilder) {
         try {
@@ -74,6 +81,12 @@ final class UIService {
         }
     }
 
+    /**
+     * Checks if the input for the data request is acceptable.
+     * @param dataRequestJson Json string of the data request that was received.
+     * @throws IncorrectInputException Thrown when a field does not contain an acceptable value.
+     * @throws JsonSyntaxException Thrown when the Json submitted for the data request is not correct(can't be parsed).
+     */
     private void verifyDataRequestInput(final String dataRequestJson)
                                         throws IncorrectInputException, JsonSyntaxException {
         DataRequest dataRequest = jsonConverter.fromJson(dataRequestJson, DataRequest.class);
@@ -82,19 +95,24 @@ final class UIService {
         if (requestType == null || !Arrays.asList(RequestType.values()).contains(dataRequest.getType())) {
             throw new IncorrectInputException("RequestType not correctly specified.");
         } else if (accountNumber == null || (isAccountNumberRelated(dataRequest.getType())
-                                                && accountNumber.length() != ACCOUNT_NUMBER_LENGTH)) {
+                                                && accountNumber.length() != accountNumberLength)) {
             throw new IncorrectInputException("AccountNumber specified is of an incorrect length.");
         }
     }
 
+    /**
+     * Returns a boolean indicating if the request type is related to a specific accountNumber.
+     * @param requestType Type of request to check.
+     * @return Boolean indicating if the requestType relates to an accountNumber.
+     */
     private boolean isAccountNumberRelated(final RequestType requestType) {
         return requestType != RequestType.CUSTOMERDATA && requestType != RequestType.ACCOUNTS;
     }
 
     /**
-     * Forwards the data request to the Users service and sends the reply off to processing, or rejects the request if
-     * the forward fails.
-     * @param dataRequestJson Json string representing a dataRequest that should be sent to the UsersService.
+     * Forwards the data request to the Authentication service and sends the reply off to processing,
+     * or rejects the request if the forward fails.
+     * @param dataRequestJson Json string representing a dataRequest that should be sent to the Authentication Service.
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
     private void doDataRequest(final String dataRequestJson, final String cookie,
@@ -184,10 +202,11 @@ final class UIService {
 
     /**
      * Creates a callback builder to forward the result of the request to the requester, and then forwards the request
-     * to the Users service.
+     * to the Authentication service.
      * @param callback Used to send the reply of User service to the source of the request.
      * @param transactionRequestJson Json String representing a Transaction object that is to be processed
      *                               {@link Transaction}.
+     * @param cookie Cookie of the User that sent the request.
      */
     @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
     public void processTransactionRequest(final Callback<String> callback,
@@ -197,6 +216,13 @@ final class UIService {
         handleTransactionExceptions(transactionRequestJson, cookie, callbackBuilder);
     }
 
+    /**
+     * Tries to verify the input for a transaction request, and send the correct rejection if an exception is thrown.
+     * @param transactionRequestJson Json String representing a Transaction object that is to be processed
+     *                               {@link Transaction}.
+     * @param cookie Cookie of the User that sent the request.
+     * @param callbackBuilder Used to send the result of the request back to the source of the request.
+     */
     private void handleTransactionExceptions(final String transactionRequestJson, final String cookie,
                                              final CallbackBuilder callbackBuilder) {
         try {
@@ -215,6 +241,13 @@ final class UIService {
         }
     }
 
+    /**
+     * Checks if the input for a transaction request is correctly formatted and contains correct values.
+     * @param transactionRequestJson Json string representing a transaction request.
+     * @throws IncorrectInputException Thrown when a value is not correctly specified.
+     * @throws JsonSyntaxException Thrown when the json string is incorrect and cant be parsed.
+     * @throws NumberFormatException Thrown when a string value could not be parsed to a Long.
+     */
     private void verifyTransactionInput(final String transactionRequestJson)
                                         throws IncorrectInputException, JsonSyntaxException, NumberFormatException {
         Transaction request = jsonConverter.fromJson(transactionRequestJson, Transaction.class);
@@ -223,15 +256,15 @@ final class UIService {
         final String destinationAccountHolderName = request.getDestinationAccountHolderName();
         final String transactionDescription = request.getDescription();
         final double transactionAmount = request.getTransactionAmount();
-        if (sourceAccountNumber == null || sourceAccountNumber.length() != ACCOUNT_NUMBER_LENGTH) {
+        if (sourceAccountNumber == null || sourceAccountNumber.length() != accountNumberLength) {
             throw new IncorrectInputException("The following variable was incorrectly specified: sourceAccountNumber.");
-        } else if (destinationAccountNumber == null || destinationAccountNumber.length() != ACCOUNT_NUMBER_LENGTH) {
+        } else if (destinationAccountNumber == null || destinationAccountNumber.length() != accountNumberLength) {
             throw new IncorrectInputException("The following variable was incorrectly specified:"
                                                 + " destinationAccountNumber.");
         } else if (destinationAccountHolderName == null || !valueHasCorrectLength(destinationAccountHolderName)) {
             throw new IncorrectInputException("The following variable was incorrectly specified:"
                                                 + " destinationAccountHolderName.");
-        } else if (transactionDescription == null || transactionDescription.length() > DESCRIPTION_LIMIT
+        } else if (transactionDescription == null || transactionDescription.length() > descriptionLimit
                     || transactionDescription.length() < 0) {
             throw new IncorrectInputException("The following variable was incorrectly specified:"
                                                 + " transactionDescription.");
@@ -241,9 +274,10 @@ final class UIService {
     }
 
     /**
-     * Forwards transaction request to the User service and forwards the reply or sends a rejection if the request
-     * fails.
+     * Forwards transaction request to the Authentication service and forwards the reply or sends a rejection if the
+     * request fails.
      * @param transactionRequestJson Transaction request that should be processed.
+     * @param cookie Cookie of the User that sent the request.
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
     private void doTransactionRequest(final String transactionRequestJson, final String cookie,
@@ -283,6 +317,12 @@ final class UIService {
         handleNewCustomerExceptions(newCustomerJson, callbackBuilder);
     }
 
+    /**
+     * Tries to verify the input of a new customer request and then forward the request, sends a rejection if an
+     * exception occurs.
+     * @param newCustomerJson Json string representing a Customer{@link Customer} that is to be created in the system.
+     * @param callbackBuilder Used to send the result back to the source of the request.
+     */
     private void handleNewCustomerExceptions(final String newCustomerJson, final CallbackBuilder callbackBuilder) {
         try {
             verifyNewCustomerInput(newCustomerJson);
@@ -301,6 +341,13 @@ final class UIService {
         }
     }
 
+    /**
+     * Checks if the input for a new customer request is correctly formatted and contains correct values.
+     * @param newCustomerJson Json string representing a Customer{@link Customer} that is to be created in the system.
+     * @throws IncorrectInputException Thrown when a value is not correctly specified.
+     * @throws JsonSyntaxException Thrown when the json string is incorrect and cant be parsed.
+     * @throws NumberFormatException Thrown when a string value could not be parsed to a Long.
+     */
     private void verifyNewCustomerInput(final String newCustomerJson)
                                         throws IncorrectInputException, JsonSyntaxException, NumberFormatException {
         Customer newCustomer = jsonConverter.fromJson(newCustomerJson, Customer.class);
@@ -345,14 +392,19 @@ final class UIService {
         }
     }
 
+    /**
+     * Checks if a the value of a field is larger than 0 and smaller than a preset character limit.
+     * @param fieldValue Field to check the value length of.
+     * @return Boolean indicating if the length of the string is larger than 0 and smaller than characterLimit.
+     */
     private boolean valueHasCorrectLength(final String fieldValue) {
         int valueLength = fieldValue.length();
-        return valueLength > 0 && valueLength < CHARACTER_LIMIT;
+        return valueLength > 0 && valueLength < characterLimit;
     }
 
     /**
-     * Sends the customer request to the User service and then processes the reply, or sends a rejection to the
-     * requester if the request fails..
+     * Sends the customer request to the Authentication service and then processes the reply, or sends a rejection to
+     * the source of the request if the request fails..
      * @param newCustomerRequestJson Json String representing a Customer that should be created {@link Customer}.
      * @param callbackBuilder Used to send the response of the creation request back to the source of the request.
      */
@@ -371,9 +423,9 @@ final class UIService {
     }
 
     /**
-     * Forwards the created customer back to the service that sent the customer creation request to this service.
-     * @param newCustomerReplyJson Json String representing a customer that was created in the system.
-     * @param callbackBuilder Json String representing a Customer that should be created {@link Customer}.
+     * Forwards the created customer back to the source of the customer creation request.
+     * @param newCustomerReplyJson Json String representing a customer{@link Customer} that was created in the system.
+     * @param callbackBuilder Used to send the response of the creation request back to the source of the request.
      */
     private void sendNewCustomerRequestCallback(final String newCustomerReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
@@ -382,8 +434,10 @@ final class UIService {
     }
 
     /**
-     * Creates a callback builder for the account link request and then forwards the request to the UsersService.
+     * Creates a callback builder for the account link request and then forwards the request to the Authentication
+     * Service.
      * @param callback Used to send the result of the request back to the source of the request.
+     * @param cookie Cookie of the User that sent the request.
      * @param accountLinkRequestJson Json string representing an AccountLink that should be created in the
      *                               database {@link AccountLink}.
      */
@@ -396,6 +450,14 @@ final class UIService {
         handleAccountLinkExceptions(accountLinkRequestJson, cookie, callbackBuilder);
     }
 
+    /**
+     * Tries to verify the input of the accountLink request and then forward the request, send a rejection if an
+     * exception is thrown.
+     * @param accountLinkRequestJson Json string representing an account link{@link AccountLink} that should be created
+     *                               in the system.
+     * @param cookie Cookie of the User that sent the request.
+     * @param callbackBuilder Used to send the response of the account link request back to the source of the request.
+     */
     private void handleAccountLinkExceptions(final String accountLinkRequestJson, final String cookie,
                                             final CallbackBuilder callbackBuilder) {
         try {
@@ -410,19 +472,27 @@ final class UIService {
         }
     }
 
+    /**
+     * Checks if the input for an account link request is correctly formatted and contains correct values.
+     * @param accountLinkRequestJson Json string representing an account link{@link AccountLink} that should be created
+     *                               in the system.
+     * @throws IncorrectInputException Thrown when a value is not correctly specified.
+     * @throws JsonSyntaxException Thrown when the json string is incorrect and cant be parsed.
+     */
     private void verifyAccountLinkInput(final String accountLinkRequestJson)
                                         throws IncorrectInputException, JsonSyntaxException {
         AccountLink accountLink = jsonConverter.fromJson(accountLinkRequestJson, AccountLink.class);
         final String accountNumber = accountLink.getAccountNumber();
-        if (accountNumber == null || accountNumber.length() != ACCOUNT_NUMBER_LENGTH) {
+        if (accountNumber == null || accountNumber.length() != accountNumberLength) {
             throw new IncorrectInputException("The following variable was incorrectly specified: accountNumber.");
         }
     }
 
     /**
-     * Forwards a String representing an account link to the Users database, and processes the reply if it is
-     * successfull or sends a rejection to the requesting service if it fails.
+     * Forwards a String representing an account link to the Authentication Service, and processes the reply if it is
+     * successfull or sends a rejection to the requesting source if it fails.
      * @param accountLinkRequestJson String representing an account link that should be executed {@link AccountLink}.
+     * @param cookie Cookie of the User that sent the request.
      * @param callbackBuilder Used to send the result of the request back to the source of the request.
      */
     private void doAccountLinkRequest(final String accountLinkRequestJson, final String cookie,
@@ -450,10 +520,12 @@ final class UIService {
     }
 
     /**
-     * Creates a callback builder for the account creation request and then forwards the request to the UsersService.
+     * Creates a callback builder for the account creation request and then forwards the request to the Authentication
+     * Service.
      * @param callback Used to send the result of the request back to the source of the request.
-     * @param accountOwnerJson Json String representing a customer object which is the account owner, with an
-     *                              Account object inside representing the account that should be created.
+     * @param cookie Cookie of the User that sent the request.
+     * @param accountOwnerJson Json String representing a customer object{@link Customer} which is the account owner,
+     *                         with an Account object inside representing the account that should be created.
      */
     @RequestMapping(value = "/account/new", method = RequestMethod.PUT)
     public void processNewAccountRequest(final Callback<String> callback,
@@ -465,6 +537,14 @@ final class UIService {
         handleNewAccountExceptions(accountOwnerJson, cookie, callbackBuilder);
     }
 
+    /**
+     * Tries to verify the input of a new account request and then forward the request, sends a rejection if an
+     * exception occurs.
+     * @param accountOwnerJson Json string representing the customer{@link Customer} that an account should be created
+     * for.
+     * @param cookie Cookie of the User that sent the request.
+     * @param callbackBuilder Used to send the result of the request back to the source of the request.
+     */
     private void handleNewAccountExceptions(final String accountOwnerJson, final String cookie,
                                             final CallbackBuilder callbackBuilder) {
         try {
@@ -479,6 +559,13 @@ final class UIService {
         }
     }
 
+    /**
+     * Checks if the input for an new account request is correctly formatted and contains correct values.
+     * @param accountOwnerJson Json string representing the customer{@link Customer} that an account should be created
+     * for.
+     * @throws IncorrectInputException Thrown when a value is not correctly specified.
+     * @throws JsonSyntaxException Thrown when the json string is incorrect and cant be parsed.
+     */
     private void verifyNewAccountInput(final String accountOwnerJson)
                                         throws IncorrectInputException, JsonSyntaxException {
         Customer accountOwner = jsonConverter.fromJson(accountOwnerJson, Customer.class);
@@ -495,10 +582,11 @@ final class UIService {
     }
 
     /**
-     * Forwards the Json String representing a customer with the account to be created to the Users Service and sends
-     * the result back to the requesting service, or rejects the request if the forwarding fails.
-     * @param newAccountRequestJson Json String representing a customer object which is the account owner, with an
-     *                              Account object inside representing the account that should be created.
+     * Forwards the Json String representing a customer with the account to be created to the Authentication Service
+     * and sends the result back to the request source, or rejects the request if the forwarding fails.
+     * @param newAccountRequestJson Json String representing a customer object{@link Customer} which is the account
+     *                              owner, with an Account object inside representing the account that is to be created.
+     * @param cookie Cookie of the User that sent the request.
      * @param callbackBuilder Used to send the result of the request back to the source of the request.
      */
     private void doNewAccountRequest(final String newAccountRequestJson, final String cookie,
@@ -515,7 +603,7 @@ final class UIService {
     }
 
     /**
-     * Sends the result of an account creation request to the service that requested it.
+     * Sends the result of an account creation request to the request source.
      * @param newAccountReplyJson Json String representing a customer with a linked account that was newly created.
      * @param callbackBuilder Used to send the result of the request back to the source of the request.
      */
@@ -525,6 +613,13 @@ final class UIService {
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(newAccountReplyJson));
     }
 
+    /**
+     * Processes an account removal request by creating a callback builder and then calling the exception handler for
+     * the request.
+     * @param callback Used to send the result of the request back to the request source.
+     * @param accountNumber AccountNumber of the account that is to be removed from the system.
+     * @param cookie Cookie of the User that sent the request.
+     */
     @RequestMapping(value = "/account/remove", method = RequestMethod.PUT)
     public void processAccountRemovalRequest(final Callback<String> callback,
                                              @RequestParam("accountNumber") final String accountNumber,
@@ -534,6 +629,13 @@ final class UIService {
         handleAccountRemovalExceptions(accountNumber, cookie, callbackBuilder);
     }
 
+    /**
+     * Tries to verify the input of an account removal request and then forward the request, sends a rejection if an
+     * exception occurs.
+     * @param accountNumber AccountNumber of the account that is to be removed from the system.
+     * @param cookie Cookie of the User that sent the request.
+     * @param callbackBuilder Used to send the result of the request back to the source of the request.
+     */
     private void handleAccountRemovalExceptions(final String accountNumber, final String cookie,
                                                 final CallbackBuilder callbackBuilder) {
         try {
@@ -545,12 +647,24 @@ final class UIService {
         }
     }
 
+    /**
+     * Checks if the input for an account removal request is correctly formatted and contains correct values.
+     * @param accountNumber AccountNumber of the account that is to be removed from the system.
+     * @throws IncorrectInputException Thrown when a value is not correctly specified.
+     */
     private void verifyAccountRemovalInput(final String accountNumber) throws IncorrectInputException {
-        if (accountNumber == null || accountNumber.length() != ACCOUNT_NUMBER_LENGTH) {
+        if (accountNumber == null || accountNumber.length() != accountNumberLength) {
             throw new IncorrectInputException("The following variable was incorrectly specified: accountNumber.");
         }
     }
 
+    /**
+     * Forwards the account removal request to the UI Service and sends a callback if the request is successfull, or
+     * sends a rejection if the request fails.
+     * @param accountNumber AccountNumber of the account that is to be removed from the system.
+     * @param cookie Cookie of the User that sent the request.
+     * @param callbackBuilder Used to send the result of the request back to the source of the request.
+     */
     private void doAccountRemovalRequest(final String accountNumber, final String cookie,
                                          final CallbackBuilder callbackBuilder) {
         authenticationClient.putFormAsyncWith2Params("/services/authentication/account/remove",
@@ -564,19 +678,38 @@ final class UIService {
         });
     }
 
-    private void sendAccountRemovalCallback(final String replyJson, final CallbackBuilder callbackBuilder) {
+    /**
+     * Sends the result of an account removal request to the request source.
+     * @param accountNumber accountNumber that was removed from the system.
+     * @param callbackBuilder Used to send the result of the account removal request to the request source.
+     */
+    private void sendAccountRemovalCallback(final String accountNumber, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Account removal successfull, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(replyJson));
+        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(accountNumber));
     }
 
+    /**
+     * Processes a login request by creating a callback builder to reach the request source and then calling the
+     * exception handler for login requests.
+     * @param callback Used to send the result of the request back to the request source.
+     * @param authDataJson Json String representing an Authentication object{@link Authentication} which contains the
+     *                     login information of a User.
+     */
     @RequestMapping(value = "/login", method = RequestMethod.PUT)
     public void processLoginRequest(final Callback<String> callback,
                                     @RequestParam("authData") final String authDataJson) {
         System.out.printf("%s Forwarding login request.\n", PREFIX);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        doLoginRequest(authDataJson, callbackBuilder);
+        handleLoginExceptions(authDataJson, callbackBuilder);
     }
 
+    /**
+     * Tries to verify the input of the login request and then forwards the request to the Authentication Service,
+     * rejects the request if an exception is thrown.
+     * @param authDataJson Json String representing an Authentication object{@link Authentication} which contains the
+     *                     login information of a User.
+     * @param callbackBuilder Used to send the result of the request to the request source.
+     */
     private void handleLoginExceptions(final String authDataJson, final CallbackBuilder callbackBuilder) {
         try {
             verifyLoginInput(authDataJson);
@@ -641,7 +774,7 @@ final class UIService {
     }
 
     private void verifyNewPinCardInput(final String accountNumber) throws IncorrectInputException {
-        if (accountNumber == null || accountNumber.length() != ACCOUNT_NUMBER_LENGTH) {
+        if (accountNumber == null || accountNumber.length() != accountNumberLength) {
             throw new IncorrectInputException("The following variable was incorrectly specified: accountNumber.");
         }
     }
@@ -691,7 +824,7 @@ final class UIService {
         String accountNumber = pinCard.getAccountNumber();
         Long cardNumber = pinCard.getCardNumber();
         String pinCode = pinCard.getPinCode();
-        if (accountNumber == null || accountNumber.length() != ACCOUNT_NUMBER_LENGTH) {
+        if (accountNumber == null || accountNumber.length() != accountNumberLength) {
             throw new IncorrectInputException("The following variable was incorrectly specified: accountNumber.");
         }
         if (cardNumber == null) {
