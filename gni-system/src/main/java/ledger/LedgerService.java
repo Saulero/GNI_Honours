@@ -172,7 +172,7 @@ class LedgerService {
     public void processRemoveAccountRequest(final Callback<String> callback,
                               final @RequestParam("accountNumber") String accountNumber,
                               final @RequestParam("customerId") String customerId) {
-        System.out.printf("%s Received account removal request for accountNumber %s", PREFIX, accountNumber);
+        System.out.printf("%s Received account removal request for accountNumber %s\n", PREFIX, accountNumber);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         handleAccountRemovalExceptions(accountNumber, customerId, callbackBuilder);
     }

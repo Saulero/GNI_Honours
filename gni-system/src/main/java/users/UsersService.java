@@ -671,6 +671,6 @@ class UsersService {
 
     private void sendAccountRemovalCallback(final String jsonReply, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Account removal successfull, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(jsonReply);
+        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(jsonReply));
     }
 }
