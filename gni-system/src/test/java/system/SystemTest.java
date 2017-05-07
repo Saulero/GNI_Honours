@@ -33,6 +33,7 @@ public class SystemTest {
     private static String externalAccountNumber = "NL00IIIB5695575206";
     private static String userName = "henkdeboer";
     private static String password = "henkdeboer";
+    private static String secondAccountNumber = null;
     private static String PREFIX = "[Test]                :";
 
     /**
@@ -85,9 +86,17 @@ public class SystemTest {
         Sys.sleep(2000);
         doGet(uiClient, "", RequestType.ACCOUNTS, cookie);
         Sys.sleep(2000);
-        /*doAccountLinkRequest(uiClient, batsId, batsNumber, cookie);
+        doSecondCustomerRequest(uiClient); // sets the secondAccountNumber variable with an account owned by someone else
         Sys.sleep(2000);
-        doExternalTransaction(externalBankClient, externalAccountNumber, deboerNumber, "H. de Boer",
+        doAccountLinkRequest(uiClient, secondAccountNumber, cookie);
+        Sys.sleep(2000);
+        doGet(uiClient, "", RequestType.ACCOUNTS, cookie);
+        Sys.sleep(2000);
+        doAccountRemovalRequest(uiClient, secondAccountNumber);
+        Sys.sleep(2000);
+        doGet(uiClient, "", RequestType.ACCOUNTS, cookie);
+        Sys.sleep(2000);
+        /*doExternalTransaction(externalBankClient, externalAccountNumber, deboerNumber, "H. de Boer",
                 "Moneys",2000.00);
                 Sys.sleep(2000);
         doInternalTransaction(uiClient, deboerNumber, externalAccountNumber, "De Boer",
@@ -205,7 +214,7 @@ public class SystemTest {
                                              final String password) {
         //todo make sure customer cant set his own balance/spendingLimit
         Customer customer = JSONParser.createJsonCustomer(initials, name, surname, email, telephoneNumber, address, dob,
-                ssn, spendingLimit, balance, new Long("0"),
+                ssn, spendingLimit, balance, 0L,
                 username, password);
         Gson gson = new Gson();
         System.out.printf("%s Sending new customer request.\n", PREFIX);
@@ -216,6 +225,22 @@ public class SystemTest {
                     accountNumbers.add(reply.getAccount().getAccountNumber());
                 } else {
                     System.out.printf("%s Customer creation request failed, body: %s\n\n\n\n", PREFIX, body);
+                }
+                });
+    }
+
+    private static void doSecondCustomerRequest(final HttpClient uiClient) {
+        Customer customer = JSONParser.createJsonCustomer("F.", "Frenk", "Fonk", "1@2.nl", "0111111111231", "123lane 2",
+                "16-05-1993", 23L, 1000, 1000, 0L, "freek", "fonk");
+        Gson gson = new Gson();
+        System.out.printf("%s Sending new customer request.\n", PREFIX);
+        uiClient.putFormAsyncWith1Param("/services/ui/customer", "customer", gson.toJson(customer),
+                (code, contentType, body) -> { if (code == HTTP_OK) {
+                    Customer reply = gson.fromJson(JSONParser.removeEscapeCharacters(body), Customer.class);
+                    System.out.printf("%s Second customer successfully created in the system.\n\n\n\n", PREFIX);
+                    secondAccountNumber = reply.getAccount().getAccountNumber();
+                } else {
+                    System.out.printf("%s Second customer creation request failed, body: %s\n\n\n\n", PREFIX, body);
                 }
                 });
     }
@@ -390,7 +415,7 @@ public class SystemTest {
                 gson.toJson(pinCardtoRemove), "cookie", cookie, (code, contentType, body) -> {
                     if (code == HTTP_OK) {
                         PinCard removedPinCard = gson.fromJson(JSONParser.removeEscapeCharacters(body), PinCard.class);
-                        System.out.printf("%s Successfully removed pin card#%s.\n\n\n\n", PREFIX,
+                        System.out.printf("%s Successfully removed pin card #%s.\n\n\n\n", PREFIX,
                                           removedPinCard.getCardNumber());
                         pinCard = null;
                     } else {

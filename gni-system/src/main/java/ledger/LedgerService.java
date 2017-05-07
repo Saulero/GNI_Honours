@@ -400,7 +400,8 @@ class LedgerService {
         Long customerId = dataRequest.getCustomerId();
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         System.out.printf("%s Received data request of type %s.\n", PREFIX, requestType.toString());
-        if (!getCustomerAuthorization(dataRequest.getAccountNumber(), customerId.toString(), callbackBuilder)) {
+        if (requestType != RequestType.ACCOUNTEXISTS
+                && !getCustomerAuthorization(dataRequest.getAccountNumber(), customerId.toString(), callbackBuilder)) {
             callback.reject("Customer not authorized to request data for this accountNumber.");
         } else {
             try {

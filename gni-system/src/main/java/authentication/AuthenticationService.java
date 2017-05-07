@@ -491,8 +491,10 @@ class AuthenticationService {
             accountLinkRequest.setCustomerId(getCustomerId(cookie));
             doAccountLinkRequest(jsonConverter.toJson(accountLinkRequest), callbackBuilder);
         } catch (SQLException e) {
+            e.printStackTrace();
             callbackBuilder.build().reject("Error connecting to authentication database.");
         } catch (UserNotAuthorizedException e) {
+            e.printStackTrace();
             callbackBuilder.build().reject("User not authorized, please login.");
         }
     }
@@ -509,6 +511,7 @@ class AuthenticationService {
                     if (httpStatusCode == HTTP_OK) {
                         sendAccountLinkRequestCallback(accountLinkReplyJson, callbackBuilder);
                     } else {
+                        System.out.println(accountLinkReplyJson);
                         callbackBuilder.build().reject("AccountLink request failed.");
                     }
                 }));

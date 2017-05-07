@@ -477,6 +477,7 @@ class UsersService {
     @RequestMapping(value = "/account", method = RequestMethod.PUT)
     public void processAccountLink(final Callback<String> callback,
                                    final @RequestParam("body") String accountLinkRequestJson) {
+        System.out.printf("%s Received account link request.\n", PREFIX);
         AccountLink accountLink = jsonConverter.fromJson(accountLinkRequestJson, AccountLink.class);
         Long customerId = accountLink.getCustomerId();
         String accountNumber = accountLink.getAccountNumber();
@@ -495,12 +496,13 @@ class UsersService {
     private void doAccountExistsRequest(final String accountNumber, final Long customerId,
                                         final CallbackBuilder callbackBuilder) {
         DataRequest accountExistsRequest = JSONParser.createAccountExistsRequest(accountNumber);
-        ledgerClient.getAsyncWith1Param("/services/ledger/data", "body",
+        ledgerClient.getAsyncWith1Param("/services/ledger/data", "request",
                                         jsonConverter.toJson(accountExistsRequest),
                                         (httpStatusCode, httpContentType, dataReplyJson) -> {
             if (httpStatusCode == HTTP_OK) {
                 processAccountExistsReply(dataReplyJson, customerId, callbackBuilder);
             } else {
+                System.out.printf("%s Account does not exist, rejecting.\n", PREFIX);
                 callbackBuilder.build().reject("Unsuccessfull call, code: " + httpStatusCode);
             }
         });
@@ -644,8 +646,7 @@ class UsersService {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement removeAccountLink = databaseConnection.getConnection()
                                                                 .prepareStatement(SQLStatements.removeAccountLink);
-        removeAccountLink.setLong(1, customerId);
-        removeAccountLink.setString(2, accountNumber);
+        removeAccountLink.setString(1, accountNumber);
         removeAccountLink.execute();
         removeAccountLink.close();
         databaseConnectionPool.returnConnection(databaseConnection);
