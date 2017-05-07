@@ -3,6 +3,7 @@ package users;
 import com.google.gson.Gson;
 import database.ConnectionPool;
 import database.SQLConnection;
+import database.SQLStatements;
 import databeans.*;
 import io.advantageous.qbit.annotation.RequestMapping;
 import io.advantageous.qbit.annotation.RequestMethod;
@@ -369,7 +370,7 @@ class UsersService {
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
     private void doNewAccountRequest(final Customer accountOwner, final CallbackBuilder callbackBuilder) {
-        ledgerClient.putFormAsyncWith1Param("/services/ledger/accountNumber", "body",
+        ledgerClient.putFormAsyncWith1Param("/services/ledger/account", "body",
                                             jsonConverter.toJson(accountOwner.getAccount()),
                                             (httpStatusCode, httpContentType, replyAccountJson) -> {
             if (httpStatusCode == HTTP_OK) {
@@ -587,7 +588,7 @@ class UsersService {
      */
     @RequestMapping(value = "/account/new", method = RequestMethod.PUT)
     public void processNewAccount(final Callback<String> callback,
-                                             final @RequestParam("body") String accountRequestJson) {
+                                  final @RequestParam("body") String accountRequestJson) {
         System.out.printf("%s Received account creation request.\n", PREFIX);
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         Customer accountOwner = jsonConverter.fromJson(accountRequestJson, Customer.class);
@@ -610,5 +611,66 @@ class UsersService {
         } catch (SQLException e) {
             callbackBuilder.build().reject(e);
         }
+    }
+
+    @RequestMapping(value = "/account/remove", method = RequestMethod.PUT)
+    public void processAccountRemoval(final Callback<String> callback,
+                                      final @RequestParam("accountNumber") String accountNumber,
+                                      final @RequestParam("customerId") String customerId) {
+        System.out.printf("%s Received account removal request.\n", PREFIX);
+        final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        verifyAccountRemovalInput(accountNumber, Long.parseLong(customerId), callbackBuilder);
+    }
+
+    private void verifyAccountRemovalInput(final String accountNumber, final Long customerId,
+                                           final CallbackBuilder callbackBuilder) {
+        try {
+            if (!getCustomerExistence(customerId)) {
+                callbackBuilder.build().reject(
+                        "Account removal failed, customer with customerId does not exist.");
+            } else if (!getAccountLinkExistence(accountNumber, customerId)) {
+                callbackBuilder.build().reject(
+                        "Account removal failed, this customer is not one of the account owners.");
+            } else {
+                doAccountRemovalRequest(accountNumber, customerId, callbackBuilder);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reject(e);
+        }
+    }
+
+    private void removeAccountLink(final String accountNumber, final Long customerId) throws SQLException {
+        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+        PreparedStatement removeAccountLink = databaseConnection.getConnection()
+                                                                .prepareStatement(SQLStatements.removeAccountLink);
+        removeAccountLink.setLong(1, customerId);
+        removeAccountLink.setString(2, accountNumber);
+        removeAccountLink.execute();
+        removeAccountLink.close();
+        databaseConnectionPool.returnConnection(databaseConnection);
+    }
+
+    private void doAccountRemovalRequest(final String accountNumber, final Long customerId,
+                                         final CallbackBuilder callbackBuilder) {
+        ledgerClient.putFormAsyncWith2Params("/services/ledger/account/remove", "accountNumber",
+        accountNumber, "customerId", Long.toString(customerId), (httpStatusCode, httpContentType, jsonReply) -> {
+            if (httpStatusCode == HTTP_OK) {
+                try {
+                    removeAccountLink(accountNumber, customerId);
+                    sendAccountRemovalCallback(jsonReply, callbackBuilder);
+                } catch (SQLException e) {
+                    System.out.printf("%s Failed to remove accountLink, sending rejection.\n", PREFIX);
+                    callbackBuilder.build().reject(e.getMessage());
+                }
+            } else {
+                callbackBuilder.build().reject("Couldn't reach transactionDispatch.");
+            }
+        });
+    }
+
+    private void sendAccountRemovalCallback(final String jsonReply, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Account removal successfull, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonReply);
     }
 }

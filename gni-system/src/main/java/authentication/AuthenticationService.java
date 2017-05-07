@@ -592,6 +592,45 @@ class AuthenticationService {
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(newAccountReplyJson));
     }
 
+    @RequestMapping(value = "/account/remove", method = RequestMethod.PUT)
+    public void processAccountRemovalRequest(final Callback<String> callback,
+                                             @RequestParam("accountNumber") final String accountNumber,
+                                             @RequestParam("cookie") final String cookie) {
+        System.out.printf("%s Forwarding account removal request.\n", PREFIX);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleAccountRemovalExceptions(accountNumber, cookie, callbackBuilder);
+    }
+
+    private void handleAccountRemovalExceptions(final String accountNumber, final String cookie,
+                                                final CallbackBuilder callbackBuilder) {
+        try {
+            authenticateRequest(cookie);
+            doAccountRemovalRequest(accountNumber, Long.toString(getCustomerId(cookie)), callbackBuilder);
+        } catch (SQLException e) {
+            callbackBuilder.build().reject("Error connecting to authentication database.");
+        } catch (UserNotAuthorizedException e) {
+            callbackBuilder.build().reject("User not authorized, please login.");
+        }
+    }
+
+    private void doAccountRemovalRequest(final String accountNumber, final String customerId,
+                                         final CallbackBuilder callbackBuilder) {
+        usersClient.putFormAsyncWith2Params("/services/users/account/remove",
+                "accountNumber", accountNumber, "customerId", customerId,
+                (httpStatusCode, httpContentType, replyJson) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        sendAccountRemovalCallback(replyJson, callbackBuilder);
+                    } else {
+                        callbackBuilder.build().reject("NewAccount request failed.");
+                    }
+                });
+    }
+
+    private void sendAccountRemovalCallback(final String replyJson, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Account removal successfull, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(replyJson));
+    }
+
     @RequestMapping(value = "/card", method = RequestMethod.PUT)
     public void processNewPinCardRequest(final Callback<String> callback,
                                          @RequestParam("accountNumber") final String accountNumber,

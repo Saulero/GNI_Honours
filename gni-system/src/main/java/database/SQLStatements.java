@@ -6,6 +6,7 @@ package database;
 public final class SQLStatements {
 
     public static final String createNewAccount = "INSERT INTO ledger (id, account_number, name, spending_limit, balance) VALUES (?, ?, ?, ?, ?)";
+    public static final String removeAccount = "DELETE FROM ledger WHERE id = ? AND account_number = ?";
     public static final String getAccountInformation = "SELECT * FROM ledger WHERE ledger.account_number = ?";
     public static final String updateBalance = "UPDATE ledger SET ledger.spending_limit = ?, ledger.balance = ? WHERE ledger.account_number = ?";
     public static final String getIncomingTransactionHistory = "SELECT * FROM transactions_in WHERE transactions_in.account_to = ?";
@@ -34,6 +35,7 @@ public final class SQLStatements {
     public static final String getPinCard = "SELECT * FROM pin WHERE card_number = ?";
     public static final String removePinCard = "DELETE FROM pin WHERE account_number = ? AND user_id = ? AND card_number = ? AND pin_code = ?";
     public static final String getHighestCardNumber = "SELECT MAX(card_number) FROM pin";
+    public static final String removeAccountLink = "DELETE FROM accounts WHERE user_id = ? AND account_number = ?";
 
     // Create statements used for setting up the database
     public final static String createAccountsTable = "CREATE TABLE IF NOT EXISTS `accounts` ( `user_id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL);";

@@ -20,9 +20,6 @@ import static java.net.HttpURLConnection.HTTP_OK;
  * Interface that outside users can use to view their balance, transaction history, customer information, create
  * new accounts and make transactions.
  */
-//todo needs method to remove customer
-//todo needs method to remove accountNumbers from customerAccounts.
-//todo move initial ui from pin and transaction to ui
 @RequestMapping("/ui")
 final class UIService {
     /** Connection to the authentication service. */
@@ -528,6 +525,50 @@ final class UIService {
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(newAccountReplyJson));
     }
 
+    @RequestMapping(value = "/account/remove", method = RequestMethod.PUT)
+    public void processAccountRemovalRequest(final Callback<String> callback,
+                                             @RequestParam("accountNumber") final String accountNumber,
+                                             @RequestParam("cookie") final String cookie) {
+        System.out.printf("%s Forwarding account removal request.\n", PREFIX);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleAccountRemovalExceptions(accountNumber, cookie, callbackBuilder);
+    }
+
+    private void handleAccountRemovalExceptions(final String accountNumber, final String cookie,
+                                                final CallbackBuilder callbackBuilder) {
+        try {
+            verifyAccountRemovalInput(accountNumber);
+            doAccountRemovalRequest(accountNumber, cookie, callbackBuilder);
+        } catch (IncorrectInputException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reject(e.getMessage());
+        }
+    }
+
+    private void verifyAccountRemovalInput(final String accountNumber) throws IncorrectInputException {
+        if (accountNumber == null || accountNumber.length() != ACCOUNT_NUMBER_LENGTH) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: accountNumber.");
+        }
+    }
+
+    private void doAccountRemovalRequest(final String accountNumber, final String cookie,
+                                         final CallbackBuilder callbackBuilder) {
+        authenticationClient.putFormAsyncWith2Params("/services/authentication/account/remove",
+            "accountNumber", accountNumber, "cookie", cookie,
+                (httpStatusCode, httpContentType, replyJson) -> {
+            if (httpStatusCode == HTTP_OK) {
+                sendAccountRemovalCallback(replyJson, callbackBuilder);
+            } else {
+                callbackBuilder.build().reject("NewAccount request failed.");
+            }
+        });
+    }
+
+    private void sendAccountRemovalCallback(final String replyJson, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Account removal successfull, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(replyJson));
+    }
+
     @RequestMapping(value = "/login", method = RequestMethod.PUT)
     public void processLoginRequest(final Callback<String> callback,
                                     @RequestParam("authData") final String authDataJson) {
@@ -677,8 +718,6 @@ final class UIService {
         System.out.printf("%s Pin card removal successfull, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(jsonReply));
     }
-
-
 }
 
 
