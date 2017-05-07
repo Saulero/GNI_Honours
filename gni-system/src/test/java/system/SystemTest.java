@@ -15,6 +15,8 @@ import users.UsersServiceMain;
 import util.JSONParser;
 import util.TableCreator;
 
+import java.util.ArrayList;
+
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 import static java.net.HttpURLConnection.HTTP_OK;
 
@@ -27,9 +29,8 @@ public class SystemTest {
 
     private static String cookie = "1:LTYzNzg4NDUzNTE2MzMzMjc2";
     private static PinCard pinCard = new PinCard();
-    private static String accountNumber = "";
+    private static ArrayList<String> accountNumbers = new ArrayList<>();
     private static String externalAccountNumber = "NL00IIIB5695575206";
-    private static Long customerId = null;
     private static String userName = "henkdeboer";
     private static String password = "henkdeboer";
     private static String PREFIX = "[Test]                :";
@@ -70,30 +71,34 @@ public class SystemTest {
         Sys.sleep(2000);
         doLogin(uiClient, userName, password);
         Sys.sleep(2000);
-        doNewPinCardRequest(uiClient, accountNumber);
+        doNewPinCardRequest(uiClient, accountNumbers.get(0));
         Sys.sleep(2000);
         doPin(pinClient, pinCard, externalAccountNumber, "De Wilde", 20.00);
         Sys.sleep(2000);
         doPinCardRemovalRequest(uiClient, pinCard);
         Sys.sleep(2000);
-        /*doNewAccountRequest(uiClient, cookie);
+        doNewAccountRequest(uiClient, cookie);
         Sys.sleep(2000);
         doGet(uiClient, "", RequestType.ACCOUNTS, cookie);
         Sys.sleep(2000);
-        doAccountLinkRequest(uiClient, batsId, batsNumber, cookie);
+        doAccountRemovalRequest(uiClient, accountNumbers.get(1));
+        Sys.sleep(2000);
+        doGet(uiClient, "", RequestType.ACCOUNTS, cookie);
+        Sys.sleep(2000);
+        /*doAccountLinkRequest(uiClient, batsId, batsNumber, cookie);
         Sys.sleep(2000);
         doExternalTransaction(externalBankClient, externalAccountNumber, deboerNumber, "H. de Boer",
                 "Moneys",2000.00);
                 Sys.sleep(2000);
         doInternalTransaction(uiClient, deboerNumber, externalAccountNumber, "De Boer",
-                "moar moneys",2.00, cookie);*/
+                "moar moneys",2.00, cookie);
         Sys.sleep(2000);
         doGet(uiClient, deboerNumber, RequestType.TRANSACTIONHISTORY, cookie);
         Sys.sleep(2000);
         doGet(uiClient, deboerNumber, RequestType.BALANCE, cookie);
         Sys.sleep(2000);
         doGet(uiClient, deboerNumber, RequestType.CUSTOMERDATA, cookie);
-        Sys.sleep(2000);
+        Sys.sleep(2000);*/
         TableCreator.truncateTable();
         System.exit(0);
     }
@@ -208,8 +213,7 @@ public class SystemTest {
                 (code, contentType, body) -> { if (code == HTTP_OK) {
                     Customer reply = gson.fromJson(JSONParser.removeEscapeCharacters(body), Customer.class);
                     System.out.printf("%s Customer successfully created in the system.\n\n\n\n", PREFIX);
-                    customerId = reply.getCustomerId();
-                    accountNumber = reply.getAccount().getAccountNumber();
+                    accountNumbers.add(reply.getAccount().getAccountNumber());
                 } else {
                     System.out.printf("%s Customer creation request failed, body: %s\n\n\n\n", PREFIX, body);
                 }
@@ -341,6 +345,7 @@ public class SystemTest {
                         Customer reply = gson.fromJson(JSONParser.removeEscapeCharacters(body), Customer.class);
                         System.out.printf("%s New Account creation successfull, Account Holder: %s, AccountNumber: %s\n\n\n\n",
                                 PREFIX, reply.getCustomerId(), reply.getAccount().getAccountNumber());
+                        accountNumbers.add(reply.getAccount().getAccountNumber());
                     } else {
                         System.out.printf("%s Account creation failed. body: %s\n\n\n\n", PREFIX, body);
                     }
@@ -392,5 +397,16 @@ public class SystemTest {
                         System.out.printf("%s Pin card removal failed.\n\n\n\n", PREFIX);
                     }
                 });
+    }
+
+    private static void doAccountRemovalRequest(final HttpClient uiClient, final String accountNumberToRemove) {
+        uiClient.putFormAsyncWith2Params("/services/ui/account/remove", "accountNumber",
+                accountNumberToRemove, "cookie", cookie, (code, contentType, body) -> {
+            if (code == HTTP_OK) {
+                System.out.printf("%s Successfully closed account %s\n\n\n\n", PREFIX, body);
+            } else {
+                System.out.printf("%s Account closing failed.\n\n\n\n", PREFIX);
+            }
+        });
     }
 }
