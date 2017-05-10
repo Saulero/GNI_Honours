@@ -56,10 +56,10 @@ class AuthenticationService {
     }
 
     /**
-     * Creates a callback for the datarequest and then forwards the request to exception handling.
+     * Creates a callback for the data request and then calls the exception handler.
      * @param callback Used to send the reply of User service to the source of the request.
      * @param dataRequestJson Json string representing a dataRequest object.
-     * @param cookie Cookie of the person performing the datarequest, used to check if the request is allowed.
+     * @param cookie Cookie of the person performing the dataRequest, used to check if the request is allowed.
      */
     @RequestMapping(value = "/data", method = RequestMethod.GET)
     public void processDataRequest(final Callback<String> callback,
@@ -70,8 +70,8 @@ class AuthenticationService {
     }
 
     /**
-     * Authenticates a datarequest and then forwards the datarequest to the Users service.
-     * @param dataRequestJson Json String representing the datarequest.
+     * Authenticates a data request and then forwards the data request to the Users service.
+     * @param dataRequestJson Json String representing the data request.
      * @param cookie Cookie of the customer that sent the request, used to authenticate the request.
      * @param callbackBuilder Used to send a callback to the service that sent the request.
      */
@@ -317,7 +317,7 @@ class AuthenticationService {
     /**
      * Sends the customer request to the User service and then processes the reply, or sends a rejection to the
      * requester if the request fails..
-     * @param newCustomerRequestJson Json String representing a Customer that should be created {@link Customer}.
+     * @param newCustomerRequestJson Json String representing a {@link Customer} that should be created.
      * @param callbackBuilder Used to send the response of the creation request back to the source of the request.
      */
     private void doNewCustomerRequest(final String newCustomerRequestJson,
@@ -374,7 +374,7 @@ class AuthenticationService {
     /**
      * Forwards the created customer back to the service that sent the customer creation request to this service.
      * @param newCustomerReplyJson Json String representing a customer that was created in the system.
-     * @param callbackBuilder Json String representing a Customer that should be created {@link Customer}.
+     * @param callbackBuilder Json String representing a {@link Customer} that should be created.
      */
     private void sendNewCustomerRequestCallback(final String newCustomerReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
@@ -382,7 +382,6 @@ class AuthenticationService {
         callbackBuilder.build().reply(newCustomerReplyJson);
     }
 
-    // TODO Should be invoked when login credentials are entered
     /**
      * Checks the login credentials and generates a login token if they're correct.
      * @param callback Used to send a reply to the requesting service.
@@ -463,8 +462,8 @@ class AuthenticationService {
     /**
      * Creates a callback builder for an account link request and then forwards the request to the UsersService.
      * @param callback Used to send the result of the request back to the source of the request.
-     * @param accountLinkRequestJson Json string representing an AccountLink that should be created in the
-     *                               database {@link AccountLink}.
+     * @param accountLinkRequestJson Json string representing an {@link AccountLink} that should be created in the
+     *                               database.
      */
     @RequestMapping(value = "/account", method = RequestMethod.PUT)
     public void processAccountLinkRequest(final Callback<String> callback,
@@ -502,7 +501,7 @@ class AuthenticationService {
     /**
      * Forwards a String representing an account link to the Users database, and processes the reply if it is
      * successfull or sends a rejection to the requesting service if it fails.
-     * @param accountLinkRequestJson String representing an account link that should be executed {@link AccountLink}.
+     * @param accountLinkRequestJson String representing an {@link AccountLink} that should be executed.
      * @param callbackBuilder Used to send the result of the request back to the source of the request.
      */
     private void doAccountLinkRequest(final String accountLinkRequestJson, final CallbackBuilder callbackBuilder) {
@@ -534,7 +533,6 @@ class AuthenticationService {
      * @param newAccountRequestJson Json String representing a customer object which is the account owner, with an
      *                              Account object inside representing the account that should be created.
      */
-    //todo refactor so that only customerId from cookie is needed.
     @RequestMapping(value = "/account/new", method = RequestMethod.PUT)
     public void processNewAccountRequest(final Callback<String> callback,
                                          @RequestParam("request") final String newAccountRequestJson,
@@ -595,6 +593,13 @@ class AuthenticationService {
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(newAccountReplyJson));
     }
 
+    /**
+     * Creates a callbackbuilder so that the result of the request can be forwarded to the request source and then
+     * calls the exception handler to further process the request.
+     * @param callback Used to send a reply/rejection to the request source.
+     * @param accountNumber AccountNumber that should be removed from the system.
+     * @param cookie Cookie of the user that sent the request, should be a user that is linked to the accountNumber.
+     */
     @RequestMapping(value = "/account/remove", method = RequestMethod.PUT)
     public void processAccountRemovalRequest(final Callback<String> callback,
                                              @RequestParam("accountNumber") final String accountNumber,
@@ -604,6 +609,13 @@ class AuthenticationService {
         handleAccountRemovalExceptions(accountNumber, cookie, callbackBuilder);
     }
 
+    /**
+     * Authenticates the request and then forwards the removal request with the customerId of the user that sent the
+     * request to the Users Service. Checking if the accountNumber belongs to the user is done in the Users Service.
+     * @param accountNumber AccountNumber that should be removed from the system.
+     * @param cookie Cookie of the user that sent the request.
+     * @param callbackBuilder Used to send the result of the request to the request source.
+     */
     private void handleAccountRemovalExceptions(final String accountNumber, final String cookie,
                                                 final CallbackBuilder callbackBuilder) {
         try {
@@ -616,6 +628,13 @@ class AuthenticationService {
         }
     }
 
+    /**
+     * Forwards an account removal request to the Users service and sends a callback if the request is successfull, or
+     * a rejection if the request fails.
+     * @param accountNumber AccountNumber that should be removed from the system.
+     * @param customerId CustomerId of the User that sent the request.
+     * @param callbackBuilder Used to forward the result of the request to the request source.
+     */
     private void doAccountRemovalRequest(final String accountNumber, final String customerId,
                                          final CallbackBuilder callbackBuilder) {
         usersClient.putFormAsyncWith2Params("/services/users/account/remove",
@@ -634,6 +653,12 @@ class AuthenticationService {
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(replyJson));
     }
 
+    /**
+     * Creates a callbackbuilder for the request and then calls the exception handler.
+     * @param callback Used to send the result of the request back to the request source.
+     * @param accountNumber AccountNumber the pin card should be linked to.
+     * @param cookie Cookie of the user that sent the request, so the system knows who the pincard is for.
+     */
     @RequestMapping(value = "/card", method = RequestMethod.PUT)
     public void processNewPinCardRequest(final Callback<String> callback,
                                          @RequestParam("accountNumber") final String accountNumber,
@@ -643,6 +668,13 @@ class AuthenticationService {
         handleNewPinCardExceptions(accountNumber, cookie, callbackBuilder);
     }
 
+    /**
+     * Tries to authenticate the user that sent the request and then forwards the new pin card request with the
+     * customerId of the User that sent the request.
+     * @param accountNumber AccountNumber the pin card should be linked to.
+     * @param cookie Cookie of the user that sent the request, so the system knows who the pincard is for.
+     * @param callbackBuilder Used to send the result of the request to the request source.
+     */
     private void handleNewPinCardExceptions(final String accountNumber, final String cookie,
                                             final CallbackBuilder callbackBuilder) {
         try {
@@ -657,6 +689,13 @@ class AuthenticationService {
 
     }
 
+    /**
+     * Forwards the new pin card request to the Pin service and forwards the result of the request to
+     * the service that requested it.
+     * @param accountNumber AccountNumber the pin card should be created for.
+     * @param customerId The customerId of the user that sent the request.
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     */
     private void doNewPinCardRequest(final String accountNumber, final String customerId,
                                      final CallbackBuilder callbackBuilder) {
         pinClient.putFormAsyncWith2Params("/services/pin/card", "accountNumber", accountNumber,
@@ -674,6 +713,13 @@ class AuthenticationService {
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(newPinCardReplyJson));
     }
 
+    /**
+     * Creates a callbackBuilder for the request so that the result can be sent back to the request source and then
+     * calls the exception handler for the request.
+     * @param callback Used to send the result of the request back to the request source.
+     * @param pinCardJson Json String representing a {@link PinCard} that is to be removed from the system.
+     * @param cookie Cookie of the user that sent the request.
+     */
     @RequestMapping(value = "/card/remove", method = RequestMethod.PUT)
     public void processPinCardRemovalRequest(final Callback<String> callback,
                                          @RequestParam("pinCard") final String pinCardJson,
@@ -682,6 +728,13 @@ class AuthenticationService {
         handlePinCardRemovalExceptions(pinCardJson, cookie, callbackBuilder);
     }
 
+    /**
+     * Tries to authenticate the user that sent the request, create a pincard object based on the request json and then
+     * forward the request with the customerId of the user that sent the request.
+     * @param pinCardJson Json String representing a {@link PinCard} that should be removed from the system.
+     * @param cookie Cookie of the user that sent the request.
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     */
     private void handlePinCardRemovalExceptions(final String pinCardJson, final String cookie,
                                                 final CallbackBuilder callbackBuilder) {
         try {
@@ -696,6 +749,12 @@ class AuthenticationService {
         }
     }
 
+    /**
+     * Forwards the pin card removal request to the pin service, forwards the result to the request source if the
+     * request is successfull, or sends a rejection to the request source if the request fails.
+     * @param pinCardJson Json String representing a {@link PinCard} that should be removed from the system.
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     */
     private void doPinCardRemovalRequest(final String pinCardJson, final CallbackBuilder callbackBuilder) {
         pinClient.putFormAsyncWith1Param("/services/pin/card/remove",
                 "pinCard", pinCardJson, (code, contentType, body) -> {

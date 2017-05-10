@@ -49,7 +49,7 @@ final class UIService {
     /**
      * Creates a callback builder for the data request and then forwards the request to the UsersService.
      * @param callback Callback used to send a reply back to the origin of the request.
-     * @param dataRequestJson A Json String representing a DataRequest object {@link DataRequest}.
+     * @param dataRequestJson A Json String representing a {@link DataRequest}.
      * @param cookie Cookie belonging to the user making the request.
      */
     @RequestMapping(value = "/data", method = RequestMethod.GET)
@@ -131,8 +131,8 @@ final class UIService {
 
     /**
      * Checks if a data request was successfull and sends the reply back to the source of the request.
-     * @param dataReplyJson Body of the callback, a Json string representing a DataReply object {@link DataReply}.
-     * @param dataRequestJson Json string containing the dataRequest that was forwarded {@link DataRequest}.
+     * @param dataReplyJson Body of the callback, a Json string representing a {@link DataReply}.
+     * @param dataRequestJson Json string containing the {@link DataRequest} that was forwarded.
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
     private void processDataReply(final String dataReplyJson, final String dataRequestJson,
@@ -160,7 +160,7 @@ final class UIService {
 
     /**
      * Forwards the result of a balance request to the service that requested it.
-     * @param dataReplyJson Json String containing the reply data {@link DataReply}.
+     * @param dataReplyJson Json String containing the {@link DataReply}.
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
     private void sendBalanceRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
@@ -170,7 +170,7 @@ final class UIService {
 
     /**
      * Forwards the result of a transaction history request to the service that requested it.
-     * @param dataReplyJson Json String containing the reply data {@link DataReply}.
+     * @param dataReplyJson Json String containing the {@link DataReply}.
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
     private void sendTransactionHistoryRequestCallback(final String dataReplyJson,
@@ -181,7 +181,7 @@ final class UIService {
 
     /**
      * Forwards the result of a customer data request to the service that requested it.
-     * @param dataReplyJson Json String containing a customer {@link Customer}.
+     * @param dataReplyJson Json String containing a {@link Customer}.
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
     private void sendCustomerDataRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
@@ -191,8 +191,8 @@ final class UIService {
 
     /**
      * Forwards the result of an accounts request to the service that requested it.
-     * @param dataReplyJson Json String containing a data reply with the accounts belonging to a certain customer
-     *                      {@link DataReply}.
+     * @param dataReplyJson Json String containing a {@link DataReply} with the accounts belonging to the customer
+     *                      that sent the request..
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
     private void sendAccountsRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
@@ -204,8 +204,7 @@ final class UIService {
      * Creates a callback builder to forward the result of the request to the requester, and then forwards the request
      * to the Authentication service.
      * @param callback Used to send the reply of User service to the source of the request.
-     * @param transactionRequestJson Json String representing a Transaction object that is to be processed
-     *                               {@link Transaction}.
+     * @param transactionRequestJson Json String representing a {@link Transaction} that is to be processed.
      * @param cookie Cookie of the User that sent the request.
      */
     @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
@@ -218,8 +217,7 @@ final class UIService {
 
     /**
      * Tries to verify the input for a transaction request, and send the correct rejection if an exception is thrown.
-     * @param transactionRequestJson Json String representing a Transaction object that is to be processed
-     *                               {@link Transaction}.
+     * @param transactionRequestJson Json String representing a {@link Transaction} that is to be processed.
      * @param cookie Cookie of the User that sent the request.
      * @param callbackBuilder Used to send the result of the request back to the source of the request.
      */
@@ -296,7 +294,7 @@ final class UIService {
 
     /**
      * Forwards the result of a transaction request to the service that sent the request.
-     * @param transactionReplyJson Json String representing the executed transaction {@link Transaction}.
+     * @param transactionReplyJson Json String representing the executed {@link Transaction}.
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
     private void sendTransactionCallback(final String transactionReplyJson,
@@ -308,7 +306,7 @@ final class UIService {
     /**
      * Handles customer creation requests by forwarding the request to the users service.
      * @param callback Used to send the result of the request back to the source of the request.
-     * @param newCustomerJson Json String representing a Customer that should be created {@link Customer}.
+     * @param newCustomerJson Json String representing a {@link Customer} that should be created.
      */
     @RequestMapping(value = "/customer", method = RequestMethod.PUT)
     public void processNewCustomerRequest(final Callback<String> callback,
@@ -320,7 +318,7 @@ final class UIService {
     /**
      * Tries to verify the input of a new customer request and then forward the request, sends a rejection if an
      * exception occurs.
-     * @param newCustomerJson Json string representing a Customer{@link Customer} that is to be created in the system.
+     * @param newCustomerJson Json string representing a {@link Customer} that is to be created in the system.
      * @param callbackBuilder Used to send the result back to the source of the request.
      */
     private void handleNewCustomerExceptions(final String newCustomerJson, final CallbackBuilder callbackBuilder) {
@@ -343,7 +341,7 @@ final class UIService {
 
     /**
      * Checks if the input for a new customer request is correctly formatted and contains correct values.
-     * @param newCustomerJson Json string representing a Customer{@link Customer} that is to be created in the system.
+     * @param newCustomerJson Json string representing a {@link Customer} that is to be created in the system.
      * @throws IncorrectInputException Thrown when a value is not correctly specified.
      * @throws JsonSyntaxException Thrown when the json string is incorrect and cant be parsed.
      * @throws NumberFormatException Thrown when a string value could not be parsed to a Long.
@@ -405,7 +403,7 @@ final class UIService {
     /**
      * Sends the customer request to the Authentication service and then processes the reply, or sends a rejection to
      * the source of the request if the request fails..
-     * @param newCustomerRequestJson Json String representing a Customer that should be created {@link Customer}.
+     * @param newCustomerRequestJson Json String representing a {@link Customer} that should be created.
      * @param callbackBuilder Used to send the response of the creation request back to the source of the request.
      */
     private void doNewCustomerRequest(final String newCustomerRequestJson, final CallbackBuilder callbackBuilder) {
@@ -424,7 +422,7 @@ final class UIService {
 
     /**
      * Forwards the created customer back to the source of the customer creation request.
-     * @param newCustomerReplyJson Json String representing a customer{@link Customer} that was created in the system.
+     * @param newCustomerReplyJson Json String representing a {@link Customer} that was created in the system.
      * @param callbackBuilder Used to send the response of the creation request back to the source of the request.
      */
     private void sendNewCustomerRequestCallback(final String newCustomerReplyJson,
@@ -438,8 +436,8 @@ final class UIService {
      * Service.
      * @param callback Used to send the result of the request back to the source of the request.
      * @param cookie Cookie of the User that sent the request.
-     * @param accountLinkRequestJson Json string representing an AccountLink that should be created in the
-     *                               database {@link AccountLink}.
+     * @param accountLinkRequestJson Json string representing an {@link AccountLink} that should be created in the
+     *                               database.
      */
     @RequestMapping(value = "/account", method = RequestMethod.PUT)
     public void processAccountLinkRequest(final Callback<String> callback,
@@ -453,7 +451,7 @@ final class UIService {
     /**
      * Tries to verify the input of the accountLink request and then forward the request, send a rejection if an
      * exception is thrown.
-     * @param accountLinkRequestJson Json string representing an account link{@link AccountLink} that should be created
+     * @param accountLinkRequestJson Json string representing an {@link AccountLink} that should be created
      *                               in the system.
      * @param cookie Cookie of the User that sent the request.
      * @param callbackBuilder Used to send the response of the account link request back to the source of the request.
@@ -474,7 +472,7 @@ final class UIService {
 
     /**
      * Checks if the input for an account link request is correctly formatted and contains correct values.
-     * @param accountLinkRequestJson Json string representing an account link{@link AccountLink} that should be created
+     * @param accountLinkRequestJson Json string representing an {@link AccountLink} that should be created
      *                               in the system.
      * @throws IncorrectInputException Thrown when a value is not correctly specified.
      * @throws JsonSyntaxException Thrown when the json string is incorrect and cant be parsed.
@@ -491,7 +489,7 @@ final class UIService {
     /**
      * Forwards a String representing an account link to the Authentication Service, and processes the reply if it is
      * successfull or sends a rejection to the requesting source if it fails.
-     * @param accountLinkRequestJson String representing an account link that should be executed {@link AccountLink}.
+     * @param accountLinkRequestJson String representing an {@link AccountLink} that should be executed.
      * @param cookie Cookie of the User that sent the request.
      * @param callbackBuilder Used to send the result of the request back to the source of the request.
      */
@@ -524,7 +522,7 @@ final class UIService {
      * Service.
      * @param callback Used to send the result of the request back to the source of the request.
      * @param cookie Cookie of the User that sent the request.
-     * @param accountOwnerJson Json String representing a customer object{@link Customer} which is the account owner,
+     * @param accountOwnerJson Json String representing a {@link Customer} which is the account owner,
      *                         with an Account object inside representing the account that should be created.
      */
     @RequestMapping(value = "/account/new", method = RequestMethod.PUT)
@@ -540,7 +538,7 @@ final class UIService {
     /**
      * Tries to verify the input of a new account request and then forward the request, sends a rejection if an
      * exception occurs.
-     * @param accountOwnerJson Json string representing the customer{@link Customer} that an account should be created
+     * @param accountOwnerJson Json string representing the {@link Customer} that an account should be created
      * for.
      * @param cookie Cookie of the User that sent the request.
      * @param callbackBuilder Used to send the result of the request back to the source of the request.
@@ -561,7 +559,7 @@ final class UIService {
 
     /**
      * Checks if the input for an new account request is correctly formatted and contains correct values.
-     * @param accountOwnerJson Json string representing the customer{@link Customer} that an account should be created
+     * @param accountOwnerJson Json string representing the {@link Customer} that an account should be created
      * for.
      * @throws IncorrectInputException Thrown when a value is not correctly specified.
      * @throws JsonSyntaxException Thrown when the json string is incorrect and cant be parsed.
@@ -584,7 +582,7 @@ final class UIService {
     /**
      * Forwards the Json String representing a customer with the account to be created to the Authentication Service
      * and sends the result back to the request source, or rejects the request if the forwarding fails.
-     * @param newAccountRequestJson Json String representing a customer object{@link Customer} which is the account
+     * @param newAccountRequestJson Json String representing a {@link Customer} which is the account
      *                              owner, with an Account object inside representing the account that is to be created.
      * @param cookie Cookie of the User that sent the request.
      * @param callbackBuilder Used to send the result of the request back to the source of the request.
@@ -692,8 +690,8 @@ final class UIService {
      * Processes a login request by creating a callback builder to reach the request source and then calling the
      * exception handler for login requests.
      * @param callback Used to send the result of the request back to the request source.
-     * @param authDataJson Json String representing an Authentication object{@link Authentication} which contains the
-     *                     login information of a User.
+     * @param authDataJson Json String representing an {@link Authentication} which contains the login information
+     *                     of a User.
      */
     @RequestMapping(value = "/login", method = RequestMethod.PUT)
     public void processLoginRequest(final Callback<String> callback,
@@ -706,8 +704,8 @@ final class UIService {
     /**
      * Tries to verify the input of the login request and then forwards the request to the Authentication Service,
      * rejects the request if an exception is thrown.
-     * @param authDataJson Json String representing an Authentication object{@link Authentication} which contains the
-     *                     login information of a User.
+     * @param authDataJson Json String representing an {@link Authentication} which contains the login information
+     *                     of a User.
      * @param callbackBuilder Used to send the result of the request to the request source.
      */
     private void handleLoginExceptions(final String authDataJson, final CallbackBuilder callbackBuilder) {
@@ -725,8 +723,7 @@ final class UIService {
 
     /**
      * Checks if the input for a login request is correctly formatted and contains correct values.
-     * @param authDataJson Json String representing authentication{@link Authentication} information of a user trying
-     *                     to login.
+     * @param authDataJson Json String representing {@link Authentication} information of a user trying to login.
      * @throws IncorrectInputException Thrown when a value is not correctly specified.
      * @throws JsonSyntaxException Thrown when the json string is incorrect and cant be parsed.
      */
@@ -747,8 +744,7 @@ final class UIService {
     /**
      * Forwards the Login request to the Authentication Service and sends a callback if the request is successfull, or
      * sends a rejection if the request fails.
-     * @param authDataJson Json String representing authentication{@link Authentication} information of a user trying
-     *                     to login.
+     * @param authDataJson Json String representing {@link Authentication} information of a user trying to login.
      * @param callbackBuilder Used to send the result of the request back to the request source.
      */
     private void doLoginRequest(final String authDataJson, final CallbackBuilder callbackBuilder) {
@@ -765,7 +761,7 @@ final class UIService {
     /**
      * Sends the result of a successfull login request, containing a cookie that the user should use to authenticate
      * him/herself to the request source.
-     * @param loginReplyJson Json String representing an Authentication{@link Authentication} object containing the
+     * @param loginReplyJson Json String representing an {@link Authentication} object containing the
      *                       cookie the customer should use to authenticate himself in future requests.
      * @param callbackBuilder Used to send the callback to the request source.
      */
@@ -841,7 +837,7 @@ final class UIService {
      * Creates a callbackBuilder for the request so that the result can be sent back to the request source and then
      * calls the exception handler for the request.
      * @param callback Used to send the result of the request back to the request source.
-     * @param pinCardJson Json String representing a PinCard {@link PinCard} that is to be removed from the system.
+     * @param pinCardJson Json String representing a {@link PinCard} that is to be removed from the system.
      * @param cookie Cookie of the user that sent the request.
      */
     @RequestMapping(value = "/card/remove", method = RequestMethod.PUT)
@@ -855,7 +851,7 @@ final class UIService {
     /**
      * Tries to verify the input of the request and then forward the pin card removal request to the Authentication
      * Service, rejects the request if an exception occurs.
-     * @param pinCardJson Json String representing a PinCard {@link PinCard} that is to be removed from the system.
+     * @param pinCardJson Json String representing a {@link PinCard} that is to be removed from the system.
      * @param cookie Cookie of the user that sent the request.
      * @param callbackBuilder Used to send the result of the request back to the request source.
      */
@@ -900,7 +896,7 @@ final class UIService {
     /**
      * Forwards the pin card removal request to the authentication service, forwards the result to the request source
      * if the request is successfull, or sends a rejection if it is not.
-     * @param pinCardJson Json String representing a pin card{@link PinCard} that should be removed from the system.
+     * @param pinCardJson Json String representing a {@link PinCard} that should be removed from the system.
      * @param cookie Cookie of the user that sent the request.
      * @param callbackBuilder Used to forward the result of the request to the request source.
      */
