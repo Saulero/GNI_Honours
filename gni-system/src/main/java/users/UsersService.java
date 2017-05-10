@@ -26,7 +26,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Noel
  * @version 2
- * The Users Microservice, handles customer information and is used as a gateway for the UI service.
+ * The Users Microservice, handles customer information for the system.
  */
 @RequestMapping("/users")
 class UsersService {
@@ -58,10 +58,10 @@ class UsersService {
     }
 
     /**
-     * Checks if incoming data request needs to be handled internally of externally and then calls the appropriate
+     * Checks if incoming data request needs to be handled internally or externally and then calls the appropriate
      * function.
      * @param callback Used to send a reply back to the service that sent the request.
-     * @param dataRequestJson Json String representing a data request.{@link DataRequest}.
+     * @param dataRequestJson Json String representing a {@link DataRequest}.
      */
     @RequestMapping(value = "/data", method = RequestMethod.GET)
     public void processDataRequest(final Callback<String> callback,
@@ -155,7 +155,7 @@ class UsersService {
     }
 
     /**
-     * Sends a Customer object containing the customer data of a certain customer to the service that requested it.
+     * Sends a {@link Customer} containing the customer data of a certain customer to the service that requested it.
      * Logs this is system.out.
      * @param customerData Customer information belonging to a certain customer
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
@@ -166,7 +166,8 @@ class UsersService {
     }
 
     /**
-     * Fetches customer data from the customers table for a certain customer and returns this data in a Customer object.
+     * Fetches customer data from the customers table for a certain customer and returns this data in a {@link Customer}
+     * object.
      * @param customerId Id of the customer to fetch data for.
      * @return Customer object containing the data for Customer with id=customerId
      * @throws SQLException Indicates customer data could not be fetched.
@@ -245,7 +246,7 @@ class UsersService {
 
     /**
      * Sends transaction request to the TransactionDispatch service and processes the reply.
-     * @param transactionRequest Transaction request made by the UI service {@link Transaction}.
+     * @param transactionRequest  {@link Transaction} request forwarded by the Authentication service.
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
     private void doTransactionRequest(final Transaction transactionRequest, final String customerId,
@@ -295,8 +296,8 @@ class UsersService {
     /**
      * Processes customer creation requests by creating a callback builder and then sending the Customer object to the
      * handler.
-     * @param callback Used to send the result of the request back to the UI service.
-     * @param customerRequestJson Json string containing the Customer object the request is for {@link Customer}.
+     * @param callback Used to send the result of the request back to the Authentication service.
+     * @param customerRequestJson Json string containing the {@link Customer} the request is for.
      */
     @RequestMapping(value = "/customer", method = RequestMethod.PUT)
     public void processNewCustomer(final Callback<String> callback,
@@ -383,7 +384,7 @@ class UsersService {
 
     /**
      * Processes a reply from the ledger containing a new account which is to be linked to a customer.
-     * @param replyAccountJson Json String representing an account object that should be linked to a customer.
+     * @param replyAccountJson Json String representing an {@link Account} that should be linked to a {@link Customer}.
      * @param accountOwner The customer that the account should be linked to.
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
@@ -412,7 +413,7 @@ class UsersService {
 
 
     /**
-     * Links an Account to a Customer in the Customers database by inserting the customerID and the accountnumber
+     * Links an accountNumber to a Customer in the Customers database by inserting the customerID and the accountnumber
      * into the accounts table.
      * @throws SQLException Indicates customer account could not be linked.
      * @param customerId Id of the customer to link the account to.
@@ -458,7 +459,7 @@ class UsersService {
     /**
      * Sends a callback to the service that requested the account link/customer creation indicating that the request
      * was successfull.
-     * @param newCustomerJson String representing a Customer object containing an account object with an account
+     * @param newCustomerJson String representing a {@link Customer} containing an {@link Account} with an account
      *                        that was linked to the customer.
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
@@ -471,7 +472,7 @@ class UsersService {
      * Takes an account link request, extracts the needed variables and then invokes a check to see if this link
      * already exists.
      * @param callback Used to send a reply back to the service that sent the request.
-     * @param accountLinkRequestJson Json string representing an AccountLink{@link AccountLink} object containing
+     * @param accountLinkRequestJson Json string representing an {@link AccountLink} object containing
      *             an account number which is to be attached to the customer with the specified customerId.
      */
     @RequestMapping(value = "/account", method = RequestMethod.PUT)
@@ -548,8 +549,8 @@ class UsersService {
     }
 
     /**
-     * Sends a callback to the service that sent the accountLinkRequest to this service containing an AccountLink object
-     * that represents the executed account link.
+     * Sends a callback to the service that sent the accountLinkRequest to this service containing an
+     * {@link AccountLink} that represents the executed account link.
      * @param accountNumber AccountNumber of the account that was linked to the customer.
      * @param customerId Id of the customer the account was linked to.
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
@@ -582,8 +583,8 @@ class UsersService {
     }
 
     /**
-     * Processes a new account request for an existing customer by creating a customer object from the request
-     * that contains the customer data of the customer and inside this customer object an Account Object that should
+     * Processes a new account request for an existing customer by creating a {@link Customer} from the request
+     * that contains the customer data of the customer and inside this customer object an {@link Account} that should
      * have an accountHolderName, balance and spendingLimit.
      * @param callback Used to send a reply back to the service that sent the request.
      * @param accountRequestJson Json String representing a customer that a new Account should be created for.
@@ -615,6 +616,15 @@ class UsersService {
         }
     }
 
+    /**
+     * Creates a callbackbuilder so the result of the request can be sent back to the request source and then tries
+     * to verify the input of the request, if the input is correct the removal request will be executed and the result
+     * will be sent back to the request source, if the input is not correct a rejection will be sent to the
+     * request source.
+     * @param callback Used to send the result of the request to the request source.
+     * @param accountNumber AccountNumber that should be removed from the system.
+     * @param customerId CustomerId of the customer that sent the request.
+     */
     @RequestMapping(value = "/account/remove", method = RequestMethod.PUT)
     public void processAccountRemoval(final Callback<String> callback,
                                       final @RequestParam("accountNumber") String accountNumber,
@@ -624,6 +634,14 @@ class UsersService {
         verifyAccountRemovalInput(accountNumber, Long.parseLong(customerId), callbackBuilder);
     }
 
+    /**
+     * Checks if the customer that sent the request exists in the system, and is an owner of the account that should
+     * be removed, if one of these conditions is not met the request will be rejected, otherwise the account removal
+     * request will be executed.
+     * @param accountNumber AccountNumber that should be removed from the system.
+     * @param customerId CustomerId of the customer that sent the request.
+     * @param callbackBuilder Used to send a reply to the service that sent the request.
+     */
     private void verifyAccountRemovalInput(final String accountNumber, final Long customerId,
                                            final CallbackBuilder callbackBuilder) {
         try {
@@ -642,6 +660,13 @@ class UsersService {
         }
     }
 
+    /**
+     * Removes the account link that links the account with accountNumber to the customer with customerId from the
+     * system.
+     * @param accountNumber AccountNumber of the account linked to the customer.
+     * @param customerId Id of the customer the account is linked to.
+     * @throws SQLException Thrown when the removal query fails.
+     */
     private void removeAccountLink(final String accountNumber, final Long customerId) throws SQLException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement removeAccountLink = databaseConnection.getConnection()
@@ -652,6 +677,14 @@ class UsersService {
         databaseConnectionPool.returnConnection(databaseConnection);
     }
 
+    /**
+     * Forwards an account removal request to the ledger, and if the account removal is successfull removes all account
+     * links for the account from the accounts database and sends a successfull callback to the request source. If the
+     * request fails a rejection is sent to the request source.
+     * @param accountNumber AccountNumber that should be removed from the system.
+     * @param customerId CustomerId of the customer that sent the request.
+     * @param callbackBuilder Used to send the result of the request to the request source.
+     */
     private void doAccountRemovalRequest(final String accountNumber, final Long customerId,
                                          final CallbackBuilder callbackBuilder) {
         ledgerClient.putFormAsyncWith2Params("/services/ledger/account/remove", "accountNumber",
