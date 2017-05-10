@@ -659,8 +659,8 @@ final class UIService {
     }
 
     /**
-     * Forwards the account removal request to the UI Service and sends a callback if the request is successfull, or
-     * sends a rejection if the request fails.
+     * Forwards the account removal request to the Authentication Service and sends a callback if the request is
+     * successfull, or sends a rejection if the request fails.
      * @param accountNumber AccountNumber of the account that is to be removed from the system.
      * @param cookie Cookie of the User that sent the request.
      * @param callbackBuilder Used to send the result of the request back to the source of the request.
@@ -723,6 +723,13 @@ final class UIService {
         }
     }
 
+    /**
+     * Checks if the input for a login request is correctly formatted and contains correct values.
+     * @param authDataJson Json String representing authentication{@link Authentication} information of a user trying
+     *                     to login.
+     * @throws IncorrectInputException Thrown when a value is not correctly specified.
+     * @throws JsonSyntaxException Thrown when the json string is incorrect and cant be parsed.
+     */
     private void verifyLoginInput(final String authDataJson) throws IncorrectInputException, JsonSyntaxException {
         Authentication authentication = jsonConverter.fromJson(authDataJson, Authentication.class);
         final String username = authentication.getUsername();
@@ -737,6 +744,13 @@ final class UIService {
         }
     }
 
+    /**
+     * Forwards the Login request to the Authentication Service and sends a callback if the request is successfull, or
+     * sends a rejection if the request fails.
+     * @param authDataJson Json String representing authentication{@link Authentication} information of a user trying
+     *                     to login.
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     */
     private void doLoginRequest(final String authDataJson, final CallbackBuilder callbackBuilder) {
         authenticationClient.putFormAsyncWith1Param("/services/authentication/login", "authData",
                 authDataJson, (code, contentType, body) -> {
@@ -748,11 +762,24 @@ final class UIService {
                 });
     }
 
+    /**
+     * Sends the result of a successfull login request, containing a cookie that the user should use to authenticate
+     * him/herself to the request source.
+     * @param loginReplyJson Json String representing an Authentication{@link Authentication} object containing the
+     *                       cookie the customer should use to authenticate himself in future requests.
+     * @param callbackBuilder Used to send the callback to the request source.
+     */
     private void sendLoginRequestCallback(final String loginReplyJson, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Login successfull, sending callback containing cookie.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(loginReplyJson));
     }
 
+    /**
+     * Creates a callbackbuilder for the request and then calls the exception handler.
+     * @param callback Used to send the result of the request back to the request source.
+     * @param accountNumber AccountNumber the pin card should be linked to.
+     * @param cookie Cookie of the user that sent the request, so the system knows who the pincard is for.
+     */
     @RequestMapping(value = "/card", method = RequestMethod.PUT)
     public void processNewPinCard(final Callback<String> callback,
                                          @RequestParam("accountNumber") final String accountNumber,
@@ -762,6 +789,13 @@ final class UIService {
         handleNewPinCardExceptions(accountNumber, cookie, callbackBuilder);
     }
 
+    /**
+     * Tries to verify the input of the request and then forward the new pin card request to the Authentication Service,
+     * rejects the request if an exception occurs.
+     * @param accountNumber AccountNumber the pin card should be linked to.
+     * @param cookie Cookie of the user that requested the pin card.
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     */
     private void handleNewPinCardExceptions(final String accountNumber, final String cookie,
                                             final CallbackBuilder callbackBuilder) {
         try {
@@ -779,6 +813,13 @@ final class UIService {
         }
     }
 
+    /**
+     * Forwards the new pin card request to the authentication service and forwards the result of the request to
+     * the service that requested it.
+     * @param accountNumber AccountNumber the pin card should be created for.
+     * @param cookie Cookie of the user that sent the request.
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     */
     private void doNewPinCardRequest(final String accountNumber, final String cookie,
                                      final CallbackBuilder callbackBuilder) {
         authenticationClient.putFormAsyncWith2Params("/services/authentication/card", "accountNumber",
@@ -796,6 +837,13 @@ final class UIService {
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(jsonReply));
     }
 
+    /**
+     * Creates a callbackBuilder for the request so that the result can be sent back to the request source and then
+     * calls the exception handler for the request.
+     * @param callback Used to send the result of the request back to the request source.
+     * @param pinCardJson Json String representing a PinCard {@link PinCard} that is to be removed from the system.
+     * @param cookie Cookie of the user that sent the request.
+     */
     @RequestMapping(value = "/card/remove", method = RequestMethod.PUT)
     public void processPinCardRemoval(final Callback<String> callback,
                                       @RequestParam("pinCard") final String pinCardJson,
@@ -804,6 +852,13 @@ final class UIService {
         handlePinCardRemovalExceptions(pinCardJson, cookie, callbackBuilder);
     }
 
+    /**
+     * Tries to verify the input of the request and then forward the pin card removal request to the Authentication
+     * Service, rejects the request if an exception occurs.
+     * @param pinCardJson Json String representing a PinCard {@link PinCard} that is to be removed from the system.
+     * @param cookie Cookie of the user that sent the request.
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     */
     private void handlePinCardRemovalExceptions(final String pinCardJson, final String cookie,
                                                 final CallbackBuilder callbackBuilder) {
         try {
@@ -818,6 +873,13 @@ final class UIService {
         }
     }
 
+    /**
+     * Checks if the variables for the remove pin card request are correctly specified and throws an exception if one
+     * of the variables is not.
+     * @param pinCardJson Json String representing a pin card that should be removed from the system.
+     * @throws IncorrectInputException Thrown when a variable is incorrectly specified(or not specified at all).
+     * @throws JsonSyntaxException Thrown when the json of the pinCard object is incorrect.
+     */
     private void verifyPinCardRemovalInput(final String pinCardJson) throws IncorrectInputException,
             JsonSyntaxException {
         PinCard pinCard = jsonConverter.fromJson(pinCardJson, PinCard.class);
@@ -835,6 +897,13 @@ final class UIService {
         }
     }
 
+    /**
+     * Forwards the pin card removal request to the authentication service, forwards the result to the request source
+     * if the request is successfull, or sends a rejection if it is not.
+     * @param pinCardJson Json String representing a pin card{@link PinCard} that should be removed from the system.
+     * @param cookie Cookie of the user that sent the request.
+     * @param callbackBuilder Used to forward the result of the request to the request source.
+     */
     private void doPinCardRemovalRequest(final String pinCardJson, final String cookie,
                                          final CallbackBuilder callbackBuilder) {
         authenticationClient.putFormAsyncWith2Params("/services/authentication/card/remove",
