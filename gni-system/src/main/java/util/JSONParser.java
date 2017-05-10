@@ -216,35 +216,10 @@ public final class JSONParser {
         return pinTransaction;
     }
 
-    public static Account createJsonAccount(final String newAccountNumber, final double newSpendingLimit,
-                                            final double newBalance) {
-        Account account = new Account();
-        account.setAccountNumber(newAccountNumber);
-        account.setSpendingLimit(newSpendingLimit);
-        account.setBalance(newBalance);
-        return account;
-    }
-
-    public static Account createJsonAccount(final double newSpendingLimit, final double newBalance,
-                                                                                final String newAccountHolderName) {
-        Account account = new Account();
-        account.setAccountHolderName(newAccountHolderName);
-        account.setSpendingLimit(newSpendingLimit);
-        account.setBalance(newBalance);
-        return account;
-    }
-
     public static AccountLink createJsonAccountLink(final String newAccountNumber, final Long newCustomerId) {
         AccountLink request = new AccountLink();
         request.setCustomerId(newCustomerId);
         request.setAccountNumber(newAccountNumber);
-        request.setSuccessfull(false);
-        return request;
-    }
-
-    public static AccountLink createJsonAccountLink(final Long newCustomerId) {
-        AccountLink request = new AccountLink();
-        request.setCustomerId(newCustomerId);
         request.setSuccessfull(false);
         return request;
     }
@@ -285,6 +260,12 @@ public final class JSONParser {
         return pinCard;
     }
 
+    /**
+     * Removes escape characters from a string, this is done to be able to parse json strings received through
+     * a callback, as a callback adds escape characters to the json string.
+     * @param dataString Json to remove escape characters from.
+     * @return Json string without escape characters.
+     */
     public static String removeEscapeCharacters(final String dataString) {
         char[] characters = dataString.substring(1, dataString.length() - 1).toCharArray();
         String stringWithoutEscapes = "";
