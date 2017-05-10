@@ -55,10 +55,10 @@ class PinService {
     }
 
     /**
-     * Converts in incoming pintransaction request to a normal transaction request and then sends this request to
-     * the exception handler to check the pin combination and execute the transaction.
+     * Converts in incoming {@link PinTransaction} request to a normal {@link Transaction} request and then sends
+     * this request to the exception handler to check the pin combination and execute the transaction.
      * @param callback Used to send a reply to the request source.
-     * @param pinTransactionRequestJson Json string representing a pin transaction request.
+     * @param pinTransactionRequestJson Json string representing a {@link PinTransaction} request.
      */
     @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
     public void processPinTransaction(final Callback<String> callback,
@@ -75,7 +75,7 @@ class PinService {
     }
 
     /**
-     * Checks if the pincode matches the card number, and fetches the customerId of the owner of the card, then
+     * Checks if the pin code matches the card number, and fetches the customerId of the owner of the card, then
      * forwards the transaction request to the TransactionDispatch service.
      * @param transaction Transaction to be executed.
      * @param cardNumber Card number of the card used in the transaction.
@@ -126,6 +126,15 @@ class PinService {
         }
     }
 
+    /**
+     * Checks if the source account number of the transaction matches the account number of the card that was used and
+     * if the pin code for the card was correct/the card is not expired.
+     * @param transaction Transaction that should be executed using the card.
+     * @param cardNumber CardNumber of the card used for the transaction.
+     * @param pinCode PinCode used for the transaction.
+     * @return Boolean indicating if the request is authorized and should be executed.
+     * @throws SQLException Thrown when querying the database fails, causes the transaction to be rejected.
+     */
     private boolean getPinRequestAuthorization(final Transaction transaction, final Long cardNumber,
                                                final String pinCode) throws SQLException {
         boolean authorized = false;
@@ -194,6 +203,13 @@ class PinService {
         }
     }
 
+    /**
+     * Creates a callbackbuilder so the result of the new pin card request can be sent to the request source and then
+     * calls the correct exception handler to execute the request.
+     * @param callback Used to send the result of the request to the request source.
+     * @param customerId CustomerId of the customer that wants a new pin card.
+     * @param accountNumber AccountNumber the pin card should be created for.
+     */
     @RequestMapping(value = "/card", method = RequestMethod.PUT)
     public void addNewPinCard(final Callback<String> callback, final @RequestParam("customerId") String customerId,
                               final @RequestParam("accountNumber") String accountNumber) {
@@ -202,6 +218,13 @@ class PinService {
         handleNewPinCardExceptions(customerId, accountNumber, callbackBuilder);
     }
 
+    /**
+     * Creates a new pin card for the Customer with customerId and accountNumber if the creation succeeds sends the
+     * result back to the request source, otherwise rejects the request.
+     * @param customerId CustomerId of the customer that requested a new card.
+     * @param accountNumber AccountNumber the card should be created for.
+     * @param callbackBuilder Used to send the creation result to the request source.
+     */
     private void handleNewPinCardExceptions(final String customerId, final String accountNumber,
                                             final CallbackBuilder callbackBuilder) {
         try {
@@ -221,6 +244,11 @@ class PinService {
         }
     }
 
+    /**
+     * Fetches the next available card number by selecting the highest cardNumber from the database and adding 1 to it.
+     * @return First available card number that should be used to create a pin card.
+     * @throws SQLException Thrown when the datbase cant be reached, will cause a new card request to be rejected.
+     */
     private Long getNextAvailableCardNumber() throws SQLException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement getHighestCardNumber = databaseConnection.getConnection()
@@ -239,11 +267,21 @@ class PinService {
         }
     }
 
+    /**
+     * Generates a random pin code for a new pin card.
+     * @return Pincode to be used for a new pin card.
+     * @throws NoSuchAlgorithmException Thrown when the algorithm cannot be found, will cause a new pin card request
+     * to be rejected.
+     */
     private String generatePinCode() throws NoSuchAlgorithmException {
         SecureRandom randomGenerator = SecureRandom.getInstance("SHA1PRNG");
         return String.format("%04d", randomGenerator.nextInt(9999));
     }
 
+    /**
+     * Generates an expiration date for a pin card by adding the valid card duration to the current date.
+     * @return Expiration date for a new pin card.
+     */
     private Date generateExpirationDate() {
         Calendar c = Calendar.getInstance();
         c.setTime(new Date());
@@ -251,6 +289,11 @@ class PinService {
         return c.getTime();
     }
 
+    /**
+     * Inserts a pin card into the pin database.
+     * @param pinCard Pincard to be inserted into the database.
+     * @throws SQLException Thrown when the insertion fails, will reject the new pin card request.
+     */
     private void addPinCardToDatabase(final PinCard pinCard) throws SQLException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement addPinCard = databaseConnection.getConnection()
@@ -272,12 +315,24 @@ class PinService {
         callbackBuilder.build().reply(jsonConverter.toJson(pinCard));
     }
 
+    /**
+     * Creates a callbackbuilder to send the result of the request to and then calls the exception handler to execute
+     * the pin card removal. Sends a callback if the removal is successfull or a rejection if the removal fails.
+     * @param callback Used to send the result of the request to the request source.
+     * @param pinCardJson Json String representing a {@link PinCard} that should be removed from the system.
+     */
     @RequestMapping(value = "/card/remove", method = RequestMethod.PUT)
     public void removePinCard(final Callback<String> callback, final @RequestParam("pinCard") String pinCardJson) {
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         handleRemovePinCardExceptions(pinCardJson, callbackBuilder);
     }
 
+    /**
+     * Tries to create a {@link PinCard} from the Json string and then delete it from the database. Sends a rejection
+     * if this fails or a callback with the {@link PinCard} that was removed from the system if it is successfull.
+     * @param pinCardJson Json String representing a {@link PinCard} that should be removed from the system.
+     * @param callbackBuilder Used to send the result of the request to the request source.
+     */
     private void handleRemovePinCardExceptions(final String pinCardJson, final CallbackBuilder callbackBuilder) {
         try {
             PinCard pinCard = jsonConverter.fromJson(pinCardJson, PinCard.class);
@@ -290,6 +345,13 @@ class PinService {
         }
     }
 
+    /**
+     * Deletes a pincard from the pin database.
+     * @param pinCard Pin card that should be deleted from the database.
+     * @throws SQLException Thrown when the sql query fails, will cause the removal request to be rejected.
+     * @throws NumberFormatException Cause when a parameter is incorrectly specified, will cause the removal request
+     * to be rejected.
+     */
     private void deletePinCardFromDatabase(final PinCard pinCard) throws SQLException, NumberFormatException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement removePinCard = databaseConnection.getConnection()
