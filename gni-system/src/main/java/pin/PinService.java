@@ -50,6 +50,13 @@ class PinService {
     /** Used to check if a transaction without a pincode is authorized */
     private static final int CONTACTLESS_TRANSACTION_LIMIT = 25;
 
+    /**
+     * Service that handles all PIN and ATM related requests.
+     * @param transactionDispatchPort Port the Transaction Dispatch Service can be found on.
+     * @param transactionDispatchHost Host the Transaction Dispatch Service can be found on.
+     * @param transactionReceivePort Port the Transaction Receive Service can be found on.
+     * @param transactionReceiveHost Host the Transaction Receive Service can be found on.
+     */
     PinService(final int transactionDispatchPort, final String transactionDispatchHost,
                final int transactionReceivePort, final String transactionReceiveHost) {
         transactionDispatchClient = httpClientBuilder().setHost(transactionDispatchHost)
@@ -76,8 +83,8 @@ class PinService {
     }
 
     /**
-     * Checks if the pin code matches the card number, and fetches the customerId of the owner of the card, then
-     * forwards the transaction request to the TransactionDispatch service.
+     * Checks if the request is an ATM transaction or a normal pin transaction, and then tries to authorized the
+     * request. If the request is authorized it forwards the transaction, if it is not it sends a rejection.
      * @param pinTransactionRequestJson Json string representing a {@link PinTransaction} request.
      * @param callbackBuilder Used to send a reply to the request source.
      */
@@ -121,8 +128,13 @@ class PinService {
         }
     }
 
-    private Transaction createATMTransaction(final PinTransaction pinTransaction, final String cardAccountNumber)
-                                                                        throws IncorrectPinException, SQLException {
+    /**
+     * Creates a new {@link Transaction} object from a {@link PinTransaction} object.
+     * @param pinTransaction ATM withdrawal/deposit to convert to a {@link Transaction}.
+     * @param cardAccountNumber AccountNumber of the card used in the transaction.
+     * @return Transaction object representing the ATM withdrawal/deposit that is to be exectued.
+     */
+    private Transaction createATMTransaction(final PinTransaction pinTransaction, final String cardAccountNumber) {
         String description;
         if (pinTransaction.getSourceAccountNumber().equals(cardAccountNumber)) {
             description = "ATM withdrawal card #" + pinTransaction.getCardNumber();
@@ -135,6 +147,13 @@ class PinService {
                 false, false);
     }
 
+    /**
+     * Fetches card information for the card used in the transaction from the database, then checks if there is money
+     * taken from or written to this account, if the pincode is correct, and if the card is still valid.
+     * @param pinTransaction Pin transaction that needs to be authorized.
+     * @return If an ATM transaction should be authorized.
+     * @throws SQLException Thrown when the database cannot be reached, will cause a rejection of the transaction.
+     */
     private boolean getATMTransactionAuthorization(final PinTransaction pinTransaction) throws SQLException {
         boolean authorized = false;
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
@@ -146,7 +165,8 @@ class PinService {
             String accountNumberLinkedToCard = cardInfo.getString("account_number");
             if (accountNumberLinkedToCard.equals(pinTransaction.getDestinationAccountNumber())
                     || accountNumberLinkedToCard.equals(pinTransaction.getSourceAccountNumber())) {
-                if (cardInfo.getString("pin_code").equals(pinTransaction.getPinCode())) {
+                if (cardInfo.getString("pin_code").equals(pinTransaction.getPinCode())
+                        && cardInfo.getDate("expiration_date").after(new Date())) {
                     authorized = true;
                 }
             }
@@ -212,6 +232,15 @@ class PinService {
         return authorized;
     }
 
+    /**
+     * Fetches the accountNumber linked to a card from the pin database.
+     * @param cardNumber CardNumber to fetch the linked accountNumber for.
+     * @return AccountNumber linked to the card with given cardNumber.
+     * @throws SQLException Thrown when the datbase cannot be reached, will cause a rejection of the transaction the
+     * request is for.
+     * @throws IncorrectPinException Thrown when there is no accountNumber for the given cardNumber in the database,
+     * will cause a rejection of the transaction the request is for.
+     */
     private String getAccountNumberWithCardNumber(final Long cardNumber) throws SQLException, IncorrectPinException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement getAccountNumber = databaseConnection.getConnection()
