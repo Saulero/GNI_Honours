@@ -100,6 +100,8 @@ public class SystemTest {
         Sys.sleep(2000);
         doGet(uiClient, "", RequestType.ACCOUNTS, cookie);
         Sys.sleep(2000);
+        doGet(uiClient, deboerNumber, RequestType.TRANSACTIONHISTORY, cookie);
+        Sys.sleep(2000);
         /*doExternalTransaction(externalBankClient, externalAccountNumber, deboerNumber, "H. de Boer",
                 "Moneys",2000.00);
                 Sys.sleep(2000);

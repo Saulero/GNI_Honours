@@ -37,6 +37,8 @@ import static java.net.HttpURLConnection.HTTP_OK;
 class PinService {
     /** Connection to the Transaction Dispatch service.*/
     private HttpClient transactionDispatchClient;
+    /** Connection to the Transaction Receive service.*/
+    private HttpClient transactionReceiveClient;
     /** Database connection pool containing persistent database connections. */
     private ConnectionPool databaseConnectionPool;
     /** Used for Json conversions. */
@@ -48,9 +50,12 @@ class PinService {
     /** Used to check if a transaction without a pincode is authorized */
     private static final int CONTACTLESS_TRANSACTION_LIMIT = 25;
 
-    PinService(final int transactionDispatchPort, final String transactionDispatchHost) {
+    PinService(final int transactionDispatchPort, final String transactionDispatchHost,
+               final int transactionReceivePort, final String transactionReceiveHost) {
         transactionDispatchClient = httpClientBuilder().setHost(transactionDispatchHost)
                                                         .setPort(transactionDispatchPort).buildAndStart();
+        transactionReceiveClient = httpClientBuilder().setHost(transactionReceiveHost)
+                .setPort(transactionReceivePort).buildAndStart();
         databaseConnectionPool = new ConnectionPool();
         this.jsonConverter = new Gson();
     }
@@ -82,8 +87,13 @@ class PinService {
             Long customerId = getCustomerIdFromCardNumber(request.getCardNumber());
             if (request.isATMTransaction()) {
                 if (getATMTransactionAuthorization(request)) {
-                    Transaction transaction = createATMTransaction(request);
-                    doTransactionRequest(transaction, customerId, callbackBuilder);
+                    String cardAccountNumber = getAccountNumberWithCardNumber(request.getCardNumber());
+                    Transaction transaction = createATMTransaction(request, cardAccountNumber);
+                    if (cardAccountNumber.equals(transaction.getSourceAccountNumber())) {
+                        doTransactionRequest(transaction, customerId, callbackBuilder);
+                    } else {
+                        doDepositTransactionRequest(transaction, callbackBuilder);
+                    }
                 } else {
                     callbackBuilder.build().reject("Unauthorized ATM request.");
                 }
@@ -111,9 +121,8 @@ class PinService {
         }
     }
 
-    private Transaction createATMTransaction(final PinTransaction pinTransaction) throws IncorrectPinException,
-                                                                                    SQLException {
-        String cardAccountNumber = getAccountNumberWithCardNumber(pinTransaction.getCardNumber());
+    private Transaction createATMTransaction(final PinTransaction pinTransaction, final String cardAccountNumber)
+                                                                        throws IncorrectPinException, SQLException {
         String description;
         if (pinTransaction.getSourceAccountNumber().equals(cardAccountNumber)) {
             description = "ATM withdrawal card #" + pinTransaction.getCardNumber();
@@ -230,16 +239,37 @@ class PinService {
                                       final CallbackBuilder callbackBuilder) {
         transactionDispatchClient.putFormAsyncWith2Params("/services/transactionDispatch/transaction",
                 "request", jsonConverter.toJson(request), "customerId", customerId,
-                (code, contentType, replyBody) -> {
-                    if (code == HTTP_OK) {
-                        Transaction reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyBody),
-                                                                    Transaction.class);
-                        processTransactionReply(reply, request, callbackBuilder);
-                    } else {
-                        System.out.printf("%s Transaction request failed, sending rejection.\n", PREFIX);
-                        callbackBuilder.build().reject("PIN: Transaction failed.");
-                    }
-                });
+        (code, contentType, replyBody) -> {
+            if (code == HTTP_OK) {
+                Transaction reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyBody),
+                                                            Transaction.class);
+                processTransactionReply(reply, request, callbackBuilder);
+            } else {
+                System.out.printf("%s Transaction request failed, sending rejection.\n", PREFIX);
+                callbackBuilder.build().reject("PIN: Transaction failed.");
+            }
+        });
+    }
+
+    /**
+     * Sends the deposit request to the transaction receive client and handles the the reply when it is received by
+     * checking if the request was successfull, and sending it off for processing if it was, or sending a rejection
+     * to the request source of the request failed.
+     * @param request Transaction that should be processed.
+     * @param callbackBuilder Used to send a reply to the request source.
+     */
+    private void doDepositTransactionRequest(final Transaction request, final CallbackBuilder callbackBuilder) {
+        transactionReceiveClient.putFormAsyncWith1Param("/services/transactionReceive/transaction",
+                "request", jsonConverter.toJson(request), ((code, contentType, body) -> {
+            if (code == HTTP_OK) {
+                Transaction reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
+                        Transaction.class);
+                processTransactionReply(reply, request, callbackBuilder);
+            } else {
+                System.out.printf("%s ATM deposit failed, sending rejection.\n", PREFIX);
+                callbackBuilder.build().reject("PIN: ATM deposit failed.");
+            }
+        }));
     }
 
     /**
