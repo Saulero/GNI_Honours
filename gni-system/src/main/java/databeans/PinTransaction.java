@@ -13,16 +13,18 @@ public class PinTransaction {
     private String pinCode;
     private Long cardNumber;
     private double transactionAmount;
+    private boolean isATMTransaction;
 
     public PinTransaction(final String newSourceAccountNumber, final String newDestinationAccountNumber,
                           final String newDestinationAccountHolderName, final String newPinCode,
-                          final Long newCardNumber, final double newTransactionAmount) {
+                          final Long newCardNumber, final double newTransactionAmount, final boolean isATMTransaction) {
         this.sourceAccountNumber = newSourceAccountNumber;
         this.destinationAccountNumber = newDestinationAccountNumber;
         this.destinationAccountHolderName = newDestinationAccountHolderName;
         this.pinCode = newPinCode;
         this.cardNumber = newCardNumber;
         this.transactionAmount = newTransactionAmount;
+        this.isATMTransaction = isATMTransaction;
     }
 
     public PinTransaction(){
@@ -74,5 +76,13 @@ public class PinTransaction {
 
     public void setTransactionAmount(final double newTransactionAmount) {
         this.transactionAmount = newTransactionAmount;
+    }
+
+    public boolean isATMTransaction() {
+        return isATMTransaction;
+    }
+
+    public void setATMTransaction(final boolean newIsATMTransaction) {
+        this.isATMTransaction = newIsATMTransaction;
     }
 }

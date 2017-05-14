@@ -1,6 +1,7 @@
 package pin;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 import database.ConnectionPool;
 import database.SQLConnection;
 import database.SQLStatements;
@@ -55,41 +56,48 @@ class PinService {
     }
 
     /**
-     * Converts in incoming {@link PinTransaction} request to a normal {@link Transaction} request and then sends
-     * this request to the exception handler to check the pin combination and execute the transaction.
+     * Creates a callbackbuilder so that the result of the request can be sent to the request source and then calls
+     * the exception handler to check the pin combination and execute the transaction.
      * @param callback Used to send a reply to the request source.
      * @param pinTransactionRequestJson Json string representing a {@link PinTransaction} request.
      */
     @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
     public void processPinTransaction(final Callback<String> callback,
                                       final @RequestParam("request") String pinTransactionRequestJson) {
-        PinTransaction request = jsonConverter.fromJson(pinTransactionRequestJson, PinTransaction.class);
         System.out.printf("%s Received new Pin request from a customer.\n", PREFIX);
-        Transaction transaction = JSONParser.createJsonTransaction(-1, request.getSourceAccountNumber(),
-                request.getDestinationAccountNumber(), request.getDestinationAccountHolderName(),
-                "PIN Transaction card #" + request.getCardNumber(),
-                request.getTransactionAmount(), false, false);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handlePinExceptions(transaction, request.getCardNumber(), request.getPinCode(), callbackBuilder);
+        handlePinExceptions(pinTransactionRequestJson, callbackBuilder);
 
     }
 
     /**
      * Checks if the pin code matches the card number, and fetches the customerId of the owner of the card, then
      * forwards the transaction request to the TransactionDispatch service.
-     * @param transaction Transaction to be executed.
-     * @param cardNumber Card number of the card used in the transaction.
-     * @param pinCode Pin code entered during the transaction request.
+     * @param pinTransactionRequestJson Json string representing a {@link PinTransaction} request.
      * @param callbackBuilder Used to send a reply to the request source.
      */
-    private void handlePinExceptions(final Transaction transaction, final Long cardNumber, final String pinCode,
-                                     final CallbackBuilder callbackBuilder) {
+    private void handlePinExceptions(final String pinTransactionRequestJson, final CallbackBuilder callbackBuilder) {
         try {
-            Long customerId = getCustomerIdFromCardNumber(cardNumber);
-            if (getPinRequestAuthorization(transaction, cardNumber, pinCode)) {
-                doTransactionRequest(transaction, customerId, callbackBuilder);
+            PinTransaction request = jsonConverter.fromJson(pinTransactionRequestJson, PinTransaction.class);
+            Long customerId = getCustomerIdFromCardNumber(request.getCardNumber());
+            if (request.isATMTransaction()) {
+                if (getATMTransactionAuthorization(request)) {
+                    Transaction transaction = createATMTransaction(request);
+                    doTransactionRequest(transaction, customerId, callbackBuilder);
+                } else {
+                    callbackBuilder.build().reject("Unauthorized ATM request.");
+                }
             } else {
-                callbackBuilder.build().reject("Unauthorized Pin request.");
+                if (getPinTransactionAuthorization(request)) {
+                    Transaction transaction = JSONParser.createJsonTransaction(-1,
+                            request.getSourceAccountNumber(), request.getDestinationAccountNumber(),
+                            request.getDestinationAccountHolderName(),
+                            "PIN Transaction card #" + request.getCardNumber(),
+                            request.getTransactionAmount(), false, false);
+                    doTransactionRequest(transaction, customerId, callbackBuilder);
+                } else {
+                    callbackBuilder.build().reject("Unauthorized Pin request.");
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -97,7 +105,46 @@ class PinService {
         } catch (IncorrectPinException e) {
             e.printStackTrace();
             callbackBuilder.build().reject("Incorrect PIN/CardNumber.");
+        } catch (JsonSyntaxException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reject("Invalid json specification.");
         }
+    }
+
+    private Transaction createATMTransaction(final PinTransaction pinTransaction) throws IncorrectPinException,
+                                                                                    SQLException {
+        String cardAccountNumber = getAccountNumberWithCardNumber(pinTransaction.getCardNumber());
+        String description;
+        if (pinTransaction.getSourceAccountNumber().equals(cardAccountNumber)) {
+            description = "ATM withdrawal card #" + pinTransaction.getCardNumber();
+        } else {
+            description = "ATM deposit card #" + pinTransaction.getCardNumber();
+        }
+        return JSONParser.createJsonTransaction(-1,
+                pinTransaction.getSourceAccountNumber(), pinTransaction.getDestinationAccountNumber(),
+                pinTransaction.getDestinationAccountHolderName(), description, pinTransaction.getTransactionAmount(),
+                false, false);
+    }
+
+    private boolean getATMTransactionAuthorization(final PinTransaction pinTransaction) throws SQLException {
+        boolean authorized = false;
+        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+        PreparedStatement getCardInfo = databaseConnection.getConnection()
+                .prepareStatement(SQLStatements.getPinCard);
+        getCardInfo.setLong(1, pinTransaction.getCardNumber());
+        ResultSet cardInfo = getCardInfo.executeQuery();
+        if (cardInfo.next()) {
+            String accountNumberLinkedToCard = cardInfo.getString("account_number");
+            if (accountNumberLinkedToCard.equals(pinTransaction.getDestinationAccountNumber())
+                    || accountNumberLinkedToCard.equals(pinTransaction.getSourceAccountNumber())) {
+                if (cardInfo.getString("pin_code").equals(pinTransaction.getPinCode())) {
+                    authorized = true;
+                }
+            }
+        }
+        getCardInfo.close();
+        databaseConnectionPool.returnConnection(databaseConnection);
+        return authorized;
     }
 
     /**
@@ -129,32 +176,47 @@ class PinService {
     /**
      * Checks if the source account number of the transaction matches the account number of the card that was used and
      * if the pin code for the card was correct/the card is not expired.
-     * @param transaction Transaction that should be executed using the card.
-     * @param cardNumber CardNumber of the card used for the transaction.
-     * @param pinCode PinCode used for the transaction.
+     * @param transaction PinTransaction that should be authorized.
      * @return Boolean indicating if the request is authorized and should be executed.
      * @throws SQLException Thrown when querying the database fails, causes the transaction to be rejected.
      */
-    private boolean getPinRequestAuthorization(final Transaction transaction, final Long cardNumber,
-                                               final String pinCode) throws SQLException {
+    private boolean getPinTransactionAuthorization(final PinTransaction transaction) throws SQLException {
         boolean authorized = false;
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement getCardInfo = databaseConnection.getConnection()
                                                     .prepareStatement(SQLStatements.getPinCard);
-        getCardInfo.setLong(1, cardNumber);
+        getCardInfo.setLong(1, transaction.getCardNumber());
         ResultSet cardInfo = getCardInfo.executeQuery();
         if (cardInfo.next()) {
             if (transaction.getSourceAccountNumber().equals(cardInfo.getString("account_number"))) {
+                final String pinCode = transaction.getPinCode();
                 if ((transaction.getTransactionAmount() < CONTACTLESS_TRANSACTION_LIMIT && pinCode == null)
-                    || (pinCode.equals(cardInfo.getString("pin_code")))) {
+                        || (pinCode.equals(cardInfo.getString("pin_code")))) {
                     if (cardInfo.getDate("expiration_date").after(new Date())) { //check if expiration date is after current date
                         authorized = true;
                     }
                 }
             }
         }
+        getCardInfo.close();
+        databaseConnectionPool.returnConnection(databaseConnection);
         return authorized;
     }
+
+    private String getAccountNumberWithCardNumber(final Long cardNumber) throws SQLException, IncorrectPinException {
+        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+        PreparedStatement getAccountNumber = databaseConnection.getConnection()
+                                                    .prepareStatement(SQLStatements.getAccountNumberUsingCardNumber);
+        getAccountNumber.setLong(1, cardNumber);
+        ResultSet accountNumberResult = getAccountNumber.executeQuery();
+        if (accountNumberResult.next()) {
+            return accountNumberResult.getString("account_number");
+        } else {
+            throw new IncorrectPinException("There does not exist an accountNumber for this pin card in the database.");
+        }
+    }
+
+
 
     /**
      * Sends the Transaction to the transactionDispatchClient and handles the reply when it is received by checking

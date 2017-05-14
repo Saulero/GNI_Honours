@@ -205,7 +205,8 @@ public final class JSONParser {
                                                           final String newDestinationAccountNumber,
                                                           final String newDestinationAccountHolderName,
                                                           final String newPinCode, Long newCardNumber,
-                                                          final double newTransactionAmount) {
+                                                          final double newTransactionAmount,
+                                                          final boolean newIsATMTransaction) {
         PinTransaction pinTransaction = new PinTransaction();
         pinTransaction.setSourceAccountNumber(newSourceAccountNumber);
         pinTransaction.setDestinationAccountNumber(newDestinationAccountNumber);
@@ -213,6 +214,7 @@ public final class JSONParser {
         pinTransaction.setPinCode(newPinCode);
         pinTransaction.setCardNumber(newCardNumber);
         pinTransaction.setTransactionAmount(newTransactionAmount);
+        pinTransaction.setATMTransaction(newIsATMTransaction);
         return pinTransaction;
     }
 

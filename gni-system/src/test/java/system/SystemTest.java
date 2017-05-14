@@ -4,7 +4,6 @@ import authentication.AuthenticationServiceMain;
 import com.google.gson.Gson;
 import databeans.*;
 import io.advantageous.boon.core.Sys;
-import io.advantageous.qbit.annotation.RequestMethod;
 import io.advantageous.qbit.http.client.HttpClient;
 import ledger.LedgerServiceMain;
 import pin.PinServiceMain;
@@ -31,6 +30,7 @@ public class SystemTest {
     private static PinCard pinCard = new PinCard();
     private static ArrayList<String> accountNumbers = new ArrayList<>();
     private static String externalAccountNumber = "NL00IIIB5695575206";
+    private static String atmNumber = "NL52GNIB367645116";
     private static String userName = "henkdeboer";
     private static String password = "henkdeboer";
     private static String secondAccountNumber = null;
@@ -75,6 +75,10 @@ public class SystemTest {
         doNewPinCardRequest(uiClient, accountNumbers.get(0));
         Sys.sleep(2000);
         doPin(pinClient, pinCard, externalAccountNumber, "De Wilde", 20.00);
+        Sys.sleep(2000);
+        doATM(pinClient, pinCard, atmNumber, 20.00, true);
+        Sys.sleep(2000);
+        doATM(pinClient, pinCard, atmNumber, 20.00, false);
         Sys.sleep(2000);
         doPinCardRemovalRequest(uiClient, pinCard);
         Sys.sleep(2000);
@@ -310,7 +314,7 @@ public class SystemTest {
                               final String destinationAccountNumber, final String destinationAccountHolderName,
                               final double transactionAmount) {
         PinTransaction pin = JSONParser.createJsonPinTransaction(pinCard.getAccountNumber(), destinationAccountNumber,
-                destinationAccountHolderName, pinCard.getPinCode(), pinCard.getCardNumber(), transactionAmount);
+                destinationAccountHolderName, pinCard.getPinCode(), pinCard.getCardNumber(), transactionAmount, false);
         Gson gson = new Gson();
         System.out.printf("%s Sending pin transaction.\n", PREFIX);
         pinClient.putFormAsyncWith1Param("/services/pin/transaction", "request", gson.toJson(pin),
@@ -326,6 +330,44 @@ public class SystemTest {
                         }
                     } else {
                         System.out.printf("%s Pin transaction request failed.\n\n\n", PREFIX);
+                        System.out.println(body);
+                    }
+                });
+    }
+
+    /**
+     * Sends a transaction request to the Pin service, simulating a Pin transaction of a customer.
+     * @param pinClient Client connected to the Pin service.
+     * @param pinCard PinCard used in the transaction.
+     * @param atmNumber AccountNumber of the atm machine used.
+     * @param transactionAmount Amount to transfer.
+     * @param isDeposit If the transaction is a deposit or a withdrawal.
+     */
+    private static void doATM(final HttpClient pinClient, final PinCard pinCard,
+                              final String atmNumber, final double transactionAmount, final boolean isDeposit) {
+        PinTransaction pin;
+        if (isDeposit) {
+            pin = JSONParser.createJsonPinTransaction(atmNumber, pinCard.getAccountNumber(), "",
+                    pinCard.getPinCode(), pinCard.getCardNumber(), transactionAmount, true);
+        } else {
+            pin = JSONParser.createJsonPinTransaction(pinCard.getAccountNumber(), atmNumber, "",
+                    pinCard.getPinCode(), pinCard.getCardNumber(), transactionAmount, true);
+        }
+        Gson gson = new Gson();
+        System.out.printf("%s Sending pin transaction.\n", PREFIX);
+        pinClient.putFormAsyncWith1Param("/services/pin/transaction", "request", gson.toJson(pin),
+                (code, contentType, body) -> {
+                    if (code == HTTP_OK) {
+                        Transaction reply = gson.fromJson(JSONParser.removeEscapeCharacters(body), Transaction.class);
+                        if (reply.isSuccessful() && reply.isProcessed()) {
+                            System.out.printf("%s ATM transaction successfull.\n\n\n", PREFIX);
+                        } else if (!reply.isProcessed()) {
+                            System.out.printf("%s ATM transaction couldn't be processed.\n\n\n", PREFIX);
+                        } else {
+                            System.out.printf("%s ATM transaction was not successfull.\n\n\n", PREFIX);
+                        }
+                    } else {
+                        System.out.printf("%s ATM transaction request failed.\n\n\n", PREFIX);
                         System.out.println(body);
                     }
                 });
