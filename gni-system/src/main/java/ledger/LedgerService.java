@@ -418,7 +418,7 @@ class LedgerService {
                             double balance = rs.getDouble("balance");
                             Account account = new Account(name, spendingLimit, balance);
                             account.setAccountNumber(accountNumber);
-                            DataReply dataReply = JSONParser.createJsonReply(accountNumber, requestType, account);
+                            DataReply dataReply = JSONParser.createJsonDataReply(accountNumber, requestType, account);
                             System.out.printf("%s Data request successfull, sending callback.\n", PREFIX);
                             callback.reply(gson.toJson(dataReply));
                         }
@@ -437,7 +437,7 @@ class LedgerService {
                         LinkedList<Transaction> transactions = new LinkedList<>();
                         fillTransactionList(transactions, rs1);
                         fillTransactionList(transactions, rs2);
-                        DataReply dataReply = JSONParser.createJsonReply(dataRequest.getAccountNumber(),
+                        DataReply dataReply = JSONParser.createJsonDataReply(dataRequest.getAccountNumber(),
                                                                          requestType, transactions);
                         System.out.printf("%s Data request successfull, sending callback.\n", PREFIX);
                         callback.reply(gson.toJson(dataReply));
@@ -458,7 +458,7 @@ class LedgerService {
                                 accountExists = true;
                             }
                         }
-                        DataReply accountExistsReply = JSONParser.createJsonReply(dataRequest.getAccountNumber(),
+                        DataReply accountExistsReply = JSONParser.createJsonDataReply(dataRequest.getAccountNumber(),
                                                                                   dataRequest.getType(), accountExists);
                         System.out.printf("%s Data request successfull, sending callback.\n", PREFIX);
                         callback.reply(gson.toJson(accountExistsReply));

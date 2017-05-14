@@ -259,7 +259,7 @@ public class SystemTest {
      */
     private static void doGet(final HttpClient uiClient, final String accountNumber, final RequestType type,
                               final String cookie) {
-        DataRequest request = JSONParser.createJsonRequest(accountNumber, type, 0L);
+        DataRequest request = JSONParser.createJsonDataRequest(accountNumber, type, 0L);
         Gson gson = new Gson();
         System.out.printf("%s Sending data request of type %s\n", PREFIX, type.toString());
         uiClient.getAsyncWith2Params("/services/ui/data", "request", gson.toJson(request),

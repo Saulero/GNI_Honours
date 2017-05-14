@@ -27,7 +27,7 @@ public final class JSONParser {
      * @param account Account data of the reply.
      * @return DataReply object that can be converted to a Json String.
      */
-    public static DataReply createJsonReply(final String accountNumber, final RequestType type, final Account account) {
+    public static DataReply createJsonDataReply(final String accountNumber, final RequestType type, final Account account) {
         DataReply reply = new DataReply();
         reply.setAccountNumber(accountNumber);
         reply.setType(type);
@@ -35,8 +35,8 @@ public final class JSONParser {
         return reply;
     }
 
-    public static DataReply createJsonReply(final String accountNumber, final RequestType type,
-                                            final LinkedList<Transaction> transactions) {
+    public static DataReply createJsonDataReply(final String accountNumber, final RequestType type,
+                                                final LinkedList<Transaction> transactions) {
         DataReply dataReply = new DataReply();
         dataReply.setAccountNumber(accountNumber);
         dataReply.setType(type);
@@ -44,8 +44,8 @@ public final class JSONParser {
         return dataReply;
     }
 
-    public static DataReply createJsonReply(final String accountNumber, final RequestType type,
-                                            final boolean accountExists) {
+    public static DataReply createJsonDataReply(final String accountNumber, final RequestType type,
+                                                final boolean accountExists) {
         DataReply dataReply = new DataReply();
         dataReply.setAccountNumber(accountNumber);
         dataReply.setType(type);
@@ -60,8 +60,8 @@ public final class JSONParser {
      * @param newUserId User id the request is for.
      * @return DataRequest object that can be converted to a Json String.
      */
-    public static DataRequest createJsonRequest(final String accountNumber, final RequestType type,
-                                                final long newUserId) {
+    public static DataRequest createJsonDataRequest(final String accountNumber, final RequestType type,
+                                                    final long newUserId) {
         DataRequest request = new DataRequest();
         request.setType(type);
         request.setAccountNumber(accountNumber);
@@ -75,7 +75,7 @@ public final class JSONParser {
      * @param newUserId User id the request is for.
      * @return DataRequest object that can be converted to a Json String.
      */
-    public static DataRequest createJsonRequest(final RequestType type, final long newUserId) {
+    public static DataRequest createJsonDataRequest(final RequestType type, final long newUserId) {
         DataRequest request = new DataRequest();
         request.setType(type);
         request.setCustomerId(newUserId);
@@ -100,6 +100,7 @@ public final class JSONParser {
      * @param sourceAccountNumber Account number funds are pulled from.
      * @param destinationAccountNumber Account number funds are transferred to.
      * @param destinationAccountHolderName Name of the destination account owner.
+     * @param description Description for the transaction.
      * @param transactionAmount Amount of money that is transferred.
      * @param processed Indicates if the transaction has been processed by the ledger.
      * @param successfull Indicates if the transaction was successfull.
@@ -121,6 +122,32 @@ public final class JSONParser {
         transaction.setTransactionAmount(transactionAmount);
         transaction.setProcessed(processed);
         transaction.setSuccessful(successfull);
+        return transaction;
+    }
+
+    /**
+     * Creates a Transaction object that can be converted to a Json String.
+     * @param transactionID Transaction number.
+     * @param sourceAccountNumber Account number funds are pulled from.
+     * @param destinationAccountNumber Account number funds are transferred to.
+     * @param destinationAccountHolderName Name of the destination account owner.
+     * @param description Description for the transaction.
+     * @param transactionAmount Amount of money that is transferred.
+     * @return Transaction object that can be converted to Json.
+     */
+    public static Transaction createJsonTransaction(final long transactionID, final String sourceAccountNumber,
+                                                    final String destinationAccountNumber,
+                                                    final String destinationAccountHolderName,
+                                                    final String description,
+                                                    final double transactionAmount) {
+        Transaction transaction = new Transaction();
+        transaction.setTransactionID(transactionID);
+        transaction.setTimestamp(-1);
+        transaction.setSourceAccountNumber(sourceAccountNumber);
+        transaction.setDestinationAccountNumber(destinationAccountNumber);
+        transaction.setDestinationAccountHolderName(destinationAccountHolderName);
+        transaction.setDescription(description);
+        transaction.setTransactionAmount(transactionAmount);
         return transaction;
     }
 

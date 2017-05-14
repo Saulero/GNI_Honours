@@ -87,7 +87,7 @@ final class UIService {
      * @throws IncorrectInputException Thrown when a field does not contain an acceptable value.
      * @throws JsonSyntaxException Thrown when the Json submitted for the data request is not correct(can't be parsed).
      */
-    private void verifyDataRequestInput(final String dataRequestJson)
+    void verifyDataRequestInput(final String dataRequestJson)
                                         throws IncorrectInputException, JsonSyntaxException {
         DataRequest dataRequest = jsonConverter.fromJson(dataRequestJson, DataRequest.class);
         RequestType requestType = dataRequest.getType();
@@ -246,7 +246,7 @@ final class UIService {
      * @throws JsonSyntaxException Thrown when the json string is incorrect and cant be parsed.
      * @throws NumberFormatException Thrown when a string value could not be parsed to a Long.
      */
-    private void verifyTransactionInput(final String transactionRequestJson)
+    void verifyTransactionInput(final String transactionRequestJson)
                                         throws IncorrectInputException, JsonSyntaxException, NumberFormatException {
         Transaction request = jsonConverter.fromJson(transactionRequestJson, Transaction.class);
         final String sourceAccountNumber = request.getSourceAccountNumber();
@@ -268,6 +268,10 @@ final class UIService {
                                                 + " transactionDescription.");
         } else if (transactionAmount < 0) {
             throw new IncorrectInputException("The following variable was incorrectly specified: transactionAmount.");
+        } else if (request.isProcessed()) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: isProcessed.");
+        } else if (request.isSuccessful()) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: isSuccessfull.");
         }
     }
 
@@ -346,7 +350,7 @@ final class UIService {
      * @throws JsonSyntaxException Thrown when the json string is incorrect and cant be parsed.
      * @throws NumberFormatException Thrown when a string value could not be parsed to a Long.
      */
-    private void verifyNewCustomerInput(final String newCustomerJson)
+    void verifyNewCustomerInput(final String newCustomerJson)
                                         throws IncorrectInputException, JsonSyntaxException, NumberFormatException {
         Customer newCustomer = jsonConverter.fromJson(newCustomerJson, Customer.class);
         final String initials = newCustomer.getInitials();
@@ -357,8 +361,6 @@ final class UIService {
         final String address = newCustomer.getAddress();
         final String dob = newCustomer.getDob();
         final Long ssn = newCustomer.getSsn();
-        final double spendingLimit = newCustomer.getAccount().getSpendingLimit();
-        final double balance = newCustomer.getAccount().getBalance();
         final String username = newCustomer.getUsername();
         final String password = newCustomer.getPassword();
         if (initials == null || !valueHasCorrectLength(initials)) {
@@ -378,9 +380,9 @@ final class UIService {
             throw new IncorrectInputException("The following variable was incorrectly specified: dob.");
         } else if (ssn < 0) {
             throw new IncorrectInputException("The following variable was incorrectly specified: ssn.");
-        } else if (spendingLimit < 0) {
+        } else if (newCustomer.getAccount() == null && newCustomer.getAccount().getSpendingLimit() < 0) {
             throw new IncorrectInputException("The following variable was incorrectly specified: spendingLimit.");
-        } else if (balance < 0) {
+        } else if (newCustomer.getAccount() == null && newCustomer.getAccount().getBalance() < 0) {
             throw new IncorrectInputException("The following variable was incorrectly specified: balance.");
         } else if (username == null || !valueHasCorrectLength(username)) {
             throw new IncorrectInputException("The following variable was incorrectly specified: username.");
@@ -477,7 +479,7 @@ final class UIService {
      * @throws IncorrectInputException Thrown when a value is not correctly specified.
      * @throws JsonSyntaxException Thrown when the json string is incorrect and cant be parsed.
      */
-    private void verifyAccountLinkInput(final String accountLinkRequestJson)
+    void verifyAccountLinkInput(final String accountLinkRequestJson)
                                         throws IncorrectInputException, JsonSyntaxException {
         AccountLink accountLink = jsonConverter.fromJson(accountLinkRequestJson, AccountLink.class);
         final String accountNumber = accountLink.getAccountNumber();
@@ -564,7 +566,7 @@ final class UIService {
      * @throws IncorrectInputException Thrown when a value is not correctly specified.
      * @throws JsonSyntaxException Thrown when the json string is incorrect and cant be parsed.
      */
-    private void verifyNewAccountInput(final String accountOwnerJson)
+    void verifyNewAccountInput(final String accountOwnerJson)
                                         throws IncorrectInputException, JsonSyntaxException {
         Customer accountOwner = jsonConverter.fromJson(accountOwnerJson, Customer.class);
         final String initials = accountOwner.getInitials();
@@ -727,7 +729,7 @@ final class UIService {
      * @throws IncorrectInputException Thrown when a value is not correctly specified.
      * @throws JsonSyntaxException Thrown when the json string is incorrect and cant be parsed.
      */
-    private void verifyLoginInput(final String authDataJson) throws IncorrectInputException, JsonSyntaxException {
+    void verifyLoginInput(final String authDataJson) throws IncorrectInputException, JsonSyntaxException {
         Authentication authentication = jsonConverter.fromJson(authDataJson, Authentication.class);
         final String username = authentication.getUsername();
         final String password = authentication.getPassword();
@@ -876,7 +878,7 @@ final class UIService {
      * @throws IncorrectInputException Thrown when a variable is incorrectly specified(or not specified at all).
      * @throws JsonSyntaxException Thrown when the json of the pinCard object is incorrect.
      */
-    private void verifyPinCardRemovalInput(final String pinCardJson) throws IncorrectInputException,
+    void verifyPinCardRemovalInput(final String pinCardJson) throws IncorrectInputException,
             JsonSyntaxException {
         PinCard pinCard = jsonConverter.fromJson(pinCardJson, PinCard.class);
         String accountNumber = pinCard.getAccountNumber();
@@ -916,6 +918,7 @@ final class UIService {
         System.out.printf("%s Pin card removal successfull, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(jsonReply));
     }
+
 }
 
 
