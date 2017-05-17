@@ -1,7 +1,7 @@
 package authentication;
 
 /**
- * Created by noel on 29-3-17.
+ * @author Noel
  */
 public class UsernameTakenException extends Exception {
     UsernameTakenException(final String message) {

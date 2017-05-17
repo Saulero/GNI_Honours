@@ -5,7 +5,7 @@ import java.io.Serializable;
 import java.util.List;
 
 /**
- * @author Noel
+ * @author Noel & Saul
  * @version 2
  * Databean used to send a reply to another service.
  */
@@ -127,5 +127,46 @@ public final class DataReply implements Serializable {
 
     public void setAccountInLedger(final boolean newAccountExists) {
         accountInLedger = newAccountExists;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        DataReply dataReply = (DataReply) o;
+
+        if (accountInLedger != dataReply.accountInLedger) return false;
+        if (accountNumber != null ? !accountNumber.equals(dataReply.accountNumber) : dataReply.accountNumber != null)
+            return false;
+        if (type != dataReply.type) return false;
+        if (accountData != null ? !accountData.equals(dataReply.accountData) : dataReply.accountData != null)
+            return false;
+        if (transactions != null ? !transactions.equals(dataReply.transactions) : dataReply.transactions != null)
+            return false;
+        return accounts != null ? accounts.equals(dataReply.accounts) : dataReply.accounts == null;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = accountNumber != null ? accountNumber.hashCode() : 0;
+        result = 31 * result + (type != null ? type.hashCode() : 0);
+        result = 31 * result + (accountData != null ? accountData.hashCode() : 0);
+        result = 31 * result + (transactions != null ? transactions.hashCode() : 0);
+        result = 31 * result + (accounts != null ? accounts.hashCode() : 0);
+        result = 31 * result + (accountInLedger ? 1 : 0);
+        return result;
+    }
+
+    @Override
+    public String toString() {
+        return "DataReply{" +
+                "accountNumber='" + accountNumber + '\'' +
+                ", type=" + type +
+                ", accountData=" + accountData +
+                ", transactions=" + transactions +
+                ", accounts=" + accounts +
+                ", accountInLedger=" + accountInLedger +
+                '}';
     }
 }

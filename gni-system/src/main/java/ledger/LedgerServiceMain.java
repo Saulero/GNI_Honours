@@ -3,7 +3,7 @@ package ledger;
 import io.advantageous.qbit.admin.ManagedServiceBuilder;
 
 /**
- * @author noel
+ * @author Noel
  * @version 1
  */
 public class LedgerServiceMain {

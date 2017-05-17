@@ -3,7 +3,7 @@ package databeans;
 import java.io.Serializable;
 
 /**
- * @author Noel
+ * @author Noel & Saul
  * @version 1
  * Enum used in DataRequest for specifying what type of request is being done.
  */

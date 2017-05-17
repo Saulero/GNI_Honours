@@ -11,9 +11,9 @@ import util.JSONParser;
 import static org.junit.Assert.*;
 
 /**
- * @Author Noel
+ * @author Noel
  */
-public class UITest {
+public class UIServiceTest {
 
     private UIService ui;
     private Gson jsonConverter;

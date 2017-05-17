@@ -24,7 +24,7 @@ import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuild
 import static java.net.HttpURLConnection.HTTP_OK;
 
 /**
- * @author Saul/Noel
+ * @author Saul & Noel
  * @version 2
  */
 @RequestMapping("/authentication")

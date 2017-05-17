@@ -271,7 +271,7 @@ final class UIService {
         } else if (request.isProcessed()) {
             throw new IncorrectInputException("The following variable was incorrectly specified: isProcessed.");
         } else if (request.isSuccessful()) {
-            throw new IncorrectInputException("The following variable was incorrectly specified: isSuccessfull.");
+            throw new IncorrectInputException("The following variable was incorrectly specified: isSuccessful.");
         }
     }
 

@@ -54,4 +54,34 @@ public final class DataRequest implements Serializable {
     public void setCustomerId(final Long newCustomerId) {
         this.customerId = newCustomerId;
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        DataRequest that = (DataRequest) o;
+
+        if (customerId != that.customerId) return false;
+        if (accountNumber != null ? !accountNumber.equals(that.accountNumber) : that.accountNumber != null)
+            return false;
+        return type == that.type;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = accountNumber != null ? accountNumber.hashCode() : 0;
+        result = 31 * result + (type != null ? type.hashCode() : 0);
+        result = 31 * result + (int) (customerId ^ (customerId >>> 32));
+        return result;
+    }
+
+    @Override
+    public String toString() {
+        return "DataRequest{" +
+                "accountNumber='" + accountNumber + '\'' +
+                ", type=" + type +
+                ", customerId=" + customerId +
+                '}';
+    }
 }

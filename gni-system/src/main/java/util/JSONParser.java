@@ -249,7 +249,7 @@ public final class JSONParser {
         AccountLink request = new AccountLink();
         request.setCustomerId(newCustomerId);
         request.setAccountNumber(newAccountNumber);
-        request.setSuccessfull(false);
+        request.setSuccessful(false);
         return request;
     }
 
@@ -258,7 +258,7 @@ public final class JSONParser {
         AccountLink request = new AccountLink();
         request.setCustomerId(newCustomerId);
         request.setAccountNumber(newAccountNumber);
-        request.setSuccessfull(newSuccessfull);
+        request.setSuccessful(newSuccessfull);
         return request;
     }
 

@@ -10,7 +10,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 /**
- * @Author Noel
+ * @author Noel
  * @version 1
  */
 public class TableCreator {

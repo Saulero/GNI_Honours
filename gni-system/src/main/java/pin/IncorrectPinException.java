@@ -1,7 +1,7 @@
 package pin;
 
 /**
- * @Author noel
+ * @author Noel
  */
 public class IncorrectPinException extends Exception {
     IncorrectPinException(final String message) {

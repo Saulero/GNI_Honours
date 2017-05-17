@@ -95,4 +95,14 @@ public class Account implements Serializable {
         result = 31 * result + (int) (temp ^ (temp >>> 32));
         return result;
     }
+
+    @Override
+    public String toString() {
+        return "Account{" +
+                "accountNumber='" + accountNumber + '\'' +
+                ", accountHolderName='" + accountHolderName + '\'' +
+                ", spendingLimit=" + spendingLimit +
+                ", balance=" + balance +
+                '}';
+    }
 }

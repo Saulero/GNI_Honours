@@ -102,4 +102,15 @@ public class Authentication implements Serializable {
         result = 31 * result + (cookie != null ? cookie.hashCode() : 0);
         return result;
     }
+
+    @Override
+    public String toString() {
+        return "Authentication{" +
+                "type=" + type +
+                ", userID=" + userID +
+                ", username='" + username + '\'' +
+                ", password='" + password + '\'' +
+                ", cookie='" + cookie + '\'' +
+                '}';
+    }
 }

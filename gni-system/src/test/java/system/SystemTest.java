@@ -385,7 +385,7 @@ public class SystemTest {
                 "cookie", cookie, (code, contentType, body) -> {
                     if (code == HTTP_OK) {
                         AccountLink reply = gson.fromJson(JSONParser.removeEscapeCharacters(body), AccountLink.class);
-                        if (reply.isSuccessfull()) {
+                        if (reply.isSuccessful()) {
                             System.out.printf("%s Account link successfull for Account Holder: %s, AccountNumber: %s\n\n\n\n",
                                     PREFIX, reply.getCustomerId(), reply.getAccountNumber());
                         } else {

@@ -1,7 +1,7 @@
 package ui;
 
 /**
- * @Author noel
+ * @author Noel
  */
 public class IncorrectInputException extends Exception {
     IncorrectInputException(final String message) {

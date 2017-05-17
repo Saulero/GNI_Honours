@@ -3,7 +3,7 @@ package databeans;
 import java.util.Date;
 
 /**
- * @Author noel
+ * @author Noel
  */
 public class PinCard {
     private String accountNumber;
@@ -58,5 +58,41 @@ public class PinCard {
 
     public void setExpirationDate(final Date newExpirationDate) {
         expirationDate = newExpirationDate;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        PinCard pinCard = (PinCard) o;
+
+        if (accountNumber != null ? !accountNumber.equals(pinCard.accountNumber) : pinCard.accountNumber != null)
+            return false;
+        if (cardNumber != null ? !cardNumber.equals(pinCard.cardNumber) : pinCard.cardNumber != null) return false;
+        if (pinCode != null ? !pinCode.equals(pinCard.pinCode) : pinCard.pinCode != null) return false;
+        if (customerId != null ? !customerId.equals(pinCard.customerId) : pinCard.customerId != null) return false;
+        return expirationDate != null ? expirationDate.equals(pinCard.expirationDate) : pinCard.expirationDate == null;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = accountNumber != null ? accountNumber.hashCode() : 0;
+        result = 31 * result + (cardNumber != null ? cardNumber.hashCode() : 0);
+        result = 31 * result + (pinCode != null ? pinCode.hashCode() : 0);
+        result = 31 * result + (customerId != null ? customerId.hashCode() : 0);
+        result = 31 * result + (expirationDate != null ? expirationDate.hashCode() : 0);
+        return result;
+    }
+
+    @Override
+    public String toString() {
+        return "PinCard{" +
+                "accountNumber='" + accountNumber + '\'' +
+                ", cardNumber=" + cardNumber +
+                ", pinCode='" + pinCode + '\'' +
+                ", customerId=" + customerId +
+                ", expirationDate=" + expirationDate +
+                '}';
     }
 }
