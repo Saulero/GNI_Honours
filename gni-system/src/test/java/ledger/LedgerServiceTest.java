@@ -1,12 +1,10 @@
 package ledger;
 
 import database.SQLConnection;
+import databeans.*;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import databeans.DataReply;
-import databeans.DataRequest;
-import databeans.RequestType;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -16,9 +14,9 @@ import static org.junit.Assert.*;
 /**
  * @author Saul
  */
-public class LedgerTest {
+public class LedgerServiceTest {
 
-    /*private LedgerService ledger;
+    private LedgerService ledger;
 
     @Before
     public void setUp() throws Exception {
@@ -33,7 +31,7 @@ public class LedgerTest {
     @Test
     public void createNewAccount() throws Exception {
         Account testAccount1 = new Account("TestName", 1000, 1000);
-        ledger.createNewAccount(testAccount1);
+        testAccount1 = ledger.createNewAccount(testAccount1);
         Account testAccount2 = ledger.getAccountInfo(testAccount1.getAccountNumber());
         assertEquals(testAccount1, testAccount2);
 
@@ -75,7 +73,7 @@ public class LedgerTest {
     @Test
     public void updateBalance() throws Exception {
         Account testAccount1 = new Account("TestName", 1000, 1000);
-        ledger.createNewAccount(testAccount1);
+        testAccount1 = ledger.createNewAccount(testAccount1);
         Account testAccount2 = ledger.getAccountInfo(testAccount1.getAccountNumber());
 
         assertEquals(testAccount1, testAccount2);
@@ -100,9 +98,9 @@ public class LedgerTest {
 
     @Test
     public void addTransaction() throws Exception {
-        Transaction transactionIn = new Transaction(ledger.getNextTransactionID(), "NL00GNIB0000000000", "NL00GNIB0000000001", "TestName1", 50);
+        Transaction transactionIn = new Transaction(ledger.getHighestTransactionID(), "NL00GNIB0000000000", "NL00GNIB0000000001", "TestName1", "TestDescription1", 50);
         transactionIn.generateTimestamp();
-        Transaction transactionOut = new Transaction(ledger.getNextTransactionID(), "NL00GNIB0000000002", "NL00GNIB0000000003", "TestName2", 50);
+        Transaction transactionOut = new Transaction(ledger.getHighestTransactionID(), "NL00GNIB0000000002", "NL00GNIB0000000003", "TestName2", "TestDescription2", 50);
         transactionOut.generateTimestamp();
 
         SQLConnection con = new SQLConnection();
@@ -146,7 +144,7 @@ public class LedgerTest {
     public void getNextTransactionID() throws Exception {
         SQLConnection con = new SQLConnection();
 
-        Transaction transactionIn = new Transaction(ledger.getNextTransactionID(), "NL00GNIB0000000000", "NL00GNIB0000000001", "TestName1", 50);
+        Transaction transactionIn = new Transaction(ledger.getHighestTransactionID(), "NL00GNIB0000000000", "NL00GNIB0000000001", "TestName1", "TestDescription1", 50);
         transactionIn.generateTimestamp();
         PreparedStatement ps = con.getConnection().prepareStatement("SELECT * FROM transactions_in WHERE transactions_in.id = ?");
         ps.setLong(1, transactionIn.getTransactionID());
@@ -157,7 +155,7 @@ public class LedgerTest {
         rs = ps.executeQuery();
         assertTrue(rs.next());
 
-        Transaction transactionOut = new Transaction(ledger.getNextTransactionID(), "NL00GNIB0000000002", "NL00GNIB0000000003", "TestName2", 50);
+        Transaction transactionOut = new Transaction(ledger.getHighestTransactionID(), "NL00GNIB0000000002", "NL00GNIB0000000003", "TestName2", "TestDescription2", 50);
 
         assertNotEquals(transactionIn.getTransactionID(), transactionOut.getTransactionID());
         assertEquals(transactionIn.getTransactionID() + 1, transactionOut.getTransactionID());
@@ -173,16 +171,16 @@ public class LedgerTest {
     @Test
     public void processIncomingTransaction() throws Exception {
         Account testAccount = new Account("TestName", 1000, 1000);
-        ledger.createNewAccount(testAccount);
-        Transaction transaction = new Transaction(ledger.getNextTransactionID(), "NL00GNIB0000000000", testAccount.getAccountNumber(), testAccount.getAccountHolderName(), 50);
+        testAccount = ledger.createNewAccount(testAccount);
+        Transaction transaction = new Transaction(ledger.getHighestTransactionID(), "NL00GNIB0000000000", testAccount.getAccountNumber(), testAccount.getAccountHolderName(), "TestDescription", 50);
         long id = transaction.getTransactionID();
-        ledger.processIncomingTransaction(transaction);
+        transaction = ledger.processIncomingTransaction(transaction);
 
         assertTrue(transaction.isProcessed());
         assertTrue(transaction.isSuccessful());
 
-        transaction = new Transaction(ledger.getNextTransactionID(), "NL00GNIB0000000001", "NL00GNIB0000000002", "WrongName", 50);
-        ledger.processIncomingTransaction(transaction);
+        transaction = new Transaction(ledger.getHighestTransactionID(), "NL00GNIB0000000001", "NL00GNIB0000000002", "WrongName", "WrongDescription", 50);
+        transaction = ledger.processIncomingTransaction(transaction);
 
         assertTrue(transaction.isProcessed());
         assertFalse(transaction.isSuccessful());
@@ -199,35 +197,55 @@ public class LedgerTest {
     @Test
     public void processOutgoingTransaction() throws Exception {
         Account testAccount = new Account("TestName", 1000, 1000);
-        ledger.createNewAccount(testAccount);
-        Transaction transaction = new Transaction(ledger.getNextTransactionID(), testAccount.getAccountNumber(), "NL00GNIB0000000000", "TestName", 50);
-        long id = transaction.getTransactionID();
-        ledger.processOutgoingTransaction(transaction);
+        testAccount = ledger.createNewAccount(testAccount);
+
+        SQLConnection con = new SQLConnection();
+        long customer_id = -1;
+        PreparedStatement ps = con.getConnection().prepareStatement("INSERT INTO accounts (user_id, account_number) VALUES (?, ?)");
+        ps.setLong(1, customer_id);
+        ps.setString(2, testAccount.getAccountNumber());
+        ps.executeUpdate();
+        ps.close();
+
+        Transaction transaction = new Transaction(ledger.getHighestTransactionID(), testAccount.getAccountNumber(), "NL00GNIB0000000000", "TestName", "TestDescription", 50);
+        long transactionID = transaction.getTransactionID();
+        transaction = ledger.processOutgoingTransaction(transaction, true);
 
         assertTrue(transaction.isProcessed());
         assertTrue(transaction.isSuccessful());
 
-        transaction = new Transaction(ledger.getNextTransactionID(), testAccount.getAccountNumber(), "NL00GNIB0000000000", "TestName", 2000);
-        ledger.processIncomingTransaction(transaction);
+        transaction = new Transaction(ledger.getHighestTransactionID(), testAccount.getAccountNumber(), "NL00GNIB0000000000", "TestName", "TestDescription", 2000);
+        transaction = ledger.processIncomingTransaction(transaction);
 
         assertTrue(transaction.isProcessed());
         assertFalse(transaction.isSuccessful());
 
-        SQLConnection con = new SQLConnection();
         PreparedStatement ps1 = con.getConnection().prepareStatement("DELETE FROM ledger WHERE ledger.account_number = ?");
         PreparedStatement ps2 = con.getConnection().prepareStatement("DELETE FROM transactions_out WHERE transactions_out.id = ?");
+        PreparedStatement ps3 = con.getConnection().prepareStatement("DELETE FROM accounts WHERE accounts.user_id = ?");
         ps1.setString(1, testAccount.getAccountNumber());
-        ps2.setLong(1, id);
+        ps2.setLong(1, transactionID);
+        ps3.setLong(1, customer_id);
         assertEquals(1, ps1.executeUpdate());
         assertEquals(1, ps2.executeUpdate());
+        assertEquals(1, ps3.executeUpdate());
     }
 
     @Test
     public void processDataRequest() throws Exception {
-        Account testAccount = new Account("TestName", 1000, 1000);
-        ledger.createNewAccount(testAccount);
-        DataRequest dataRequest1 = new DataRequest(testAccount.getAccountNumber(), RequestType.BALANCE);
-        DataRequest dataRequest2 = new DataRequest("NL00GNIB0000000000", RequestType.BALANCE);
+        Account testAccount = new Account("TestName1", 1000, 1000);
+        testAccount = ledger.createNewAccount(testAccount);
+
+        SQLConnection con = new SQLConnection();
+        long customer_id = -1;
+        PreparedStatement ps = con.getConnection().prepareStatement("INSERT INTO accounts (user_id, account_number) VALUES (?, ?)");
+        ps.setLong(1, customer_id);
+        ps.setString(2, testAccount.getAccountNumber());
+        ps.executeUpdate();
+        ps.close();
+
+        DataRequest dataRequest1 = new DataRequest(testAccount.getAccountNumber(), RequestType.BALANCE, customer_id);
+        DataRequest dataRequest2 = new DataRequest("NL00GNIB0000000000", RequestType.BALANCE, customer_id);
         DataReply dataReply1 = ledger.processDataRequest(dataRequest1);
         DataReply dataReply2 = ledger.processDataRequest(dataRequest2);
 
@@ -235,36 +253,37 @@ public class LedgerTest {
         assertNull(dataReply2);
         assertEquals(testAccount, dataReply1.getAccountData());
 
-        Transaction transactionIn = new Transaction(ledger.getNextTransactionID(), "NL00GNIB0000000000", testAccount.getAccountNumber(), testAccount.getAccountHolderName(), 50);
-        Transaction transactionOut = new Transaction(ledger.getNextTransactionID(), testAccount.getAccountNumber(), "NL00GNIB0000000001", "TestName2", 50);
-        ledger.processIncomingTransaction(transactionIn);
-        ledger.processOutgoingTransaction(transactionOut);
-        dataRequest1 = new DataRequest(testAccount.getAccountNumber(), RequestType.TRANSACTIONHISTORY);
-        dataRequest2 = new DataRequest("NL00GNIB0000000000", RequestType.TRANSACTIONHISTORY);
+        Transaction transactionIn = new Transaction(ledger.getHighestTransactionID(), "NL00GNIB0000000000", testAccount.getAccountNumber(), testAccount.getAccountHolderName(), "TestDescription1", 50);
+        Transaction transactionOut = new Transaction(ledger.getHighestTransactionID(), testAccount.getAccountNumber(), "NL00GNIB0000000001", "TestName2", "TestDescription2", 50);
+        transactionIn = ledger.processIncomingTransaction(transactionIn);
+        transactionOut = ledger.processOutgoingTransaction(transactionOut, true);
+        dataRequest1 = new DataRequest(testAccount.getAccountNumber(), RequestType.TRANSACTIONHISTORY, customer_id);
 
         dataReply1 = ledger.processDataRequest(dataRequest1);
-        dataReply2 = ledger.processDataRequest(dataRequest2);
 
         assertEquals(2, dataReply1.getTransactions().size());
-        assertEquals(0, dataReply2.getTransactions().size());
+        System.out.println(transactionIn.toString());
+        System.out.println(dataReply1.getTransactions().get(0));
         assertTrue(transactionIn.minimalEquals(dataReply1.getTransactions().get(0)));
         assertTrue(transactionOut.minimalEquals(dataReply1.getTransactions().get(1)));
 
-        SQLConnection con = new SQLConnection();
         PreparedStatement ps1 = con.getConnection().prepareStatement("DELETE FROM transactions_in WHERE transactions_in.id = ?");
         ps1.setLong(1, transactionIn.getTransactionID());
         PreparedStatement ps2 = con.getConnection().prepareStatement("DELETE FROM transactions_out WHERE transactions_out.id = ?");
         ps2.setLong(1, transactionOut.getTransactionID());
         PreparedStatement ps3 = con.getConnection().prepareStatement("DELETE FROM ledger WHERE ledger.account_number = ?");
         ps3.setString(1, testAccount.getAccountNumber());
+        PreparedStatement ps4 = con.getConnection().prepareStatement("DELETE FROM accounts WHERE accounts.user_id = ?");
+        ps4.setLong(1, customer_id);
 
         assertEquals(1, ps1.executeUpdate());
         assertEquals(1, ps2.executeUpdate());
         assertEquals(1, ps3.executeUpdate());
+        assertEquals(1, ps4.executeUpdate());
 
         ps1.close();
         ps2.close();
         ps3.close();
         con.close();
-    }*/
+    }
 }

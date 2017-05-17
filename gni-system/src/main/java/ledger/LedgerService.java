@@ -1,17 +1,12 @@
 package ledger;
 
-import com.google.gson.Gson;
 import database.ConnectionPool;
 import database.SQLConnection;
 import database.SQLStatements;
-import databeans.*;
-import io.advantageous.qbit.annotation.RequestMapping;
-import io.advantageous.qbit.annotation.RequestMethod;
-import io.advantageous.qbit.annotation.RequestParam;
-import io.advantageous.qbit.reactive.Callback;
+import databeans.Account;
 import databeans.DataReply;
 import databeans.DataRequest;
-import databeans.RequestType;
+import databeans.Transaction;
 import io.advantageous.qbit.reactive.CallbackBuilder;
 import util.JSONParser;
 
@@ -22,6 +17,12 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.LinkedList;
 import java.util.List;
+
+import com.google.gson.Gson;
+import io.advantageous.qbit.annotation.RequestMapping;
+import io.advantageous.qbit.annotation.RequestMethod;
+import io.advantageous.qbit.annotation.RequestParam;
+import io.advantageous.qbit.reactive.Callback;
 
 import static database.SQLStatements.*;
 
@@ -45,92 +46,28 @@ class LedgerService {
     }
 
     /**
-     * Creates a new account for a customer and sends the data back to UserService,
+     * Receives a request for a new account for a customer and sends the data back to UserService,
      * so that the new account may be properly linked to the customer.
-     * @param callback Used to send a reply back to the UserService
-     * @param body Json String representing customer information
+     * @param callback Used to send a reply to the request source.
+     * @param body JSON String representing customer information
      */
-    @RequestMapping(value = "/account", method = RequestMethod.PUT)
-    public void createNewAccount(final Callback<String> callback, final @RequestParam("body") String body) {
+    @RequestMapping(value = "/accountNumber", method = RequestMethod.PUT)
+    public void newAccountListener(final Callback<String> callback, final @RequestParam("body") String body) {
         Gson gson = new Gson();
         Account newAccount = gson.fromJson(body, Account.class);
         System.out.printf("%s Received account creation request for customer with name: %s\n", PREFIX,
-                          newAccount.getAccountHolderName());
-        newAccount.setAccountNumber(generateNewAccountNumber(newAccount));
-        try {
-            SQLConnection connection = db.getConnection();
-            long newID = connection.getNextID(getNextAccountID);
-            PreparedStatement ps = connection.getConnection().prepareStatement(createNewAccount);
-            ps.setLong(1, newID);                               // id
-            ps.setString(2, newAccount.getAccountNumber());     // account_number
-            ps.setString(3, newAccount.getAccountHolderName()); // name
-            ps.setDouble(4, newAccount.getSpendingLimit());     // spending_limit
-            ps.setDouble(5, newAccount.getBalance());           // balance
+                newAccount.getAccountHolderName());
 
-            ps.executeUpdate();
-            ps.close();
-            db.returnConnection(connection);
+        // Method call
+        newAccount = createNewAccount(newAccount);
+
+        if (newAccount != null) {
             System.out.printf("%s Added user %s with accountNumber %s to ledger, sending callback.\n", PREFIX,
                     newAccount.getAccountHolderName(), newAccount.getAccountNumber());
             callback.reply(gson.toJson(newAccount));
-        } catch (SQLException e) {
-            callback.reject(e.getMessage());
-            e.printStackTrace();
+        } else {
+            callback.reject("SQLException");
         }
-    }
-
-    /**
-     * Generates a new account number based on specific customer information,
-     * also checks that the account number doesn't already exist.
-     * @param newAccount Account Object containing customer information
-     * @return The new account number
-     */
-    private String generateNewAccountNumber(final Account newAccount) {
-        int modifier = 0;
-        String accountNumber = attemptAccountNumberGeneration(newAccount.getAccountHolderName(), modifier);
-        while (modifier < 100 && getAccountInfo(accountNumber) != null) {
-            modifier++;
-            accountNumber = attemptAccountNumberGeneration(newAccount.getAccountHolderName(), modifier);
-        }
-        return accountNumber;
-    }
-
-    /**
-     * Generates a single account number, based on a name and a modifier,
-     * which are specified by the calling method.
-     * @param name Customer name to be used
-     * @param modifier Modifier to be used
-     * @return The generated account number
-     */
-    private String attemptAccountNumberGeneration(final String name, final int modifier) {
-        String accountNumber = "NL";
-        if (modifier < 10) {
-            accountNumber += "0";
-        }
-        accountNumber += modifier + "GNIB";
-
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            md.update((sanitizeName(name) + modifier).getBytes());
-            byte[] digest = md.digest();
-            for (int i = 0; i < 10; i++) {
-                accountNumber += Math.abs(digest[i] % 10);
-            }
-            return accountNumber;
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
-    /**
-     * Sanitizes a string.
-     * Deleted all spaces, non-letter characters, converts to lower case.
-     * @param inputString String to be sanitized
-     * @return Sanitized String
-     */
-    private String sanitizeName(final String inputString) {
-        return inputString.replaceAll("[^a-zA-Z]", "").toLowerCase();
     }
 
     /**
@@ -138,7 +75,7 @@ class LedgerService {
      * @param accountNumber The account number to retrieve the information for
      * @return The account information
      */
-    private Account getAccountInfo(final String accountNumber) {
+    Account getAccountInfo(final String accountNumber) {
         try {
             SQLConnection connection = db.getConnection();
             PreparedStatement ps = connection.getConnection().prepareStatement(getAccountInformation);
@@ -166,6 +103,144 @@ class LedgerService {
             e.printStackTrace();
         }
         return null;
+    }
+
+    /**
+     * Creates a new account for a customer and sends the data back to UserService,
+     * so that the new account may be properly linked to the customer.
+     * @param newAccount Object representing customer information
+     * @return account number that was generated
+     */
+    Account createNewAccount(final Account newAccount) {
+        newAccount.setAccountNumber(generateNewAccountNumber(newAccount));
+        try {
+            SQLConnection connection = db.getConnection();
+            long newID = connection.getNextID(getNextAccountID);
+            PreparedStatement ps = connection.getConnection().prepareStatement(createNewAccount);
+            ps.setLong(1, newID);                               // id
+            ps.setString(2, newAccount.getAccountNumber());     // account_number
+            ps.setString(3, newAccount.getAccountHolderName()); // name
+            ps.setDouble(4, newAccount.getSpendingLimit());     // spending_limit
+            ps.setDouble(5, newAccount.getBalance());           // balance
+
+            ps.executeUpdate();
+            ps.close();
+            db.returnConnection(connection);
+
+            return newAccount;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /**
+     * Generates a new account number based on specific customer information,
+     * also checks that the account number doesn't already exist.
+     * @param newAccount Account Object containing customer information
+     * @return The new account number
+     */
+    String generateNewAccountNumber(final Account newAccount) {
+        int modifier = 0;
+        String accountNumber = attemptAccountNumberGeneration(newAccount.getAccountHolderName(), modifier);
+        while (modifier < 100 && getAccountInfo(accountNumber) != null) {
+            modifier++;
+            accountNumber = attemptAccountNumberGeneration(newAccount.getAccountHolderName(), modifier);
+        }
+        return accountNumber;
+    }
+
+    /**
+     * Generates a single account number, based on a name and a modifier,
+     * which are specified by the calling method.
+     * @param name Customer name to be used
+     * @param modifier Modifier to be used
+     * @return The generated account number
+     */
+    String attemptAccountNumberGeneration(final String name, final int modifier) {
+        StringBuilder accountNumber = new StringBuilder("NL");
+        if (modifier < 10) {
+            accountNumber.append("0");
+        }
+        accountNumber.append(modifier);
+        accountNumber.append("GNIB");
+
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            md.update((sanitizeName(name) + modifier).getBytes());
+            byte[] digest = md.digest();
+            for (int i = 0; i < 10; i++) {
+                accountNumber.append(Math.abs(digest[i] % 10));
+            }
+            return accountNumber.toString();
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    /**
+     * Sanitizes a string.
+     * Deleted all spaces, non-letter characters, converts to lower case.
+     * @param inputString String to be sanitized
+     * @return Sanitized String
+     */
+    private String sanitizeName(final String inputString) {
+        return inputString.replaceAll("[^a-zA-Z]", "").toLowerCase();
+    }
+
+    /**
+     * Receives a request to process an incoming transaction.
+     * @param callback Used to send a reply to the request source.
+     * @param body JSON String representing a Transaction
+     */
+    @RequestMapping(value = "/transaction/in", method = RequestMethod.PUT)
+    public void incomingTransactionListener(final Callback<String> callback,
+                                           final @RequestParam("request") String body) {
+        System.out.printf("%s Received an incoming transaction request.\n", PREFIX);
+        Gson gson = new Gson();
+        Transaction transaction = gson.fromJson(body, Transaction.class);
+
+        // Method call
+        transaction = processIncomingTransaction(transaction);
+
+        if (transaction.isSuccessful()) {
+            System.out.printf("%s Successfully processed incoming transaction, sending callback.\n", PREFIX);
+            callback.reply(gson.toJson(transaction));
+        } else {
+            System.out.printf("%s Incoming transaction was not successfull, sending callback.\n", PREFIX);
+            callback.reply(gson.toJson(transaction));
+        }
+    }
+
+    /**
+     * Processes an incoming transaction.
+     * Checks if the account exists and then processes the transaction if it does.
+     * @param transaction Object representing a Transaction
+     * @return The processed transaction
+     */
+    Transaction processIncomingTransaction(final Transaction transaction) {
+        Account account = getAccountInfo(transaction.getDestinationAccountNumber());
+
+        if (account != null) {
+            // Update the object
+            account.processDeposit(transaction);
+
+            // Update the database
+            updateBalance(account);
+
+            // Update Transaction log
+            transaction.setTransactionID(getHighestTransactionID());
+            transaction.generateTimestamp();
+            addTransaction(transaction, true);
+
+            transaction.setProcessed(true);
+            transaction.setSuccessful(true);
+        } else {
+            transaction.setProcessed(true);
+            transaction.setSuccessful(false);
+        }
+        return transaction;
     }
 
     @RequestMapping(value = "account/remove", method = RequestMethod.PUT)
@@ -210,7 +285,7 @@ class LedgerService {
      * in case a transaction is successfully processed.
      * @param account The account to overwrite, containing the new data
      */
-    private void updateBalance(final Account account) {
+    void updateBalance(final Account account) {
         try {
             SQLConnection connection = db.getConnection();
             PreparedStatement ps = connection.getConnection().prepareStatement(updateBalance);
@@ -232,7 +307,7 @@ class LedgerService {
      * @param transaction Transaction to add
      * @param incoming Incoming flag (true for incoming, false for outgoing)
      */
-    private void addTransaction(final Transaction transaction, final boolean incoming) {
+    void addTransaction(final Transaction transaction, final boolean incoming) {
         try {
             SQLConnection connection = db.getConnection();
             PreparedStatement ps;
@@ -262,7 +337,7 @@ class LedgerService {
      * Collects the current highest ids from both transaction tables and returns the highest.
      * @return The highest current transaction id
      */
-    private long getHighestTransactionID() {
+    long getHighestTransactionID() {
         SQLConnection connection = db.getConnection();
         long maxIncoming = connection.getNextID(getHighestIncomingTransactionID);
         long maxOutgoing = connection.getNextID(getHighestOutgoingTransactionID);
@@ -271,24 +346,14 @@ class LedgerService {
         return Math.max(0, Math.max(maxIncoming, maxOutgoing));
     }
 
-    /**
-     * Processes an incoming transaction.
-     * Checks if the account exists and then processes the transaction if it does.
-     * @param callback Used to send result back to the UserService.
-     * @param body Json String representing a Transaction
-     */
     @RequestMapping(value = "/transaction/in", method = RequestMethod.PUT)
     public void processIncomingTransaction(final Callback<String> callback,
                                            final @RequestParam("request") String body) {
         System.out.printf("%s Received an incoming transaction request.\n", PREFIX);
         Gson gson = new Gson();
         Transaction transaction = gson.fromJson(body, Transaction.class);
-        // Check if account info is correct
         Account account = getAccountInfo(transaction.getDestinationAccountNumber());
-        // TODO Implement better system for checking destination_account_holder_name
-        String calculatedAccountNumber = attemptAccountNumberGeneration(transaction.getDestinationAccountHolderName(),
-                                        Integer.parseInt(transaction.getDestinationAccountNumber().substring(2, 4)));
-        //if (account != null && transaction.getDestinationAccountNumber().equals(calculatedAccountNumber)) { // TODO update this statement
+
         if (account != null) {
             // Update the object
             account.processDeposit(transaction);
@@ -314,11 +379,10 @@ class LedgerService {
     }
 
     /**
-     * Processes an outgoing transaction.
-     * Checks if the account making the transaction is allowed to do this. (has a high enough spending limit)
-     * @param callback Used to send result back to the UserService.
-     * @param requestJson Json String representing a Transaction request.
-     * @param customerId The id of the customer making the request.
+     * Receives a request to process an outgoing transaction.
+     * @param callback Used to send a reply to the request source.
+     * @param requestJson JSON String representing a Transaction
+     * @param customerId ID of the customer makin the request, for authorization purposes
      */
     @RequestMapping(value = "/transaction/out", method = RequestMethod.PUT)
     public void processOutgoingTransaction(final Callback<String> callback,
@@ -327,9 +391,63 @@ class LedgerService {
         System.out.printf("%s Received outgoing transaction request for customer %s.\n", PREFIX, customerId);
         Gson gson = new Gson();
         Transaction transaction = gson.fromJson(requestJson, Transaction.class);
-        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        boolean customerIsAuthorized = getCustomerAuthorization(transaction.getSourceAccountNumber(), customerId,
-                                                                callbackBuilder);
+        boolean customerIsAuthorized = getCustomerAuthorization(transaction.getSourceAccountNumber(),
+                Long.parseLong(customerId));
+
+        // Method call
+        transaction = processOutgoingTransaction(transaction, customerIsAuthorized);
+
+        if (transaction.isSuccessful()) {
+            System.out.printf("%s Successfully processed outgoing transaction, sending callback.\n", PREFIX);
+            callback.reply(gson.toJson(transaction));
+        } else {
+            if (!customerIsAuthorized) {
+                System.out.printf("%s Customer with id %s is not authorized to make transactions from this account."
+                        + " Sending callback.\n", PREFIX, customerId);
+            } else {
+                System.out.printf("%s Outgoing transaction was not successfull, sending callback.\n", PREFIX);
+            }
+            callback.reply(gson.toJson(transaction));
+        }
+    }
+
+    /**
+     * Determines whether a customer has access to a certain account.
+     * @param accountNumber The account to be tested
+     * @param customerId The customer ID to be tested
+     * @return boolean signifying whether the customer is authorized
+     */
+    private boolean getCustomerAuthorization(final String accountNumber, final long customerId) {
+        try {
+            SQLConnection databaseConnection = db.getConnection();
+            PreparedStatement getAccountNumbers = databaseConnection.getConnection()
+                    .prepareStatement(SQLStatements.getAccountNumbers);
+            getAccountNumbers.setLong(1, customerId);
+            ResultSet accountRows = getAccountNumbers.executeQuery();
+            boolean authorized = false;
+            while (accountRows.next() && !authorized) {
+                if (accountRows.getString("account_number").equals(accountNumber)) {
+                    authorized = true;
+                }
+            }
+            accountRows.close();
+            getAccountNumbers.close();
+            db.returnConnection(databaseConnection);
+            return authorized;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * Processes an outgoing transaction.
+     * Checks if the account making the transaction is allowed to do this. (has a high enough spending limit)
+     * @param transaction Object representing a Transaction request.
+     * @param customerIsAuthorized boolean to signify if the outgoing transaction is allowed
+     * @return The processed transaction
+     */
+    Transaction processOutgoingTransaction(final Transaction transaction, final boolean customerIsAuthorized) {
         Account account = getAccountInfo(transaction.getSourceAccountNumber());
         if (account != null && account.withdrawTransactionIsAllowed(transaction) && customerIsAuthorized) {
             // Update the object
@@ -345,133 +463,121 @@ class LedgerService {
 
             transaction.setProcessed(true);
             transaction.setSuccessful(true);
-            System.out.printf("%s Successfully processed outgoing transaction, sending callback.\n", PREFIX);
-            callback.reply(gson.toJson(transaction));
         } else {
             transaction.setProcessed(true);
             transaction.setSuccessful(false);
-            if (!customerIsAuthorized) {
-                System.out.printf("%s Customer with id %s is not authorized to make transactions from this account."
-                                    + " Sending callback.\n", PREFIX, customerId);
-            } else {
-                System.out.printf("%s Outgoing transaction was not successfull, sending callback.\n", PREFIX);
-            }
-            callback.reply(gson.toJson(transaction));
         }
+        return transaction;
     }
 
-    private boolean getCustomerAuthorization(final String accountNumber, final String customerId,
-                                      final CallbackBuilder callbackBuilder) {
-        try {
-            SQLConnection databaseConnection = db.getConnection();
-            PreparedStatement getAccountNumbers = databaseConnection.getConnection()
-                                                      .prepareStatement(SQLStatements.getAccountNumbers);
-            getAccountNumbers.setString(1, customerId);
-            ResultSet accountRows = getAccountNumbers.executeQuery();
-            boolean authorized = false;
-            while (accountRows.next() && !authorized) {
-                if (accountRows.getString("account_number").equals(accountNumber)) {
-                    authorized = true;
-                }
+    /**
+     * Receives a request to process a datarequest.
+     * The datarequest is either for account information, a transaction history, or to check if an account exists.
+     * @param callback Used to send a reply to the request source.
+     * @param dataRequestJson JSON String representing a DataRequest containing the request information
+     */
+    @RequestMapping(value = "/data", method = RequestMethod.GET)
+    public void dataRequestListener(final Callback<String> callback,
+                                 final @RequestParam("request") String dataRequestJson) {
+        Gson gson = new Gson();
+        DataRequest dataRequest = gson.fromJson(dataRequestJson, DataRequest.class);
+        System.out.printf("%s Received data request of type %s.\n", PREFIX, dataRequest.getType().toString());
+        if (!getCustomerAuthorization(dataRequest.getAccountNumber(), dataRequest.getCustomerId())) {
+            callback.reject("Customer not authorized to request data for this accountNumber.");
+        } else {
+            // Method call
+            DataReply dataReply = processDataRequest(dataRequest);
+
+            if (dataReply != null) {
+                System.out.printf("%s Data request successfull, sending callback.\n", PREFIX);
+                callback.reply(gson.toJson(dataReply));
+            } else {
+                System.out.printf("%s Data request failed, sending rejection.\n", PREFIX);
+                callback.reject("SQLException");
             }
-            accountRows.close();
-            getAccountNumbers.close();
-            db.returnConnection(databaseConnection);
-            return authorized;
-        } catch (SQLException e) {
-            e.printStackTrace();
-            callbackBuilder.build().reject("SQL exception during authorization check.");
-            return false;
         }
     }
 
     /**
      * Processes a datarequest.
-     * The datarequest is either for account information, or a transaction history.
-     * @param callback Used to send result back to the UserService.
-     * @param dataRequestJson Json String representing a DataRequest containing the request information
+     * The datarequest is either for account information, a transaction history, or to check if an account exists.
+     * @param dataRequest Object representing a DataRequest containing the request information
+     * @return the dataReply, or null if it failed
      */
-    @RequestMapping(value = "/data", method = RequestMethod.GET)
-    public void processDataRequest(final Callback<String> callback,
-                                   final @RequestParam("request") String dataRequestJson) {
-        Gson gson = new Gson();
-        DataRequest dataRequest = gson.fromJson(dataRequestJson, DataRequest.class);
-        RequestType requestType = dataRequest.getType();
-        Long customerId = dataRequest.getCustomerId();
-        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        System.out.printf("%s Received data request of type %s.\n", PREFIX, requestType.toString());
-        if (requestType != RequestType.ACCOUNTEXISTS
-                && !getCustomerAuthorization(dataRequest.getAccountNumber(), customerId.toString(), callbackBuilder)) {
-            callback.reject("Customer not authorized to request data for this accountNumber.");
-        } else {
-            try {
-                SQLConnection connection = db.getConnection();
-                switch (requestType) {
-                    case BALANCE:
-                        PreparedStatement ps = connection.getConnection().prepareStatement(getAccountInformation);
-                        ps.setString(1, dataRequest.getAccountNumber());     // account_number
-                        ResultSet rs = ps.executeQuery();
-                        if (rs.next()) {
-                            String accountNumber = dataRequest.getAccountNumber();
-                            String name = rs.getString("name");
-                            double spendingLimit = rs.getDouble("spending_limit");
-                            double balance = rs.getDouble("balance");
-                            Account account = new Account(name, spendingLimit, balance);
-                            account.setAccountNumber(accountNumber);
-                            DataReply dataReply = JSONParser.createJsonDataReply(accountNumber, requestType, account);
-                            System.out.printf("%s Data request successfull, sending callback.\n", PREFIX);
-                            callback.reply(gson.toJson(dataReply));
-                        }
-                        rs.close();
-                        ps.close();
-                        break;
-                    case TRANSACTIONHISTORY:
-                        PreparedStatement ps1 = connection.getConnection()
-                                                          .prepareStatement(getIncomingTransactionHistory);
-                        PreparedStatement ps2 = connection.getConnection()
-                                                          .prepareStatement(getOutgoingTransactionHistory);
-                        ps1.setString(1, dataRequest.getAccountNumber());     // account_number
-                        ps2.setString(1, dataRequest.getAccountNumber());     // account_number
-                        ResultSet rs1 = ps1.executeQuery();
-                        ResultSet rs2 = ps2.executeQuery();
-                        LinkedList<Transaction> transactions = new LinkedList<>();
-                        fillTransactionList(transactions, rs1);
-                        fillTransactionList(transactions, rs2);
-                        DataReply dataReply = JSONParser.createJsonDataReply(dataRequest.getAccountNumber(),
-                                                                         requestType, transactions);
-                        System.out.printf("%s Data request successfull, sending callback.\n", PREFIX);
-                        callback.reply(gson.toJson(dataReply));
-                        rs1.close();
-                        rs2.close();
-                        ps1.close();
-                        ps2.close();
-                        break;
-                    case ACCOUNTEXISTS:
-                        boolean accountExists = false;
-                        PreparedStatement getAccountNumberCount = connection.getConnection()
-                                                                .prepareStatement(SQLStatements.getAccountNumberCount);
-                        getAccountNumberCount.setString(1, dataRequest.getAccountNumber());
-                        ResultSet accountNumberCount = getAccountNumberCount.executeQuery();
-                        if (accountNumberCount.next()) {
-                            int accountCount = accountNumberCount.getInt(1);
-                            if (accountCount > 0) {
-                                accountExists = true;
-                            }
-                        }
-                        DataReply accountExistsReply = JSONParser.createJsonDataReply(dataRequest.getAccountNumber(),
-                                                                                  dataRequest.getType(), accountExists);
-                        System.out.printf("%s Data request successfull, sending callback.\n", PREFIX);
-                        callback.reply(gson.toJson(accountExistsReply));
-                        accountNumberCount.close();
-                        break;
-                }
-                db.returnConnection(connection);
-            } catch (SQLException e) {
-                System.out.printf("%s Data request failed, sending rejection.\n", PREFIX);
-                callback.reject(e.getMessage());
-                e.printStackTrace();
+    DataReply processDataRequest(final DataRequest dataRequest) {
+        try {
+            switch (dataRequest.getType()) {
+                case BALANCE:
+                    return processBalanceRequest(dataRequest);
+                case TRANSACTIONHISTORY:
+                    return processTransactionHistoryRequest(dataRequest);
+                case ACCOUNTEXISTS:
+                    return processAccountExistsRequest(dataRequest);
+                default:
+                    return null;
             }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return null;
         }
+    }
+
+    /**
+     * Process a data request for the balance of an account.
+     * @param dataRequest Object representing a DataRequest containing the request information
+     * @return the dataReply
+     * @throws SQLException sql Exception
+     */
+    private DataReply processBalanceRequest(final DataRequest dataRequest) throws SQLException {
+        SQLConnection connection = db.getConnection();
+        DataReply dataReply = null;
+        PreparedStatement ps = connection.getConnection().prepareStatement(getAccountInformation);
+        ps.setString(1, dataRequest.getAccountNumber());     // account_number
+        ResultSet rs = ps.executeQuery();
+
+        if (rs.next()) {
+            String accountNumber = dataRequest.getAccountNumber();
+            String name = rs.getString("name");
+            double spendingLimit = rs.getDouble("spending_limit");
+            double balance = rs.getDouble("balance");
+            Account account = new Account(name, spendingLimit, balance);
+            account.setAccountNumber(accountNumber);
+            dataReply = JSONParser.createJsonDataReply(dataRequest.getAccountNumber(), dataRequest.getType(), account);
+        }
+
+        rs.close();
+        ps.close();
+        db.returnConnection(connection);
+
+        return dataReply;
+    }
+
+    /**
+     * Process a data request for the transaction history of an account.
+     * @param dataRequest Object representing a DataRequest containing the request information
+     * @return the dataReply
+     * @throws SQLException sql Exception
+     */
+    private DataReply processTransactionHistoryRequest(final DataRequest dataRequest) throws SQLException {
+        SQLConnection connection = db.getConnection();
+        PreparedStatement ps1 = connection.getConnection().prepareStatement(getIncomingTransactionHistory);
+        PreparedStatement ps2 = connection.getConnection().prepareStatement(getOutgoingTransactionHistory);
+        ps1.setString(1, dataRequest.getAccountNumber());     // account_number
+        ps2.setString(1, dataRequest.getAccountNumber());     // account_number
+        ResultSet rs1 = ps1.executeQuery();
+        ResultSet rs2 = ps2.executeQuery();
+
+        LinkedList<Transaction> transactions = new LinkedList<>();
+        fillTransactionList(transactions, rs1);
+        fillTransactionList(transactions, rs2);
+
+        rs1.close();
+        rs2.close();
+        ps1.close();
+        ps2.close();
+        db.returnConnection(connection);
+
+        return JSONParser.createJsonDataReply(dataRequest.getAccountNumber(), dataRequest.getType(), transactions);
     }
 
     /**
@@ -496,9 +602,36 @@ class LedgerService {
     }
 
     /**
+     * Process a data request for the existance of an account.
+     * @param dataRequest Object representing a DataRequest containing the request information
+     * @return the dataReply
+     * @throws SQLException sql Exception
+     */
+    private DataReply processAccountExistsRequest(final DataRequest dataRequest) throws SQLException {
+        SQLConnection connection = db.getConnection();
+        boolean accountExists = false;
+        PreparedStatement getAccountNumberCount = connection.getConnection()
+                .prepareStatement(SQLStatements.getAccountNumberCount);
+        getAccountNumberCount.setString(1, dataRequest.getAccountNumber());
+        ResultSet accountNumberCount = getAccountNumberCount.executeQuery();
+
+        if (accountNumberCount.next()) {
+            int accountCount = accountNumberCount.getInt(1);
+            if (accountCount > 0) {
+                accountExists = true;
+            }
+        }
+
+        accountNumberCount.close();
+        db.returnConnection(connection);
+
+        return JSONParser.createJsonDataReply(dataRequest.getAccountNumber(), dataRequest.getType(), accountExists);
+    }
+
+    /**
      * Safely shuts down the LedgerService.
      */
-    public void shutdown() {
-        db.close();
+    void shutdown() {
+        if (db != null) db.close();
     }
 }

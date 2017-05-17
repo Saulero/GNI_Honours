@@ -20,7 +20,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
  * for processing, and sends the confirmation/failure back to the external bank.
  */
 @RequestMapping("/transactionReceive")
-public class TransactionReceiveService {
+class TransactionReceiveService {
     /** Connection to the Ledger service.*/
     private HttpClient ledgerClient;
     /** Used for json conversions. */
