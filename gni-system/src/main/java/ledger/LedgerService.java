@@ -569,6 +569,6 @@ class LedgerService {
      * Safely shuts down the LedgerService.
      */
     void shutdown() {
-        db.close();
+        if (db != null) db.close();
     }
 }

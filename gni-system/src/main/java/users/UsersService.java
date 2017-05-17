@@ -57,6 +57,14 @@ class UsersService {
     }
 
     /**
+     * Minimal constructor for testing purposes.
+     */
+    UsersService() {
+        this.databaseConnectionPool = new ConnectionPool();
+        jsonConverter = new Gson();
+    }
+
+    /**
      * Checks if incoming data request needs to be handled internally of externally and then calls the appropriate
      * function.
      * @param callback Used to send a reply back to the service that sent the request.
@@ -95,7 +103,7 @@ class UsersService {
      * @param customerId Id of the customer whose accounts we want to fetch.
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void handleAccountsRequestExceptions(final Long customerId, final CallbackBuilder callbackBuilder) {
+    private void handleAccountsRequestExceptions(final long customerId, final CallbackBuilder callbackBuilder) {
         try {
             sendAccountsRequestCallback(getCustomerAccounts(customerId), callbackBuilder);
         } catch (SQLException e) {
@@ -121,7 +129,7 @@ class UsersService {
      * @return List containing account numbers that belong to the customer.
      * @throws SQLException Indicates customer accounts could not be fetched.
      */
-    private DataReply getCustomerAccounts(final Long customerId) throws SQLException {
+    DataReply getCustomerAccounts(final long customerId) throws SQLException {
         List<String> linkedAccounts = new ArrayList<>();
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement getAccountsFromDb = databaseConnection.getConnection().prepareStatement(getAccountNumbers);
@@ -144,7 +152,7 @@ class UsersService {
      * @param customerId Id of the customer to request data for.
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void handleCustomerDataRequestExceptions(final Long customerId, final CallbackBuilder callbackBuilder) {
+    private void handleCustomerDataRequestExceptions(final long customerId, final CallbackBuilder callbackBuilder) {
         try {
             sendCustomerDataRequestCallback(getCustomerData(customerId), callbackBuilder);
         } catch (SQLException | CustomerDoesNotExistException e) {
@@ -171,7 +179,7 @@ class UsersService {
      * @throws SQLException Indicates customer data could not be fetched.
      * @throws CustomerDoesNotExistException Indicates there is no customer with that customer id.
      */
-    private Customer getCustomerData(final Long customerId) throws SQLException, CustomerDoesNotExistException {
+    Customer getCustomerData(final long customerId) throws SQLException, CustomerDoesNotExistException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement getCustomerDataFromDb = databaseConnection.getConnection()
                                                   .prepareStatement(getUserInformation);
@@ -329,9 +337,9 @@ class UsersService {
      * @return CustomerId to be assigned to a new customer.
      * @throws SQLException If the query fails the handler will reject the request.
      */
-    private Long getNewCustomerId() throws SQLException {
+    long getNewCustomerId() throws SQLException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
-        Long newCustomerId = databaseConnection.getNextID(getNextUserID);
+        long newCustomerId = databaseConnection.getNextID(getNextUserID);
         databaseConnectionPool.returnConnection(databaseConnection);
         return newCustomerId;
     }
@@ -343,10 +351,10 @@ class UsersService {
      *                      will then reject the new customer request.
      */
     //todo implement check to see if the customer already exists in the database.
-    private void enrollCustomer(final Customer customer) throws SQLException {
+    void enrollCustomer(final Customer customer) throws SQLException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement createNewCustomer = databaseConnection.getConnection().prepareStatement(createNewUser);
-        createNewCustomer.setLong(1, customer.getCustomerId());                // id
+        createNewCustomer.setLong(1, customer.getCustomerId());        // id
         createNewCustomer.setString(2, customer.getInitials());        // initials
         createNewCustomer.setString(3, customer.getName());            // firstname
         createNewCustomer.setString(4, customer.getSurname());         // lastname
@@ -418,7 +426,7 @@ class UsersService {
      * @param customerId Id of the customer to link the account to.
      * @param accountNumber Account number to link to the customer.
      */
-    private void linkAccountToCustomer(final String accountNumber, final Long customerId) throws SQLException {
+    void linkAccountToCustomer(final String accountNumber, final long customerId) throws SQLException {
         if (!getAccountLinkExistence(accountNumber, customerId)) {
             SQLConnection databaseConnection = databaseConnectionPool.getConnection();
             PreparedStatement linkAccountToCustomer = databaseConnection.getConnection()
@@ -439,7 +447,7 @@ class UsersService {
      * @return If a link exists between accountNumber and customerId.
      * @throws SQLException Indicated the existence could not be verified due to an SQL error.
      */
-    private boolean getAccountLinkExistence(final String accountNumber, final Long customerId) throws SQLException {
+    boolean getAccountLinkExistence(final String accountNumber, final long customerId) throws SQLException {
         boolean accountLinkExists = false;
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement fetchAccountLinkCount = databaseConnection.getConnection()
@@ -478,7 +486,7 @@ class UsersService {
     public void processAccountLink(final Callback<String> callback,
                                    final @RequestParam("body") String accountLinkRequestJson) {
         AccountLink accountLink = jsonConverter.fromJson(accountLinkRequestJson, AccountLink.class);
-        Long customerId = accountLink.getCustomerId();
+        long customerId = accountLink.getCustomerId();
         String accountNumber = accountLink.getAccountNumber();
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         doAccountExistsRequest(accountNumber, customerId, callbackBuilder);
@@ -492,7 +500,7 @@ class UsersService {
      * @param customerId Used to link a customer to the account.
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void doAccountExistsRequest(final String accountNumber, final Long customerId,
+    private void doAccountExistsRequest(final String accountNumber, final long customerId,
                                         final CallbackBuilder callbackBuilder) {
         DataRequest accountExistsRequest = JSONParser.createAccountExistsRequest(accountNumber);
         ledgerClient.getAsyncWith1Param("/services/ledger/data", "body",
@@ -513,7 +521,7 @@ class UsersService {
      * @param customerId Id of the customer the account should be linked to.
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void processAccountExistsReply(final String dataReplyJson, final Long customerId,
+    private void processAccountExistsReply(final String dataReplyJson, final long customerId,
                                            final CallbackBuilder callbackBuilder) {
         DataReply ledgerReply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(dataReplyJson), DataReply.class);
         if (ledgerReply.isAccountInLedger()) {
@@ -530,7 +538,7 @@ class UsersService {
      * @param customerId CustomerId of the customer the account should be linked to.
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void handleAccountLinkExceptions(final String accountNumber, final Long customerId,
+    private void handleAccountLinkExceptions(final String accountNumber, final long customerId,
                                              final CallbackBuilder callbackBuilder) {
         try {
             verifyAccountOwnerExistence(customerId);
@@ -548,7 +556,7 @@ class UsersService {
      * @throws SQLException Exception indicating that something went wrong with our SQL connection.
      * @throws CustomerDoesNotExistException Indicates there is no customer with Id=customerId.
      */
-    private void verifyAccountOwnerExistence(final Long customerId) throws SQLException, CustomerDoesNotExistException {
+    private void verifyAccountOwnerExistence(final long customerId) throws SQLException, CustomerDoesNotExistException {
         if (!getCustomerExistence(customerId)) {
             throw new CustomerDoesNotExistException("Account link failed, customer with customerId does not exist.");
         }
@@ -561,7 +569,7 @@ class UsersService {
      * @param customerId Id of the customer the account was linked to.
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void sendAccountLinkCallback(final String accountNumber, final Long customerId,
+    private void sendAccountLinkCallback(final String accountNumber, final long customerId,
                                          final CallbackBuilder callbackBuilder) {
         AccountLink reply = JSONParser.createJsonAccountLink(accountNumber, customerId, true);
         System.out.printf("%s Account link successfull, sending callback.\n", prefix);
@@ -574,7 +582,7 @@ class UsersService {
      * @param customerId Id of the customer to look for.
      * @return Boolean indicating if the customer exists in the Customer database.
      */
-    private boolean getCustomerExistence(final Long customerId) throws SQLException {
+    boolean getCustomerExistence(final long customerId) throws SQLException {
         boolean customerExists = false;
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement fetchCustomerCount = databaseConnection.getConnection().prepareStatement(getUserCount);
@@ -617,5 +625,14 @@ class UsersService {
         } catch (SQLException | CustomerDoesNotExistException e) {
             callbackBuilder.build().reject(e);
         }
+    }
+
+    /**
+     * Safely shuts down the UsersService.
+     */
+    void shutdown() {
+        if (ledgerClient != null) ledgerClient.stop();
+        if (transactionDispatchClient != null) transactionDispatchClient.stop();
+        if (databaseConnectionPool != null) databaseConnectionPool.close();
     }
 }
