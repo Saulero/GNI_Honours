@@ -49,6 +49,8 @@ class PinService {
     private static final int VALID_CARD_DURATION = 5;
     /** Used to check if a transaction without a pincode is authorized */
     private static final int CONTACTLESS_TRANSACTION_LIMIT = 25;
+    /** Used to check if accountNumber are of the correct length. */
+    private static int accountNumberLength = 18;
 
     /**
      * Service that handles all PIN and ATM related requests.
@@ -134,7 +136,7 @@ class PinService {
      * @param cardAccountNumber AccountNumber of the card used in the transaction.
      * @return Transaction object representing the ATM withdrawal/deposit that is to be exectued.
      */
-    private Transaction createATMTransaction(final PinTransaction pinTransaction, final String cardAccountNumber) {
+    Transaction createATMTransaction(final PinTransaction pinTransaction, final String cardAccountNumber) {
         String description;
         if (pinTransaction.getSourceAccountNumber().equals(cardAccountNumber)) {
             description = "ATM withdrawal card #" + pinTransaction.getCardNumber();
@@ -154,20 +156,27 @@ class PinService {
      * @return If an ATM transaction should be authorized.
      * @throws SQLException Thrown when the database cannot be reached, will cause a rejection of the transaction.
      */
-    private boolean getATMTransactionAuthorization(final PinTransaction pinTransaction) throws SQLException {
+    boolean getATMTransactionAuthorization(final PinTransaction pinTransaction) throws SQLException {
+        if (pinTransaction.getTransactionAmount() < 0
+                || pinTransaction.getSourceAccountNumber().equals(pinTransaction.getDestinationAccountNumber())
+                || pinTransaction.getSourceAccountNumber().length() != accountNumberLength
+                || pinTransaction.getDestinationAccountNumber().length() != accountNumberLength) {
+            return false;
+        }
         boolean authorized = false;
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
-        PreparedStatement getCardInfo = databaseConnection.getConnection()
-                .prepareStatement(SQLStatements.getPinCard);
+        PreparedStatement getCardInfo = databaseConnection.getConnection().prepareStatement(SQLStatements.getPinCard);
         getCardInfo.setLong(1, pinTransaction.getCardNumber());
         ResultSet cardInfo = getCardInfo.executeQuery();
         if (cardInfo.next()) {
             String accountNumberLinkedToCard = cardInfo.getString("account_number");
             if (accountNumberLinkedToCard.equals(pinTransaction.getDestinationAccountNumber())
                     || accountNumberLinkedToCard.equals(pinTransaction.getSourceAccountNumber())) {
-                if (cardInfo.getString("pin_code").equals(pinTransaction.getPinCode())
-                        && cardInfo.getDate("expiration_date").after(new Date())) {
-                    authorized = true;
+                if (!pinTransaction.getSourceAccountNumber().equals(pinTransaction.getDestinationAccountNumber())) {
+                    if (cardInfo.getString("pin_code").equals(pinTransaction.getPinCode())
+                            && cardInfo.getDate("expiration_date").after(new Date())) {
+                        authorized = true;
+                    }
                 }
             }
         }
@@ -184,7 +193,7 @@ class PinService {
      * @throws SQLException Thrown when a database issue occurs.
      * @throws IncorrectPinException Thrown when the cardNumber and pinCode don't match.
      */
-    private Long getCustomerIdFromCardNumber(final Long cardNumber) throws SQLException, IncorrectPinException {
+    Long getCustomerIdFromCardNumber(final Long cardNumber) throws SQLException, IncorrectPinException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement getCustomerId = databaseConnection.getConnection().prepareStatement(SQLStatements
                                                                                 .getCustomerIdFromCardNumber);
@@ -209,7 +218,13 @@ class PinService {
      * @return Boolean indicating if the request is authorized and should be executed.
      * @throws SQLException Thrown when querying the database fails, causes the transaction to be rejected.
      */
-    private boolean getPinTransactionAuthorization(final PinTransaction transaction) throws SQLException {
+    boolean getPinTransactionAuthorization(final PinTransaction transaction) throws SQLException {
+        if (transaction.getTransactionAmount() < 0
+                || transaction.getSourceAccountNumber().equals(transaction.getDestinationAccountNumber())
+                || transaction.getSourceAccountNumber().length() != accountNumberLength
+                || transaction.getDestinationAccountNumber().length() != accountNumberLength) {
+            return false;
+        }
         boolean authorized = false;
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement getCardInfo = databaseConnection.getConnection()
@@ -241,7 +256,7 @@ class PinService {
      * @throws IncorrectPinException Thrown when there is no accountNumber for the given cardNumber in the database,
      * will cause a rejection of the transaction the request is for.
      */
-    private String getAccountNumberWithCardNumber(final Long cardNumber) throws SQLException, IncorrectPinException {
+    String getAccountNumberWithCardNumber(final Long cardNumber) throws SQLException, IncorrectPinException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement getAccountNumber = databaseConnection.getConnection()
                                                     .prepareStatement(SQLStatements.getAccountNumberUsingCardNumber);
@@ -370,7 +385,7 @@ class PinService {
      * @return First available card number that should be used to create a pin card.
      * @throws SQLException Thrown when the datbase cant be reached, will cause a new card request to be rejected.
      */
-    private Long getNextAvailableCardNumber() throws SQLException {
+    Long getNextAvailableCardNumber() throws SQLException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement getHighestCardNumber = databaseConnection.getConnection()
                                                             .prepareStatement(SQLStatements.getHighestCardNumber);
@@ -403,7 +418,7 @@ class PinService {
      * Generates an expiration date for a pin card by adding the valid card duration to the current date.
      * @return Expiration date for a new pin card.
      */
-    private Date generateExpirationDate() {
+    Date generateExpirationDate() {
         Calendar c = Calendar.getInstance();
         c.setTime(new Date());
         c.add(Calendar.YEAR, VALID_CARD_DURATION);
@@ -412,10 +427,12 @@ class PinService {
 
     /**
      * Inserts a pin card into the pin database.
+     * ExpirationDate for the card will be set to the day that the date is on, time is disregarded once the card is
+     * in the database.
      * @param pinCard Pincard to be inserted into the database.
      * @throws SQLException Thrown when the insertion fails, will reject the new pin card request.
      */
-    private void addPinCardToDatabase(final PinCard pinCard) throws SQLException {
+    void addPinCardToDatabase(final PinCard pinCard) throws SQLException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement addPinCard = databaseConnection.getConnection()
                                                          .prepareStatement(SQLStatements.addPinCard);
@@ -473,7 +490,7 @@ class PinService {
      * @throws NumberFormatException Cause when a parameter is incorrectly specified, will cause the removal request
      * to be rejected.
      */
-    private void deletePinCardFromDatabase(final PinCard pinCard) throws SQLException, NumberFormatException {
+    void deletePinCardFromDatabase(final PinCard pinCard) throws SQLException, NumberFormatException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement removePinCard = databaseConnection.getConnection()
                                                             .prepareStatement(SQLStatements.removePinCard);
