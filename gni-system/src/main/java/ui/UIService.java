@@ -20,6 +20,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
  * Interface that outside users can use to view their balance, transaction history, customer information, create
  * new accounts and make transactions.
  */
+//Todo move specifications to seperate file
 @RequestMapping("/ui")
 final class UIService {
     /** Connection to the authentication service. */
