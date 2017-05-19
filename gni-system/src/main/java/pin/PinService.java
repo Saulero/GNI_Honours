@@ -427,6 +427,8 @@ class PinService {
 
     /**
      * Inserts a pin card into the pin database.
+     * ExpirationDate for the card will be set to the day that the date is on, time is disregarded once the card is
+     * in the database.
      * @param pinCard Pincard to be inserted into the database.
      * @throws SQLException Thrown when the insertion fails, will reject the new pin card request.
      */

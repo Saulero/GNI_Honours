@@ -93,7 +93,8 @@ public class PinTest {
                 message = "pin code not equal to value we wanted to set.";
             } else if (cardInfo.getLong("user_id") != customerId) {
                 message = "customerId not equal to value we wanted to set.";
-            } else if (cardInfo.getDate("expiration_date").getTime() != expirationDate.getTime()) {
+            } else if (cardInfo.getDate("expiration_date").getTime() > (expirationDate.getTime() + 86400000)
+                    || cardInfo.getDate("expiration_date").getTime() < (expirationDate.getTime() - 86400000)) {
                 System.out.println(cardInfo.getDate("expiration_date").getTime());
                 System.out.println(expirationDate.getTime());
                 message = "exp_Date not equal to value we wanted to set.";
