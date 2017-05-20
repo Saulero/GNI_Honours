@@ -920,6 +920,14 @@ final class UIService {
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(jsonReply));
     }
 
+    /**
+     * Safely shuts down the PinService.
+     */
+    void shutdown() {
+        if (authenticationClient != null) {
+            authenticationClient.stop();
+        }
+    }
 }
 
 

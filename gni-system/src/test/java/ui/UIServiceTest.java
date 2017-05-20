@@ -3,6 +3,7 @@ package ui;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import databeans.*;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import sun.security.krb5.internal.AuthorizationData;
@@ -22,6 +23,11 @@ public class UIServiceTest {
     public void setUp() throws Exception {
         ui = new UIService(0, "");
         jsonConverter = new Gson();
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        ui.shutdown();
     }
 
     @Test
