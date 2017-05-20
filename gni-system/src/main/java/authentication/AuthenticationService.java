@@ -263,7 +263,7 @@ class AuthenticationService {
     }
 
     /**
-     * Creates new login credentials for a customer.
+     * Registers a new customer into the system, includes account creation and login creation.
      * @param callback Used to send a reply back to the UserService
      * @param newCustomerRequestJson Json String representing login information
      */
@@ -316,7 +316,7 @@ class AuthenticationService {
 
     /**
      * Sends the customer request to the User service and then processes the reply, or sends a rejection to the
-     * requester if the request fails..
+     * requester if the request fails.
      * @param newCustomerRequestJson Json String representing a {@link Customer} that should be created.
      * @param callbackBuilder Used to send the response of the creation request back to the source of the request.
      */
@@ -478,7 +478,7 @@ class AuthenticationService {
     }
 
     /**
-     * Authenticated the account link request and then forwards the request to the Users service.
+     * Authenticates the account link request and then forwards the request to the Users service.
      * @param accountLinkRequest Account Link that should be executed.
      * @param cookie Cookie of the customer requesting the account link.
      * @param callbackBuilder Used to send the reply back to the requesting service.
@@ -595,7 +595,7 @@ class AuthenticationService {
 
     /**
      * Creates a callbackbuilder so that the result of the request can be forwarded to the request source and then
-     * calls the exception handler to further process the request.
+     * calls the exception handler to further process the request. removes an account from a customer.
      * @param callback Used to send a reply/rejection to the request source.
      * @param accountNumber AccountNumber that should be removed from the system.
      * @param cookie Cookie of the user that sent the request, should be a user that is linked to the accountNumber.
@@ -654,7 +654,8 @@ class AuthenticationService {
     }
 
     /**
-     * Creates a callbackbuilder for the request and then calls the exception handler.
+     * Creates a callbackbuilder for the request and then calls the exception handler. Creates a new pincard for a
+     * customer.
      * @param callback Used to send the result of the request back to the request source.
      * @param accountNumber AccountNumber the pin card should be linked to.
      * @param cookie Cookie of the user that sent the request, so the system knows who the pincard is for.
@@ -715,7 +716,7 @@ class AuthenticationService {
 
     /**
      * Creates a callbackBuilder for the request so that the result can be sent back to the request source and then
-     * calls the exception handler for the request.
+     * calls the exception handler for the request. Removes a pincard belonging to a customer.
      * @param callback Used to send the result of the request back to the request source.
      * @param pinCardJson Json String representing a {@link PinCard} that is to be removed from the system.
      * @param cookie Cookie of the user that sent the request.
@@ -729,8 +730,8 @@ class AuthenticationService {
     }
 
     /**
-     * Tries to authenticate the user that sent the request, create a pincard object based on the request json and then
-     * forward the request with the customerId of the user that sent the request.
+     * Tries to authenticate the user that sent the request, creates a {@link PinCard} object based on the request
+     * json and then forwards the request with the customerId of the user that sent the request.
      * @param pinCardJson Json String representing a {@link PinCard} that should be removed from the system.
      * @param cookie Cookie of the user that sent the request.
      * @param callbackBuilder Used to send the result of the request back to the request source.
