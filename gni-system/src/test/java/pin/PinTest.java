@@ -7,6 +7,7 @@ import database.SQLStatements;
 import databeans.PinCard;
 import databeans.PinTransaction;
 import databeans.Transaction;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import ui.IncorrectInputException;
@@ -34,6 +35,11 @@ public class PinTest {
         pin = new PinService(0, "", 0, "");
         jsonConverter = new Gson();
         databaseConnectionPool = new ConnectionPool();
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        pin.shutdown();
     }
 
     @Test

@@ -506,4 +506,19 @@ class PinService {
                           pinCard.getCardNumber());
         callbackBuilder.build().reply(jsonConverter.toJson(pinCard));
     }
+
+    /**
+     * Safely shuts down the PinService.
+     */
+    void shutdown() {
+        if (transactionReceiveClient != null) {
+            transactionReceiveClient.stop();
+        }
+        if (transactionDispatchClient != null) {
+            transactionDispatchClient.stop();
+        }
+        if (databaseConnectionPool != null) {
+            databaseConnectionPool.close();
+        }
+    }
 }
