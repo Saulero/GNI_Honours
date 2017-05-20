@@ -96,7 +96,7 @@ class AuthenticationService {
      * @throws UserNotAuthorizedException thrown when the token is not legitimate/expired or the userId does not exist.
      * @throws SQLException thrown when there is a problem fetching the authentication data from the database.
      */
-    public void authenticateRequest(final String cookie) throws UserNotAuthorizedException, SQLException {
+    void authenticateRequest(final String cookie) throws UserNotAuthorizedException, SQLException {
         Long[] cookieData = decodeCookie(cookie);
         long customerId = cookieData[0];
         long cookieToken = cookieData[1];
@@ -132,7 +132,7 @@ class AuthenticationService {
      * @param cookie Cookie String to convert to its data.
      * @return Long[] containing in index 0 the customerId of the customer and in index 1 the token of the customer.
      */
-    private Long[] decodeCookie(final String cookie) {
+    Long[] decodeCookie(final String cookie) {
         String[] cookieParts = cookie.split(":");
         Long[] cookieData = new Long[2];
         cookieData[0] = Long.parseLong(cookieParts[0]); //customerId
@@ -144,7 +144,7 @@ class AuthenticationService {
      * Updates the validity of the token upon reuse.
      * @param id The user_id of the row to update
      */
-    private void updateTokenValidity(final long id) {
+    void updateTokenValidity(final long id) {
         long validity = System.currentTimeMillis() + Variables.TOKEN_VALIDITY * 1000;
         try {
             SQLConnection connection = databaseConnectionPool.getConnection();
@@ -165,7 +165,7 @@ class AuthenticationService {
      * @param cookie Cookie of a customer.
      * @return the id of the customer the cookie belongs to.
      */
-    private Long getCustomerId(final String cookie) {
+    Long getCustomerId(final String cookie) {
         Long[] cookieData = decodeCookie(cookie);
         return cookieData[0];
     }
@@ -299,7 +299,7 @@ class AuthenticationService {
      * @throws SQLException Thrown if something goes wrong when connecting to the database.
      * @throws UsernameTakenException Thrown if the username exists in the database.
      */
-    private void validateUsername(final Customer customerToEnroll) throws SQLException, UsernameTakenException {
+    void validateUsername(final Customer customerToEnroll) throws SQLException, UsernameTakenException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement getUsernameCount = databaseConnection.getConnection()
                 .prepareStatement(getLoginUsernameCount);
@@ -359,7 +359,7 @@ class AuthenticationService {
      * @param customerToEnroll Customer that is to be enrolled into the system.
      * @throws SQLException Thrown if something goes wrong during the enrollment of the customer.
      */
-    private void registerNewCustomerLogin(final Customer customerToEnroll) throws SQLException {
+    void registerNewCustomerLogin(final Customer customerToEnroll) throws SQLException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement createCustomerLogin = databaseConnection.getConnection()
                                                                   .prepareStatement(createAuthenticationData);
@@ -433,7 +433,7 @@ class AuthenticationService {
      * @param token token belonging to this user.
      * @return Cookie with the userId and token of the customer.
      */
-    private String encodeCookie(final long userID, final long token) {
+    String encodeCookie(final long userID, final long token) {
         return "" + userID + ":" + new String(Base64.getEncoder().encode(("" + token).getBytes()));
     }
 
@@ -442,7 +442,7 @@ class AuthenticationService {
      * @param id The user_id of the row to update
      * @param token The token to set
      */
-    private void setNewToken(final long id, final long token) {
+    void setNewToken(final long id, final long token) {
         long validity = System.currentTimeMillis() + Variables.TOKEN_VALIDITY * 1000;
         try {
             SQLConnection connection = databaseConnectionPool.getConnection();
