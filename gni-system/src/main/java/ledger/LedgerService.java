@@ -51,7 +51,7 @@ class LedgerService {
      * @param callback Used to send a reply to the request source.
      * @param body JSON String representing customer information
      */
-    @RequestMapping(value = "/accountNumber", method = RequestMethod.PUT)
+    @RequestMapping(value = "/account", method = RequestMethod.PUT)
     public void newAccountListener(final Callback<String> callback, final @RequestParam("body") String body) {
         Gson gson = new Gson();
         Account newAccount = gson.fromJson(body, Account.class);
