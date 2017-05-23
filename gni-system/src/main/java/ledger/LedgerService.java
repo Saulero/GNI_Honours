@@ -225,7 +225,7 @@ class LedgerService {
      * Removes an account from the system.
      * @param accountNumber AccountNumber of the account to remove.
      * @param customerId CustomerId of the owner of the account.
-     * @throws SQLException
+     * @throws SQLException Thrown when connection to the database fails, will cause a rejection of the request.
      */
     private void doAccountRemoval(final String accountNumber, final String customerId) throws SQLException {
         SQLConnection databaseConnection = db.getConnection();
@@ -467,8 +467,9 @@ class LedgerService {
         DataRequest dataRequest = gson.fromJson(dataRequestJson, DataRequest.class);
         RequestType requestType = dataRequest.getType();
         System.out.printf("%s Received data request of type %s.\n", PREFIX, dataRequest.getType().toString());
-        if (requestType != RequestType.ACCOUNTEXISTS &&
-                !getCustomerAuthorization(dataRequest.getAccountNumber(), "" + dataRequest.getCustomerId())) {
+        if (requestType != RequestType.ACCOUNTEXISTS
+                && !getCustomerAuthorization(dataRequest.getAccountNumber(),
+                "" + dataRequest.getCustomerId())) {
             callback.reject("Customer not authorized to request data for this accountNumber.");
         } else {
             // Method call

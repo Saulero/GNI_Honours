@@ -102,18 +102,6 @@ public class SystemTest {
         Sys.sleep(2000);
         doGet(uiClient, deboerNumber, RequestType.TRANSACTIONHISTORY, cookie);
         Sys.sleep(2000);
-        /*doExternalTransaction(externalBankClient, externalAccountNumber, deboerNumber, "H. de Boer",
-                "Moneys",2000.00);
-                Sys.sleep(2000);
-        doInternalTransaction(uiClient, deboerNumber, externalAccountNumber, "De Boer",
-                "moar moneys",2.00, cookie);
-        Sys.sleep(2000);
-        doGet(uiClient, deboerNumber, RequestType.TRANSACTIONHISTORY, cookie);
-        Sys.sleep(2000);
-        doGet(uiClient, deboerNumber, RequestType.BALANCE, cookie);
-        Sys.sleep(2000);
-        doGet(uiClient, deboerNumber, RequestType.CUSTOMERDATA, cookie);
-        Sys.sleep(2000);*/
         TableCreator.truncateTables();
         System.exit(0);
     }
