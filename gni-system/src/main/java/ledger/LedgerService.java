@@ -187,6 +187,13 @@ class LedgerService {
         return null;
     }
 
+    /**
+     * Receives a request for the removal of a customer account, if successfull this account will be removed from
+     * the system. Calls the exception handler which will process the request.
+     * @param callback Used to send the result of the request back to the request source.
+     * @param accountNumber AccountNumber of the account that should be removed from the system.
+     * @param customerId CustomerId of the User that requested the removal of the account.
+     */
     @RequestMapping(value = "account/remove", method = RequestMethod.PUT)
     public void processRemoveAccountRequest(final Callback<String> callback,
                                             final @RequestParam("accountNumber") String accountNumber,
@@ -196,10 +203,17 @@ class LedgerService {
         handleAccountRemovalExceptions(accountNumber, customerId, callbackBuilder);
     }
 
+    /**
+     * Will try to execute the accountRemoval and then send a callback indicating the successfull removal of the
+     * account, if an exception is thrown the request will be rejected.
+     * @param accountNumber AccountNumber of the account that should be removed from the system.
+     * @param customerId Id of the customer that sent the request.
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     */
     private void handleAccountRemovalExceptions(final String accountNumber, final String customerId,
                                                 final CallbackBuilder callbackBuilder) {
         try {
-            doAccountRemoval(accountNumber, customerId, callbackBuilder);
+            doAccountRemoval(accountNumber, customerId);
             sendAccountRemovalCallback(accountNumber, callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
@@ -207,8 +221,13 @@ class LedgerService {
         }
     }
 
-    private void doAccountRemoval(final String accountNumber, final String customerId,
-                                  final CallbackBuilder callbackBuilder) throws SQLException {
+    /**
+     * Removes an account from the system.
+     * @param accountNumber AccountNumber of the account to remove.
+     * @param customerId CustomerId of the owner of the account.
+     * @throws SQLException
+     */
+    private void doAccountRemoval(final String accountNumber, final String customerId) throws SQLException {
         SQLConnection databaseConnection = db.getConnection();
         PreparedStatement removeAccount = databaseConnection.getConnection()
                 .prepareStatement(SQLStatements.removeAccount);
