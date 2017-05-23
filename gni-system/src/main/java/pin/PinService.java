@@ -104,6 +104,7 @@ class PinService {
                         doDepositTransactionRequest(transaction, callbackBuilder);
                     }
                 } else {
+                    System.out.printf("%s Rejecting atm request, not authorized.\n", PREFIX);
                     callbackBuilder.build().reject("Unauthorized ATM request.");
                 }
             } else {
@@ -115,6 +116,7 @@ class PinService {
                             request.getTransactionAmount(), false, false);
                     doTransactionRequest(transaction, customerId, callbackBuilder);
                 } else {
+                    System.out.printf("%s Rejecting Pin request, not authorized.\n", PREFIX);
                     callbackBuilder.build().reject("Unauthorized Pin request.");
                 }
             }

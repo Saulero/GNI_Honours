@@ -30,7 +30,7 @@ public class SystemTest {
     private static PinCard pinCard = new PinCard();
     private static ArrayList<String> accountNumbers = new ArrayList<>();
     private static String externalAccountNumber = "NL00IIIB5695575206";
-    private static String atmNumber = "NL52GNIB367645116";
+    private static String atmNumber = "NL52GNIB3676451168";
     private static String userName = "henkdeboer";
     private static String password = "henkdeboer";
     private static String secondAccountNumber = null;
