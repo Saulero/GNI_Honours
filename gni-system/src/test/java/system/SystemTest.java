@@ -48,7 +48,7 @@ public class SystemTest {
      * @param args should be empty argument
      */
     public static void main(final String[] args) {
-        TableCreator.truncateTable();
+        TableCreator.truncateTables();
         Sys.sleep(1000);
         initializeServices();
         Sys.sleep(1000);
@@ -114,7 +114,7 @@ public class SystemTest {
         Sys.sleep(2000);
         doGet(uiClient, deboerNumber, RequestType.CUSTOMERDATA, cookie);
         Sys.sleep(2000);*/
-        TableCreator.truncateTable();
+        TableCreator.truncateTables();
         System.exit(0);
     }
 

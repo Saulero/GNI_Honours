@@ -21,7 +21,7 @@ public class SQLConnection {
     public SQLConnection() {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
-            this.connection = DriverManager.getConnection(URL, USERNAME, PASSWORD);
+            this.connection = DriverManager.getConnection("jdbc:mysql://" + URL + "?useLegacyDatetimeCode=false&serverTimezone=Europe/Amsterdam&useSSL=true", USERNAME, PASSWORD);
         } catch (ClassNotFoundException | SQLException e) {
             e.printStackTrace();
         }
