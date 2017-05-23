@@ -7,7 +7,7 @@ import io.advantageous.qbit.admin.ManagedServiceBuilder;
  * @author Noel
  * @version 1
  */
-final class UIServiceMain {
+public final class UIServiceMain {
 
     /**
      * Private constructor for utility class.
@@ -18,14 +18,13 @@ final class UIServiceMain {
 
     /**
      * Starts a UI service on localhost:9990.
-     * @param args Not used.
      */
-    public static void main(final String[] args) {
+    public static void main() {
         final ManagedServiceBuilder managedServiceBuilder =
                 ManagedServiceBuilder.managedServiceBuilder()
                         .setRootURI("/services") //Defaults to services
                         .setPort(9990);
-        managedServiceBuilder.addEndpointService(new UIService(9991, "localhost"))
+        managedServiceBuilder.addEndpointService(new UIService(9996, "localhost"))
                 .getEndpointServerBuilder()
                 .build().startServer();
         System.out.println("UI service started");

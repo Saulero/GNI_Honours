@@ -13,16 +13,17 @@ public final class DataRequest implements Serializable {
     /** Type of request {@link RequestType}. */
     private RequestType type;
     /** User id of the customer the request is for. */
-    private int userId;
+    private long customerId;
 
     /** Creates a DataRequest objects which is used to send a request to the Ledger service.
      * @param newAccountNumber Account number relating to the request.
      * @param newType Type of data to request {@link RequestType}
+     * @param newCustomerId Identifier of the customer the request is for.
      */
-    public DataRequest(final String newAccountNumber, final RequestType newType, final int newUserId) {
+    public DataRequest(final String newAccountNumber, final RequestType newType, final long newCustomerId) {
         this.accountNumber = newAccountNumber;
         this.type = newType;
-        this.userId = newUserId;
+        this.customerId = newCustomerId;
     }
 
     /**
@@ -46,11 +47,41 @@ public final class DataRequest implements Serializable {
         this.type = newType;
     }
 
-    public int getUserId() {
-        return userId;
+    public long getCustomerId() {
+        return customerId;
     }
 
-    public void setUserId(final int newUserId) {
-        this.userId = newUserId;
+    public void setCustomerId(final Long newCustomerId) {
+        this.customerId = newCustomerId;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        DataRequest that = (DataRequest) o;
+
+        if (customerId != that.customerId) return false;
+        if (accountNumber != null ? !accountNumber.equals(that.accountNumber) : that.accountNumber != null)
+            return false;
+        return type == that.type;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = accountNumber != null ? accountNumber.hashCode() : 0;
+        result = 31 * result + (type != null ? type.hashCode() : 0);
+        result = 31 * result + (int) (customerId ^ (customerId >>> 32));
+        return result;
+    }
+
+    @Override
+    public String toString() {
+        return "DataRequest{" +
+                "accountNumber='" + accountNumber + '\'' +
+                ", type=" + type +
+                ", customerId=" + customerId +
+                '}';
     }
 }

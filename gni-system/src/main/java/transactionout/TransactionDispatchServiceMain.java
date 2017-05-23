@@ -7,7 +7,7 @@ import io.advantageous.qbit.admin.ManagedServiceBuilder;
  * @author Noel
  * @version 1
  */
-final class TransactionDispatchServiceMain {
+public final class TransactionDispatchServiceMain {
 
     /**
      * Private constructor for utility class.
@@ -18,9 +18,8 @@ final class TransactionDispatchServiceMain {
 
     /**
      * Starts a Transaction Dispatch service on localhost:9993.
-     * @param args Not used.
      */
-    public static void main(final String[] args) {
+    public static void main() {
         final ManagedServiceBuilder managedServiceBuilder =
                 ManagedServiceBuilder.managedServiceBuilder()
                         .setRootURI("/services") //Defaults to services

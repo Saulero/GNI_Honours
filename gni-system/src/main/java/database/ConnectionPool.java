@@ -17,7 +17,7 @@ public class ConnectionPool {
      * Constructor.
      */
     public ConnectionPool() {
-        this.pool = new LinkedBlockingQueue<SQLConnection>();
+        this.pool = new LinkedBlockingQueue<>();
         generateConnections();
     }
 
