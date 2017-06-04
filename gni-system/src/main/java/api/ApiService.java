@@ -258,7 +258,35 @@ public final class ApiService {
     }
     private void transferMoney(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                                final Object id) {
-        // can be implemented 1:1 with a normal transaction request.
+        Transaction transaction = JSONParser.createJsonTransaction(-1, (String) params.get("sourceIBAN"),
+                (String) params.get("targetIBAN"), (String) params.get("targetName"),
+                (String) params.get("description"), (Double) params.get("amount"), false, false);
+        System.out.printf("%s Sending internal transaction.\n", PREFIX);
+        uiClient.putFormAsyncWith2Params("/services/ui/transaction", "request",
+                jsonConverter.toJson(transaction), "cookie", params.get("authToken"),
+                (code, contentType, body) -> {
+                    if (code == HTTP_OK) {
+                        Transaction reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
+                                                                   Transaction.class);
+                        if (reply.isSuccessful() && reply.isProcessed()) {
+                            long transactionId = reply.getTransactionID();
+                            System.out.printf("%s Internal transaction %d successfull.\n\n\n\n",
+                                    PREFIX, transactionId);
+                            Map<String, Object> result = new HashMap<>();
+                            JSONRPC2Response response = new JSONRPC2Response(result, id);
+                            callbackBuilder.build().reply(response.toJSONString());
+                        } else if (!reply.isProcessed()) {
+                            System.out.printf("%s Internal transaction couldn't be processed\n\n\n\n", PREFIX);
+                            //todo figure out how to fetch what cause the failed processing.
+                        } else {
+                            System.out.printf("%s Internal transaction was not successfull\n\n\n\n", PREFIX);
+                            //todo send unsuccessfull reply, find way to fetch cause of this.
+                        }
+                    } else {
+                        System.out.printf("%s Transaction request failed.\n\n\n\n", PREFIX);
+                        //todo figure out a way to find out what made the request fail.
+                    }
+                });
     }
     private void getAuthToken(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                               final Object id) {
