@@ -16,4 +16,6 @@ dependencies {
     compile 'io.advantageous.qbit:qbit-admin:1.10.0.RELEASE'
     compile 'io.advantageous.qbit:qbit-vertx:1.10.0.RELEASE'
     compile 'com.google.code.gson:gson:2.2.4'
+    // https://mvnrepository.com/artifact/com.thetransactioncompany/jsonrpc2-base
+    compile group: 'com.thetransactioncompany', name: 'jsonrpc2-base', version: '1.34.4'
 }
