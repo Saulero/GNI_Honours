@@ -194,7 +194,32 @@ public final class ApiService {
 
     private void depositIntoAccountHandler(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                                            final Object id) {
-
+        PinTransaction pin = JSONParser.createJsonPinTransaction(ATMNUMBER, (String) params.get("iBAN"),
+                "", (String) params.get("pinCode"), (Long) params.get("pinCard"),
+                (Double) params.get("amount"), true);
+        System.out.printf("%s Sending pin transaction.\n", PREFIX);
+        pinClient.putFormAsyncWith1Param("/services/pin/transaction", "request",
+                jsonConverter.toJson(pin), (code, contentType, body) -> {
+                    if (code == HTTP_OK) {
+                        Transaction reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
+                                Transaction.class);
+                        if (reply.isSuccessful() && reply.isProcessed()) {
+                            System.out.printf("%s ATM transaction successfull.\n\n\n", PREFIX);
+                            Map<String, Object> result = new HashMap<>();
+                            JSONRPC2Response response = new JSONRPC2Response(result, id);
+                            callbackBuilder.build().reply(response.toJSONString());
+                        } else if (!reply.isProcessed()) {
+                            System.out.printf("%s ATM transaction couldn't be processed.\n\n\n", PREFIX);
+                            //todo figure out how to fetch what cause the failed processing.
+                        } else {
+                            System.out.printf("%s ATM transaction was not successfull.\n\n\n", PREFIX);
+                            //todo send unsuccessfull reply, find way to fetch cause of this.
+                        }
+                    } else {
+                        System.out.printf("%s ATM transaction request failed.\n\n\n", PREFIX);
+                        //todo figure out a way to find out what made the request fail.
+                    }
+                });
     }
     private void payFromAccountHandler(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                                        final Object id) {
