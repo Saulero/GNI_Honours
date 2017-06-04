@@ -14,7 +14,9 @@ import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
 import util.JSONParser;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
@@ -316,15 +318,60 @@ public final class ApiService {
     }
     private void getBalance(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                             final Object id) {
-        // can be implemented 1:1 with get request.
+        DataRequest request = JSONParser.createJsonDataRequest((String) params.get("iBAN"), RequestType.BALANCE,
+                                                                0L);
+        System.out.printf("%s Sending getBalance request.\n", PREFIX);
+        uiClient.getAsyncWith2Params("/services/ui/data", "request", jsonConverter.toJson(request),
+                                    "cookie", params.get("authToken"), (code, contentType, body) -> {
+            if (code == HTTP_OK) {
+                DataReply balanceReply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
+                                                                DataReply.class);
+                System.out.printf("%s Request successfull, balance: %f\n\n\n\n", PREFIX,
+                        balanceReply.getAccountData().getBalance());
+                Map<String, Object> result = new HashMap<>();
+                result.put("balance", balanceReply.getAccountData().getBalance());
+                JSONRPC2Response response = new JSONRPC2Response(result, id);
+                callbackBuilder.build().reply(response.toJSONString());
+            } else {
+                System.out.printf("%s Request not successfull, body: %s\n", PREFIX, body);
+                //todo return error.
+            }
+        });
     }
+
     private void getTransactionsOverview(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                                          final Object id) {
-        // can be implemented 1:1 with get request, needs some more parsing in api.
+        DataRequest request = JSONParser.createJsonDataRequest((String) params.get("iBAN"),
+                                                                RequestType.TRANSACTIONHISTORY, 0L);
+        System.out.printf("%s Sending transactionOverview request.\n", PREFIX);
+        uiClient.getAsyncWith2Params("/services/ui/data", "request", jsonConverter.toJson(request),
+                "cookie", params.get("authToken"), (code, contentType, body) -> {
+                    if (code == HTTP_OK) {
+                        DataReply balanceReply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
+                                                                        DataReply.class);
+                        System.out.printf("%s TransactionOverview request successfull.\n\n\n\n", PREFIX);
+                        List<Map<String, Object>> transactionList = new ArrayList<>();
+                        balanceReply.getTransactions().subList(0, (int) params.get("nrOfTransactions")).forEach(k -> {
+                            Map<String, Object> transaction = new HashMap<>();
+                            transaction.put("sourceIBAN", k.getSourceAccountNumber());
+                            transaction.put("targetIBAN", k.getDestinationAccountNumber());
+                            transaction.put("targetName", k.getDestinationAccountHolderName());
+                            transaction.put("date", k.getTimestamp());
+                            transaction.put("amount", k.getTransactionAmount());
+                            transaction.put("description", k.getDescription());
+                            transactionList.add(transaction);
+                        });
+                        JSONRPC2Response response = new JSONRPC2Response(transactionList, id);
+                        callbackBuilder.build().reply(response.toJSONString());
+                    } else {
+                        System.out.printf("%s Request not successfull, body: %s\n", PREFIX, body);
+                        //todo return error.
+                    }
+                });
     }
     private void getUserAccess(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                                final Object id) {
-        // can be implemented 1:1 with get request.
+        // requires the link of owner of account to userName.
     }
     private void getBankAccountAccess(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                                       final Object id) {
