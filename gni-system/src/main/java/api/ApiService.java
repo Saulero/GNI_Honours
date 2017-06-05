@@ -126,7 +126,7 @@ public final class ApiService {
                                 Authentication.class);
                         System.out.printf("%s Successfull login, set the following cookie: %s\n\n\n\n",
                                 PREFIX, authenticationReply.getCookie());
-                        doNewPinCardRequest(accountNumber, authenticationReply.getCookie(), callbackBuilder, id);
+                        doNewPinCardRequest(accountNumber, authenticationReply.getCookie(), callbackBuilder, id, false);
                     } else {
                         System.out.printf("%s Login failed.\n\n\n\n", PREFIX);
                         //todo send failed reply
@@ -135,15 +135,21 @@ public final class ApiService {
     }
 
     private void doNewPinCardRequest(final String accountNumber, final String cookie,
-                                     final CallbackBuilder callbackBuilder, final Object id) {
+                                     final CallbackBuilder callbackBuilder, final Object id,
+                                     final boolean accountNrInResult) {
         Gson gson = new Gson();
         uiClient.putFormAsyncWith2Params("/services/ui/card", "accountNumber", accountNumber,
                 "cookie", cookie, (code, contentType, body) -> {
                     if (code == HTTP_OK) {
                         PinCard newPinCard = gson.fromJson(JSONParser.removeEscapeCharacters(body), PinCard.class);
                         System.out.printf("%s Successfully requested a new pin card.\n\n\n\n", PREFIX);
-                        sendOpenAccountCallback(callbackBuilder, accountNumber, newPinCard.getCardNumber(),
-                                newPinCard.getPinCode(), id);
+                        if (accountNrInResult) {
+                            sendOpenAccountCallback(callbackBuilder, accountNumber, newPinCard.getCardNumber(),
+                                    newPinCard.getPinCode(), id);
+                        } else {
+                            sendAccessRequestCallback(callbackBuilder, newPinCard.getCardNumber(),
+                                    newPinCard.getPinCode(), id);
+                        }
                     } else {
                         System.out.printf("%s New pin card request failed.\n\n\n\n", PREFIX);
                         //todo send failed reply
@@ -155,6 +161,15 @@ public final class ApiService {
                                          final Long cardNumber, final String pinCode, final Object id) {
         Map<String, Object> result = new HashMap<>();
         result.put("iBAN", accountNumber);
+        result.put("pinCard", cardNumber);
+        result.put("pinCode", pinCode);
+        JSONRPC2Response response = new JSONRPC2Response(result, id);
+        callbackBuilder.build().reply(response.toJSONString());
+    }
+
+    private void sendAccessRequestCallback(final CallbackBuilder callbackBuilder, final Long cardNumber,
+                                           final String pinCode, final Object id) {
+        Map<String, Object> result = new HashMap<>();
         result.put("pinCard", cardNumber);
         result.put("pinCode", pinCode);
         JSONRPC2Response response = new JSONRPC2Response(result, id);
@@ -173,7 +188,7 @@ public final class ApiService {
                 System.out.printf("%s New Account creation successfull, Account Holder: %s,"
                                     + " AccountNumber: %s\n\n\n\n", PREFIX, reply.getCustomerId(),
                                     accountNumber);
-                doNewPinCardRequest(accountNumber, cookie, callbackBuilder, id);
+                doNewPinCardRequest(accountNumber, cookie, callbackBuilder, id, true);
             } else {
                 System.out.printf("%s Account creation failed. body: %s\n\n\n\n", PREFIX, body);
             }
@@ -205,6 +220,27 @@ public final class ApiService {
                                final Object id) {
         // does an account Link to a username(so we need a conversion for this internally)
         // then performs a new pin card request for the customer with username.
+        AccountLink request = JSONParser.createJsonAccountLink((String) params.get("iBAN"),
+                                                                (String) params.get("username"), false);
+        System.out.printf("%s Sending account link request.\n", PREFIX);
+        uiClient.putFormAsyncWith2Params("/services/ui/account", "request",
+                jsonConverter.toJson(request), "cookie", params.get("authToken"),
+                (code, contentType, body) -> {
+            if (code == HTTP_OK) {
+                AccountLink reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
+                                                            AccountLink.class);
+                if (reply.isSuccessful()) {
+                    String accountNumber = reply.getAccountNumber();
+                    System.out.printf("%s Account link successfull for Account Holder: %s, AccountNumber: %s\n\n\n\n",
+                            PREFIX, reply.getCustomerId(), accountNumber);
+                    //todo do new pin card request with cookie belonging to user with username.
+                } else {
+                    System.out.printf("%s Account link creation unsuccessfull.\n\n\n\n", PREFIX);
+                }
+            } else {
+                System.out.printf("%s Account link creation failed.\n\n\n\n", PREFIX);
+            }
+        });
     }
 
     private void revokeAccess(final Map<String, Object> params, final CallbackBuilder callbackBuilder,

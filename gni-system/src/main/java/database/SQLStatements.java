@@ -30,6 +30,7 @@ public final class SQLStatements {
     public static final String updateTokenValidity = "UPDATE authentication SET token_validity = ? WHERE user_id = ?";
     public static final String getAccountLinkCount = "SELECT count(*) FROM accounts WHERE user_id = ? AND account_number = ?";
     public static final String getLoginUsernameCount = "SELECT count(*) FROM authentication WHERE username = ?";
+    public static final String getCustomerIdFromUsername = "SELECT user_id FROM authentication WHERE username = ?";
     public static final String addPinCard = "INSERT INTO pin (account_number, user_id, card_number, pin_code, expiration_date) VALUES (?, ?, ?, ?, ?)";
     public static final String getCustomerIdFromCardNumber = "SELECT user_id FROM pin WHERE card_number = ?";
     public static final String getPinCard = "SELECT * FROM pin WHERE card_number = ?";

@@ -262,6 +262,15 @@ public final class JSONParser {
         return request;
     }
 
+    public static AccountLink createJsonAccountLink(final String newAccountNumber, final String newUsername,
+                                                    final boolean newSuccessfull) {
+        AccountLink request = new AccountLink();
+        request.setUsername(newUsername);
+        request.setAccountNumber(newAccountNumber);
+        request.setSuccessful(newSuccessfull);
+        return request;
+    }
+
     public static Authentication createJsonAuthentication(final String cookie,
                                                           final AuthenticationType authenticationType) {
         Authentication authentication = new Authentication();

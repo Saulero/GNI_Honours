@@ -6,6 +6,7 @@ package databeans;
  */
 public class AccountLink {
     private Long customerId;
+    private String username;
     private String accountNumber;
     private boolean successful;
 
@@ -17,6 +18,12 @@ public class AccountLink {
 
     public AccountLink(final Long newCustomerId, final String newAccountNumber, final boolean newSuccessfull) {
         this.customerId = newCustomerId;
+        this.accountNumber = newAccountNumber;
+        this.successful = newSuccessfull;
+    }
+
+    public AccountLink(final String newUsername, final String newAccountNumber, final boolean newSuccessfull) {
+        this.username = newUsername;
         this.accountNumber = newAccountNumber;
         this.successful = newSuccessfull;
     }
@@ -47,6 +54,14 @@ public class AccountLink {
 
     public void setSuccessful(final boolean newSuccessful) {
         successful = newSuccessful;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(final String newUsername) {
+        username = newUsername;
     }
 
     @Override

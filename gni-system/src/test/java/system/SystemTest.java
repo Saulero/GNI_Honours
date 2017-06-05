@@ -92,7 +92,7 @@ public class SystemTest {
         Sys.sleep(2000);
         doSecondCustomerRequest(uiClient); // sets the secondAccountNumber variable with an account owned by someone else
         Sys.sleep(2000);
-        doAccountLinkRequest(uiClient, secondAccountNumber, cookie);
+        doAccountLinkRequest(uiClient, secondAccountNumber, userName, cookie);
         Sys.sleep(2000);
         doGet(uiClient, "", RequestType.ACCOUNTS, cookie);
         Sys.sleep(2000);
@@ -363,10 +363,9 @@ public class SystemTest {
                 });
     }
 
-    //TODO update format when new protocol arrives
     private static void doAccountLinkRequest(final HttpClient uiClient, final String accountNumber,
-                                             final String cookie) {
-        AccountLink request = JSONParser.createJsonAccountLink(accountNumber, 0L);
+                                             final String username, final String cookie) {
+        AccountLink request = JSONParser.createJsonAccountLink(accountNumber, username, false);
         Gson gson = new Gson();
         System.out.printf("%s Sending account link request.\n", PREFIX);
         uiClient.putFormAsyncWith2Params("/services/ui/account", "request", gson.toJson(request),
@@ -376,6 +375,7 @@ public class SystemTest {
                         if (reply.isSuccessful()) {
                             System.out.printf("%s Account link successfull for Account Holder: %s, AccountNumber: %s\n\n\n\n",
                                     PREFIX, reply.getCustomerId(), reply.getAccountNumber());
+                            //todo request pincard for this user without the cookie.
                         } else {
                             System.out.printf("%s Account link creation unsuccessfull.\n\n\n\n", PREFIX);
                         }
@@ -385,7 +385,6 @@ public class SystemTest {
                 });
     }
 
-    //TODO update format when new protocol arrives
     private static void doNewAccountRequest(final HttpClient uiClient, final String cookie) {
         Gson gson = new Gson();
         System.out.printf("%s Sending new account request.\n", PREFIX);

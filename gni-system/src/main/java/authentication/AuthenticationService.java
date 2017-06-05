@@ -11,6 +11,7 @@ import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
 import jdk.nashorn.internal.codegen.CompilerConstants;
+import users.CustomerDoesNotExistException;
 import util.JSONParser;
 
 import java.security.SecureRandom;
@@ -487,7 +488,7 @@ class AuthenticationService {
                                              final CallbackBuilder callbackBuilder) {
         try {
             authenticateRequest(cookie);
-            accountLinkRequest.setCustomerId(getCustomerId(cookie));
+            accountLinkRequest.setCustomerId(getCustomerIdFromUsername(accountLinkRequest.getUsername()));
             doAccountLinkRequest(jsonConverter.toJson(accountLinkRequest), callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
@@ -495,7 +496,28 @@ class AuthenticationService {
         } catch (UserNotAuthorizedException e) {
             e.printStackTrace();
             callbackBuilder.build().reject("User not authorized, please login.");
+        } catch (CustomerDoesNotExistException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reject("User with username does not exist, please specify correctly.");
         }
+    }
+
+
+    Long getCustomerIdFromUsername(final String username) throws SQLException, CustomerDoesNotExistException {
+        Long customerId;
+        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+        PreparedStatement getCustomerId = databaseConnection.getConnection()
+                                                                    .prepareStatement(getCustomerIdFromUsername);
+        getCustomerId.setString(1, username);
+        ResultSet customerIdSet = getCustomerId.executeQuery();
+        if (customerIdSet.next()) {
+            customerId = customerIdSet.getLong("user_id");
+        } else {
+            throw new CustomerDoesNotExistException("username not found");
+        }
+        getCustomerId.close();
+        databaseConnectionPool.returnConnection(databaseConnection);
+        return customerId;
     }
 
     /**
