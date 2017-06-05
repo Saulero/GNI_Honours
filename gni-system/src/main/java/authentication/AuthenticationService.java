@@ -182,11 +182,46 @@ class AuthenticationService {
         usersClient.getAsyncWith1Param("/services/users/data", "request",
                                         dataRequestJson, (httpStatusCode, httpContentType, dataReplyJson) -> {
             if (httpStatusCode == HTTP_OK) {
-                sendDataRequestCallback(dataReplyJson, callbackBuilder);
+                handleDataReply(dataReplyJson, callbackBuilder);
             } else {
                 callbackBuilder.build().reject("Transaction history request failed.");
             }
         });
+    }
+
+    private void handleDataReply(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
+        DataReply reply = jsonConverter.fromJson(dataReplyJson, DataReply.class);
+        if (reply.getType() == RequestType.OWNERS) {
+            for (AccountLink link : reply.getAccounts()) {
+                link.setUsername(getUserNameFromCustomerId(link.getCustomerId()));
+            }
+            reply.setType(RequestType.ACCOUNTS);
+            sendDataRequestCallback(jsonConverter.toJson(reply), callbackBuilder);
+        } else {
+            sendDataRequestCallback(JSONParser.removeEscapeCharacters(dataReplyJson), callbackBuilder);
+        }
+    }
+
+    private String getUserNameFromCustomerId(final Long customerId) {
+        String username;
+        try {
+            SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+            PreparedStatement getUsername = databaseConnection.getConnection()
+                                                                .prepareStatement(getUsernameFromCustomerId);
+            getUsername.setLong(1, customerId);
+            ResultSet usernameSet = getUsername.executeQuery();
+            if (usernameSet.next()) {
+                username = usernameSet.getString("username");
+            } else {
+                throw new CustomerDoesNotExistException("username not found");
+            }
+            getUsername.close();
+            databaseConnectionPool.returnConnection(databaseConnection);
+            return username;
+        } catch (SQLException | CustomerDoesNotExistException e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     /**
@@ -196,7 +231,7 @@ class AuthenticationService {
      */
     private void sendDataRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Data request successfull, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(dataReplyJson));
+        callbackBuilder.build().reply(dataReplyJson);
     }
 
     /**
@@ -503,7 +538,7 @@ class AuthenticationService {
     }
 
 
-    Long getCustomerIdFromUsername(final String username) throws SQLException, CustomerDoesNotExistException {
+    private Long getCustomerIdFromUsername(final String username) throws SQLException, CustomerDoesNotExistException {
         Long customerId;
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement getCustomerId = databaseConnection.getConnection()

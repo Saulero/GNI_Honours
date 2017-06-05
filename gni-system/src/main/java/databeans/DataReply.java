@@ -20,7 +20,7 @@ public final class DataReply implements Serializable {
     /** The data of the reply, in case it was a transaction history request. */
     private List<Transaction> transactions;
     /** The data of the reply, in case it was an accounts request. */
-    private List<String> accounts;
+    private List<AccountLink> accounts;
     /** The data of the reply, in case it was an account exists request. */
     private boolean accountInLedger;
 
@@ -56,7 +56,7 @@ public final class DataReply implements Serializable {
      * @param newType Type of request that this reply is for.
      * @param newAccounts Account numbers that belong to the requestee.
      */
-    public DataReply(final RequestType newType, final List<String> newAccounts) {
+    public DataReply(final RequestType newType, final List<AccountLink> newAccounts) {
         this.accountNumber = null;
         this.type = newType;
         this.accountData = null;
@@ -113,11 +113,11 @@ public final class DataReply implements Serializable {
         this.transactions = newTransactions;
     }
 
-    public List<String> getAccounts() {
+    public List<AccountLink> getAccounts() {
         return accounts;
     }
 
-    public void setAccounts(final List<String> newAccountNumbers) {
+    public void setAccounts(final List<AccountLink> newAccountNumbers) {
         accounts = newAccountNumbers;
     }
 

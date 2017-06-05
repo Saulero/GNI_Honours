@@ -20,6 +20,7 @@ import java.security.NoSuchAlgorithmException;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -500,9 +501,38 @@ class LedgerService {
                     return processTransactionHistoryRequest(dataRequest);
                 case ACCOUNTEXISTS:
                     return processAccountExistsRequest(dataRequest);
+                case OWNERS:
+                    return processOwnersRequest(dataRequest);
                 default:
                     return null;
             }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    //todo write unit test for this method.
+    private DataReply processOwnersRequest(final DataRequest dataRequest) {
+        DataReply reply = new DataReply();
+        reply.setType(dataRequest.getType());
+        List<AccountLink> accounts = new ArrayList<>();
+        try {
+            SQLConnection connection = db.getConnection();
+            PreparedStatement getAccountInfo = connection.getConnection().prepareStatement(getAccountInformation);
+            for (String account : dataRequest.getAccountNumbers()) {
+                getAccountInfo.setString(1, account);
+                ResultSet accountInfo = getAccountInfo.executeQuery();
+                if (accountInfo.next()) {
+                    accounts.add(new AccountLink(accountInfo.getLong("id"), account, true));
+                } else {
+                    throw new SQLException("no accountInfo found.");
+                }
+            }
+            connection.close();
+            db.returnConnection(connection);
+            reply.setAccounts(accounts);
+            return reply;
         } catch (SQLException e) {
             e.printStackTrace();
             return null;

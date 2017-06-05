@@ -421,7 +421,29 @@ public final class ApiService {
     }
     private void getUserAccess(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                                final Object id) {
-        // requires the link of owner of account to userName.
+        DataRequest request = JSONParser.createJsonDataRequest((String) params.get("iBAN"),
+                RequestType.ACCOUNTS, 0L);
+        System.out.printf("%s Sending transactionOverview request.\n", PREFIX);
+        uiClient.getAsyncWith2Params("/services/ui/data", "request", jsonConverter.toJson(request),
+                "cookie", params.get("authToken"), (code, contentType, body) -> {
+                    if (code == HTTP_OK) {
+                        DataReply accountsReply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
+                                                                         DataReply.class);
+                        System.out.printf("%s Accounts request successfull.\n\n\n\n", PREFIX);
+                        List<Map<String, Object>> result = new ArrayList<>();
+                        accountsReply.getAccounts().forEach(k -> {
+                            Map<String, Object> account = new HashMap<>();
+                            account.put("iBAN", k.getAccountNumber());
+                            account.put("owner", k.getUsername());
+                            result.add(account);
+                        });
+                        JSONRPC2Response response = new JSONRPC2Response(result, id);
+                        callbackBuilder.build().reply(response.toJSONString());
+                    } else {
+                        System.out.printf("%s Request not successfull, body: %s\n", PREFIX, body);
+                        //todo return error.
+                    }
+                });
     }
     private void getBankAccountAccess(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                                       final Object id) {

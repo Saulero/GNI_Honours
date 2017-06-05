@@ -106,7 +106,7 @@ class UsersService {
      */
     private void handleAccountsRequestExceptions(final long customerId, final CallbackBuilder callbackBuilder) {
         try {
-            sendAccountsRequestCallback(getCustomerAccounts(customerId), callbackBuilder);
+            getCustomerAccounts(customerId, callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
             callbackBuilder.build().reject(e);
@@ -130,21 +130,27 @@ class UsersService {
      * @return List containing account numbers that belong to the customer.
      * @throws SQLException Indicates customer accounts could not be fetched.
      */
-    DataReply getCustomerAccounts(final long customerId) throws SQLException {
-        List<String> linkedAccounts = new ArrayList<>();
+    private void getCustomerAccounts(final long customerId, final CallbackBuilder callbackBuilder) throws SQLException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement getAccountsFromDb = databaseConnection.getConnection().prepareStatement(getAccountNumbers);
         getAccountsFromDb.setLong(1, customerId);
         ResultSet retrievedAccounts = getAccountsFromDb.executeQuery();
         DataReply customerAccounts = new DataReply();
         customerAccounts.setType(RequestType.ACCOUNTS);
+        List<String> linkedAccounts = new ArrayList<>();
         while (retrievedAccounts.next()) {
             linkedAccounts.add(retrievedAccounts.getString("account_number"));
         }
         getAccountsFromDb.close();
         databaseConnectionPool.returnConnection(databaseConnection);
-        customerAccounts.setAccounts(linkedAccounts);
-        return customerAccounts;
+        fetchAccountOwners(linkedAccounts);
+    }
+
+    private void fetchAccountOwners(final List<String> accounts) {
+        DataRequest request = new DataRequest();
+        request.setType(RequestType.OWNERS);
+        request.setAccountNumbers(accounts);
+        doLedgerDataRequest(request, CallbackBuilder.callbackBuilder());
     }
 
     /**
