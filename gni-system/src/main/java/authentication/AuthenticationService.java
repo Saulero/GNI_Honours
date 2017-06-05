@@ -530,32 +530,24 @@ class AuthenticationService {
     /**
      * Creates a callback builder for the account creation request and then forwards the request to the UsersService.
      * @param callback Used to send the result of the request back to the source of the request.
-     * @param newAccountRequestJson Json String representing a customer object which is the account owner, with an
-     *                              Account object inside representing the account that should be created.
      */
     @RequestMapping(value = "/account/new", method = RequestMethod.PUT)
     public void processNewAccountRequest(final Callback<String> callback,
-                                         @RequestParam("request") final String newAccountRequestJson,
                                          @RequestParam("cookie") final String cookie) {
-        Customer accountOwner = jsonConverter.fromJson(newAccountRequestJson, Customer.class);
-        accountOwner.setCustomerId(getCustomerId(cookie));
-        System.out.printf("%s Forwarding account creation request for customer %d.\n", PREFIX,
-                          accountOwner.getCustomerId());
+        System.out.printf("%s Forwarding account creation request for customer %d.\n", PREFIX, getCustomerId(cookie));
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handleNewAccountExceptions(jsonConverter.toJson(accountOwner), cookie, callbackBuilder);
+        handleNewAccountExceptions(cookie, callbackBuilder);
     }
 
     /**
      * Authenticates the request and then forwards the request to the Users service.
-     * @param newAccountRequestJson Json String representing the new account request.
      * @param cookie Cookie of the customer making the request.
      * @param callbackBuilder Used to send the reply back to the requesting service.
      */
-    private void handleNewAccountExceptions(final String newAccountRequestJson, final String cookie,
-                                            final CallbackBuilder callbackBuilder) {
+    private void handleNewAccountExceptions(final String cookie, final CallbackBuilder callbackBuilder) {
         try {
             authenticateRequest(cookie);
-            doNewAccountRequest(newAccountRequestJson, callbackBuilder);
+            doNewAccountRequest(getCustomerId(cookie), callbackBuilder);
         } catch (SQLException e) {
             callbackBuilder.build().reject("Error connecting to authentication database.");
         } catch (UserNotAuthorizedException e) {
@@ -564,15 +556,13 @@ class AuthenticationService {
     }
 
     /**
-     * Forwards the Json String representing a customer with the account to be created to the Users Service and sends
+     * Forwards the customerId of the customer a new account should be created for to the Users Service and sends
      * the result back to the requesting service, or rejects the request if the forwarding fails.
-     * @param newAccountRequestJson Json String representing a customer object which is the account owner, with an
-     *                              Account object inside representing the account that should be created.
+     * @param customerId customerId of the customer the account should be created for.
      * @param callbackBuilder Used to send the result of the request back to the source of the request.
      */
-    private void doNewAccountRequest(final String newAccountRequestJson,
-                                     final CallbackBuilder callbackBuilder) {
-        usersClient.putFormAsyncWith1Param("/services/users/account/new", "body", newAccountRequestJson,
+    private void doNewAccountRequest(final Long customerId, final CallbackBuilder callbackBuilder) {
+        usersClient.putFormAsyncWith1Param("/services/users/account/new", "customerId", customerId,
                 (httpStatusCode, httpContentType, newAccountReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         sendNewAccountRequestCallback(newAccountReplyJson, callbackBuilder);

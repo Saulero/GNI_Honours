@@ -387,16 +387,9 @@ public class SystemTest {
 
     //TODO update format when new protocol arrives
     private static void doNewAccountRequest(final HttpClient uiClient, final String cookie) {
-        Customer accountOwner = JSONParser.createJsonCustomer("M.S.", "Mats", "Bats",
-                "mats@bats.nl", "0656579876",
-                "Batslaan 35", "20-04-1889",
-                new Long("1234567890"), 0,
-                0, 0L,  "matsbats",
-                "matsbats");
         Gson gson = new Gson();
         System.out.printf("%s Sending new account request.\n", PREFIX);
-        uiClient.putFormAsyncWith2Params("/services/ui/account/new", "request",
-                gson.toJson(accountOwner), "cookie", cookie,
+        uiClient.putFormAsyncWith1Param("/services/ui/account/new", "cookie", cookie,
                 (code, contentType, body) -> {
                     if (code == HTTP_OK) {
                         Customer reply = gson.fromJson(JSONParser.removeEscapeCharacters(body), Customer.class);

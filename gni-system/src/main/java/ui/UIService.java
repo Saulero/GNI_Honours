@@ -525,76 +525,25 @@ final class UIService {
      * Service.
      * @param callback Used to send the result of the request back to the source of the request.
      * @param cookie Cookie of the User that sent the request.
-     * @param accountOwnerJson Json String representing a {@link Customer} which is the account owner,
-     *                         with an Account object inside representing the account that should be created.
      */
     @RequestMapping(value = "/account/new", method = RequestMethod.PUT)
     public void processNewAccountRequest(final Callback<String> callback,
-                                         @RequestParam("request") final String accountOwnerJson,
                                          @RequestParam("cookie") final String cookie) {
         System.out.printf("%s Forwarding account creation request.\n", PREFIX);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder()
                                                                    .withStringCallback(callback);
-        handleNewAccountExceptions(accountOwnerJson, cookie, callbackBuilder);
+        doNewAccountRequest(cookie, callbackBuilder);
     }
 
     /**
-     * Tries to verify the input of a new account request and then forward the request, sends a rejection if an
-     * exception occurs.
-     * @param accountOwnerJson Json string representing the {@link Customer} that an account should be created
-     * for.
-     * @param cookie Cookie of the User that sent the request.
-     * @param callbackBuilder Used to send the result of the request back to the source of the request.
-     */
-    private void handleNewAccountExceptions(final String accountOwnerJson, final String cookie,
-                                            final CallbackBuilder callbackBuilder) {
-        try {
-            verifyNewAccountInput(accountOwnerJson);
-            doNewAccountRequest(accountOwnerJson, cookie, callbackBuilder);
-        } catch (IncorrectInputException e) {
-            System.out.printf("%s %s", PREFIX, e.getMessage());
-            callbackBuilder.build().reject(e.getMessage());
-        } catch (JsonSyntaxException e) {
-            System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
-            callbackBuilder.build().reject("Syntax error when parsing json.");
-        }
-    }
-
-    /**
-     * Checks if the input for an new account request is correctly formatted and contains correct values.
-     * @param accountOwnerJson Json string representing the {@link Customer} that an account should be created
-     * for.
-     * @throws IncorrectInputException Thrown when a value is not correctly specified.
-     * @throws JsonSyntaxException Thrown when the json string is incorrect and cant be parsed.
-     */
-    void verifyNewAccountInput(final String accountOwnerJson)
-                                        throws IncorrectInputException, JsonSyntaxException {
-        Customer accountOwner = jsonConverter.fromJson(accountOwnerJson, Customer.class);
-        final String initials = accountOwner.getInitials();
-        final String name = accountOwner.getName();
-        final String surname = accountOwner.getSurname();
-        if (initials == null || !valueHasCorrectLength(initials)) {
-            throw new IncorrectInputException("The following variable was incorrectly specified: initials.");
-        } else if (name == null || !valueHasCorrectLength(name)) {
-            throw new IncorrectInputException("The following variable was incorrectly specified: name.");
-        } else if (surname == null || !valueHasCorrectLength(surname)) {
-            throw new IncorrectInputException("The following variable was incorrectly specified: surname.");
-        }
-    }
-
-    /**
-     * Forwards the Json String representing a customer with the account to be created to the Authentication Service
+     * Forwards the cookie containing the customerId of the owner of the new account to the Authentication Service
      * and sends the result back to the request source, or rejects the request if the forwarding fails.
-     * @param newAccountRequestJson Json String representing a {@link Customer} which is the account
-     *                              owner, with an Account object inside representing the account that is to be created.
      * @param cookie Cookie of the User that sent the request.
      * @param callbackBuilder Used to send the result of the request back to the source of the request.
      */
-    private void doNewAccountRequest(final String newAccountRequestJson, final String cookie,
-                                     final CallbackBuilder callbackBuilder) {
-        authenticationClient.putFormAsyncWith2Params("/services/authentication/account/new", "request",
-                newAccountRequestJson, "cookie", cookie,
-                (httpStatusCode, httpContentType, newAccountReplyJson) -> {
+    private void doNewAccountRequest(final String cookie, final CallbackBuilder callbackBuilder) {
+        authenticationClient.putFormAsyncWith1Param("/services/authentication/account/new", "cookie",
+                cookie, (httpStatusCode, httpContentType, newAccountReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         sendNewAccountRequestCallback(newAccountReplyJson, callbackBuilder);
                     } else {

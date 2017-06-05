@@ -603,35 +603,36 @@ class UsersService {
     }
 
     /**
-     * Processes a new account request for an existing customer by creating a {@link Customer} from the request
-     * that contains the customer data of the customer and inside this customer object an {@link Account} that should
-     * have an accountHolderName, balance and spendingLimit.
+     * Processes a new account request for an existing customer by loading the customer belonging to the customerId,
+     * and then requesting a new account for this customer.
      * @param callback Used to send a reply back to the service that sent the request.
-     * @param accountRequestJson Json String representing a customer that a new Account should be created for.
+     * @param customerId customerId of the customer the account should be created for.
      */
     @RequestMapping(value = "/account/new", method = RequestMethod.PUT)
     public void processNewAccount(final Callback<String> callback,
-                                  final @RequestParam("body") String accountRequestJson) {
+                                  final @RequestParam("customerId") Long customerId) {
         System.out.printf("%s Received account creation request.\n", PREFIX);
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        Customer accountOwner = jsonConverter.fromJson(accountRequestJson, Customer.class);
-        handleNewAccountExceptions(accountOwner, callbackBuilder);
+        handleNewAccountExceptions(customerId, callbackBuilder);
     }
 
     /**
      * Rejects a new account request if the customer that the account should be created for does not exist or something
      * goes wrong during the database communication.
-     * @param accountOwner Customer the account should be created for.
+     * @param customerId CustomerId of the customer the account should be created for.
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void handleNewAccountExceptions(final Customer accountOwner, final CallbackBuilder callbackBuilder) {
+    private void handleNewAccountExceptions(final Long customerId, final CallbackBuilder callbackBuilder) {
         try {
-            if (!getCustomerExistence(accountOwner.getCustomerId())) {
+            if (!getCustomerExistence(customerId)) {
                 callbackBuilder.build().reject("Account link failed, customer with customerId does not exist.");
             } else {
+                Customer accountOwner = getCustomerData(customerId);
+                accountOwner.setAccount(new Account(accountOwner.getInitials()
+                                                    + accountOwner.getSurname(), 0.0, 0.0));
                 doNewAccountRequest(accountOwner, callbackBuilder);
             }
-        } catch (SQLException e) {
+        } catch (SQLException | CustomerDoesNotExistException e) {
             callbackBuilder.build().reject(e);
         }
     }

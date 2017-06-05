@@ -163,7 +163,21 @@ public final class ApiService {
 
     private void openAdditionalAccount(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                                        final Object id) {
-        //todo needs modifications so users loads customerData during request as we currently require customer data to be specified.
+        String cookie = (String) params.get("authToken");
+        uiClient.putFormAsyncWith1Param("/services/ui/account/new", "cookie", cookie,
+                                        (code, contentType, body) -> {
+            if (code == HTTP_OK) {
+                Customer reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
+                                                        Customer.class);
+                String accountNumber = reply.getAccount().getAccountNumber();
+                System.out.printf("%s New Account creation successfull, Account Holder: %s,"
+                                    + " AccountNumber: %s\n\n\n\n", PREFIX, reply.getCustomerId(),
+                                    accountNumber);
+                doNewPinCardRequest(accountNumber, cookie, callbackBuilder, id);
+            } else {
+                System.out.printf("%s Account creation failed. body: %s\n\n\n\n", PREFIX, body);
+            }
+        });
     }
 
     private void closeAccount(final Map<String, Object> params, final CallbackBuilder callbackBuilder,

@@ -335,67 +335,6 @@ public class UIServiceTest {
     }
 
     @Test
-    public void verifyNewAccountInput() {
-        Customer customer = JSONParser.createJsonCustomer("B.D.", "Bert", "De Wilde",
-                "bert@bol.com", "0675754756", "bertstraat 5", "16-05-1993",
-                989384755L, 1000, 1000, 0L,
-                "henk", "henk");
-        Authentication incorrectObject = JSONParser.createJsonAuthentication("asds", AuthenticationType.LOGIN);
-        String invalidJson = "accountNumber";
-        try {
-            ui.verifyNewAccountInput(jsonConverter.toJson(customer));
-        } catch (IncorrectInputException e) {
-            e.printStackTrace();
-            fail("IncorrectInputException thrown when it should not have been thrown.");
-        }
-        try {
-            Account account = new Account();
-            account.setBalance(0);
-            account.setSpendingLimit(0);
-            customer.setAccount(account);
-            ui.verifyNewAccountInput(jsonConverter.toJson(customer));
-        } catch (IncorrectInputException e) {
-            e.printStackTrace();
-            fail("IncorrectInputException thrown when it should not have been thrown.");
-        }
-        try {
-            customer.setInitials(null);
-            ui.verifyNewAccountInput(jsonConverter.toJson(customer));
-            fail("IncorrectInputException not thrown when it should've been thrown.");
-        } catch (IncorrectInputException e) {
-            customer.setInitials("B.D.");
-        }
-        try {
-            customer.setName(null);
-            ui.verifyNewAccountInput(jsonConverter.toJson(customer));
-            fail("IncorrectInputException not thrown when it should've been thrown.");
-        } catch (IncorrectInputException e) {
-            customer.setName("Henk");
-        }
-        try {
-            customer.setSurname(null);
-            ui.verifyNewAccountInput(jsonConverter.toJson(customer));
-            fail("IncorrectInputException not thrown when it should've been thrown.");
-        } catch (IncorrectInputException e) {
-            customer.setSurname("De weerd");
-        }
-        try {
-            ui.verifyNewAccountInput(invalidJson);
-            fail("JsonSyntax exception not thrown.");
-        } catch (IncorrectInputException e) {
-            fail("IncorrectInputException thrown when a jsonSyntaxException should have been thrown.");
-        } catch (JsonSyntaxException e) {
-        }
-        try {
-            ui.verifyNewAccountInput(jsonConverter.toJson(incorrectObject));
-            fail("IncorrectInputException not thrown.");
-        } catch (IncorrectInputException e) {
-        } catch (JsonSyntaxException e) {
-            fail("JsonSyntaxException thrown when a IncorrectInputException should have been thrown.");
-        }
-    }
-
-    @Test
     public void verifyLoginInput() {
         Authentication authentication = JSONParser.createJsonAuthenticationLogin("henk", "henk");
         DataRequest incorrectObject = JSONParser.createJsonDataRequest("NL00GNIB0000000000",
