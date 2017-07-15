@@ -27,7 +27,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
  * @version 1
  */
 @RequestMapping("/api")
-public final class ApiService {
+final class ApiService {
     /** Connection to the ui service. */
     private HttpClient uiClient;
     /** Connection to the upini service. */
@@ -44,7 +44,7 @@ public final class ApiService {
      * @param uiPort Port the ui service is located on.
      * @param uiHost Host the ui service is located on.
      * @param pinPort Port the pin service is located on.
-     * @param pinHost Host the ui service is located on.
+     * @param pinHost Host the pin service is located on.
      */
     public ApiService(final int uiPort, final String uiHost, final int pinPort, final String pinHost) {
         uiClient = httpClientBuilder().setHost(uiHost).setPort(uiPort).buildAndStart();
