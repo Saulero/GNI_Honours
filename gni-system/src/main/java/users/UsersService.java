@@ -735,6 +735,11 @@ class UsersService {
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(jsonReply));
     }
 
+    @RequestMapping(value = "/customerId", method = RequestMethod.GET)
+    public void handleCustomerIdRequest(@RequestParam("username") final String username) {
+
+    }
+
     /**
      * Safely shuts down the UsersService.
      */

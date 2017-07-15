@@ -10,7 +10,6 @@ import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
-import jdk.nashorn.internal.codegen.CompilerConstants;
 import users.CustomerDoesNotExistException;
 import util.JSONParser;
 
@@ -705,15 +704,18 @@ class AuthenticationService {
      * customer.
      * @param callback Used to send the result of the request back to the request source.
      * @param accountNumber AccountNumber the pin card should be linked to.
-     * @param cookie Cookie of the user that sent the request, so the system knows who the pincard is for.
+     * @param cookie Cookie of the user that sent the request, must be a user that is authorized to use
+     *               the accountNumber.
+     * @param username username of the user that owns the pincard.
      */
     @RequestMapping(value = "/card", method = RequestMethod.PUT)
     public void processNewPinCardRequest(final Callback<String> callback,
                                          @RequestParam("accountNumber") final String accountNumber,
-                                         @RequestParam("cookie") final String cookie) {
+                                         @RequestParam("cookie") final String cookie,
+                                         @RequestParam("username") final String username) {
         System.out.printf("%s Received new Pin card request, attempting to forward request.\n", PREFIX);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handleNewPinCardExceptions(accountNumber, cookie, callbackBuilder);
+        handleNewPinCardExceptions(accountNumber, cookie, username, callbackBuilder);
     }
 
     /**
@@ -723,12 +725,12 @@ class AuthenticationService {
      * @param cookie Cookie of the user that sent the request, so the system knows who the pincard is for.
      * @param callbackBuilder Used to send the result of the request to the request source.
      */
-    private void handleNewPinCardExceptions(final String accountNumber, final String cookie,
+    private void handleNewPinCardExceptions(final String accountNumber, final String cookie, final String username,
                                             final CallbackBuilder callbackBuilder) {
         try {
             authenticateRequest(cookie);
-            Long customerId = getCustomerId(cookie);
-            doNewPinCardRequest(accountNumber, Long.toString(customerId), callbackBuilder);
+            Long requesterId = getCustomerId(cookie);
+            fetchCardOwnerId(accountNumber, Long.toString(requesterId), username, callbackBuilder);
         } catch (SQLException e) {
             callbackBuilder.build().reject("Error connecting to authentication database.");
         } catch (UserNotAuthorizedException e) {
@@ -738,16 +740,38 @@ class AuthenticationService {
     }
 
     /**
+     * Fetch the customerId of the owner of the card from the users service and then create the new card in the system.
+     * @param accountNumber AccountNumber the card is for.
+     * @param requesterId CustomerId of the user that sent the request.
+     * @param username Username of the user the card should be created for.
+     * @param callbackBuilder Used to send the result of the request to the request source.
+     */
+    private void fetchCardOwnerId(final String accountNumber, final String requesterId, final String username,
+                                  final CallbackBuilder callbackBuilder) {
+        // send call to usersService requesting the id of user with username.
+        usersClient.getAsyncWith1Param("/services/users/customerId", "username", username,
+                (httpStatusCode, httpContentType, ownerId) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        doNewPinCardRequest(accountNumber, requesterId, ownerId, callbackBuilder);
+                    } else {
+                        callbackBuilder.build().reject("new pin card request failed.");
+                    }
+                });
+    }
+
+    /**
      * Forwards the new pin card request to the Pin service and forwards the result of the request to
      * the service that requested it.
      * @param accountNumber AccountNumber the pin card should be created for.
-     * @param customerId The customerId of the user that sent the request.
+     * @param requesterId CustomerId of the user that sent the request.
+     * @param ownerId The customerId of the user that sent the request.
      * @param callbackBuilder Used to send the result of the request back to the request source.
      */
-    private void doNewPinCardRequest(final String accountNumber, final String customerId,
+    private void doNewPinCardRequest(final String accountNumber, final String requesterId, final String ownerId,
                                      final CallbackBuilder callbackBuilder) {
-        pinClient.putFormAsyncWith2Params("/services/pin/card", "accountNumber", accountNumber,
-                "customerId", customerId, (httpStatusCode, httpContentType, newAccountReplyJson) -> {
+        pinClient.putFormAsyncWith3Params("/services/pin/card", "accountNumber", accountNumber,
+                "requesterId", requesterId, "ownerId", ownerId,
+                (httpStatusCode, httpContentType, newAccountReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         sendNewPinCardCallback(newAccountReplyJson, callbackBuilder);
                     } else {

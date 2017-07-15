@@ -726,15 +726,18 @@ final class UIService {
      * Creates a callbackbuilder for the request and then calls the exception handler.
      * @param callback Used to send the result of the request back to the request source.
      * @param accountNumber AccountNumber the pin card should be linked to.
-     * @param cookie Cookie of the user that sent the request, so the system knows who the pincard is for.
+     * @param cookie Cookie of the user that sent the request, this user needs to be authorized to use
+     *               the accountNumber.
+     * @param username The username of the user that owns the new pincard.
      */
     @RequestMapping(value = "/card", method = RequestMethod.PUT)
     public void processNewPinCard(final Callback<String> callback,
                                          @RequestParam("accountNumber") final String accountNumber,
-                                         @RequestParam("cookie") final String cookie) {
+                                         @RequestParam("cookie") final String cookie,
+                                         @RequestParam("username") final String username) {
         System.out.printf("%s Received new Pin card request, attempting to forward request.\n", PREFIX);
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handleNewPinCardExceptions(accountNumber, cookie, callbackBuilder);
+        handleNewPinCardExceptions(accountNumber, cookie, username, callbackBuilder);
     }
 
     /**
@@ -742,13 +745,14 @@ final class UIService {
      * rejects the request if an exception occurs.
      * @param accountNumber AccountNumber the pin card should be linked to.
      * @param cookie Cookie of the user that requested the pin card.
+     * @param username username of the user that owns the pincard.
      * @param callbackBuilder Used to send the result of the request back to the request source.
      */
-    private void handleNewPinCardExceptions(final String accountNumber, final String cookie,
+    private void handleNewPinCardExceptions(final String accountNumber, final String cookie, final String username,
                                             final CallbackBuilder callbackBuilder) {
         try {
             verifyNewPinCardInput(accountNumber);
-            doNewPinCardRequest(accountNumber, cookie, callbackBuilder);
+            doNewPinCardRequest(accountNumber, cookie, username, callbackBuilder);
         } catch (IncorrectInputException e) {
             System.out.printf("%s %s", PREFIX, e.getMessage());
             callbackBuilder.build().reject(e.getMessage());
@@ -766,12 +770,13 @@ final class UIService {
      * the service that requested it.
      * @param accountNumber AccountNumber the pin card should be created for.
      * @param cookie Cookie of the user that sent the request.
+     * @param username username of the user that owns the pincard.
      * @param callbackBuilder Used to send the result of the request back to the request source.
      */
-    private void doNewPinCardRequest(final String accountNumber, final String cookie,
+    private void doNewPinCardRequest(final String accountNumber, final String cookie, final String username,
                                      final CallbackBuilder callbackBuilder) {
-        authenticationClient.putFormAsyncWith2Params("/services/authentication/card", "accountNumber",
-                accountNumber, "cookie", cookie, (code, contentType, body) -> {
+        authenticationClient.putFormAsyncWith3Params("/services/authentication/card", "accountNumber",
+                accountNumber, "cookie", cookie, "username", username, (code, contentType, body) -> {
                     if (code == HTTP_OK) {
                         sendNewPinCardCallback(body, callbackBuilder);
                     } else {

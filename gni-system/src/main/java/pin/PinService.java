@@ -345,32 +345,42 @@ class PinService {
      * Creates a callbackbuilder so the result of the new pin card request can be sent to the request source and then
      * calls the correct exception handler to execute the request.
      * @param callback Used to send the result of the request to the request source.
-     * @param customerId CustomerId of the customer that wants a new pin card.
+     * @param requesterId CustomerId of the user that sent the request.
+     * @param ownerId CustomerId of the customer that wants a new pin card.
      * @param accountNumber AccountNumber the pin card should be created for.
      */
     @RequestMapping(value = "/card", method = RequestMethod.PUT)
-    public void addNewPinCard(final Callback<String> callback, final @RequestParam("customerId") String customerId,
+    public void addNewPinCard(final Callback<String> callback, final @RequestParam("requesterId") String requesterId,
+                              final @RequestParam("ownerId") String ownerId,
                               final @RequestParam("accountNumber") String accountNumber) {
         System.out.printf("%s Received new pin card request.\n", PREFIX);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handleNewPinCardExceptions(customerId, accountNumber, callbackBuilder);
+        handleNewPinCardExceptions(requesterId, ownerId, accountNumber, callbackBuilder);
     }
 
     /**
      * Creates a new pin card for the Customer with customerId and accountNumber if the creation succeeds sends the
      * result back to the request source, otherwise rejects the request.
-     * @param customerId CustomerId of the customer that requested a new card.
+     * @param requesterId CustomerId of the user that sent the request.
+     * @param ownerId CustomerId of the customer that will own the new card.
      * @param accountNumber AccountNumber the card should be created for.
      * @param callbackBuilder Used to send the creation result to the request source.
      */
-    private void handleNewPinCardExceptions(final String customerId, final String accountNumber,
+    private void handleNewPinCardExceptions(final String requesterId, final String ownerId, final String accountNumber,
                                             final CallbackBuilder callbackBuilder) {
         try {
             Long cardNumber = getNextAvailableCardNumber();
             String pinCode = generatePinCode();
             Date expirationDate = generateExpirationDate();
-            PinCard pinCard = JSONParser.createJsonPinCard(accountNumber, cardNumber, pinCode,
-                                                            Long.parseLong(customerId), expirationDate);
+            //todo check if the requester has permissions for the card.
+            PinCard pinCard;
+            if (ownerId.length() > 0) {
+                pinCard = JSONParser.createJsonPinCard(accountNumber, cardNumber, pinCode,
+                        Long.parseLong(ownerId), expirationDate);
+            } else {
+                pinCard = JSONParser.createJsonPinCard(accountNumber, cardNumber, pinCode,
+                        Long.parseLong(requesterId), expirationDate);
+            }
             addPinCardToDatabase(pinCard);
             sendNewPinCardCallback(pinCard, callbackBuilder);
         } catch (SQLException e) {
