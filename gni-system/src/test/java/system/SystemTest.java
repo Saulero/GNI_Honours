@@ -1,5 +1,6 @@
 package system;
 
+import api.ApiServiceMain;
 import authentication.AuthenticationServiceMain;
 import com.google.gson.Gson;
 import databeans.*;
@@ -11,6 +12,7 @@ import transactionin.TransactionReceiveServiceMain;
 import transactionout.TransactionDispatchServiceMain;
 import ui.UIServiceMain;
 import users.UsersServiceMain;
+import util.BootSystem;
 import util.JSONParser;
 import util.TableCreator;
 
@@ -50,7 +52,7 @@ public class SystemTest {
     public static void main(final String[] args) {
         TableCreator.truncateTables();
         Sys.sleep(1000);
-        initializeServices();
+        BootSystem.startServices();
         Sys.sleep(1000);
         //test variables
         //String ownAccountNumber = "NL00GNIB4134192911";
@@ -104,17 +106,6 @@ public class SystemTest {
         Sys.sleep(2000);
         TableCreator.truncateTables();
         System.exit(0);
-    }
-
-    private static void initializeServices() {
-        LedgerServiceMain.main();
-        UsersServiceMain.main();
-        UIServiceMain.main();
-        AuthenticationServiceMain.main();
-        PinServiceMain.main();
-        TransactionDispatchServiceMain.main();
-        TransactionReceiveServiceMain.main();
-        System.out.println("\n\n\n");
     }
 
     /**
