@@ -130,7 +130,7 @@ class UsersService {
      * @return List containing account numbers that belong to the customer.
      * @throws SQLException Indicates customer accounts could not be fetched.
      */
-    private void getCustomerAccounts(final long customerId, final CallbackBuilder callbackBuilder) throws SQLException {
+    void getCustomerAccounts(final long customerId, final CallbackBuilder callbackBuilder) throws SQLException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement getAccountsFromDb = databaseConnection.getConnection().prepareStatement(getAccountNumbers);
         getAccountsFromDb.setLong(1, customerId);

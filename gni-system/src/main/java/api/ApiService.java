@@ -39,12 +39,24 @@ public final class ApiService {
     /** Number of the ATM system for internal use*/
     private static final String ATMNUMBER = "NL52GNIB3676451168";
 
+    /**
+     * Constructor
+     * @param uiPort Port the ui service is located on.
+     * @param uiHost Host the ui service is located on.
+     * @param pinPort Port the pin service is located on.
+     * @param pinHost Host the ui service is located on.
+     */
     public ApiService(final int uiPort, final String uiHost, final int pinPort, final String pinHost) {
         uiClient = httpClientBuilder().setHost(uiHost).setPort(uiPort).buildAndStart();
         pinClient = httpClientBuilder().setHost(pinHost).setPort(pinPort).buildAndStart();
         jsonConverter = new Gson();
     }
 
+    /**
+     * Checks the type of the request that was received and calls the according method handler.
+     * @param callback Callback to the source of the request.
+     * @param requestJson Json string containing the request that was made.
+     */
     @RequestMapping(value = "/request", method = RequestMethod.POST)
     public void handleApiRequest(final Callback<String> callback, final @RequestParam("request") String requestJson) {
         try {
@@ -89,6 +101,14 @@ public final class ApiService {
         }
     }
 
+    /**
+     * Creates a customer object that represents the customer an account should be created for. This method will create
+     * getAuthTokenForPinCard information for a customer, put the customer's information into the system and create a new bank account
+     * for the customer.
+     * @param params all parameters for the method call, if a parameter is not in this map the request will be rejected.
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     * @param id Id of the request.
+     */
     private void openAccount(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                              final Object id) {
         Customer customer = JSONParser.createJsonCustomer((String) params.get("initials"), (String) params.get("name"),
@@ -99,13 +119,21 @@ public final class ApiService {
         doNewCustomerRequest(customer, callbackBuilder, id);
     }
 
+    /**
+     * Sends a new customer request to the ui service for processing, if this is successfull logs in and requests a
+     * new pin card and sends the result of the request back to the request source.
+     * @param customer Customer that will be created in the system.
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     * @param id Id of the request.
+     */
     private void doNewCustomerRequest(final Customer customer, final CallbackBuilder callbackBuilder, final Object id) {
         uiClient.putFormAsyncWith1Param("/services/ui/customer", "customer",
                 jsonConverter.toJson(customer), (statusCode, contentType, replyJson) -> {
                     if (statusCode == HTTP_OK) {
-                        Customer reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyJson), Customer.class);
+                        Customer reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyJson),
+                                                                Customer.class);
                         System.out.printf("%s Customer successfully created in the system.\n\n\n\n", PREFIX);
-                        login(customer.getUsername(), customer.getPassword(),
+                        getAuthTokenForPinCard(customer.getUsername(), customer.getPassword(),
                                 reply.getAccount().getAccountNumber(), callbackBuilder, id);
                     } else {
                         System.out.printf("%s Customer creation request failed, body: %s\n\n\n\n", PREFIX, replyJson);
@@ -114,17 +142,25 @@ public final class ApiService {
                 });
     }
 
-    private void login(final String username, final String password, final String accountNumber,
-                       final CallbackBuilder callbackBuilder, final Object id) {
+    /**
+     * Performs a login request to fetch an authentication that can be used to request a new pin card, then performs a
+     * new pin card request.
+     * @param username Username to login with.
+     * @param password Password to login with.
+     * @param accountNumber AccountNumber the new pin card should be requested for.
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     * @param id Id of the request.
+     */
+    private void getAuthTokenForPinCard(final String username, final String password, final String accountNumber,
+                                        final CallbackBuilder callbackBuilder, final Object id) {
         Authentication authentication = JSONParser.createJsonAuthenticationLogin(username, password);
-        Gson gson = new Gson();
         System.out.printf("%s Logging in.\n", PREFIX);
-        uiClient.putFormAsyncWith1Param("/services/ui/login", "authData", gson.toJson(authentication),
+        uiClient.putFormAsyncWith1Param("/services/ui/getAuthTokenForPinCard", "authData", jsonConverter.toJson(authentication),
                 (code, contentType, body) -> {
                     if (code == HTTP_OK) {
-                        Authentication authenticationReply = gson.fromJson(JSONParser.removeEscapeCharacters(body),
+                        Authentication authenticationReply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
                                 Authentication.class);
-                        System.out.printf("%s Successfull login, set the following cookie: %s\n\n\n\n",
+                        System.out.printf("%s Successfull getAuthTokenForPinCard, set the following cookie: %s\n\n\n\n",
                                 PREFIX, authenticationReply.getCookie());
                         doNewPinCardRequest(accountNumber, authenticationReply.getCookie(), callbackBuilder, id, false);
                     } else {
@@ -134,6 +170,14 @@ public final class ApiService {
                 });
     }
 
+    /**
+     * Performs a new pin card request for a given account number.
+     * @param accountNumber AccountNumber the new pin card should be linked to.
+     * @param cookie Cookie used to perform the request.
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     * @param id Id of the request.
+     * @param accountNrInResult Boolean indicating if the accountNumber should be in the result of the request.
+     */
     private void doNewPinCardRequest(final String accountNumber, final String cookie,
                                      final CallbackBuilder callbackBuilder, final Object id,
                                      final boolean accountNrInResult) {
@@ -157,6 +201,14 @@ public final class ApiService {
                 });
     }
 
+    /**
+     * Creates and sends a JSONRPC response for an openAccount request.
+     * @param callbackBuilder Used to send the result of the request to the request source.
+     * @param accountNumber AccountNumber of the opened account.
+     * @param cardNumber CardNumber of the card created with the new account.
+     * @param pinCode Pincode for the new pinCard.
+     * @param id Id of the request.
+     */
     private void sendOpenAccountCallback(final CallbackBuilder callbackBuilder, final String accountNumber,
                                          final Long cardNumber, final String pinCode, final Object id) {
         Map<String, Object> result = new HashMap<>();
@@ -167,6 +219,13 @@ public final class ApiService {
         callbackBuilder.build().reply(response.toJSONString());
     }
 
+    /**
+     * Creates and sends a JSONRPC response for an Access request.
+     * @param callbackBuilder Used to send the result of the request to the request source.
+     * @param cardNumber CardNumber of the card created with the new access link.
+     * @param pinCode Pincode for the new pinCard.
+     * @param id Id of the request.
+     */
     private void sendAccessRequestCallback(final CallbackBuilder callbackBuilder, final Long cardNumber,
                                            final String pinCode, final Object id) {
         Map<String, Object> result = new HashMap<>();
@@ -176,6 +235,12 @@ public final class ApiService {
         callbackBuilder.build().reply(response.toJSONString());
     }
 
+    /**
+     * Opens an additional account for a customer.
+     * @param params Map containing all the request parameters(authToken).
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     * @param id Id of the request.
+     */
     private void openAdditionalAccount(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                                        final Object id) {
         String cookie = (String) params.get("authToken");
@@ -195,6 +260,12 @@ public final class ApiService {
         });
     }
 
+    /**
+     * Removes an account from the system.
+     * @param params Map containing the parameters of the request (authToken, IBAN).
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     * @param id Id of the request.
+     */
     private void closeAccount(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                               final Object id) {
         uiClient.putFormAsyncWith2Params("/services/ui/account/remove", "accountNumber",
@@ -208,6 +279,12 @@ public final class ApiService {
                 });
     }
 
+    /**
+     * Sends te result of the closeAccountRequest back to the request source using a JSONRPC object.
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     * @param id Id of the request.
+     * @param replyAccountNumber Used to show which accountNumber is closed.
+     */
     private void sendCloseAccountCallback(final CallbackBuilder callbackBuilder, final Object id,
                                           final String replyAccountNumber) {
         System.out.printf("%s Successfully closed account %s\n\n\n\n", PREFIX, replyAccountNumber);
@@ -216,6 +293,13 @@ public final class ApiService {
         callbackBuilder.build().reply(response.toJSONString());
     }
 
+    /**
+     * Links an account to the user with the username specified in params. Then creates a new pin card for the user
+     * and returns the pincard and pincode.
+     * @param params Parameters of the request(authToken, iBAN, username).
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     * @param id Id of the request.
+     */
     private void provideAccess(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                                final Object id) {
         // does an account Link to a username(so we need a conversion for this internally)
@@ -243,6 +327,12 @@ public final class ApiService {
         });
     }
 
+    /**
+     * Removes a users access to an account based on the username specified.
+     * @param params Parameters of the request (authToken, iBAN, username).
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     * @param id Id of the request.
+     */
     private void revokeAccess(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                               final Object id) {
         //todo add functionality for account Link removal
@@ -250,6 +340,12 @@ public final class ApiService {
         // look at documentation for more specifics.
     }
 
+    /**
+     * Makes a deposit into an account using a pincard.
+     * @param params Parameters of the request (iBAN, pinCard, pinCode, amount).
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     * @param id Id of the request.
+     */
     private void depositIntoAccount(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                                     final Object id) {
         PinTransaction pin = JSONParser.createJsonPinTransaction(ATMNUMBER, (String) params.get("iBAN"),
@@ -280,6 +376,13 @@ public final class ApiService {
                 });
     }
 
+    /**
+     * A money transfer between accounts by use of a pinCard, the user doing the transaction needs to use a pinCard
+     * linked to the sourceAccount.
+     * @param params Parameters of the request (sourceIBAN, targetIBAN, pinCard, pinCode, amount).
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     * @param id Id of the request.
+     */
     private void payFromAccount(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                                 final Object id) {
         PinTransaction pin = JSONParser.createJsonPinTransaction((String) params.get("sourceIBAN"),
@@ -310,6 +413,13 @@ public final class ApiService {
                 });
     }
 
+    /**
+     * Transfer money between accounts, the authToken needs to belong to a user that is authorized to make transactions
+     * from the sourceAccount.
+     * @param params Parameters of the request (authToken, sourceIBAN, targetIBAN, targetName, amount, description).
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     * @param id Id of the request.
+     */
     private void transferMoney(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                                final Object id) {
         Transaction transaction = JSONParser.createJsonTransaction(-1, (String) params.get("sourceIBAN"),
@@ -343,18 +453,24 @@ public final class ApiService {
                 });
     }
 
+    /**
+     * Logs a user into the system and sends the user an authToken to authorize himself.
+     * @param params Parameters of the request (username, password).
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     * @param id Id of the request.
+     */
     private void getAuthToken(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                               final Object id) {
         Authentication authentication = JSONParser.createJsonAuthenticationLogin((String) params.get("username"),
                 (String) params.get("password"));
         Gson gson = new Gson();
         System.out.printf("%s Logging in.\n", PREFIX);
-        uiClient.putFormAsyncWith1Param("/services/ui/login", "authData", gson.toJson(authentication),
+        uiClient.putFormAsyncWith1Param("/services/ui/getAuthTokenForPinCard", "authData", gson.toJson(authentication),
                 (code, contentType, body) -> {
                     if (code == HTTP_OK) {
                         Authentication authenticationReply = gson.fromJson(JSONParser.removeEscapeCharacters(body),
                                 Authentication.class);
-                        System.out.printf("%s Successfull login, set the following cookie: %s\n\n\n\n",
+                        System.out.printf("%s Successfull getAuthTokenForPinCard, set the following cookie: %s\n\n\n\n",
                                 PREFIX, authenticationReply.getCookie());
                         Map<String, Object> result = new HashMap<>();
                         result.put("authToken", authenticationReply.getCookie());
@@ -366,6 +482,14 @@ public final class ApiService {
                     }
                 });
     }
+
+    /**
+     * Fetches the balance for a bank account, the authToken needs to belong to a user that is authorized to view
+     * the balance of the iBAN.
+     * @param params Parameters of the request (authToken, iBAN).
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     * @param id Id of the request.
+     */
     private void getBalance(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                             final Object id) {
         DataRequest request = JSONParser.createJsonDataRequest((String) params.get("iBAN"), RequestType.BALANCE,
@@ -389,6 +513,13 @@ public final class ApiService {
         });
     }
 
+    /**
+     * Fetches the transaction history of an account, the authToken needs to belong to a user that is authorized to view
+     * the transaction history of the iBAN.
+     * @param params Parameters of the request (authToken, iBAN, nrOfTransactions).
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     * @param id Id of the request.
+     */
     private void getTransactionsOverview(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                                          final Object id) {
         DataRequest request = JSONParser.createJsonDataRequest((String) params.get("iBAN"),
@@ -419,6 +550,13 @@ public final class ApiService {
                     }
                 });
     }
+
+    /**
+     * Fetches a list of all the accounts that a user has access to.
+     * @param params Parameters of the request (authToken).
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     * @param id Id of the request.
+     */
     private void getUserAccess(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                                final Object id) {
         DataRequest request = JSONParser.createJsonDataRequest((String) params.get("iBAN"),
@@ -445,6 +583,13 @@ public final class ApiService {
                     }
                 });
     }
+
+    /**
+     * Fetches a list of all users that have access to a specific bankAccount.
+     * @param params Parameters of the request (authToken, iBAN).
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     * @param id Id of the request.
+     */
     private void getBankAccountAccess(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                                       final Object id) {
         // not yet in the system functionality, will need to be added.
