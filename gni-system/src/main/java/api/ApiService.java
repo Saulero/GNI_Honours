@@ -306,11 +306,13 @@ final class ApiService {
                                final Object id) {
         // does an account Link to a username(so we need a conversion for this internally)
         // then performs a new pin card request for the customer with username.
-        AccountLink request = JSONParser.createJsonAccountLink((String) params.get("iBAN"),
-                                                                (String) params.get("username"), false);
+        final String username = (String) params.get("username");
+        final String cookie = (String) params.get("authToken");
+        AccountLink request = JSONParser.createJsonAccountLink((String) params.get("iBAN"), username,
+                                                                false);
         System.out.printf("%s Sending account link request.\n", PREFIX);
         uiClient.putFormAsyncWith2Params("/services/ui/account", "request",
-                jsonConverter.toJson(request), "cookie", params.get("authToken"),
+                jsonConverter.toJson(request), "cookie", cookie,
                 (code, contentType, body) -> {
             if (code == HTTP_OK) {
                 AccountLink reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
@@ -319,8 +321,7 @@ final class ApiService {
                     String accountNumber = reply.getAccountNumber();
                     System.out.printf("%s Account link successfull for Account Holder: %s, AccountNumber: %s\n\n\n\n",
                             PREFIX, reply.getCustomerId(), accountNumber);
-
-                    //todo do new pin card request with cookie belonging to user with username.
+                    doNewPinCardRequest(accountNumber, username, cookie, callbackBuilder, id, false);
                 } else {
                     System.out.printf("%s Account link creation unsuccessfull.\n\n\n\n", PREFIX);
                     //todo send back failure
