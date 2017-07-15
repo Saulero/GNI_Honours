@@ -521,6 +521,76 @@ final class UIService {
     }
 
     /**
+     * Checks the input of the request and then forwards it to the authentication service.
+     * @param callback Used to send the result of the request back to the source of the request.
+     * @param accountLinkJson Json string representing an {@link AccountLink} that should be removed from the
+     *                               system.
+     * @param cookie Cookie of the User that sent the request.
+     */
+    @RequestMapping(value = "/account/remove", method = RequestMethod.POST)
+    public void processAccountLinkRemoval(final Callback<String> callback,
+                                          @RequestParam("request") final String accountLinkJson,
+                                          @RequestParam("cookie") final String cookie) {
+        System.out.printf("%s Forwarding account link removal.\n", PREFIX);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleAccountLinkRemovalExceptions(accountLinkJson, cookie, callbackBuilder);
+    }
+
+    /**
+     * Tries to parse the accountLink and verifies it contains a correct accountNumber. Then forwards the request to
+     * the authenticationService.
+     * @param accountLinkJson Json string representing an {@link AccountLink} that should be removed from the
+     *                               system.
+     * @param cookie Cookie of the User that sent the request.
+     * @param callbackBuilder Used to send the result of the request back to the source of the request.
+     */
+    private void handleAccountLinkRemovalExceptions(final String accountLinkJson, final String cookie,
+                                             final CallbackBuilder callbackBuilder) {
+        try {
+            verifyAccountLinkInput(accountLinkJson);
+            doAccountLinkRemoval(accountLinkJson, cookie, callbackBuilder);
+        } catch (IncorrectInputException e) {
+            System.out.printf("%s %s", PREFIX, e.getMessage());
+            callbackBuilder.build().reject(e.getMessage());
+        } catch (JsonSyntaxException e) {
+            System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
+            callbackBuilder.build().reject("Syntax error when parsing json.");
+        }
+    }
+
+    /**
+     * Forwards a String representing an account link that is to be removed from the system to the Authentication
+     * Service, and processes the reply if it is successfull or sends a rejection to the requesting source if it fails.
+     * @param accountLinkRequestJson String representing an {@link AccountLink} that should be removed from the system.
+     * @param cookie Cookie of the User that sent the request.
+     * @param callbackBuilder Used to send the result of the request back to the source of the request.
+     */
+    private void doAccountLinkRemoval(final String accountLinkRequestJson, final String cookie,
+                                      final CallbackBuilder callbackBuilder) {
+        authenticationClient.putFormAsyncWith2Params("/services/authentication/account", "request",
+                accountLinkRequestJson, "cookie", cookie,
+                ((httpStatusCode, httpContentType, accountLinkReplyJson) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        sendAccountLinkRemovalCallback(accountLinkReplyJson, callbackBuilder);
+                    } else {
+                        callbackBuilder.build().reject("AccountLink request failed.");
+                    }
+                }));
+    }
+
+    /**
+     * Forwards the result of an account link removal to the service that sent the request.
+     * @param accountLinkReplyJson Json String representing the result of an account link removal.
+     * @param callbackBuilder Used to send the result of the request back to the source of the request.
+     */
+    private void sendAccountLinkRemovalCallback(final String accountLinkReplyJson,
+                                                final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Successfull account link removal, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(accountLinkReplyJson));
+    }
+
+
+    /**
      * Creates a callback builder for the account creation request and then forwards the request to the Authentication
      * Service.
      * @param callback Used to send the result of the request back to the source of the request.

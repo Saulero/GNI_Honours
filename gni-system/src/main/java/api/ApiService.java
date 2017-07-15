@@ -341,9 +341,29 @@ final class ApiService {
      */
     private void revokeAccess(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                               final Object id) {
-        //todo add functionality for account Link removal
-        // performs an account Link removal and then removes the pincard(s) of said customer.
-        // look at documentation for more specifics.
+        final String cookie = (String) params.get("authToken");
+        final String username = (String) params.get("username");
+        AccountLink linkToRemove = JSONParser.createJsonAccountLink((String) params.get("iBAN"), username, false);
+        uiClient.postFormAsyncWith2Params("/services/ui/account/remove", "request",
+                        jsonConverter.toJson(linkToRemove), "cookie", cookie, (code, contentType, body) -> {
+            if (code == HTTP_OK) {
+                AccountLink reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
+                        AccountLink.class);
+                if (reply.isSuccessful()) {
+                    String accountNumber = reply.getAccountNumber();
+                    System.out.printf("%s Account link successfully removed for Account Holder: %s"
+                                    + ", AccountNumber: %s\n\n\n\n", PREFIX, reply.getCustomerId(), accountNumber);
+                    //todo do pincard removal request.
+                    doNewPinCardRequest(accountNumber, username, cookie, callbackBuilder, id, false);
+                } else {
+                    System.out.printf("%s Account link creation unsuccessfull.\n\n\n\n", PREFIX);
+                    //todo send back failure
+                }
+            } else {
+                System.out.printf("%s Account link removal failed.\n\n\n\n", PREFIX);
+                //todo send back failure
+            }
+        });
     }
 
     /**
