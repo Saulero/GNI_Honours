@@ -442,7 +442,7 @@ final class UIService {
      * @param accountLinkRequestJson Json string representing an {@link AccountLink} that should be created in the
      *                               database.
      */
-    @RequestMapping(value = "/account", method = RequestMethod.PUT)
+    @RequestMapping(value = "/accountLink", method = RequestMethod.PUT)
     public void processAccountLinkRequest(final Callback<String> callback,
                                           @RequestParam("request") final String accountLinkRequestJson,
                                           @RequestParam("cookie") final String cookie) {
@@ -498,7 +498,7 @@ final class UIService {
      */
     private void doAccountLinkRequest(final String accountLinkRequestJson, final String cookie,
                                       final CallbackBuilder callbackBuilder) {
-        authenticationClient.putFormAsyncWith2Params("/services/authentication/account", "request",
+        authenticationClient.putFormAsyncWith2Params("/services/authentication/accountLink", "request",
                 accountLinkRequestJson, "cookie", cookie,
                 ((httpStatusCode, httpContentType, accountLinkReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
@@ -527,7 +527,7 @@ final class UIService {
      *                               system.
      * @param cookie Cookie of the User that sent the request.
      */
-    @RequestMapping(value = "/account/remove", method = RequestMethod.POST)
+    @RequestMapping(value = "/accountLink/remove", method = RequestMethod.POST)
     public void processAccountLinkRemoval(final Callback<String> callback,
                                           @RequestParam("request") final String accountLinkJson,
                                           @RequestParam("cookie") final String cookie) {
@@ -567,7 +567,7 @@ final class UIService {
      */
     private void doAccountLinkRemoval(final String accountLinkRequestJson, final String cookie,
                                       final CallbackBuilder callbackBuilder) {
-        authenticationClient.putFormAsyncWith2Params("/services/authentication/account", "request",
+        authenticationClient.putFormAsyncWith2Params("/services/authentication/accountLink/remove", "request",
                 accountLinkRequestJson, "cookie", cookie,
                 ((httpStatusCode, httpContentType, accountLinkReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {

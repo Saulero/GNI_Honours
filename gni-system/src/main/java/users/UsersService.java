@@ -490,7 +490,7 @@ class UsersService {
      * @param accountLinkRequestJson Json string representing an {@link AccountLink} object containing
      *             an account number which is to be attached to the customer with the specified customerId.
      */
-    @RequestMapping(value = "/account", method = RequestMethod.PUT)
+    @RequestMapping(value = "/accountLink", method = RequestMethod.PUT)
     public void processAccountLink(final Callback<String> callback,
                                    final @RequestParam("body") String accountLinkRequestJson) {
         System.out.printf("%s Received account link request.\n", PREFIX);
@@ -587,6 +587,29 @@ class UsersService {
         AccountLink reply = JSONParser.createJsonAccountLink(accountNumber, customerId, true);
         System.out.printf("%s Account link successfull, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(jsonConverter.toJson(reply));
+    }
+
+    /**
+     * Takes an account link request, extracts the needed variables and then removes this link from the system.
+     * @param callback Used to send a reply back to the service that sent the request.
+     * @param accountLinkRequestJson Json string representing an {@link AccountLink} object containing
+     *             an account number and customer id, the access of the customer with customer id is removed
+     *                               from the account with accountNumber.
+     */
+    @RequestMapping(value = "/accountLink/remove", method = RequestMethod.PUT)
+    public void processAccountLinkRemoval(final Callback<String> callback,
+                                          final @RequestParam("request") String accountLinkRequestJson,
+                                          final @RequestParam("cookie") String cookie) {
+        System.out.printf("%s Received account link removal.\n", PREFIX);
+        AccountLink accountLink = jsonConverter.fromJson(accountLinkRequestJson, AccountLink.class);
+        long customerId = accountLink.getCustomerId();
+        String accountNumber = accountLink.getAccountNumber();
+        final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        doAccountExistsRequest(accountNumber, customerId, callbackBuilder);
+    }
+
+    private void removeAccountLink(final String accountNumber, final String ownerId, final String cookie) {
+        //todo finish
     }
 
     /**

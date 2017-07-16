@@ -273,8 +273,6 @@ final class ApiService {
         uiClient.putFormAsyncWith2Params("/services/ui/account/remove", "accountNumber",
                 params.get("iBAN"), "cookie", params.get("authToken"), (code, contentType, body) -> {
                     if (code == HTTP_OK) {
-                        //todo remove all pincards for this account
-                        //todo if this is the only account of the customer remove customer from system
                         sendCloseAccountCallback(callbackBuilder, id, body);
                     } else {
                         System.out.printf("%s Account closing failed.\n\n\n\n", PREFIX);
@@ -306,14 +304,12 @@ final class ApiService {
      */
     private void provideAccess(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                                final Object id) {
-        // does an account Link to a username(so we need a conversion for this internally)
-        // then performs a new pin card request for the customer with username.
         final String username = (String) params.get("username");
         final String cookie = (String) params.get("authToken");
         AccountLink request = JSONParser.createJsonAccountLink((String) params.get("iBAN"), username,
                                                                 false);
         System.out.printf("%s Sending account link request.\n", PREFIX);
-        uiClient.putFormAsyncWith2Params("/services/ui/account", "request",
+        uiClient.putFormAsyncWith2Params("/services/ui/accountLink", "request",
                 jsonConverter.toJson(request), "cookie", cookie,
                 (code, contentType, body) -> {
             if (code == HTTP_OK) {
@@ -347,7 +343,7 @@ final class ApiService {
         final String cookie = (String) params.get("authToken");
         final String username = (String) params.get("username");
         AccountLink linkToRemove = JSONParser.createJsonAccountLink((String) params.get("iBAN"), username, false);
-        uiClient.postFormAsyncWith2Params("/services/ui/account/remove", "request",
+        uiClient.postFormAsyncWith2Params("/services/ui/accountLink/remove", "request",
                         jsonConverter.toJson(linkToRemove), "cookie", cookie, (code, contentType, body) -> {
             if (code == HTTP_OK) {
                 AccountLink reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),

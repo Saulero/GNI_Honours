@@ -501,7 +501,7 @@ class AuthenticationService {
      * @param accountLinkRequestJson Json string representing an {@link AccountLink} that should be created in the
      *                               database.
      */
-    @RequestMapping(value = "/account", method = RequestMethod.PUT)
+    @RequestMapping(value = "/accountLink", method = RequestMethod.PUT)
     public void processAccountLinkRequest(final Callback<String> callback,
                                           @RequestParam("request") final String accountLinkRequestJson,
                                           @RequestParam("cookie") final String cookie) {
@@ -562,7 +562,7 @@ class AuthenticationService {
      * @param callbackBuilder Used to send the result of the request back to the source of the request.
      */
     private void doAccountLinkRequest(final String accountLinkRequestJson, final CallbackBuilder callbackBuilder) {
-        usersClient.putFormAsyncWith1Param("/services/users/account", "body", accountLinkRequestJson,
+        usersClient.putFormAsyncWith1Param("/services/users/accountLink", "body", accountLinkRequestJson,
                 ((httpStatusCode, httpContentType, accountLinkReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         sendAccountLinkRequestCallback(accountLinkReplyJson, callbackBuilder);
@@ -582,6 +582,37 @@ class AuthenticationService {
                                                 final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Successfull account link, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(accountLinkReplyJson));
+    }
+
+    @RequestMapping(value = "/accountLink/remove", method = RequestMethod.PUT)
+    public void processAccountLinkRemoval(final Callback<String> callback,
+                                          @RequestParam("request") final String accountLinkJson,
+                                          @RequestParam("cookie") final String cookie) {
+        AccountLink linkToRemove = jsonConverter.fromJson(accountLinkJson, AccountLink.class);
+        try {
+            linkToRemove.setCustomerId(getCustomerIdFromUsername(linkToRemove.getUsername()));
+            System.out.printf("%s Forwarding account link removal for customer %d account number %s.\n", PREFIX,
+                                linkToRemove.getCustomerId(), linkToRemove.getAccountNumber());
+            CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+            handleAccountLinkExceptions(linkToRemove, cookie, callbackBuilder);
+        } catch (SQLException e) {
+            callback.reject("Sqlexception occurred.");
+        } catch (CustomerDoesNotExistException e) {
+            callback.reject("Username field incorrectly specified.");
+        }
+    }
+
+    private void doAccountLinkRemoval(final AccountLink accountLink, final String cookie,
+                                      final CallbackBuilder callbackBuilder) {
+        usersClient.putFormAsyncWith2Params("/services/users/accountLink/remove", "request",
+                                            jsonConverter.toJson(accountLink), "cookie", cookie,
+                                            (httpStatusCode, httpContentType, newAccountReplyJson) -> {
+            if (httpStatusCode == HTTP_OK) {
+                //todo handle users response
+            } else {
+                callbackBuilder.build().reject("Error connecting to users service.");
+            }
+        });
     }
 
     /**
