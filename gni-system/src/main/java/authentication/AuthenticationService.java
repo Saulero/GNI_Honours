@@ -769,8 +769,12 @@ class AuthenticationService {
         try {
             authenticateRequest(cookie);
             Long requesterId = getCustomerId(cookie);
-            fetchCardOwnerId(accountNumber, Long.toString(requesterId), username, callbackBuilder);
-            //todo change to fetch id here.
+            Long ownerId = getIdFromUsername(username);
+            if (ownerId != null) {
+                doNewPinCardRequest(accountNumber, Long.toString(requesterId), Long.toString(ownerId), callbackBuilder);
+            } else {
+                callbackBuilder.build().reject("OwnerId could not be found. Username does not exist.");
+            }
         } catch (SQLException e) {
             callbackBuilder.build().reject("Error connecting to authentication database.");
         } catch (UserNotAuthorizedException e) {
@@ -780,23 +784,26 @@ class AuthenticationService {
     }
 
     /**
-     * Fetch the customerId of the owner of the card from the users service and then create the new card in the system.
-     * @param accountNumber AccountNumber the card is for.
-     * @param requesterId CustomerId of the user that sent the request.
-     * @param username Username of the user the card should be created for.
-     * @param callbackBuilder Used to send the result of the request to the request source.
+     * Fetch the customerId of the user with username.
+     * @param username Username of the user the customerId must be located for.
      */
-    private void fetchCardOwnerId(final String accountNumber, final String requesterId, final String username,
-                                  final CallbackBuilder callbackBuilder) {
-        // send call to usersService requesting the id of user with username.
-        usersClient.getAsyncWith1Param("/services/users/customerId", "username", username,
-                (httpStatusCode, httpContentType, ownerId) -> {
-                    if (httpStatusCode == HTTP_OK) {
-                        doNewPinCardRequest(accountNumber, requesterId, ownerId, callbackBuilder);
-                    } else {
-                        callbackBuilder.build().reject("new pin card request failed.");
-                    }
-                });
+    private Long getIdFromUsername(final String username) {
+        try {
+            SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+            PreparedStatement getCustomerID = databaseConnection.getConnection()
+                    .prepareStatement(SQLStatements.getCustomerIdFromUsername);
+            getCustomerID.setString(1, username);
+            ResultSet customerIds = getCustomerID.executeQuery();
+            Long customerId = null;
+            if (customerIds.next()) {
+                customerId = customerIds.getLong("user_id");
+            }
+            getCustomerID.close();
+            databaseConnectionPool.returnConnection(databaseConnection);
+            return customerId;
+        } catch (SQLException e) {
+            return null;
+        }
     }
 
     /**
