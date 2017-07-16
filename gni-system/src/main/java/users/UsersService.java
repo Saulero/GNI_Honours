@@ -106,7 +106,8 @@ class UsersService {
      */
     private void handleAccountsRequestExceptions(final long customerId, final CallbackBuilder callbackBuilder) {
         try {
-            getCustomerAccounts(customerId, callbackBuilder);
+            List<String> customerAccounts = getCustomerAccounts(customerId);
+            forwardAccountsRequest(customerAccounts, callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
             callbackBuilder.build().reject(e);
@@ -130,7 +131,7 @@ class UsersService {
      * @return List containing account numbers that belong to the customer.
      * @throws SQLException Indicates customer accounts could not be fetched.
      */
-    void getCustomerAccounts(final long customerId, final CallbackBuilder callbackBuilder) throws SQLException {
+    List<String> getCustomerAccounts(final long customerId) throws SQLException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement getAccountsFromDb = databaseConnection.getConnection().prepareStatement(getAccountNumbers);
         getAccountsFromDb.setLong(1, customerId);
@@ -143,14 +144,14 @@ class UsersService {
         }
         getAccountsFromDb.close();
         databaseConnectionPool.returnConnection(databaseConnection);
-        fetchAccountOwners(linkedAccounts);
+        return  linkedAccounts;
     }
 
-    private void fetchAccountOwners(final List<String> accounts) {
+    private void forwardAccountsRequest(final List<String> accounts, final CallbackBuilder callbackBuilder) {
         DataRequest request = new DataRequest();
         request.setType(RequestType.OWNERS);
         request.setAccountNumbers(accounts);
-        doLedgerDataRequest(request, CallbackBuilder.callbackBuilder());
+        doLedgerDataRequest(request, callbackBuilder);
     }
 
     /**
@@ -719,8 +720,7 @@ class UsersService {
             if (httpStatusCode == HTTP_OK) {
                 try {
                     removeAccountLink(accountNumber, customerId);
-                    //todo is this was the only account of customer with customerId, remove customer.
-                    sendAccountRemovalCallback(jsonReply, callbackBuilder);
+                    checkIfCustomerOwnsAccounts(customerId, callbackBuilder);
                 } catch (SQLException e) {
                     System.out.printf("%s Failed to remove accountLink, sending rejection.\n", PREFIX);
                     callbackBuilder.build().reject(e.getMessage());
@@ -731,14 +731,74 @@ class UsersService {
         });
     }
 
-    private void sendAccountRemovalCallback(final String jsonReply, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Account removal successfull, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(jsonReply));
+    /**
+     * Checks if the customer still owns accounts in the system, and if the customer does not the customer is
+     * removed from the system.
+     * @param customerId Id of the customer to check accounts for.
+     * @param callbackBuilder Used to send the result of the request to the request source.
+     */
+    private void checkIfCustomerOwnsAccounts(final Long customerId, CallbackBuilder callbackBuilder)
+                                             throws SQLException {
+        List<String> customerAccounts = getCustomerAccounts(customerId);
+        if (customerAccounts.size() > 0) {
+            DataRequest request = new DataRequest();
+            request.setType(RequestType.OWNERS);
+            request.setAccountNumbers(customerAccounts);
+            ledgerClient.getAsyncWith1Param("/services/ledger/data", "request",
+                    jsonConverter.toJson(request), (httpStatusCode, httpContentType, dataReplyJson) -> {
+                        if (httpStatusCode == HTTP_OK) {
+                            DataReply dataReply = jsonConverter.fromJson(dataReplyJson, DataReply.class);
+                            List<AccountLink> accountLinks = dataReply.getAccounts();
+                            int accountsOwned = 0;
+                            for (AccountLink link : accountLinks) {
+                                if (link.getCustomerId().equals(customerId)) {
+                                    accountsOwned += 1;
+                                }
+                            }
+                            boolean removedCustomer = false;
+                            if (accountsOwned < 1) {
+                                removeCustomer(customerId);
+                                removedCustomer = true;
+                            }
+                            sendAccountRemovalCallback(removedCustomer, true, "", callbackBuilder);
+                        } else {
+                            sendAccountRemovalCallback(false, false,
+                                                        "Internal database error", callbackBuilder);
+                        }
+                    });
+        } else {
+            removeCustomer(customerId);
+            sendAccountRemovalCallback(true, true, "", callbackBuilder);
+        }
     }
 
-    @RequestMapping(value = "/customerId", method = RequestMethod.GET)
-    public void handleCustomerIdRequest(@RequestParam("username") final String username) {
+    /**
+     * Removes a customer from the users database.
+     * @param customerId Id of the customer to remove.
+     */
+    private void removeCustomer(final Long customerId) {
+        try {
+            SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+            PreparedStatement removeCustomer = databaseConnection.getConnection()
+                    .prepareStatement(SQLStatements.removeCustomer);
+            removeCustomer.setLong(1, customerId);
+            removeCustomer.execute();
+            removeCustomer.close();
+            PreparedStatement removeLinks = databaseConnection.getConnection().prepareCall(removeCustomerLinks);
+            removeLinks.setLong(1, customerId);
+            removeLinks.execute();
+            removeLinks.close();
+            databaseConnectionPool.returnConnection(databaseConnection);
+        } catch (SQLException e) {
+            System.out.printf("%s Failed to remove customer from system", PREFIX);
+        }
+    }
 
+    private void sendAccountRemovalCallback(final boolean removedCustomer, final boolean successfull,
+                                            final String errorMessage, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Account removal successfull, sending callback.\n", PREFIX);
+        CloseAccountReply reply = JSONParser.createCloseAccountReply(removedCustomer, successfull, errorMessage);
+        callbackBuilder.build().reply(jsonConverter.toJson(reply));
     }
 
     /**

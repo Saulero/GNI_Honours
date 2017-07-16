@@ -298,6 +298,15 @@ public final class JSONParser {
         return pinCard;
     }
 
+    public static CloseAccountReply createCloseAccountReply(final boolean removedCustomer, final boolean successfull,
+                                                            final String errorMessage) {
+        CloseAccountReply reply = new CloseAccountReply();
+        reply.setCustomerRemoved(removedCustomer);
+        reply.setSuccessfull(successfull);
+        reply.setErrorMessage(errorMessage);
+        return reply;
+    }
+
     /**
      * Removes escape characters from a string, this is done to be able to parse json strings received through
      * a callback, as a callback adds escape characters to the json string.

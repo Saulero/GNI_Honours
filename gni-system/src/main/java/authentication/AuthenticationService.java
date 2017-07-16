@@ -3,6 +3,7 @@ package authentication;
 import com.google.gson.Gson;
 import database.ConnectionPool;
 import database.SQLConnection;
+import database.SQLStatements;
 import databeans.*;
 import io.advantageous.qbit.annotation.RequestMapping;
 import io.advantageous.qbit.annotation.RequestMethod;
@@ -687,11 +688,33 @@ class AuthenticationService {
                 "accountNumber", accountNumber, "customerId", customerId,
                 (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        doAccountPinCardsRemovalRequest(accountNumber, callbackBuilder);
+                        CloseAccountReply reply = jsonConverter.fromJson(replyJson, CloseAccountReply.class);
+                        if (!reply.isSuccessfull()) {
+                            callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(replyJson));
+                        } else {
+                            if (reply.isCustomerRemoved()) {
+                                removeCustomerTokens(customerId);
+                            }
+                            doAccountPinCardsRemovalRequest(accountNumber, callbackBuilder);
+                        }
                     } else {
                         callbackBuilder.build().reject("Account removal request failed.");
                     }
                 });
+    }
+
+    private void removeCustomerTokens(final String customerId) {
+        try {
+            SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+            PreparedStatement removeTokens = databaseConnection.getConnection()
+                    .prepareStatement(SQLStatements.removeCustomerTokens);
+            removeTokens.setLong(1, Long.parseLong(customerId));
+            removeTokens.execute();
+            removeTokens.close();
+            databaseConnectionPool.returnConnection(databaseConnection);
+        } catch (SQLException e) {
+            System.out.printf("%s failed to remove tokens when deleting customer.", PREFIX);
+        }
     }
 
     /**
@@ -747,6 +770,7 @@ class AuthenticationService {
             authenticateRequest(cookie);
             Long requesterId = getCustomerId(cookie);
             fetchCardOwnerId(accountNumber, Long.toString(requesterId), username, callbackBuilder);
+            //todo change to fetch id here.
         } catch (SQLException e) {
             callbackBuilder.build().reject("Error connecting to authentication database.");
         } catch (UserNotAuthorizedException e) {

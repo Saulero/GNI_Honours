@@ -37,6 +37,9 @@ public final class SQLStatements {
     public static final String getPinCard = "SELECT * FROM pin WHERE card_number = ?";
     public static final String removePinCard = "DELETE FROM pin WHERE account_number = ? AND user_id = ? AND card_number = ? AND pin_code = ?";
     public static final String removeAccountCards = "DELETE FROM pin WHERE account_number = ?";
+    public static final String removeCustomer = "DELETE FROM users WHERE id = ?";
+    public static final String removeCustomerTokens = "DELETE FROM authentication WHERE user_id = ?";
+    public static final String removeCustomerLinks = "DELETE FROM accounts WHERE user_id = ?";
     public static final String getHighestCardNumber = "SELECT MAX(card_number) FROM pin";
     public static final String removeAccountLink = "DELETE FROM accounts WHERE account_number = ?";
     public static final String getAccountNumberUsingCardNumber = "SELECT account_number FROM pin WHERE card_number = ?";
