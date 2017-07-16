@@ -687,11 +687,27 @@ class AuthenticationService {
                 "accountNumber", accountNumber, "customerId", customerId,
                 (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        sendAccountRemovalCallback(replyJson, callbackBuilder);
+                        doAccountPinCardsRemovalRequest(accountNumber, callbackBuilder);
                     } else {
-                        callbackBuilder.build().reject("NewAccount request failed.");
+                        callbackBuilder.build().reject("Account removal request failed.");
                     }
                 });
+    }
+
+    /**
+     * Sends a request to remove all pincards for the account with accountNumber to the pinService.
+     * @param accountNumber AccountNumber of the account for which all pinCards need to be removed.
+     * @param callbackBuilder Used to forward the result of the request to the request source.
+     */
+    private void doAccountPinCardsRemovalRequest(final String accountNumber, final CallbackBuilder callbackBuilder) {
+        pinClient.putFormAsyncWith1Param("/services/pin/account/remove", "accountNumber",
+                                        accountNumber, (httpStatusCode, httpContentType, replyJson) -> {
+            if (httpStatusCode == HTTP_OK) {
+                sendAccountRemovalCallback(replyJson, callbackBuilder);
+            } else {
+                callbackBuilder.build().reject("Removing pinCards of account failed.");
+            }
+        });
     }
 
     private void sendAccountRemovalCallback(final String replyJson, final CallbackBuilder callbackBuilder) {

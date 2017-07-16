@@ -14,6 +14,7 @@ import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
 import databeans.Transaction;
+import jdk.nashorn.internal.codegen.CompilerConstants;
 import util.JSONParser;
 
 import java.security.NoSuchAlgorithmException;
@@ -511,12 +512,49 @@ class PinService {
         removePinCard.setLong(3, pinCard.getCardNumber());
         removePinCard.setString(4, pinCard.getPinCode());
         removePinCard.execute();
+        databaseConnection.close();
     }
 
     private void sendDeletePinCardCallback(final PinCard pinCard, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Pin card #%s successfully deleted from the system, sending callback.\n", PREFIX,
                           pinCard.getCardNumber());
         callbackBuilder.build().reply(jsonConverter.toJson(pinCard));
+    }
+
+    /**
+     * Removes all pin cards linked to the account with accountNumber from the system.
+     * @param callback Used to send the result of the removal to the request source.
+     * @param accountNumber AccountNumber for which all pin cards should be removed.
+     */
+    @RequestMapping(value = "/account/remove", method = RequestMethod.PUT)
+    public void removeAccountCards(final Callback<String> callback,
+                                   final @RequestParam("accountNumber") String accountNumber) {
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleRemoveAccountCardsExceptions(accountNumber, callbackBuilder);
+    }
+
+    private void handleRemoveAccountCardsExceptions(final String accountNumber, final CallbackBuilder callbackBuilder) {
+        try {
+            deleteAccountCardsFromDatabase(accountNumber);
+            sendRemoveAccountCardsCallback(accountNumber, callbackBuilder);
+        } catch (SQLException e) {
+            callbackBuilder.build().reject("Something went wrong connecting to the pin database.");
+        }
+    }
+
+    private void deleteAccountCardsFromDatabase(final String accountNumber) throws SQLException {
+        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+        PreparedStatement removeAccountCards = databaseConnection.getConnection()
+                                                                .prepareStatement(SQLStatements.removeAccountCards);
+        removeAccountCards.setString(1, accountNumber);
+        removeAccountCards.execute();
+        databaseConnection.close();
+    }
+
+    private void sendRemoveAccountCardsCallback(final String accountNumber, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s All pin cards for account with accountNumber %s successfully deleted from the system,"
+                            + " sending callback.\n", PREFIX, accountNumber);
+        callbackBuilder.build().replyDone();
     }
 
     /**

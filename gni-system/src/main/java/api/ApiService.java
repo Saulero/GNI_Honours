@@ -93,7 +93,7 @@ final class ApiService {
                 case "getBankAccountAccess":    getBankAccountAccess(params, callbackBuilder, id);
                     break;
                 default:                        callback.reply(new JSONRPC2Response(JSONRPC2Error.METHOD_NOT_FOUND,
-                        request.getID()).toJSONString());
+                                                                request.getID()).toJSONString());
                     break;
             }
         } catch (JSONRPC2ParseException e) {
@@ -273,6 +273,8 @@ final class ApiService {
         uiClient.putFormAsyncWith2Params("/services/ui/account/remove", "accountNumber",
                 params.get("iBAN"), "cookie", params.get("authToken"), (code, contentType, body) -> {
                     if (code == HTTP_OK) {
+                        //todo remove all pincards for this account
+                        //todo if this is the only account of the customer remove customer from system
                         sendCloseAccountCallback(callbackBuilder, id, body);
                     } else {
                         System.out.printf("%s Account closing failed.\n\n\n\n", PREFIX);
@@ -339,6 +341,7 @@ final class ApiService {
      * @param callbackBuilder Used to send the result of the request back to the request source.
      * @param id Id of the request.
      */
+    //todo users should be able to revoke their own access of any account, accountOwner should be able to revoke access of others as well.
     private void revokeAccess(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                               final Object id) {
         final String cookie = (String) params.get("authToken");
@@ -616,6 +619,7 @@ final class ApiService {
      * @param callbackBuilder Used to send the result of the request back to the request source.
      * @param id Id of the request.
      */
+    //todo only account owner should be able to perform this request.
     private void getBankAccountAccess(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                                       final Object id) {
         // not yet in the system functionality, will need to be added.

@@ -719,6 +719,7 @@ class UsersService {
             if (httpStatusCode == HTTP_OK) {
                 try {
                     removeAccountLink(accountNumber, customerId);
+                    //todo is this was the only account of customer with customerId, remove customer.
                     sendAccountRemovalCallback(jsonReply, callbackBuilder);
                 } catch (SQLException e) {
                     System.out.printf("%s Failed to remove accountLink, sending rejection.\n", PREFIX);
