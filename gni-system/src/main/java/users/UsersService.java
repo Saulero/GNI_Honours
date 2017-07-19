@@ -17,6 +17,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 import static database.SQLStatements.*;
@@ -599,17 +600,69 @@ class UsersService {
     @RequestMapping(value = "/accountLink/remove", method = RequestMethod.PUT)
     public void processAccountLinkRemoval(final Callback<String> callback,
                                           final @RequestParam("request") String accountLinkRequestJson,
-                                          final @RequestParam("cookie") String cookie) {
+                                          final @RequestParam("requesterId") String requesterId) {
         System.out.printf("%s Received account link removal.\n", PREFIX);
         AccountLink accountLink = jsonConverter.fromJson(accountLinkRequestJson, AccountLink.class);
         long customerId = accountLink.getCustomerId();
         String accountNumber = accountLink.getAccountNumber();
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        doAccountExistsRequest(accountNumber, customerId, callbackBuilder);
+        verifyAccountLinkPrivelidge(accountNumber, Long.toString(customerId), requesterId, callbackBuilder);
     }
 
-    private void removeAccountLink(final String accountNumber, final String ownerId, final String cookie) {
-        //todo finish
+    private void verifyAccountLinkPrivelidge(final String accountNumber, final String customerId,
+                                             final String requesterId, final CallbackBuilder callbackBuilder) {
+        DataRequest request = new DataRequest();
+        request.setType(RequestType.OWNERS);
+        LinkedList<String> accountNumberList = new LinkedList<>();
+        accountNumberList.add(accountNumber);
+        request.setAccountNumbers(accountNumberList);
+        ledgerClient.getAsyncWith1Param("/services/ledger/data", "request",
+                jsonConverter.toJson(request), (httpStatusCode, httpContentType, dataReplyJson) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        DataReply dataReply = jsonConverter.fromJson(dataReplyJson, DataReply.class);
+                        List<AccountLink> accountLinks = dataReply.getAccounts();
+                        AccountLink resultLink = accountLinks.get(0);
+                        if (resultLink.getCustomerId().equals(Long.parseLong(requesterId))) {
+                            // requester is owner of the account, can revoke access of other customers.
+                            removeAccountLink(accountNumber, customerId, callbackBuilder);
+                        } else {
+                            if (customerId.equals(requesterId)) {
+                                removeAccountLink(accountNumber, customerId, callbackBuilder);
+                            } else {
+                                sendRemoveAccountLinkCallback(false,
+                                        "User does not have sufficient permissions.", callbackBuilder);
+                            }
+                        }
+                    } else {
+                        sendRemoveAccountLinkCallback(false, "Internal database error",
+                                                        callbackBuilder);
+                    }
+                });
+    }
+
+    private void removeAccountLink(final String accountNumber, final String customerId,
+                                   final CallbackBuilder callbackBuilder) {
+        try {
+            SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+            PreparedStatement removeAccountLink = databaseConnection.getConnection()
+                                                                    .prepareStatement(removeCustomerAccountLink);
+            removeAccountLink.setLong(1, Long.parseLong(customerId));
+            removeAccountLink.setString(2, accountNumber);
+            removeAccountLink.execute();
+            removeAccountLink.close();
+            databaseConnectionPool.returnConnection(databaseConnection);
+        } catch (SQLException e) {
+            sendRemoveAccountLinkCallback(false, "No account permissions found.",
+                                        callbackBuilder);
+        }
+    }
+
+    private void sendRemoveAccountLinkCallback(final boolean successfull, final String errorMessage,
+                                               final CallbackBuilder callbackBuilder) {
+        RemoveAccountLinkReply reply = new RemoveAccountLinkReply();
+        reply.setSuccessfull(successfull);
+        reply.setErrorMessage(errorMessage);
+        callbackBuilder.build().reply(jsonConverter.toJson(reply));
     }
 
     /**
@@ -718,10 +771,10 @@ class UsersService {
      * @param customerId Id of the customer the account is linked to.
      * @throws SQLException Thrown when the removal query fails.
      */
-    private void removeAccountLink(final String accountNumber, final Long customerId) throws SQLException {
+    private void verifyAccountLinkPrivelidge(final String accountNumber, final Long customerId) throws SQLException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement removeAccountLink = databaseConnection.getConnection()
-                                                                .prepareStatement(SQLStatements.removeAccountLink);
+                                                                .prepareStatement(SQLStatements.removeAccountLinks);
         removeAccountLink.setString(1, accountNumber);
         removeAccountLink.execute();
         removeAccountLink.close();
@@ -742,7 +795,7 @@ class UsersService {
         accountNumber, "customerId", Long.toString(customerId), (httpStatusCode, httpContentType, jsonReply) -> {
             if (httpStatusCode == HTTP_OK) {
                 try {
-                    removeAccountLink(accountNumber, customerId);
+                    verifyAccountLinkPrivelidge(accountNumber, customerId);
                     checkIfCustomerOwnsAccounts(customerId, callbackBuilder);
                 } catch (SQLException e) {
                     System.out.printf("%s Failed to remove accountLink, sending rejection.\n", PREFIX);

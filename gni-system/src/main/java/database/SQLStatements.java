@@ -40,8 +40,9 @@ public final class SQLStatements {
     public static final String removeCustomer = "DELETE FROM users WHERE id = ?";
     public static final String removeCustomerTokens = "DELETE FROM authentication WHERE user_id = ?";
     public static final String removeCustomerLinks = "DELETE FROM accounts WHERE user_id = ?";
+    public static final String removeCustomerAccountLink = "DELETE FROM accounts WHERE user_id = ? AND account_number = ?";
     public static final String getHighestCardNumber = "SELECT MAX(card_number) FROM pin";
-    public static final String removeAccountLink = "DELETE FROM accounts WHERE account_number = ?";
+    public static final String removeAccountLinks = "DELETE FROM accounts WHERE account_number = ?";
     public static final String getAccountNumberUsingCardNumber = "SELECT account_number FROM pin WHERE card_number = ?";
 
     // Create statements used for setting up the database

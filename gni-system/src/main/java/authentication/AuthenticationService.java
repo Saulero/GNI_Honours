@@ -594,7 +594,7 @@ class AuthenticationService {
             System.out.printf("%s Forwarding account link removal for customer %d account number %s.\n", PREFIX,
                                 linkToRemove.getCustomerId(), linkToRemove.getAccountNumber());
             CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-            handleAccountLinkExceptions(linkToRemove, cookie, callbackBuilder);
+            handleAccountLinkExceptions(linkToRemove, Long.toString(getCustomerId(cookie)), callbackBuilder);
         } catch (SQLException e) {
             callback.reject("Sqlexception occurred.");
         } catch (CustomerDoesNotExistException e) {
@@ -602,13 +602,14 @@ class AuthenticationService {
         }
     }
 
-    private void doAccountLinkRemoval(final AccountLink accountLink, final String cookie,
+    private void doAccountLinkRemoval(final AccountLink accountLink, final String requesterId,
                                       final CallbackBuilder callbackBuilder) {
         usersClient.putFormAsyncWith2Params("/services/users/accountLink/remove", "request",
-                                            jsonConverter.toJson(accountLink), "cookie", cookie,
-                                            (httpStatusCode, httpContentType, newAccountReplyJson) -> {
+                                            jsonConverter.toJson(accountLink), "requesterId", requesterId,
+                                            (httpStatusCode, httpContentType, removalReplyJson) -> {
             if (httpStatusCode == HTTP_OK) {
-                //todo handle users response
+                System.out.printf("%s Forwarding accountLink removal reply.", PREFIX);
+                callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(removalReplyJson));
             } else {
                 callbackBuilder.build().reject("Error connecting to users service.");
             }
