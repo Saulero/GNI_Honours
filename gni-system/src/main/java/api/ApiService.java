@@ -159,7 +159,7 @@ final class ApiService {
             if (code == HTTP_OK) {
                 Authentication authenticationReply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
                                                                             Authentication.class);
-                System.out.printf("%s Successfull getAuthTokenForPinCard, set the following cookie: %s\n\n\n\n",
+                System.out.printf("%s Successfull login, set the following cookie: %s\n\n\n\n",
                                     PREFIX, authenticationReply.getCookie());
                 doNewPinCardRequest(accountNumber, username, authenticationReply.getCookie(), callbackBuilder, id,
                                     true);
@@ -474,12 +474,12 @@ final class ApiService {
                 (String) params.get("password"));
         Gson gson = new Gson();
         System.out.printf("%s Logging in.\n", PREFIX);
-        uiClient.putFormAsyncWith1Param("/services/ui/getAuthTokenForPinCard", "authData", gson.toJson(authentication),
+        uiClient.putFormAsyncWith1Param("/services/ui/login", "authData", gson.toJson(authentication),
                 (code, contentType, body) -> {
                     if (code == HTTP_OK) {
                         Authentication authenticationReply = gson.fromJson(JSONParser.removeEscapeCharacters(body),
                                 Authentication.class);
-                        System.out.printf("%s Successfull getAuthTokenForPinCard, set the following cookie: %s\n\n\n\n",
+                        System.out.printf("%s Successfull login, set the following cookie: %s\n\n\n\n",
                                 PREFIX, authenticationReply.getCookie());
                         Map<String, Object> result = new HashMap<>();
                         result.put("authToken", authenticationReply.getCookie());
@@ -487,6 +487,7 @@ final class ApiService {
                         callbackBuilder.build().reply(response.toJSONString());
                     } else {
                         System.out.printf("%s Login failed.\n\n\n\n", PREFIX);
+                        System.out.println(body);
                         //todo return error.
                     }
                 });

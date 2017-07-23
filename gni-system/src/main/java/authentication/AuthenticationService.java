@@ -801,15 +801,23 @@ class AuthenticationService {
         try {
             authenticateRequest(cookie);
             Long requesterId = getCustomerId(cookie);
-            Long ownerId = getIdFromUsername(username);
+            Long ownerId;
+            if (username == null) {
+                ownerId = requesterId;
+            } else {
+                ownerId = getIdFromUsername(username);
+            }
             if (ownerId != null) {
                 doNewPinCardRequest(accountNumber, Long.toString(requesterId), Long.toString(ownerId), callbackBuilder);
             } else {
+                System.out.println("Rejecting, OwnerId could not be found. Username does not exist.");
                 callbackBuilder.build().reject("OwnerId could not be found. Username does not exist.");
             }
         } catch (SQLException e) {
+            System.out.println("Rejecting, Error connecting to authentication database.");
             callbackBuilder.build().reject("Error connecting to authentication database.");
         } catch (UserNotAuthorizedException e) {
+            System.out.println("Rejecting, User not authorized, please login.");
             callbackBuilder.build().reject("User not authorized, please login.");
         }
 
@@ -848,12 +856,15 @@ class AuthenticationService {
      */
     private void doNewPinCardRequest(final String accountNumber, final String requesterId, final String ownerId,
                                      final CallbackBuilder callbackBuilder) {
-        pinClient.putFormAsyncWith3Params("/services/pin/card", "accountNumber", accountNumber,
-                "requesterId", requesterId, "ownerId", ownerId,
+        pinClient.putFormAsyncWith3Params("/services/pin/card", "requesterId", requesterId,
+                "ownerId", ownerId, "accountNumber", accountNumber,
                 (httpStatusCode, httpContentType, newAccountReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         sendNewPinCardCallback(newAccountReplyJson, callbackBuilder);
                     } else {
+                        System.out.println(newAccountReplyJson);
+                        System.out.println(httpStatusCode);
+                        System.out.println(httpContentType);
                         callbackBuilder.build().reject("new pin card request failed.");
                     }
                 });
