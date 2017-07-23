@@ -310,21 +310,21 @@ final class ApiService {
                                final Object id) {
         // does an account Link to a username(so we need a conversion for this internally)
         // then performs a new pin card request for the customer with username.
-        AccountLink request = JSONParser.createJsonAccountLink((String) params.get("iBAN"),
-                                                                (String) params.get("username"), false);
+        String accountNumber = (String) params.get("iBAN");
+        String username = (String) params.get("username");
+        String cookie = (String) params.get("authToken");
+        AccountLink request = JSONParser.createJsonAccountLink(accountNumber, username, false);
         System.out.printf("%s Sending account link request.\n", PREFIX);
-        uiClient.putFormAsyncWith2Params("/services/ui/account", "request",
-                jsonConverter.toJson(request), "cookie", params.get("authToken"),
+        uiClient.putFormAsyncWith2Params("/services/ui/accountLink", "request",
+                jsonConverter.toJson(request), "cookie", cookie,
                 (code, contentType, body) -> {
             if (code == HTTP_OK) {
                 AccountLink reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
                                                             AccountLink.class);
                 if (reply.isSuccessful()) {
-                    String accountNumber = reply.getAccountNumber();
                     System.out.printf("%s Account link successfull for Account Holder: %s, AccountNumber: %s\n\n\n\n",
                             PREFIX, reply.getCustomerId(), accountNumber);
-
-                    //todo do new pin card request with cookie belonging to user with username.
+                    doNewPinCardRequest(accountNumber, username, cookie, callbackBuilder, id, false);
                 } else {
                     System.out.printf("%s Account link creation unsuccessfull.\n\n\n\n", PREFIX);
                     //todo send back failure
@@ -357,10 +357,13 @@ final class ApiService {
      */
     private void depositIntoAccount(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                                     final Object id) {
-        PinTransaction pin = JSONParser.createJsonPinTransaction(ATMNUMBER, (String) params.get("iBAN"),
-                "", (String) params.get("pinCode"), Long.parseLong((String) params.get("pinCard")),
-                Double.parseDouble((String) params.get("amount")), true);
-        System.out.printf("%s Sending pin transaction.\n", PREFIX);
+        System.out.printf("%s Sending deposit transaction.\n", PREFIX);
+        String accountNumber = (String) params.get("iBAN");
+        String pinCode = (String) params.get("pinCode");
+        String pinCard = (String) params.get("pinCard");
+        Double amount = (Double) params.get("amount");
+        PinTransaction pin = JSONParser.createJsonPinTransaction(ATMNUMBER, accountNumber,
+                "", pinCode, Long.parseLong(pinCard), amount, true);
         pinClient.putFormAsyncWith1Param("/services/pin/transaction", "request",
                 jsonConverter.toJson(pin), (code, contentType, body) -> {
                     if (code == HTTP_OK) {
