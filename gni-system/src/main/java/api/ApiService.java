@@ -587,7 +587,7 @@ final class ApiService {
                                final Object id) {
         DataRequest request = JSONParser.createJsonDataRequest((String) params.get("iBAN"),
                 RequestType.ACCOUNTS, 0L);
-        System.out.printf("%s Sending transactionOverview request.\n", PREFIX);
+        System.out.printf("%s Sending UserAccess request.\n", PREFIX);
         uiClient.getAsyncWith2Params("/services/ui/data", "request", jsonConverter.toJson(request),
                 "cookie", params.get("authToken"), (code, contentType, body) -> {
                     if (code == HTTP_OK) {

@@ -93,10 +93,12 @@ final class UIService {
         DataRequest dataRequest = jsonConverter.fromJson(dataRequestJson, DataRequest.class);
         RequestType requestType = dataRequest.getType();
         String accountNumber = dataRequest.getAccountNumber();
+
         if (requestType == null || !Arrays.asList(RequestType.values()).contains(dataRequest.getType())) {
             throw new IncorrectInputException("RequestType not correctly specified.");
-        } else if (accountNumber == null || (isAccountNumberRelated(dataRequest.getType())
-                                                && accountNumber.length() != accountNumberLength)) {
+        } else if ((accountNumber == null && dataRequest.getType() != RequestType.ACCOUNTS)
+                    || (isAccountNumberRelated(dataRequest.getType())
+                        && (accountNumber == null || accountNumber.length() != accountNumberLength))) {
             throw new IncorrectInputException("AccountNumber specified is of an incorrect length.");
         }
     }

@@ -468,14 +468,14 @@ class LedgerService {
         DataRequest dataRequest = gson.fromJson(dataRequestJson, DataRequest.class);
         RequestType requestType = dataRequest.getType();
         System.out.printf("%s Received data request of type %s.\n", PREFIX, dataRequest.getType().toString());
-        if (requestType != RequestType.ACCOUNTEXISTS
+        if (requestType != RequestType.ACCOUNTEXISTS && requestType != RequestType.OWNERS
                 && !getCustomerAuthorization(dataRequest.getAccountNumber(),
                 "" + dataRequest.getCustomerId())) {
+            System.out.printf("%s rejecting because not authorized", PREFIX);
             callback.reject("Customer not authorized to request data for this accountNumber.");
         } else {
             // Method call
             DataReply dataReply = processDataRequest(dataRequest);
-
             if (dataReply != null) {
                 System.out.printf("%s Data request successfull, sending callback.\n", PREFIX);
                 callback.reply(gson.toJson(dataReply));
