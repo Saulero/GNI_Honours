@@ -8,7 +8,6 @@ import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 import databeans.*;
 import io.advantageous.qbit.annotation.RequestMapping;
 import io.advantageous.qbit.annotation.RequestMethod;
-import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
@@ -58,7 +57,7 @@ final class ApiService {
      * @param requestJson Json string containing the request that was made.
      */
     @RequestMapping(value = "/request", method = RequestMethod.POST)
-    public void handleApiRequest(final Callback<String> callback, final @RequestParam("request") String requestJson) {
+    public void handleApiRequest(final Callback<String> callback, final String requestJson) {
         try {
             JSONRPC2Request request = JSONRPC2Request.parse(requestJson);
             String method = request.getMethod();
@@ -93,7 +92,7 @@ final class ApiService {
                 case "getBankAccountAccess":    getBankAccountAccess(params, callbackBuilder, id);
                     break;
                 default:                        callback.reply(new JSONRPC2Response(JSONRPC2Error.METHOD_NOT_FOUND,
-                                                                request.getID()).toJSONString());
+                        request.getID()).toJSONString());
                     break;
             }
         } catch (JSONRPC2ParseException e) {
@@ -113,7 +112,7 @@ final class ApiService {
                              final Object id) {
         Customer customer = JSONParser.createJsonCustomer((String) params.get("initials"), (String) params.get("name"),
                 (String) params.get("surname"), (String) params.get("email"), (String) params.get("telephoneNumber"),
-                (String) params.get("address"), (String) params.get("dob"), (Long) params.get("ssn"),
+                (String) params.get("address"), (String) params.get("dob"), Long.parseLong((String) params.get("ssn")),
                 0.0, 0.0, 0L, (String) params.get("username"),
                 (String) params.get("password"));
         doNewCustomerRequest(customer, callbackBuilder, id);
@@ -184,6 +183,9 @@ final class ApiService {
                                      final CallbackBuilder callbackBuilder, final Object id,
                                      final boolean accountNrInResult) {
         Gson gson = new Gson();
+        System.out.println(accountNumber);
+        System.out.println(cookie);
+        System.out.println(username);
         uiClient.putFormAsyncWith3Params("/services/ui/card", "accountNumber", accountNumber,
                 "cookie", cookie, "username", username, (code, contentType, body) -> {
                     if (code == HTTP_OK) {
@@ -197,6 +199,8 @@ final class ApiService {
                                     newPinCard.getPinCode(), id);
                         }
                     } else {
+                        System.out.println(code);
+                        System.out.println(body);
                         System.out.printf("%s New pin card request failed.\n\n\n\n", PREFIX);
                         //todo send failed reply
                     }
@@ -218,6 +222,7 @@ final class ApiService {
         result.put("pinCard", cardNumber);
         result.put("pinCode", pinCode);
         JSONRPC2Response response = new JSONRPC2Response(result, id);
+        System.out.println(response.toJSONString());
         callbackBuilder.build().reply(response.toJSONString());
     }
 
@@ -304,13 +309,13 @@ final class ApiService {
      */
     private void provideAccess(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                                final Object id) {
-        final String username = (String) params.get("username");
-        final String cookie = (String) params.get("authToken");
-        AccountLink request = JSONParser.createJsonAccountLink((String) params.get("iBAN"), username,
-                                                                false);
+        // does an account Link to a username(so we need a conversion for this internally)
+        // then performs a new pin card request for the customer with username.
+        AccountLink request = JSONParser.createJsonAccountLink((String) params.get("iBAN"),
+                                                                (String) params.get("username"), false);
         System.out.printf("%s Sending account link request.\n", PREFIX);
-        uiClient.putFormAsyncWith2Params("/services/ui/accountLink", "request",
-                jsonConverter.toJson(request), "cookie", cookie,
+        uiClient.putFormAsyncWith2Params("/services/ui/account", "request",
+                jsonConverter.toJson(request), "cookie", params.get("authToken"),
                 (code, contentType, body) -> {
             if (code == HTTP_OK) {
                 AccountLink reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
@@ -319,7 +324,8 @@ final class ApiService {
                     String accountNumber = reply.getAccountNumber();
                     System.out.printf("%s Account link successfull for Account Holder: %s, AccountNumber: %s\n\n\n\n",
                             PREFIX, reply.getCustomerId(), accountNumber);
-                    doNewPinCardRequest(accountNumber, username, cookie, callbackBuilder, id, false);
+
+                    //todo do new pin card request with cookie belonging to user with username.
                 } else {
                     System.out.printf("%s Account link creation unsuccessfull.\n\n\n\n", PREFIX);
                     //todo send back failure
@@ -337,32 +343,11 @@ final class ApiService {
      * @param callbackBuilder Used to send the result of the request back to the request source.
      * @param id Id of the request.
      */
-    //todo users should be able to revoke their own access of any account, accountOwner should be able to revoke access of others as well.
     private void revokeAccess(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                               final Object id) {
-        final String cookie = (String) params.get("authToken");
-        final String username = (String) params.get("username");
-        AccountLink linkToRemove = JSONParser.createJsonAccountLink((String) params.get("iBAN"), username, false);
-        uiClient.postFormAsyncWith2Params("/services/ui/accountLink/remove", "request",
-                        jsonConverter.toJson(linkToRemove), "cookie", cookie, (code, contentType, body) -> {
-            if (code == HTTP_OK) {
-                AccountLink reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
-                        AccountLink.class);
-                if (reply.isSuccessful()) {
-                    String accountNumber = reply.getAccountNumber();
-                    System.out.printf("%s Account link successfully removed for Account Holder: %s"
-                                    + ", AccountNumber: %s\n\n\n\n", PREFIX, reply.getCustomerId(), accountNumber);
-                    //todo do pincard removal request.
-                    doNewPinCardRequest(accountNumber, username, cookie, callbackBuilder, id, false);
-                } else {
-                    System.out.printf("%s Account link creation unsuccessfull.\n\n\n\n", PREFIX);
-                    //todo send back failure
-                }
-            } else {
-                System.out.printf("%s Account link removal failed.\n\n\n\n", PREFIX);
-                //todo send back failure
-            }
-        });
+        //todo add functionality for account Link removal
+        // performs an account Link removal and then removes the pincard(s) of said customer.
+        // look at documentation for more specifics.
     }
 
     /**
@@ -374,8 +359,8 @@ final class ApiService {
     private void depositIntoAccount(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                                     final Object id) {
         PinTransaction pin = JSONParser.createJsonPinTransaction(ATMNUMBER, (String) params.get("iBAN"),
-                "", (String) params.get("pinCode"), (Long) params.get("pinCard"),
-                (Double) params.get("amount"), true);
+                "", (String) params.get("pinCode"), Long.parseLong((String) params.get("pinCard")),
+                Double.parseDouble((String) params.get("amount")), true);
         System.out.printf("%s Sending pin transaction.\n", PREFIX);
         pinClient.putFormAsyncWith1Param("/services/pin/transaction", "request",
                 jsonConverter.toJson(pin), (code, contentType, body) -> {
@@ -412,7 +397,7 @@ final class ApiService {
                                 final Object id) {
         PinTransaction pin = JSONParser.createJsonPinTransaction((String) params.get("sourceIBAN"),
                 (String) params.get("targetIBAN"), "", (String) params.get("pinCode"),
-                (Long) params.get("pinCard"), (Double) params.get("amount"), false);
+                Long.parseLong((String) params.get("pinCard")), Double.parseDouble((String) params.get("amount")), false);
         System.out.printf("%s Sending pin transaction.\n", PREFIX);
         pinClient.putFormAsyncWith1Param("/services/pin/transaction", "request",
                 jsonConverter.toJson(pin), (code, contentType, body) -> {
@@ -449,7 +434,7 @@ final class ApiService {
                                final Object id) {
         Transaction transaction = JSONParser.createJsonTransaction(-1, (String) params.get("sourceIBAN"),
                 (String) params.get("targetIBAN"), (String) params.get("targetName"),
-                (String) params.get("description"), (Double) params.get("amount"), false, false);
+                (String) params.get("description"), Double.parseDouble((String) params.get("amount")), false, false);
         System.out.printf("%s Sending internal transaction.\n", PREFIX);
         uiClient.putFormAsyncWith2Params("/services/ui/transaction", "request",
                 jsonConverter.toJson(transaction), "cookie", params.get("authToken"),
@@ -557,7 +542,7 @@ final class ApiService {
                                                                         DataReply.class);
                         System.out.printf("%s TransactionOverview request successfull.\n\n\n\n", PREFIX);
                         List<Map<String, Object>> transactionList = new ArrayList<>();
-                        balanceReply.getTransactions().subList(0, (int) params.get("nrOfTransactions")).forEach(k -> {
+                        balanceReply.getTransactions().subList(0, Integer.parseInt((String) params.get("nrOfTransactions"))).forEach(k -> {
                             Map<String, Object> transaction = new HashMap<>();
                             transaction.put("sourceIBAN", k.getSourceAccountNumber());
                             transaction.put("targetIBAN", k.getDestinationAccountNumber());
@@ -615,7 +600,6 @@ final class ApiService {
      * @param callbackBuilder Used to send the result of the request back to the request source.
      * @param id Id of the request.
      */
-    //todo only account owner should be able to perform this request.
     private void getBankAccountAccess(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                                       final Object id) {
         // not yet in the system functionality, will need to be added.

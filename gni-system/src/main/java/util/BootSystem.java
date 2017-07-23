@@ -21,6 +21,8 @@ public class BootSystem {
     }
 
     public static void startServices() {
+        TableCreator.truncateTables();
+
         LedgerServiceMain.main();
         UsersServiceMain.main();
         UIServiceMain.main();
