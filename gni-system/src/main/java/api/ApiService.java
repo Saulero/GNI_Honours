@@ -399,7 +399,7 @@ final class ApiService {
                                 final Object id) {
         PinTransaction pin = JSONParser.createJsonPinTransaction((String) params.get("sourceIBAN"),
                 (String) params.get("targetIBAN"), "", (String) params.get("pinCode"),
-                Long.parseLong((String) params.get("pinCard")), Double.parseDouble((String) params.get("amount")), false);
+                Long.parseLong((String) params.get("pinCard")), (Double) params.get("amount"), false);
         System.out.printf("%s Sending pin transaction.\n", PREFIX);
         pinClient.putFormAsyncWith1Param("/services/pin/transaction", "request",
                 jsonConverter.toJson(pin), (code, contentType, body) -> {
