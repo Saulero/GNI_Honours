@@ -434,12 +434,14 @@ final class ApiService {
      */
     private void transferMoney(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                                final Object id) {
+        String cookie = (String) params.get("authToken");
+        System.out.println("Cookie: " + cookie);
         Transaction transaction = JSONParser.createJsonTransaction(-1, (String) params.get("sourceIBAN"),
                 (String) params.get("targetIBAN"), (String) params.get("targetName"),
-                (String) params.get("description"), Double.parseDouble((String) params.get("amount")), false, false);
+                (String) params.get("description"), (Double) params.get("amount"), false, false);
         System.out.printf("%s Sending internal transaction.\n", PREFIX);
         uiClient.putFormAsyncWith2Params("/services/ui/transaction", "request",
-                jsonConverter.toJson(transaction), "cookie", params.get("authToken"),
+                jsonConverter.toJson(transaction), "cookie", cookie,
                 (code, contentType, body) -> {
                     if (code == HTTP_OK) {
                         Transaction reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
@@ -456,11 +458,18 @@ final class ApiService {
                             //todo figure out how to fetch what cause the failed processing.
                         } else {
                             System.out.printf("%s Internal transaction was not successfull\n\n\n\n", PREFIX);
+                            Map<String, Object> result = new HashMap<>();
+                            result.put("NotAuthorizedError", "User is not authorized to make this transaction.");
+                            JSONRPC2Response response = new JSONRPC2Response(result, id);
+                            callbackBuilder.build().reply(response.toJSONString());
                             //todo send unsuccessfull reply, find way to fetch cause of this.
                         }
                     } else {
                         System.out.printf("%s Transaction request failed.\n\n\n\n", PREFIX);
-                        //todo figure out a way to find out what made the request fail.
+                        //todo figure out a way to find out what made the request fail and add the proper error!!.
+                        JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(2,
+                                                        "User is not authorized to make this transaction."), id);
+                        callbackBuilder.build().reply(response.toJSONString());
                     }
                 });
     }
@@ -545,16 +554,20 @@ final class ApiService {
                                                                         DataReply.class);
                         System.out.printf("%s TransactionOverview request successfull.\n\n\n\n", PREFIX);
                         List<Map<String, Object>> transactionList = new ArrayList<>();
-                        balanceReply.getTransactions().subList(0, Integer.parseInt((String) params.get("nrOfTransactions"))).forEach(k -> {
-                            Map<String, Object> transaction = new HashMap<>();
-                            transaction.put("sourceIBAN", k.getSourceAccountNumber());
-                            transaction.put("targetIBAN", k.getDestinationAccountNumber());
-                            transaction.put("targetName", k.getDestinationAccountHolderName());
-                            transaction.put("date", k.getTimestamp());
-                            transaction.put("amount", k.getTransactionAmount());
-                            transaction.put("description", k.getDescription());
-                            transactionList.add(transaction);
-                        });
+                        Long nrOfTransactions = (Long) params.get("nrOfTransactions");
+                        List<Transaction> transactions = balanceReply.getTransactions().subList(0,
+                                                                                Math.toIntExact(nrOfTransactions) - 1);
+                        for (Transaction transaction : transactions) {
+                            Map<String, Object> transactionMap = new HashMap<>();
+                            transactionMap.put("sourceIBAN", transaction.getSourceAccountNumber());
+                            transactionMap.put("targetIBAN", transaction.getDestinationAccountNumber());
+                            transactionMap.put("targetName", transaction.getDestinationAccountHolderName());
+                            transactionMap.put("date", transaction.getTimestamp());
+                            //todo create proper date indication instead of timestamp.
+                            transactionMap.put("amount", transaction.getTransactionAmount());
+                            transactionMap.put("description", transaction.getDescription());
+                            transactionList.add(transactionMap);
+                        }
                         JSONRPC2Response response = new JSONRPC2Response(transactionList, id);
                         callbackBuilder.build().reply(response.toJSONString());
                     } else {

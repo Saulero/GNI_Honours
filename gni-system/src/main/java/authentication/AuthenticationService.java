@@ -182,15 +182,17 @@ class AuthenticationService {
         usersClient.getAsyncWith1Param("/services/users/data", "request",
                                         dataRequestJson, (httpStatusCode, httpContentType, dataReplyJson) -> {
             if (httpStatusCode == HTTP_OK) {
+                System.out.println("Data request Successfull");
                 handleDataReply(dataReplyJson, callbackBuilder);
             } else {
-                callbackBuilder.build().reject("Transaction history request failed.");
+                System.out.println("Data request failed");
+                callbackBuilder.build().reject("Data request failed.");
             }
         });
     }
 
     private void handleDataReply(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
-        DataReply reply = jsonConverter.fromJson(dataReplyJson, DataReply.class);
+        DataReply reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(dataReplyJson), DataReply.class);
         if (reply.getType() == RequestType.OWNERS) {
             for (AccountLink link : reply.getAccounts()) {
                 link.setUsername(getUserNameFromCustomerId(link.getCustomerId()));
@@ -258,6 +260,7 @@ class AuthenticationService {
     private void handleTransactionRequestExceptions(final String transactionRequestJson, final String cookie,
                                                     final CallbackBuilder callbackBuilder) {
         try {
+            System.out.println("authenticating"+ cookie);
             authenticateRequest(cookie);
             doTransactionRequest(transactionRequestJson, getCustomerId(cookie), callbackBuilder);
         } catch (SQLException e) {

@@ -108,6 +108,15 @@ public class BasicHappyFlowTestSuite {
             card3 = tuple.getCard();
         }
 
+        System.out.println("-- Daisy logs in. --");
+
+        request = GetAuthTokenMethod.createRequest(customer2);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            GetAuthTokenMethod.parseResponse(parsedResponse, customer2);
+        }
+
         // ProvideAccessMethod
         System.out.println("-- ProvideAccessMethod. Donald shares access with Daisy--");
 
