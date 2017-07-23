@@ -162,7 +162,7 @@ final class ApiService {
                 System.out.printf("%s Successfull getAuthTokenForPinCard, set the following cookie: %s\n\n\n\n",
                                     PREFIX, authenticationReply.getCookie());
                 doNewPinCardRequest(accountNumber, username, authenticationReply.getCookie(), callbackBuilder, id,
-                                    false);
+                                    true);
             } else {
                 System.out.printf("%s Login failed.\n\n\n\n", PREFIX);
                 //todo send failed reply
@@ -222,7 +222,6 @@ final class ApiService {
         result.put("pinCard", cardNumber);
         result.put("pinCode", pinCode);
         JSONRPC2Response response = new JSONRPC2Response(result, id);
-        System.out.println(response.toJSONString());
         callbackBuilder.build().reply(response.toJSONString());
     }
 

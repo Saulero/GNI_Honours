@@ -6,6 +6,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
+import jdk.nashorn.internal.parser.JSONParser;
 import org.apache.hc.client5.http.impl.sync.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.sync.HttpClients;
 import org.apache.hc.client5.http.methods.HttpPost;
@@ -26,7 +27,7 @@ public class TestHttpClient implements IClient {
 	public JSONRPC2Response stringToJSON(String jResponse) {
 		// If using a different JSON-RPC library, replace the return type and below code as needed
 		try {
-			return JSONRPC2Response.parse(jResponse);
+			return JSONRPC2Response.parse(removeEscapeCharacters(jResponse));
 		} catch (JSONRPC2ParseException e) {
 			e.printStackTrace();
 		}
@@ -57,7 +58,23 @@ public class TestHttpClient implements IClient {
 		return null;
     }
 
-
-
-
+	/**
+	 * Removes escape characters from a string, this is done to be able to parse json strings received through
+	 * a callback, as a callback adds escape characters to the json string.
+	 * @param dataString Json to remove escape characters from.
+	 * @return Json string without escape characters.
+	 */
+	public static String removeEscapeCharacters(final String dataString) {
+		char[] characters = dataString.substring(1, dataString.length() - 1).toCharArray();
+		StringBuilder stringWithoutEscapes = new StringBuilder();
+		for (int i = 0; i < characters.length; i++) {
+			if (characters[i] == '\\') {
+				stringWithoutEscapes.append(characters[i + 1]);
+				i++;
+			} else {
+				stringWithoutEscapes.append(characters[i]);
+			}
+		}
+		return stringWithoutEscapes.toString();
+	}
 }
