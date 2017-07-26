@@ -78,7 +78,9 @@ class UsersService {
         DataRequest dataRequest = jsonConverter.fromJson(dataRequestJson, DataRequest.class);
         RequestType dataRequestType = dataRequest.getType();
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        if (dataRequestType == RequestType.CUSTOMERDATA || dataRequestType == RequestType.ACCOUNTS) {
+        if (dataRequestType == RequestType.CUSTOMERDATA
+                || dataRequestType == RequestType.ACCOUNTS
+                || dataRequestType == RequestType.ACCOUNTACCESSLIST) {
             handleInternalDataRequest(dataRequest, callbackBuilder);
         } else {
             doLedgerDataRequest(dataRequest, callbackBuilder);
@@ -93,10 +95,19 @@ class UsersService {
      */
     private void handleInternalDataRequest(final DataRequest dataRequest, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Received customer data request, fetching data.\n", PREFIX);
-        if (dataRequest.getType() == RequestType.ACCOUNTS) {
-            handleAccountsRequestExceptions(dataRequest.getCustomerId(), callbackBuilder);
-        } else {             //The request is a Customer Data request.
-            handleCustomerDataRequestExceptions(dataRequest.getCustomerId(), callbackBuilder);
+        switch (dataRequest.getType()) {
+            case ACCOUNTS:
+                handleAccountsRequestExceptions(dataRequest.getCustomerId(), callbackBuilder);
+                break;
+            case CUSTOMERDATA:
+                handleCustomerDataRequestExceptions(dataRequest.getCustomerId(), callbackBuilder);
+                break;
+            case ACCOUNTACCESSLIST:
+                handleAccountAccessListRequestExceptions(dataRequest.getAccountNumber(), callbackBuilder);
+                break;
+            default:
+                callbackBuilder.build().reject("Incorrect requestType specified.");
+                break;
         }
     }
 
@@ -213,6 +224,55 @@ class UsersService {
             getCustomerDataFromDb.close();
             databaseConnectionPool.returnConnection(databaseConnection);
             throw new CustomerDoesNotExistException("Customer not found in database.");
+        }
+    }
+
+    /**
+     * Sends a reject to the service that sent the data request if the SQL query in getCustomerData fails or the
+     * customer does not exist.
+     * @param accountNumber iBAN of the account
+     * @param callbackBuilder Used to send a reply back to the service that sent the request.
+     */
+    private void handleAccountAccessListRequestExceptions(final String accountNumber, final CallbackBuilder callbackBuilder) {
+        try {
+            DataReply reply = new DataReply(RequestType.ACCOUNTACCESSLIST, getAccountAccessList(accountNumber));
+            sendAccountAccessListRequestCallback(reply, callbackBuilder);
+        } catch (SQLException | AccountDoesNotExistException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reject(e);
+        }
+    }
+
+    /**
+     * Sends a {@link Customer} containing the customer data of a certain customer to the service that requested it.
+     * Logs this is system.out.
+     * @param reply DataReply containing a list of customers who have access to the requested account.
+     * @param callbackBuilder Used to send a reply back to the service that sent the request.
+     */
+    private void sendAccountAccessListRequestCallback(final DataReply reply, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Sending account access list request callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonConverter.toJson(reply));
+    }
+
+    private List<AccountLink> getAccountAccessList(final String accountNumber)
+            throws SQLException, AccountDoesNotExistException {
+        SQLConnection con = databaseConnectionPool.getConnection();
+        PreparedStatement ps = con.getConnection().prepareStatement(getAccountAccessList);
+        ps.setString(1, accountNumber);
+        ResultSet rs = ps.executeQuery();
+
+        LinkedList<AccountLink> res = new LinkedList<>();
+        while (rs.next()) {
+            res.add(new AccountLink(rs.getLong("user_id")));
+        }
+
+        rs.close();
+        ps.close();
+        databaseConnectionPool.returnConnection(con);
+        if (res.size() == 0) {
+            throw new AccountDoesNotExistException("No AccountLinks were found.");
+        } else {
+            return res;
         }
     }
 

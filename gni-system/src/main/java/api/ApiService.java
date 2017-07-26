@@ -183,9 +183,6 @@ final class ApiService {
                                      final CallbackBuilder callbackBuilder, final Object id,
                                      final boolean accountNrInResult) {
         Gson gson = new Gson();
-        System.out.println(accountNumber);
-        System.out.println(cookie);
-        System.out.println(username);
         uiClient.putFormAsyncWith3Params("/services/ui/card", "accountNumber", accountNumber,
                 "cookie", cookie, "username", username, (code, contentType, body) -> {
                     if (code == HTTP_OK) {
@@ -435,7 +432,6 @@ final class ApiService {
     private void transferMoney(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                                final Object id) {
         String cookie = (String) params.get("authToken");
-        System.out.println("Cookie: " + cookie);
         Transaction transaction = JSONParser.createJsonTransaction(-1, (String) params.get("sourceIBAN"),
                 (String) params.get("targetIBAN"), (String) params.get("targetName"),
                 (String) params.get("description"), (Double) params.get("amount"), false, false);
@@ -585,8 +581,7 @@ final class ApiService {
      */
     private void getUserAccess(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                                final Object id) {
-        DataRequest request = JSONParser.createJsonDataRequest((String) params.get("iBAN"),
-                RequestType.ACCOUNTS, 0L);
+        DataRequest request = JSONParser.createJsonDataRequest(null, RequestType.ACCOUNTS, 0L);
         System.out.printf("%s Sending UserAccess request.\n", PREFIX);
         uiClient.getAsyncWith2Params("/services/ui/data", "request", jsonConverter.toJson(request),
                 "cookie", params.get("authToken"), (code, contentType, body) -> {
@@ -618,6 +613,27 @@ final class ApiService {
      */
     private void getBankAccountAccess(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                                       final Object id) {
-        // not yet in the system functionality, will need to be added.
+        DataRequest request = JSONParser.createJsonDataRequest((String) params.get("iBAN"),
+                RequestType.ACCOUNTACCESSLIST, 0L);
+        System.out.printf("%s Sending BankAccountAccess request.\n", PREFIX);
+        uiClient.getAsyncWith2Params("/services/ui/data", "request", jsonConverter.toJson(request),
+                "cookie", params.get("authToken"), (code, contentType, body) -> {
+                    if (code == HTTP_OK) {
+                        DataReply accountsReply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
+                                DataReply.class);
+                        System.out.printf("%s BankAccountAccess request successfull.\n\n\n\n", PREFIX);
+                        List<Map<String, Object>> result = new ArrayList<>();
+                        accountsReply.getAccounts().forEach(k -> {
+                            Map<String, Object> account = new HashMap<>();
+                            account.put("username", k.getUsername());
+                            result.add(account);
+                        });
+                        JSONRPC2Response response = new JSONRPC2Response(result, id);
+                        callbackBuilder.build().reply(response.toJSONString());
+                    } else {
+                        /*System.out.printf("%s Request not successfull, body: %s\n", PREFIX, body);
+                        //todo return error.*/
+                    }
+                });
     }
 }

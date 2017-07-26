@@ -44,6 +44,7 @@ public final class SQLStatements {
     public static final String getHighestCardNumber = "SELECT MAX(card_number) FROM pin";
     public static final String removeAccountLinks = "DELETE FROM accounts WHERE account_number = ?";
     public static final String getAccountNumberUsingCardNumber = "SELECT account_number FROM pin WHERE card_number = ?";
+    public static final String getAccountAccessList = "SELECT user_id FROM accounts WHERE account_number = ?";
 
     // Create statements used for setting up the database
     public final static String createAccountsTable = "CREATE TABLE IF NOT EXISTS `accounts` ( `user_id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL);";
