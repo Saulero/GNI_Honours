@@ -36,6 +36,7 @@ public final class DataReply implements Serializable {
         this.accountData = newAccountData;
         this.transactions = null;
         this.accounts = null;
+        this.accountInLedger = false;
     }
 
     /**
@@ -49,6 +50,8 @@ public final class DataReply implements Serializable {
         this.type = newType;
         this.accountData = null;
         this.transactions = newTransactions;
+        this.accounts = null;
+        this.accountInLedger = false;
     }
 
     /**
@@ -62,6 +65,7 @@ public final class DataReply implements Serializable {
         this.accountData = null;
         this.transactions = null;
         this.accounts = newAccounts;
+        this.accountInLedger = false;
     }
 
     /**
@@ -71,8 +75,11 @@ public final class DataReply implements Serializable {
      * @param newAccountInLedger Boolean indicating if the account exists in the ledger.
      */
     public DataReply(final RequestType newType, final String newAccountNumber, final boolean newAccountInLedger) {
-        this.type = newType;
         this.accountNumber = newAccountNumber;
+        this.type = newType;
+        this.accountData = null;
+        this.transactions = null;
+        this.accounts = null;
         this.accountInLedger = newAccountInLedger;
     }
 

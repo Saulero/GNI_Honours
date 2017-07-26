@@ -581,7 +581,7 @@ final class ApiService {
      */
     private void getUserAccess(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                                final Object id) {
-        DataRequest request = JSONParser.createJsonDataRequest(null, RequestType.ACCOUNTS, 0L);
+        DataRequest request = JSONParser.createJsonDataRequest(null, RequestType.CUSTOMERACCESSLIST, 0L);
         System.out.printf("%s Sending UserAccess request.\n", PREFIX);
         uiClient.getAsyncWith2Params("/services/ui/data", "request", jsonConverter.toJson(request),
                 "cookie", params.get("authToken"), (code, contentType, body) -> {

@@ -12,20 +12,30 @@ public class AccountLink {
 
     public AccountLink(final Long newCustomerId) {
         this.customerId = newCustomerId;
+        this.username = null;
         this.accountNumber = null;
         this.successful = false;
     }
 
     public AccountLink(final Long newCustomerId, final String newAccountNumber, final boolean newSuccessfull) {
         this.customerId = newCustomerId;
+        this.username = null;
         this.accountNumber = newAccountNumber;
         this.successful = newSuccessfull;
     }
 
     public AccountLink(final String newUsername, final String newAccountNumber, final boolean newSuccessfull) {
+        this.customerId = null;
         this.username = newUsername;
         this.accountNumber = newAccountNumber;
         this.successful = newSuccessfull;
+    }
+
+    public AccountLink(Long customerId, String accountNumber) {
+        this.customerId = customerId;
+        this.username = null;
+        this.accountNumber = accountNumber;
+        this.successful = false;
     }
 
     /** Constructor for Json conversions, do not use unless you manually fill the object afterwards. */

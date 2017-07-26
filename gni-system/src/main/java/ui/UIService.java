@@ -96,9 +96,9 @@ final class UIService {
 
         if (requestType == null || !Arrays.asList(RequestType.values()).contains(dataRequest.getType())) {
             throw new IncorrectInputException("RequestType not correctly specified.");
-        } else if ((accountNumber == null && dataRequest.getType() != RequestType.ACCOUNTS)
-                    || (isAccountNumberRelated(dataRequest.getType())
-                        && (accountNumber == null || accountNumber.length() != accountNumberLength))) {
+        } else if (accountNumber == null && isAccountNumberRelated(dataRequest.getType())) {
+            throw new IncorrectInputException("AccountNumber specified is null.");
+        } else if (accountNumber != null && accountNumber.length() != accountNumberLength && isAccountNumberRelated(dataRequest.getType())) {
             throw new IncorrectInputException("AccountNumber specified is of an incorrect length.");
         }
     }
@@ -109,7 +109,7 @@ final class UIService {
      * @return Boolean indicating if the requestType relates to an accountNumber.
      */
     private boolean isAccountNumberRelated(final RequestType requestType) {
-        return requestType != RequestType.CUSTOMERDATA && requestType != RequestType.ACCOUNTS;
+        return requestType != RequestType.CUSTOMERDATA && requestType != RequestType.ACCOUNTS && requestType != RequestType.CUSTOMERACCESSLIST;
     }
 
     /**
@@ -155,7 +155,7 @@ final class UIService {
             case ACCOUNTS:
                 sendAccountsRequestCallback(dataReplyJson, callbackBuilder);
                 break;
-            case OWNERS:
+            case CUSTOMERACCESSLIST:
                 sendOwnersRequestCallback(dataReplyJson, callbackBuilder);
                 break;
             case ACCOUNTACCESSLIST:

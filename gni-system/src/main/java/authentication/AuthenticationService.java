@@ -192,7 +192,7 @@ class AuthenticationService {
 
     private void handleDataReply(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
         DataReply reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(dataReplyJson), DataReply.class);
-        if (reply.getType() == RequestType.OWNERS || reply.getType() == RequestType.ACCOUNTACCESSLIST) {
+        if (reply.getType() == RequestType.CUSTOMERACCESSLIST || reply.getType() == RequestType.ACCOUNTACCESSLIST) {
             for (AccountLink link : reply.getAccounts()) {
                 link.setUsername(getUserNameFromCustomerId(link.getCustomerId()));
             }

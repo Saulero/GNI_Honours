@@ -78,12 +78,12 @@ class UsersService {
         DataRequest dataRequest = jsonConverter.fromJson(dataRequestJson, DataRequest.class);
         RequestType dataRequestType = dataRequest.getType();
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        if (dataRequestType == RequestType.CUSTOMERDATA
-                || dataRequestType == RequestType.ACCOUNTS
-                || dataRequestType == RequestType.ACCOUNTACCESSLIST) {
-            handleInternalDataRequest(dataRequest, callbackBuilder);
-        } else {
+        if (dataRequestType == RequestType.TRANSACTIONHISTORY
+                || dataRequestType == RequestType.BALANCE
+                || dataRequestType == RequestType.ACCOUNTEXISTS) {
             doLedgerDataRequest(dataRequest, callbackBuilder);
+        } else {
+            handleInternalDataRequest(dataRequest, callbackBuilder);
         }
     }
 
@@ -105,6 +105,9 @@ class UsersService {
             case ACCOUNTACCESSLIST:
                 handleAccountAccessListRequestExceptions(dataRequest.getAccountNumber(), dataRequest.getCustomerId(),
                         callbackBuilder);
+                break;
+            case CUSTOMERACCESSLIST:
+                handleCustomerAccessListRequestExceptions(dataRequest.getCustomerId(), callbackBuilder);
                 break;
             default:
                 callbackBuilder.build().reject("Incorrect requestType specified.");
@@ -162,7 +165,7 @@ class UsersService {
 
     private void forwardAccountsRequest(final List<String> accounts, final CallbackBuilder callbackBuilder) {
         DataRequest request = new DataRequest();
-        request.setType(RequestType.OWNERS);
+        request.setType(RequestType.CUSTOMERACCESSLIST);
         request.setAccountNumbers(accounts);
         doLedgerDataRequest(request, callbackBuilder);
     }
@@ -229,9 +232,10 @@ class UsersService {
     }
 
     /**
-     * Sends a reject to the service that sent the data request if the SQL query in getCustomerData fails or the
-     * customer does not exist.
+     * Sends a reject to the service that sent the data request if the SQL query in getAccountAccessList fails or the
+     * account does not exist.
      * @param accountNumber iBAN of the account
+     * @param customerID ID of the customer
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
     private void handleAccountAccessListRequestExceptions(final String accountNumber, final long customerID,
@@ -247,7 +251,7 @@ class UsersService {
     }
 
     /**
-     * Sends a {@link Customer} containing the customer data of a certain customer to the service that requested it.
+     * Sends a list of customers that have access to a given account to the service that requested it.
      * Logs this is system.out.
      * @param reply DataReply containing a list of customers who have access to the requested account.
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
@@ -277,6 +281,39 @@ class UsersService {
         } else {
             return res;
         }
+    }
+
+    /**
+     * Sends a reject to the calling service if the SQL query in getCustomerAccounts fails.
+     * @param customerId Id of the customer whose accounts we want to fetch.
+     * @param callbackBuilder Used to send a reply back to the service that sent the request.
+     */
+    private void handleCustomerAccessListRequestExceptions(final long customerId, final CallbackBuilder callbackBuilder) {
+        try {
+            sendCustomerAccessListRequestCallback(processCustomerAccessListRequest(customerId), callbackBuilder);
+        } catch (SQLException | CustomerDoesNotExistException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reject(e);
+        }
+    }
+
+    /**
+     * Send a DataReply object containing accounts belonging to a certain customer to the service that requested them.
+     * @param customerAccounts DataReply object containing a list of accounts belonging to a certain customer.
+     * @param callbackBuilder Used to send a reply back to the calling service.
+     */
+    private void sendCustomerAccessListRequestCallback(final DataReply customerAccounts, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Sending accounts request callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonConverter.toJson(customerAccounts));
+    }
+
+    //todo write unit test for this method. in fact, update all Junit
+    private DataReply processCustomerAccessListRequest(final long customerID) throws SQLException, CustomerDoesNotExistException {
+        LinkedList<AccountLink> res = new LinkedList<>();
+        for (String s : this.getCustomerAccounts(customerID)) {
+            res.add(new AccountLink(customerID, s));
+        }
+        return new DataReply(RequestType.CUSTOMERACCESSLIST, res);
     }
 
     /**
@@ -676,7 +713,7 @@ class UsersService {
     private void verifyAccountLinkPrivelidge(final String accountNumber, final String customerId,
                                              final String requesterId, final CallbackBuilder callbackBuilder) {
         DataRequest request = new DataRequest();
-        request.setType(RequestType.OWNERS);
+        request.setType(RequestType.CUSTOMERACCESSLIST);
         LinkedList<String> accountNumberList = new LinkedList<>();
         accountNumberList.add(accountNumber);
         request.setAccountNumbers(accountNumberList);
@@ -882,7 +919,7 @@ class UsersService {
         List<String> customerAccounts = getCustomerAccounts(customerId);
         if (customerAccounts.size() > 0) {
             DataRequest request = new DataRequest();
-            request.setType(RequestType.OWNERS);
+            request.setType(RequestType.CUSTOMERACCESSLIST);
             request.setAccountNumbers(customerAccounts);
             ledgerClient.getAsyncWith1Param("/services/ledger/data", "request",
                     jsonConverter.toJson(request), (httpStatusCode, httpContentType, dataReplyJson) -> {

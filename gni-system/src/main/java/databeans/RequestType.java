@@ -18,8 +18,8 @@ public enum RequestType implements Serializable {
     ACCOUNTS,
     /** Used to check if an account exists. */
     ACCOUNTEXISTS,
-    /** Used to fetch the owners of a list of accounts. */
-    OWNERS,
+    /** Used to fetch the list of accounts for a certain customer. */
+    CUSTOMERACCESSLIST,
     /** Used to fetch the access list for a certain account. */
     ACCOUNTACCESSLIST
 }
