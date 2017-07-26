@@ -1,5 +1,6 @@
 package users;
 
+import authentication.UserNotAuthorizedException;
 import com.google.gson.Gson;
 import database.ConnectionPool;
 import database.SQLConnection;
@@ -241,10 +242,12 @@ class UsersService {
     private void handleAccountAccessListRequestExceptions(final String accountNumber, final long customerID,
                                                           final CallbackBuilder callbackBuilder) {
         try {
-            // TODO Check customerID against acountNumber, customer MUST BE primary owner
+            if (!isCustomerPrimaryOwner(accountNumber, customerID)) {
+                throw new users.UserNotAuthorizedException("The customer is not the primary owner of the provided bank account.");
+            }
             DataReply reply = new DataReply(RequestType.ACCOUNTACCESSLIST, getAccountAccessList(accountNumber));
             sendAccountAccessListRequestCallback(reply, callbackBuilder);
-        } catch (SQLException | AccountDoesNotExistException e) {
+        } catch (SQLException | AccountDoesNotExistException | users.UserNotAuthorizedException e) {
             e.printStackTrace();
             callbackBuilder.build().reject(e);
         }
@@ -259,6 +262,28 @@ class UsersService {
     private void sendAccountAccessListRequestCallback(final DataReply reply, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Sending account access list request callback.\n", PREFIX);
         callbackBuilder.build().reply(jsonConverter.toJson(reply));
+    }
+
+    private boolean isCustomerPrimaryOwner(final String accountNumber, final long customerID)
+            throws SQLException, AccountDoesNotExistException {
+        SQLConnection con = databaseConnectionPool.getConnection();
+        PreparedStatement ps = con.getConnection().prepareStatement(getPrimaryAccountOwner);
+        ps.setString(1, accountNumber);
+        ResultSet rs = ps.executeQuery();
+        boolean res = false;
+
+        if (rs.next()) {
+            if (rs.getLong("user_id") == customerID) {
+                res = true;
+            }
+        } else {
+            throw new AccountDoesNotExistException("No AccountLinks were found.");
+        }
+
+        rs.close();
+        ps.close();
+        databaseConnectionPool.returnConnection(con);
+        return res;
     }
 
     private List<AccountLink> getAccountAccessList(final String accountNumber)
