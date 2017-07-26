@@ -18,7 +18,7 @@ public final class SQLStatements {
     public static final String getHighestOutgoingTransactionID = "SELECT MAX(id) FROM transactions_out";
     public static final String getNextAccountID = "SELECT MAX(id) FROM ledger";
     public static final String createNewUser = "INSERT INTO users (id, initials, firstname, lastname, email, telephone_number, address, date_of_birth, social_security_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-    public static final String addAccountToUser = "INSERT INTO accounts (user_id, account_number) VALUES (?, ?)";
+    public static final String addAccountToUser = "INSERT INTO accounts (user_id, account_number, primary_owner) VALUES (?, ?, ?)";
     public static final String getUserInformation = "SELECT * FROM users WHERE id = ?";
     public static final String getAccountNumbers = "SELECT * FROM accounts where user_id = ?";
     public static final String getAccountNumberCount = "SELECT count(*) FROM ledger WHERE account_number = ?";
@@ -47,7 +47,7 @@ public final class SQLStatements {
     public static final String getAccountAccessList = "SELECT user_id FROM accounts WHERE account_number = ?";
 
     // Create statements used for setting up the database
-    public final static String createAccountsTable = "CREATE TABLE IF NOT EXISTS `accounts` ( `user_id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL);";
+    public final static String createAccountsTable = "CREATE TABLE IF NOT EXISTS `accounts` ( `user_id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL, `primary_owner` BOOLEAN NOT NULL);";
     public final static String dropAccountsTable = "DROP TABLE IF EXISTS `accounts`;";
     public final static String createLedgerTable = "CREATE TABLE IF NOT EXISTS `ledger` ( `id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL, `name` TEXT NOT NULL, `spending_limit` DOUBLE NOT NULL, `balance` DOUBLE NOT NULL, PRIMARY KEY (id));";
     public final static String dropLedgerTable = "DROP TABLE IF EXISTS `ledger`;";

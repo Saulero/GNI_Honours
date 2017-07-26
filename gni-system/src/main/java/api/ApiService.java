@@ -599,7 +599,7 @@ final class ApiService {
                         JSONRPC2Response response = new JSONRPC2Response(result, id);
                         callbackBuilder.build().reply(response.toJSONString());
                     } else {
-                        System.out.printf("%s Request not successfull, body: %s\n", PREFIX, body);
+                        System.out.printf("%s Accounts request not successfull, body: %s\n", PREFIX, body);
                         //todo return error.
                     }
                 });
@@ -631,8 +631,8 @@ final class ApiService {
                         JSONRPC2Response response = new JSONRPC2Response(result, id);
                         callbackBuilder.build().reply(response.toJSONString());
                     } else {
-                        /*System.out.printf("%s Request not successfull, body: %s\n", PREFIX, body);
-                        //todo return error.*/
+                        System.out.printf("%s BankAccountAccess Request not successfull, body: %s\n", PREFIX, body);
+                        //todo return error.
                     }
                 });
     }

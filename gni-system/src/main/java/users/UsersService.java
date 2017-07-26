@@ -103,7 +103,8 @@ class UsersService {
                 handleCustomerDataRequestExceptions(dataRequest.getCustomerId(), callbackBuilder);
                 break;
             case ACCOUNTACCESSLIST:
-                handleAccountAccessListRequestExceptions(dataRequest.getAccountNumber(), callbackBuilder);
+                handleAccountAccessListRequestExceptions(dataRequest.getAccountNumber(), dataRequest.getCustomerId(),
+                        callbackBuilder);
                 break;
             default:
                 callbackBuilder.build().reject("Incorrect requestType specified.");
@@ -233,8 +234,10 @@ class UsersService {
      * @param accountNumber iBAN of the account
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void handleAccountAccessListRequestExceptions(final String accountNumber, final CallbackBuilder callbackBuilder) {
+    private void handleAccountAccessListRequestExceptions(final String accountNumber, final long customerID,
+                                                          final CallbackBuilder callbackBuilder) {
         try {
+            // TODO Check customerID against acountNumber, customer MUST BE primary owner
             DataReply reply = new DataReply(RequestType.ACCOUNTACCESSLIST, getAccountAccessList(accountNumber));
             sendAccountAccessListRequestCallback(reply, callbackBuilder);
         } catch (SQLException | AccountDoesNotExistException e) {
@@ -479,7 +482,7 @@ class UsersService {
      */
     private void handleNewAccountLinkExceptions(final Customer accountOwner, final CallbackBuilder callbackBuilder) {
         try {
-            linkAccountToCustomer(accountOwner.getAccount().getAccountNumber(), accountOwner.getCustomerId());
+            linkAccountToCustomer(accountOwner.getAccount().getAccountNumber(), accountOwner.getCustomerId(), true);
             sendNewAccountLinkCallback(jsonConverter.toJson(accountOwner), callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
@@ -495,13 +498,14 @@ class UsersService {
      * @param customerId Id of the customer to link the account to.
      * @param accountNumber Account number to link to the customer.
      */
-    void linkAccountToCustomer(final String accountNumber, final long customerId) throws SQLException {
+    void linkAccountToCustomer(final String accountNumber, final long customerId, final boolean primary) throws SQLException {
         if (!getAccountLinkExistence(accountNumber, customerId)) {
             SQLConnection databaseConnection = databaseConnectionPool.getConnection();
             PreparedStatement linkAccountToCustomer = databaseConnection.getConnection()
                                                                         .prepareStatement(addAccountToUser);
             linkAccountToCustomer.setLong(1, customerId);
             linkAccountToCustomer.setString(2, accountNumber);
+            linkAccountToCustomer.setBoolean(3, primary);
             linkAccountToCustomer.executeUpdate();
             linkAccountToCustomer.close();
             databaseConnectionPool.returnConnection(databaseConnection);
@@ -615,7 +619,7 @@ class UsersService {
             if (!getCustomerExistence(customerId)) {
                 callbackBuilder.build().reject("Account link failed, customer with customerId does not exist.");
             } else {
-                linkAccountToCustomer(accountNumber, customerId);
+                linkAccountToCustomer(accountNumber, customerId, false);
                 sendAccountLinkCallback(accountNumber, customerId, callbackBuilder);
             }
         } catch (SQLException e) {
