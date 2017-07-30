@@ -892,7 +892,6 @@ class UsersService {
         });
     }
 
-    // TODO ASK IF "If this is the customer's last bank account" ONLY APPLIES TO PRIMARY ACCOUNTS (ASSUMPTION = YES)
     /**
      * Checks if the customer still owns accounts in the system, and if the customer does not the customer is
      * removed from the system.

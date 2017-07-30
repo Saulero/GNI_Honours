@@ -263,7 +263,6 @@ final class ApiService {
         });
     }
 
-    // TODO ASK IF "If this is the customer's last bank account" ONLY APPLIES TO PRIMARY ACCOUNTS (ASSUMPTION = YES)
     /**
      * Removes an account from the system.
      * @param params Map containing the parameters of the request (authToken, IBAN).
@@ -345,7 +344,6 @@ final class ApiService {
         });
     }
 
-    // TODO ASK IF PIN CARDS SHOULD ALSO BE DELETED (ASSUMPTION = YES) (NOT YET IMPLEMENTED)
     /**
      * Removes a users access to an account based on the username specified.
      * @param params Parameters of the request (authToken, iBAN, username).
