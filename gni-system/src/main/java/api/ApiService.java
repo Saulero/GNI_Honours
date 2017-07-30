@@ -119,7 +119,7 @@ final class ApiService {
     }
 
     /**
-     * Sends a new customer request to the ui service for processing, if this is successfull logs in and requests a
+     * Sends a new customer request to the ui service for processing, if this is successful logs in and requests a
      * new pin card and sends the result of the request back to the request source.
      * @param customer Customer that will be created in the system.
      * @param callbackBuilder Used to send the result of the request back to the request source.
@@ -159,7 +159,7 @@ final class ApiService {
             if (code == HTTP_OK) {
                 Authentication authenticationReply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
                                                                             Authentication.class);
-                System.out.printf("%s Successfull login, set the following cookie: %s\n\n\n\n",
+                System.out.printf("%s Successful login, set the following cookie: %s\n\n\n\n",
                                     PREFIX, authenticationReply.getCookie());
                 doNewPinCardRequest(accountNumber, username, authenticationReply.getCookie(), callbackBuilder, id,
                                     true);
@@ -253,7 +253,7 @@ final class ApiService {
                 Customer reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
                                                         Customer.class);
                 String accountNumber = reply.getAccount().getAccountNumber();
-                System.out.printf("%s New Account creation successfull, Account Holder: %s,"
+                System.out.printf("%s New Account creation successful, Account Holder: %s,"
                                     + " AccountNumber: %s\n\n\n\n", PREFIX, reply.getCustomerId(),
                                     accountNumber);
                 doNewPinCardRequest(accountNumber, "", cookie, callbackBuilder, id, true);
@@ -263,6 +263,7 @@ final class ApiService {
         });
     }
 
+    // TODO ASK IF "If this is the customer's last bank account" ONLY APPLIES TO PRIMARY ACCOUNTS (ASSUMPTION = YES)
     /**
      * Removes an account from the system.
      * @param params Map containing the parameters of the request (authToken, IBAN).
@@ -271,6 +272,7 @@ final class ApiService {
      */
     private void closeAccount(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                               final Object id) {
+        System.out.printf("%s Sending close account request.\n", PREFIX);
         uiClient.putFormAsyncWith2Params("/services/ui/account/remove", "accountNumber",
                 params.get("iBAN"), "cookie", params.get("authToken"), (code, contentType, body) -> {
                     if (code == HTTP_OK) {
@@ -286,11 +288,23 @@ final class ApiService {
      * Sends te result of the closeAccountRequest back to the request source using a JSONRPC object.
      * @param callbackBuilder Used to send the result of the request back to the request source.
      * @param id Id of the request.
-     * @param replyAccountNumber Used to show which accountNumber is closed.
+     * @param reply Used to show which accountNumber is closed.
      */
     private void sendCloseAccountCallback(final CallbackBuilder callbackBuilder, final Object id,
-                                          final String replyAccountNumber) {
-        System.out.printf("%s Successfully closed account %s\n\n\n\n", PREFIX, replyAccountNumber);
+                                          final String reply) {
+        AccountLink replyObject = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(reply), AccountLink.class);
+        System.out.printf("%s Successfully closed account %s\n\n\n\n", PREFIX, replyObject.getAccountNumber());
+        Map<String, Object> result = new HashMap<>();
+        JSONRPC2Response response = new JSONRPC2Response(result, id);
+        callbackBuilder.build().reply(response.toJSONString());
+    }
+
+    /**
+     * Sends te result of the revokeAccess request back to the request source using a JSONRPC object.
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     * @param id Id of the request.
+     */
+    private void sendRevokeAccessCallback(final CallbackBuilder callbackBuilder, final Object id) {
         Map<String, Object> result = new HashMap<>();
         JSONRPC2Response response = new JSONRPC2Response(result, id);
         callbackBuilder.build().reply(response.toJSONString());
@@ -313,17 +327,15 @@ final class ApiService {
         AccountLink request = JSONParser.createJsonAccountLink(accountNumber, username, false);
         System.out.printf("%s Sending account link request.\n", PREFIX);
         uiClient.putFormAsyncWith2Params("/services/ui/accountLink", "request",
-                jsonConverter.toJson(request), "cookie", cookie,
-                (code, contentType, body) -> {
+                jsonConverter.toJson(request), "cookie", cookie, (code, contentType, body) -> {
             if (code == HTTP_OK) {
-                AccountLink reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
-                                                            AccountLink.class);
+                AccountLink reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), AccountLink.class);
                 if (reply.isSuccessful()) {
-                    System.out.printf("%s Account link successfull for Account Holder: %s, AccountNumber: %s\n\n\n\n",
+                    System.out.printf("%s Account link successful for Account Holder: %s, AccountNumber: %s\n\n\n\n",
                             PREFIX, reply.getCustomerId(), accountNumber);
                     doNewPinCardRequest(accountNumber, username, cookie, callbackBuilder, id, false);
                 } else {
-                    System.out.printf("%s Account link creation unsuccessfull.\n\n\n\n", PREFIX);
+                    System.out.printf("%s Account link creation unsuccessful.\n\n\n\n", PREFIX);
                     //todo send back failure
                 }
             } else {
@@ -333,6 +345,7 @@ final class ApiService {
         });
     }
 
+    // TODO ASK IF PIN CARDS SHOULD ALSO BE DELETED (ASSUMPTION = YES) (NOT YET IMPLEMENTED)
     /**
      * Removes a users access to an account based on the username specified.
      * @param params Parameters of the request (authToken, iBAN, username).
@@ -341,9 +354,29 @@ final class ApiService {
      */
     private void revokeAccess(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                               final Object id) {
-        //todo add functionality for account Link removal
         // performs an account Link removal and then removes the pincard(s) of said customer.
         // look at documentation for more specifics.
+        String accountNumber = (String) params.get("iBAN");
+        String username = (String) params.get("username");
+        String cookie = (String) params.get("authToken");
+        AccountLink request = JSONParser.createJsonAccountLink(accountNumber, username, false);
+        System.out.printf("%s Sending account link removal request.\n", PREFIX);
+        uiClient.putFormAsyncWith2Params("/services/ui/accountLink/remove", "request",
+                jsonConverter.toJson(request), "cookie", cookie, (code, contentType, body) -> {
+            if (code == HTTP_OK) {
+                RemoveAccountLinkReply reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), RemoveAccountLinkReply.class);
+                if (reply.isSuccessful()) {
+                    System.out.printf("%s Account link removal successful for Account Holder: %s, AccountNumber: %s\n\n\n\n", PREFIX, reply.getMessage(), accountNumber);
+                    sendRevokeAccessCallback(callbackBuilder, id);
+                } else {
+                    System.out.printf("%s Account link removal unsuccessful.\n\n\n\n", PREFIX);
+                    //todo send back failure
+                }
+            } else {
+                System.out.printf("%s Account link removal failed.\n\n\n\n", PREFIX);
+                //todo send back failure
+            }
+        });
     }
 
     /**
@@ -367,7 +400,7 @@ final class ApiService {
                         Transaction reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
                                 Transaction.class);
                         if (reply.isSuccessful() && reply.isProcessed()) {
-                            System.out.printf("%s ATM transaction successfull.\n\n\n", PREFIX);
+                            System.out.printf("%s ATM transaction successful.\n\n\n", PREFIX);
                             Map<String, Object> result = new HashMap<>();
                             JSONRPC2Response response = new JSONRPC2Response(result, id);
                             callbackBuilder.build().reply(response.toJSONString());
@@ -375,8 +408,8 @@ final class ApiService {
                             System.out.printf("%s ATM transaction couldn't be processed.\n\n\n", PREFIX);
                             //todo figure out how to fetch what cause the failed processing.
                         } else {
-                            System.out.printf("%s ATM transaction was not successfull.\n\n\n", PREFIX);
-                            //todo send unsuccessfull reply, find way to fetch cause of this.
+                            System.out.printf("%s ATM transaction was not successful.\n\n\n", PREFIX);
+                            //todo send unsuccessful reply, find way to fetch cause of this.
                         }
                     } else {
                         System.out.printf("%s ATM transaction request failed.\n\n\n", PREFIX);
@@ -404,7 +437,7 @@ final class ApiService {
                         Transaction reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
                                                                    Transaction.class);
                         if (reply.isSuccessful() && reply.isProcessed()) {
-                            System.out.printf("%s Pin transaction successfull.\n\n\n", PREFIX);
+                            System.out.printf("%s Pin transaction successful.\n\n\n", PREFIX);
                             Map<String, Object> result = new HashMap<>();
                             JSONRPC2Response response = new JSONRPC2Response(result, id);
                             callbackBuilder.build().reply(response.toJSONString());
@@ -412,8 +445,8 @@ final class ApiService {
                             System.out.printf("%s Pin transaction couldn't be processed.\n\n\n", PREFIX);
                             //todo figure out how to fetch what cause the failed processing.
                         } else {
-                            System.out.printf("%s Pin transaction was not successfull.\n\n\n", PREFIX);
-                            //todo send unsuccessfull reply, find way to fetch cause of this.
+                            System.out.printf("%s Pin transaction was not successful.\n\n\n", PREFIX);
+                            //todo send unsuccessful reply, find way to fetch cause of this.
                         }
                     } else {
                         System.out.printf("%s Pin transaction request failed.\n\n\n", PREFIX);
@@ -444,7 +477,7 @@ final class ApiService {
                                                                    Transaction.class);
                         if (reply.isSuccessful() && reply.isProcessed()) {
                             long transactionId = reply.getTransactionID();
-                            System.out.printf("%s Internal transaction %d successfull.\n\n\n\n",
+                            System.out.printf("%s Internal transaction %d successful.\n\n\n\n",
                                     PREFIX, transactionId);
                             Map<String, Object> result = new HashMap<>();
                             JSONRPC2Response response = new JSONRPC2Response(result, id);
@@ -453,12 +486,12 @@ final class ApiService {
                             System.out.printf("%s Internal transaction couldn't be processed\n\n\n\n", PREFIX);
                             //todo figure out how to fetch what cause the failed processing.
                         } else {
-                            System.out.printf("%s Internal transaction was not successfull\n\n\n\n", PREFIX);
+                            System.out.printf("%s Internal transaction was not successful\n\n\n\n", PREFIX);
                             Map<String, Object> result = new HashMap<>();
                             result.put("NotAuthorizedError", "User is not authorized to make this transaction.");
                             JSONRPC2Response response = new JSONRPC2Response(result, id);
                             callbackBuilder.build().reply(response.toJSONString());
-                            //todo send unsuccessfull reply, find way to fetch cause of this.
+                            //todo send unsuccessful reply, find way to fetch cause of this.
                         }
                     } else {
                         System.out.printf("%s Transaction request failed.\n\n\n\n", PREFIX);
@@ -487,7 +520,7 @@ final class ApiService {
                     if (code == HTTP_OK) {
                         Authentication authenticationReply = gson.fromJson(JSONParser.removeEscapeCharacters(body),
                                 Authentication.class);
-                        System.out.printf("%s Successfull login, set the following cookie: %s\n\n\n\n",
+                        System.out.printf("%s Successful login, set the following cookie: %s\n\n\n\n",
                                 PREFIX, authenticationReply.getCookie());
                         Map<String, Object> result = new HashMap<>();
                         result.put("authToken", authenticationReply.getCookie());
@@ -518,14 +551,14 @@ final class ApiService {
             if (code == HTTP_OK) {
                 DataReply balanceReply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
                                                                 DataReply.class);
-                System.out.printf("%s Request successfull, balance: %f\n\n\n\n", PREFIX,
+                System.out.printf("%s Request successful, balance: %f\n\n\n\n", PREFIX,
                         balanceReply.getAccountData().getBalance());
                 Map<String, Object> result = new HashMap<>();
                 result.put("balance", balanceReply.getAccountData().getBalance());
                 JSONRPC2Response response = new JSONRPC2Response(result, id);
                 callbackBuilder.build().reply(response.toJSONString());
             } else {
-                System.out.printf("%s Request not successfull, body: %s\n", PREFIX, body);
+                System.out.printf("%s Request not successful, body: %s\n", PREFIX, body);
                 //todo return error.
             }
         });
@@ -548,7 +581,7 @@ final class ApiService {
                     if (code == HTTP_OK) {
                         DataReply balanceReply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
                                                                         DataReply.class);
-                        System.out.printf("%s TransactionOverview request successfull.\n\n\n\n", PREFIX);
+                        System.out.printf("%s TransactionOverview request successful.\n\n\n\n", PREFIX);
                         List<Map<String, Object>> transactionList = new ArrayList<>();
                         Long nrOfTransactions = (Long) params.get("nrOfTransactions");
                         List<Transaction> transactions = balanceReply.getTransactions().subList(0,
@@ -567,7 +600,7 @@ final class ApiService {
                         JSONRPC2Response response = new JSONRPC2Response(transactionList, id);
                         callbackBuilder.build().reply(response.toJSONString());
                     } else {
-                        System.out.printf("%s Request not successfull, body: %s\n", PREFIX, body);
+                        System.out.printf("%s Request not successful, body: %s\n", PREFIX, body);
                         //todo return error.
                     }
                 });
@@ -588,7 +621,7 @@ final class ApiService {
                     if (code == HTTP_OK) {
                         DataReply accountsReply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
                                                                          DataReply.class);
-                        System.out.printf("%s Accounts request successfull.\n\n\n\n", PREFIX);
+                        System.out.printf("%s Accounts request successful.\n\n\n\n", PREFIX);
                         List<Map<String, Object>> result = new ArrayList<>();
                         accountsReply.getAccounts().forEach(k -> {
                             Map<String, Object> account = new HashMap<>();
@@ -599,7 +632,7 @@ final class ApiService {
                         JSONRPC2Response response = new JSONRPC2Response(result, id);
                         callbackBuilder.build().reply(response.toJSONString());
                     } else {
-                        System.out.printf("%s Accounts request not successfull, body: %s\n", PREFIX, body);
+                        System.out.printf("%s Accounts request not successful, body: %s\n", PREFIX, body);
                         //todo return error.
                     }
                 });
@@ -621,7 +654,7 @@ final class ApiService {
                     if (code == HTTP_OK) {
                         DataReply accountsReply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
                                 DataReply.class);
-                        System.out.printf("%s BankAccountAccess request successfull.\n\n\n\n", PREFIX);
+                        System.out.printf("%s BankAccountAccess request successful.\n\n\n\n", PREFIX);
                         List<Map<String, Object>> result = new ArrayList<>();
                         accountsReply.getAccounts().forEach(k -> {
                             Map<String, Object> account = new HashMap<>();
@@ -631,7 +664,7 @@ final class ApiService {
                         JSONRPC2Response response = new JSONRPC2Response(result, id);
                         callbackBuilder.build().reply(response.toJSONString());
                     } else {
-                        System.out.printf("%s BankAccountAccess Request not successfull, body: %s\n", PREFIX, body);
+                        System.out.printf("%s BankAccountAccess Request not successful, body: %s\n", PREFIX, body);
                         //todo return error.
                     }
                 });

@@ -5,15 +5,13 @@ import com.google.gson.JsonSyntaxException;
 import database.ConnectionPool;
 import database.SQLConnection;
 import database.SQLStatements;
-import databeans.PinCard;
-import databeans.PinTransaction;
+import databeans.*;
 import io.advantageous.qbit.annotation.RequestMapping;
 import io.advantageous.qbit.annotation.RequestMethod;
 import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
-import databeans.Transaction;
 import jdk.nashorn.internal.codegen.CompilerConstants;
 import util.JSONParser;
 
@@ -276,7 +274,7 @@ class PinService {
 
     /**
      * Sends the Transaction to the transactionDispatchClient and handles the reply when it is received by checking
-     * if the request was successfull, and sending it off for processing if it was, or sending a rejection to the
+     * if the request was successful, and sending it off for processing if it was, or sending a rejection to the
      * request source of the request failed.
      * @param request Transaction that should be processed.
      * @param customerId CustomerId of the customer that requested the transaction.
@@ -300,7 +298,7 @@ class PinService {
 
     /**
      * Sends the deposit request to the transaction receive client and handles the the reply when it is received by
-     * checking if the request was successfull, and sending it off for processing if it was, or sending a rejection
+     * checking if the request was successful, and sending it off for processing if it was, or sending a rejection
      * to the request source of the request failed.
      * @param request Transaction that should be processed.
      * @param callbackBuilder Used to send a reply to the request source.
@@ -320,7 +318,7 @@ class PinService {
     }
 
     /**
-     * Processes a transaction reply by checking if it was successfull, and the request that was executed matches the
+     * Processes a transaction reply by checking if it was successful, and the request that was executed matches the
      * request that was sent and sends the matching callback to the request source.
      * @param reply Transaction reply for the transaction request that was made.
      * @param request Transaction request that was sent to the Transaction Dispatch service.
@@ -330,11 +328,11 @@ class PinService {
                                          final CallbackBuilder callbackBuilder) {
         if (reply.isProcessed() && reply.equalsRequest(request)) {
             if (reply.isSuccessful()) {
-                System.out.printf("%s Pin transaction was successfull, sending callback.\n", PREFIX);
+                System.out.printf("%s Pin transaction was successful, sending callback.\n", PREFIX);
                 callbackBuilder.build().reply(jsonConverter.toJson(reply));
             } else {
-                System.out.printf("%s Pin transaction was unsuccessfull, sending rejection.\n", PREFIX);
-                callbackBuilder.build().reject("PIN: Pin Transaction was unsuccessfull.");
+                System.out.printf("%s Pin transaction was unsuccessful, sending rejection.\n", PREFIX);
+                callbackBuilder.build().reject("PIN: Pin Transaction was unsuccessful.");
             }
         } else {
             System.out.printf("%s Pin transaction couldn't be processed, sending rejection.\n", PREFIX);
@@ -468,7 +466,7 @@ class PinService {
 
     /**
      * Creates a callbackbuilder to send the result of the request to and then calls the exception handler to execute
-     * the pin card removal. Sends a callback if the removal is successfull or a rejection if the removal fails.
+     * the pin card removal. Sends a callback if the removal is successful or a rejection if the removal fails.
      * @param callback Used to send the result of the request to the request source.
      * @param pinCardJson Json String representing a {@link PinCard} that should be removed from the system.
      */
@@ -480,7 +478,7 @@ class PinService {
 
     /**
      * Tries to create a {@link PinCard} from the Json string and then delete it from the database. Sends a rejection
-     * if this fails or a callback with the {@link PinCard} that was removed from the system if it is successfull.
+     * if this fails or a callback with the {@link PinCard} that was removed from the system if it is successful.
      * @param pinCardJson Json String representing a {@link PinCard} that should be removed from the system.
      * @param callbackBuilder Used to send the result of the request to the request source.
      */
@@ -554,7 +552,8 @@ class PinService {
     private void sendRemoveAccountCardsCallback(final String accountNumber, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s All pin cards for account with accountNumber %s successfully deleted from the system,"
                             + " sending callback.\n", PREFIX, accountNumber);
-        callbackBuilder.build().replyDone();
+        AccountLink reply = JSONParser.createJsonAccountLink(accountNumber, 0L);
+        callbackBuilder.build().reply(jsonConverter.toJson(reply));
     }
 
     /**

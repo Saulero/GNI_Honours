@@ -21,6 +21,7 @@ public final class SQLStatements {
     public static final String addAccountToUser = "INSERT INTO accounts (user_id, account_number, primary_owner) VALUES (?, ?, ?)";
     public static final String getUserInformation = "SELECT * FROM users WHERE id = ?";
     public static final String getAccountNumbers = "SELECT * FROM accounts where user_id = ?";
+    public static final String getPrimaryAccountNumbersCount = "SELECT count(*) FROM accounts WHERE user_id = ? AND primary_owner = true";
     public static final String getAccountNumberCount = "SELECT count(*) FROM ledger WHERE account_number = ?";
     public static final String getUserCount = "SELECT count(*) FROM users WHERE id = ?";
     public static final String getAuthenticationData1 = "SELECT * FROM authentication WHERE username = ?";

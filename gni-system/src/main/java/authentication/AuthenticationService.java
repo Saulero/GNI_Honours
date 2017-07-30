@@ -230,7 +230,7 @@ class AuthenticationService {
      * @param callbackBuilder Used to send back the reply to the service that requested it.
      */
     private void sendDataRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Data request successfull, sending callback.\n", PREFIX);
+        System.out.printf("%s Data request successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(dataReplyJson);
     }
 
@@ -294,7 +294,7 @@ class AuthenticationService {
      */
     private void sendTransactionRequestCallback(final String transactionReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Transaction successfull, sending callback.\n", PREFIX);
+        System.out.printf("%s Transaction successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(transactionReplyJson));
     }
 
@@ -414,7 +414,7 @@ class AuthenticationService {
      */
     private void sendNewCustomerRequestCallback(final String newCustomerReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Customer creation successfull, sending callback.\n", PREFIX);
+        System.out.printf("%s Customer creation successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(newCustomerReplyJson);
     }
 
@@ -439,7 +439,7 @@ class AuthenticationService {
                         // Legitimate info
                         long newToken = secureRandomNumberGenerator.nextLong();
                         setNewToken(userId, newToken);
-                        System.out.printf("%s Successfull login for user %s, sending callback.\n", PREFIX,
+                        System.out.printf("%s Successful login for user %s, sending callback.\n", PREFIX,
                                           authData.getUsername());
                         callback.reply(jsonConverter.toJson(JSONParser.createJsonAuthentication(
                                                     encodeCookie(userId, newToken), AuthenticationType.REPLY)));
@@ -506,9 +506,7 @@ class AuthenticationService {
                                           @RequestParam("request") final String accountLinkRequestJson,
                                           @RequestParam("cookie") final String cookie) {
         AccountLink accountLinkRequest = jsonConverter.fromJson(accountLinkRequestJson, AccountLink.class);
-        accountLinkRequest.setCustomerId(getCustomerId(cookie));
-        System.out.printf("%s Forwarding account link request for customer %d account number %s.\n", PREFIX,
-                          accountLinkRequest.getCustomerId(), accountLinkRequest.getAccountNumber());
+        System.out.printf("%s Forwarding account link request.\n", PREFIX);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         handleAccountLinkExceptions(accountLinkRequest, cookie, callbackBuilder);
     }
@@ -524,7 +522,7 @@ class AuthenticationService {
         try {
             authenticateRequest(cookie);
             accountLinkRequest.setCustomerId(getCustomerIdFromUsername(accountLinkRequest.getUsername()));
-            doAccountLinkRequest(jsonConverter.toJson(accountLinkRequest), callbackBuilder);
+            doAccountLinkRequest(jsonConverter.toJson(accountLinkRequest), getCustomerId(cookie), callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
             callbackBuilder.build().reject("Error connecting to authentication database.");
@@ -541,8 +539,7 @@ class AuthenticationService {
     private Long getCustomerIdFromUsername(final String username) throws SQLException, CustomerDoesNotExistException {
         Long customerId;
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
-        PreparedStatement getCustomerId = databaseConnection.getConnection()
-                                                                    .prepareStatement(getCustomerIdFromUsername);
+        PreparedStatement getCustomerId = databaseConnection.getConnection().prepareStatement(getCustomerIdFromUsername);
         getCustomerId.setString(1, username);
         ResultSet customerIdSet = getCustomerId.executeQuery();
         if (customerIdSet.next()) {
@@ -557,12 +554,14 @@ class AuthenticationService {
 
     /**
      * Forwards a String representing an account link to the Users database, and processes the reply if it is
-     * successfull or sends a rejection to the requesting service if it fails.
+     * successful or sends a rejection to the requesting service if it fails.
      * @param accountLinkRequestJson String representing an {@link AccountLink} that should be executed.
      * @param callbackBuilder Used to send the result of the request back to the source of the request.
      */
-    private void doAccountLinkRequest(final String accountLinkRequestJson, final CallbackBuilder callbackBuilder) {
-        usersClient.putFormAsyncWith1Param("/services/users/accountLink", "body", accountLinkRequestJson,
+    private void doAccountLinkRequest(final String accountLinkRequestJson, final long requesterId,
+                                      final CallbackBuilder callbackBuilder) {
+        usersClient.putFormAsyncWith2Params("/services/users/accountLink", "body",
+                accountLinkRequestJson,"requesterId", requesterId,
                 ((httpStatusCode, httpContentType, accountLinkReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         sendAccountLinkRequestCallback(accountLinkReplyJson, callbackBuilder);
@@ -580,7 +579,7 @@ class AuthenticationService {
      */
     private void sendAccountLinkRequestCallback(final String accountLinkReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Successfull account link, sending callback.\n", PREFIX);
+        System.out.printf("%s Successful account link, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(accountLinkReplyJson));
     }
 
@@ -589,16 +588,32 @@ class AuthenticationService {
                                           @RequestParam("request") final String accountLinkJson,
                                           @RequestParam("cookie") final String cookie) {
         AccountLink linkToRemove = jsonConverter.fromJson(accountLinkJson, AccountLink.class);
+        System.out.printf("%s Forwarding account link removal.\n", PREFIX);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleAccountLinkRemovalExceptions(linkToRemove, cookie, callbackBuilder);
+    }
+
+    /**
+     * Authenticates the account link removal request and then forwards the request to the Users service.
+     * @param accountLink Account Link that should be removed.
+     * @param cookie Cookie of the customer requesting the account link.
+     * @param callbackBuilder Used to send the reply back to the requesting service.
+     */
+    private void handleAccountLinkRemovalExceptions(final AccountLink accountLink, final String cookie,
+                                             final CallbackBuilder callbackBuilder) {
         try {
-            linkToRemove.setCustomerId(getCustomerIdFromUsername(linkToRemove.getUsername()));
-            System.out.printf("%s Forwarding account link removal for customer %d account number %s.\n", PREFIX,
-                                linkToRemove.getCustomerId(), linkToRemove.getAccountNumber());
-            CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-            handleAccountLinkExceptions(linkToRemove, Long.toString(getCustomerId(cookie)), callbackBuilder);
+            authenticateRequest(cookie);
+            accountLink.setCustomerId(getCustomerIdFromUsername(accountLink.getUsername()));
+            doAccountLinkRemoval(accountLink, "" + getCustomerId(cookie), callbackBuilder);
         } catch (SQLException e) {
-            callback.reject("Sqlexception occurred.");
+            e.printStackTrace();
+            callbackBuilder.build().reject("Error connecting to authentication database.");
+        } catch (UserNotAuthorizedException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reject("User not authorized, please login.");
         } catch (CustomerDoesNotExistException e) {
-            callback.reject("Username field incorrectly specified.");
+            e.printStackTrace();
+            callbackBuilder.build().reject("User with username does not exist, please specify correctly.");
         }
     }
 
@@ -608,7 +623,7 @@ class AuthenticationService {
                                             jsonConverter.toJson(accountLink), "requesterId", requesterId,
                                             (httpStatusCode, httpContentType, removalReplyJson) -> {
             if (httpStatusCode == HTTP_OK) {
-                System.out.printf("%s Forwarding accountLink removal reply.", PREFIX);
+                System.out.printf("%s Forwarding accountLink removal reply.\n", PREFIX);
                 callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(removalReplyJson));
             } else {
                 callbackBuilder.build().reject("Error connecting to users service.");
@@ -668,7 +683,7 @@ class AuthenticationService {
      */
     private void sendNewAccountRequestCallback(final String newAccountReplyJson,
                                                final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Account creation request successfull, sending callback.\n", PREFIX);
+        System.out.printf("%s Account creation request successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(newAccountReplyJson));
     }
 
@@ -708,7 +723,7 @@ class AuthenticationService {
     }
 
     /**
-     * Forwards an account removal request to the Users service and sends a callback if the request is successfull, or
+     * Forwards an account removal request to the Users service and sends a callback if the request is successful, or
      * a rejection if the request fails.
      * @param accountNumber AccountNumber that should be removed from the system.
      * @param customerId CustomerId of the User that sent the request.
@@ -720,8 +735,8 @@ class AuthenticationService {
                 "accountNumber", accountNumber, "customerId", customerId,
                 (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        CloseAccountReply reply = jsonConverter.fromJson(replyJson, CloseAccountReply.class);
-                        if (!reply.isSuccessfull()) {
+                        CloseAccountReply reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyJson), CloseAccountReply.class);
+                        if (!reply.isSuccessful()) {
                             callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(replyJson));
                         } else {
                             if (reply.isCustomerRemoved()) {
@@ -766,7 +781,7 @@ class AuthenticationService {
     }
 
     private void sendAccountRemovalCallback(final String replyJson, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Account removal successfull, sending callback.\n", PREFIX);
+        System.out.printf("%s Account removal successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(replyJson));
     }
 
@@ -871,7 +886,7 @@ class AuthenticationService {
     }
 
     private void sendNewPinCardCallback(final String newPinCardReplyJson, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s New pin card request successfull, sending callback.\n", PREFIX);
+        System.out.printf("%s New pin card request successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(newPinCardReplyJson));
     }
 
@@ -913,7 +928,7 @@ class AuthenticationService {
 
     /**
      * Forwards the pin card removal request to the pin service, forwards the result to the request source if the
-     * request is successfull, or sends a rejection to the request source if the request fails.
+     * request is successful, or sends a rejection to the request source if the request fails.
      * @param pinCardJson Json String representing a {@link PinCard} that should be removed from the system.
      * @param callbackBuilder Used to send the result of the request back to the request source.
      */
@@ -923,13 +938,13 @@ class AuthenticationService {
                     if (code == HTTP_OK) {
                         sendPinCardRemovalCallback(body, callbackBuilder);
                     } else {
-                        callbackBuilder.build().reject("Remove pin card request not successfull.");
+                        callbackBuilder.build().reject("Remove pin card request not successful.");
                     }
                 });
     }
 
     private void sendPinCardRemovalCallback(final String jsonReply, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Pin card removal successfull, sending callback.\n", PREFIX);
+        System.out.printf("%s Pin card removal successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(jsonReply));
     }
 

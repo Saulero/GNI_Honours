@@ -65,7 +65,7 @@ class TransactionReceiveService {
                     if (httpStatusCode == HTTP_OK) {
                         processIncomingTransactionReply(transactionReplyJson, callbackBuilder);
                     } else {
-                        //TODO send unsuccessfull reply instead of rejection
+                        //TODO send unsuccessful reply instead of rejection
                         System.out.printf("%s Received a rejection from ledger, sending rejection.\n", prefix);
                         callbackBuilder.build().reject("Recieved an error from ledger.");
                     }
@@ -80,7 +80,7 @@ class TransactionReceiveService {
             //TODO send reply to external bank.
         } else {
             if (reply.isProcessed()) {
-                System.out.printf("%s Transaction unsuccessfull, sending rejection.\n", prefix);
+                System.out.printf("%s Transaction unsuccessful, sending rejection.\n", prefix);
             } else {
                 System.out.printf("%s Transaction couldn't be processed, sending rejection.\n", prefix);
             }

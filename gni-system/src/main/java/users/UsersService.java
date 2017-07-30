@@ -1,6 +1,5 @@
 package users;
 
-import authentication.UserNotAuthorizedException;
 import com.google.gson.Gson;
 import database.ConnectionPool;
 import database.SQLConnection;
@@ -17,7 +16,6 @@ import util.JSONParser;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -97,9 +95,6 @@ class UsersService {
     private void handleInternalDataRequest(final DataRequest dataRequest, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Received customer data request, fetching data.\n", PREFIX);
         switch (dataRequest.getType()) {
-            case ACCOUNTS:
-                handleAccountsRequestExceptions(dataRequest.getCustomerId(), callbackBuilder);
-                break;
             case CUSTOMERDATA:
                 handleCustomerDataRequestExceptions(dataRequest.getCustomerId(), callbackBuilder);
                 break;
@@ -116,30 +111,6 @@ class UsersService {
         }
     }
 
-    /**
-     * Sends a reject to the calling service if the SQL query in getCustomerAccounts fails.
-     * @param customerId Id of the customer whose accounts we want to fetch.
-     * @param callbackBuilder Used to send a reply back to the service that sent the request.
-     */
-    private void handleAccountsRequestExceptions(final long customerId, final CallbackBuilder callbackBuilder) {
-        try {
-            List<String> customerAccounts = getCustomerAccounts(customerId);
-            forwardAccountsRequest(customerAccounts, callbackBuilder);
-        } catch (SQLException e) {
-            e.printStackTrace();
-            callbackBuilder.build().reject(e);
-        }
-    }
-
-    /**
-     * Send a DataReply object containing accounts belonging to a certain customer to the service that requested them.
-     * @param customerAccounts DataReply object containing a list of accounts belonging to a certain customer.
-     * @param callbackBuilder Used to send a reply back to the calling service.
-     */
-    private void sendAccountsRequestCallback(final DataReply customerAccounts, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Sending accounts request callback.\n", PREFIX);
-        callbackBuilder.build().reply(jsonConverter.toJson(customerAccounts));
-    }
 
     /**
      * Fetches account numbers from the accounts table for the customer with the respective id, returns this in a
@@ -153,22 +124,16 @@ class UsersService {
         PreparedStatement getAccountsFromDb = databaseConnection.getConnection().prepareStatement(getAccountNumbers);
         getAccountsFromDb.setLong(1, customerId);
         ResultSet retrievedAccounts = getAccountsFromDb.executeQuery();
+
         DataReply customerAccounts = new DataReply();
-        customerAccounts.setType(RequestType.ACCOUNTS);
-        List<String> linkedAccounts = new ArrayList<>();
+        customerAccounts.setType(RequestType.CUSTOMERACCESSLIST);
+        List<String> linkedAccounts = new LinkedList<>();
         while (retrievedAccounts.next()) {
             linkedAccounts.add(retrievedAccounts.getString("account_number"));
         }
         getAccountsFromDb.close();
         databaseConnectionPool.returnConnection(databaseConnection);
         return  linkedAccounts;
-    }
-
-    private void forwardAccountsRequest(final List<String> accounts, final CallbackBuilder callbackBuilder) {
-        DataRequest request = new DataRequest();
-        request.setType(RequestType.CUSTOMERACCESSLIST);
-        request.setAccountNumbers(accounts);
-        doLedgerDataRequest(request, callbackBuilder);
     }
 
     /**
@@ -264,18 +229,15 @@ class UsersService {
         callbackBuilder.build().reply(jsonConverter.toJson(reply));
     }
 
-    private boolean isCustomerPrimaryOwner(final String accountNumber, final long customerID)
-            throws SQLException, AccountDoesNotExistException {
+    private long getPrimaryOwner(final String accountNumber) throws SQLException, AccountDoesNotExistException {
         SQLConnection con = databaseConnectionPool.getConnection();
         PreparedStatement ps = con.getConnection().prepareStatement(getPrimaryAccountOwner);
         ps.setString(1, accountNumber);
         ResultSet rs = ps.executeQuery();
-        boolean res = false;
+        long res;
 
         if (rs.next()) {
-            if (rs.getLong("user_id") == customerID) {
-                res = true;
-            }
+            res = rs.getLong("user_id");
         } else {
             throw new AccountDoesNotExistException("No AccountLinks were found.");
         }
@@ -284,6 +246,11 @@ class UsersService {
         ps.close();
         databaseConnectionPool.returnConnection(con);
         return res;
+    }
+
+    private boolean isCustomerPrimaryOwner(final String accountNumber, final long customerID)
+            throws SQLException, AccountDoesNotExistException {
+        return getPrimaryOwner(accountNumber) == customerID;
     }
 
     private List<AccountLink> getAccountAccessList(final String accountNumber)
@@ -417,7 +384,7 @@ class UsersService {
             sendTransactionRequestCallback(transactionReplyJson, callbackBuilder);
         } else {
             callbackBuilder.build().reject("Transaction failed, processed: "
-                                            + transactionReply.isProcessed() + " successfull: "
+                                            + transactionReply.isProcessed() + " successful: "
                                             + transactionReply.isSuccessful());
         }
     }
@@ -430,7 +397,7 @@ class UsersService {
      */
     private void sendTransactionRequestCallback(final String transactionReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Transaction was successfull, sending callback.\n", PREFIX);
+        System.out.printf("%s Transaction was successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(transactionReplyJson));
     }
 
@@ -600,7 +567,7 @@ class UsersService {
 
     /**
      * Sends a callback to the service that requested the account link/customer creation indicating that the request
-     * was successfull.
+     * was successful.
      * @param newCustomerJson String representing a {@link Customer} containing an {@link Account} with an account
      *                        that was linked to the customer.
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
@@ -619,34 +586,35 @@ class UsersService {
      */
     @RequestMapping(value = "/accountLink", method = RequestMethod.PUT)
     public void processAccountLink(final Callback<String> callback,
-                                   final @RequestParam("body") String accountLinkRequestJson) {
+                                   final @RequestParam("body") String accountLinkRequestJson,
+                                   final @RequestParam("requesterId") String requesterId) {
         System.out.printf("%s Received account link request.\n", PREFIX);
         AccountLink accountLink = jsonConverter.fromJson(accountLinkRequestJson, AccountLink.class);
         long customerId = accountLink.getCustomerId();
         String accountNumber = accountLink.getAccountNumber();
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        doAccountExistsRequest(accountNumber, customerId, callbackBuilder);
+        doAccountExistsRequest(accountNumber, customerId, requesterId, callbackBuilder);
     }
 
     /**
-     * Sends a request to the ledger to check if an account exists, if the ledger gives a successfull reply it sends
+     * Sends a request to the ledger to check if an account exists, if the ledger gives a successful reply it sends
      * this reply off for processing, otherwise it rejects the request that invoked this method. Used to check if
      * an account exists before linking it to a customer.
      * @param accountNumber AccountNumber to check for.
      * @param customerId Used to link a customer to the account.
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void doAccountExistsRequest(final String accountNumber, final long customerId,
+    private void doAccountExistsRequest(final String accountNumber, final long customerId, final String requesterId,
                                         final CallbackBuilder callbackBuilder) {
         DataRequest accountExistsRequest = JSONParser.createAccountExistsRequest(accountNumber);
         ledgerClient.getAsyncWith1Param("/services/ledger/data", "request",
                                         jsonConverter.toJson(accountExistsRequest),
                                         (httpStatusCode, httpContentType, dataReplyJson) -> {
             if (httpStatusCode == HTTP_OK) {
-                processAccountExistsReply(dataReplyJson, customerId, callbackBuilder);
+                processAccountExistsReply(dataReplyJson, customerId, requesterId, callbackBuilder);
             } else {
                 System.out.printf("%s Account does not exist, rejecting.\n", PREFIX);
-                callbackBuilder.build().reject("Unsuccessfull call, code: " + httpStatusCode);
+                callbackBuilder.build().reject("Unsuccessful call, code: " + httpStatusCode);
             }
         });
     }
@@ -658,11 +626,11 @@ class UsersService {
      * @param customerId Id of the customer the account should be linked to.
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void processAccountExistsReply(final String dataReplyJson, final long customerId,
+    private void processAccountExistsReply(final String dataReplyJson, final long customerId, final String requesterId,
                                            final CallbackBuilder callbackBuilder) {
         DataReply ledgerReply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(dataReplyJson), DataReply.class);
         if (ledgerReply.isAccountInLedger()) {
-            handleAccountLinkExceptions(ledgerReply.getAccountNumber(), customerId, callbackBuilder);
+            handleAccountLinkExceptions(ledgerReply.getAccountNumber(), customerId, requesterId, callbackBuilder);
         } else {
             callbackBuilder.build().reject("Account does not exist.");
         }
@@ -676,29 +644,23 @@ class UsersService {
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
     private void handleAccountLinkExceptions(final String accountNumber, final long customerId,
-                                             final CallbackBuilder callbackBuilder) {
+                                             final String requesterId, final CallbackBuilder callbackBuilder) {
         try {
             if (!getCustomerExistence(customerId)) {
                 callbackBuilder.build().reject("Account link failed, customer with customerId does not exist.");
             } else {
-                linkAccountToCustomer(accountNumber, customerId, false);
-                sendAccountLinkCallback(accountNumber, customerId, callbackBuilder);
+                if (isCustomerPrimaryOwner(accountNumber, Long.parseLong(requesterId))) {
+                    linkAccountToCustomer(accountNumber, customerId, false);
+                    sendAccountLinkCallback(accountNumber, customerId, callbackBuilder);
+                } else {
+                    throw new UserNotAuthorizedException("Account link failed, customer not authorized to provide access.");
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
             callbackBuilder.build().reject(e);
-        }
-    }
-
-    /**
-     * Throws a CustomerDoesNotExistException if there is no customer in the customers database with Id=customerId.
-     * @param customerId Id to look for in the databse.
-     * @throws SQLException Exception indicating that something went wrong with our SQL connection.
-     * @throws CustomerDoesNotExistException Indicates there is no customer with Id=customerId.
-     */
-    private void verifyAccountOwnerExistence(final long customerId) throws SQLException, CustomerDoesNotExistException {
-        if (!getCustomerExistence(customerId)) {
-            throw new CustomerDoesNotExistException("Account link failed, customer with customerId does not exist.");
+        } catch (UserNotAuthorizedException | AccountDoesNotExistException e) {
+            callbackBuilder.build().reject(e.getMessage());
         }
     }
 
@@ -712,12 +674,12 @@ class UsersService {
     private void sendAccountLinkCallback(final String accountNumber, final long customerId,
                                          final CallbackBuilder callbackBuilder) {
         AccountLink reply = JSONParser.createJsonAccountLink(accountNumber, customerId, true);
-        System.out.printf("%s Account link successfull, sending callback.\n", PREFIX);
+        System.out.printf("%s Account link successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(jsonConverter.toJson(reply));
     }
 
     /**
-     * Takes an account link request, extracts the needed variables and then removes this link from the system.
+     * Takes an account link removal request, extracts the needed variables and then removes this link from the system.
      * @param callback Used to send a reply back to the service that sent the request.
      * @param accountLinkRequestJson Json string representing an {@link AccountLink} object containing
      *             an account number and customer id, the access of the customer with customer id is removed
@@ -732,62 +694,61 @@ class UsersService {
         long customerId = accountLink.getCustomerId();
         String accountNumber = accountLink.getAccountNumber();
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        verifyAccountLinkPrivelidge(accountNumber, Long.toString(customerId), requesterId, callbackBuilder);
+        removeAccountLinks(accountNumber, Long.toString(customerId), requesterId, callbackBuilder);
     }
 
-    private void verifyAccountLinkPrivelidge(final String accountNumber, final String customerId,
-                                             final String requesterId, final CallbackBuilder callbackBuilder) {
-        DataRequest request = new DataRequest();
-        request.setType(RequestType.CUSTOMERACCESSLIST);
-        LinkedList<String> accountNumberList = new LinkedList<>();
-        accountNumberList.add(accountNumber);
-        request.setAccountNumbers(accountNumberList);
-        ledgerClient.getAsyncWith1Param("/services/ledger/data", "request",
-                jsonConverter.toJson(request), (httpStatusCode, httpContentType, dataReplyJson) -> {
-                    if (httpStatusCode == HTTP_OK) {
-                        DataReply dataReply = jsonConverter.fromJson(dataReplyJson, DataReply.class);
-                        List<AccountLink> accountLinks = dataReply.getAccounts();
-                        AccountLink resultLink = accountLinks.get(0);
-                        if (resultLink.getCustomerId().equals(Long.parseLong(requesterId))) {
-                            // requester is owner of the account, can revoke access of other customers.
-                            removeAccountLink(accountNumber, customerId, callbackBuilder);
-                        } else {
-                            if (customerId.equals(requesterId)) {
-                                removeAccountLink(accountNumber, customerId, callbackBuilder);
-                            } else {
-                                sendRemoveAccountLinkCallback(false,
-                                        "User does not have sufficient permissions.", callbackBuilder);
-                            }
-                        }
-                    } else {
-                        sendRemoveAccountLinkCallback(false, "Internal database error",
-                                                        callbackBuilder);
-                    }
-                });
+    private void removeAccountLinks(final String accountNumber, final String customerId,
+                                    final String requesterId, final CallbackBuilder callbackBuilder) {
+        try {
+            long requester = Long.parseLong(requesterId);
+            if (getPrimaryOwner(accountNumber) == requester) {
+                // requester is owner of the account, can revoke access of other customers.
+                if (!customerId.equals(requesterId)) {
+                    removeAccountLink(accountNumber, customerId, callbackBuilder);
+                    sendRemoveAccountLinkCallback(customerId, callbackBuilder);
+                } else {
+                    sendRemoveAccountLinkErrorCallback("User is the primary owner, access can not be revoked.", callbackBuilder);
+                }
+            } else {
+                if (customerId.equals(requesterId)) {
+                    removeAccountLink(accountNumber, customerId, callbackBuilder);
+                    sendRemoveAccountLinkCallback(customerId, callbackBuilder);
+                } else {
+                    sendRemoveAccountLinkErrorCallback("User does not have sufficient permissions.", callbackBuilder);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            sendRemoveAccountLinkErrorCallback("Internal database error", callbackBuilder);
+        } catch (AccountDoesNotExistException e) {
+            e.printStackTrace();
+            sendRemoveAccountLinkErrorCallback("The provided account does not exist.", callbackBuilder);
+        }
     }
 
-    private void removeAccountLink(final String accountNumber, final String customerId,
-                                   final CallbackBuilder callbackBuilder) {
+    private void removeAccountLink(final String accountNumber, final String customerId, final CallbackBuilder callbackBuilder) {
         try {
             SQLConnection databaseConnection = databaseConnectionPool.getConnection();
-            PreparedStatement removeAccountLink = databaseConnection.getConnection()
-                                                                    .prepareStatement(removeCustomerAccountLink);
+            PreparedStatement removeAccountLink = databaseConnection.getConnection().prepareStatement(removeCustomerAccountLink);
             removeAccountLink.setLong(1, Long.parseLong(customerId));
             removeAccountLink.setString(2, accountNumber);
             removeAccountLink.execute();
             removeAccountLink.close();
             databaseConnectionPool.returnConnection(databaseConnection);
         } catch (SQLException e) {
-            sendRemoveAccountLinkCallback(false, "No account permissions found.",
-                                        callbackBuilder);
+            sendRemoveAccountLinkErrorCallback("No account permissions found.", callbackBuilder);
         }
     }
 
-    private void sendRemoveAccountLinkCallback(final boolean successfull, final String errorMessage,
-                                               final CallbackBuilder callbackBuilder) {
-        RemoveAccountLinkReply reply = new RemoveAccountLinkReply();
-        reply.setSuccessfull(successfull);
-        reply.setErrorMessage(errorMessage);
+    private void sendRemoveAccountLinkCallback(final String customerId, final CallbackBuilder callbackBuilder) {
+        RemoveAccountLinkReply reply = JSONParser.createJsonRemoveAccountLinkReply(true, customerId);
+        System.out.printf("%s Account link removal successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonConverter.toJson(reply));
+    }
+
+    private void sendRemoveAccountLinkErrorCallback(final String errorMessage, final CallbackBuilder callbackBuilder) {
+        RemoveAccountLinkReply reply = JSONParser.createJsonRemoveAccountLinkReply(false, errorMessage);
+        System.out.printf("%s Account link removal unsuccessful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(jsonConverter.toJson(reply));
     }
 
@@ -872,32 +833,30 @@ class UsersService {
      * @param customerId CustomerId of the customer that sent the request.
      * @param callbackBuilder Used to send a reply to the service that sent the request.
      */
-    private void verifyAccountRemovalInput(final String accountNumber, final Long customerId,
+    private void verifyAccountRemovalInput(final String accountNumber, final long customerId,
                                            final CallbackBuilder callbackBuilder) {
         try {
             if (!getCustomerExistence(customerId)) {
                 callbackBuilder.build().reject(
                         "Account removal failed, customer with customerId does not exist.");
-            } else if (!getAccountLinkExistence(accountNumber, customerId)) {
+            } else if (!isCustomerPrimaryOwner(accountNumber, customerId)) {
                 callbackBuilder.build().reject(
-                        "Account removal failed, this customer is not one of the account owners.");
+                        "Account removal failed, this customer is not the primary account owner.");
             } else {
                 doAccountRemovalRequest(accountNumber, customerId, callbackBuilder);
             }
-        } catch (SQLException e) {
+        } catch (SQLException | AccountDoesNotExistException e) {
             e.printStackTrace();
             callbackBuilder.build().reject(e);
         }
     }
 
     /**
-     * Removes the account link that links the account with accountNumber to the customer with customerId from the
-     * system.
+     * Removes all account links between users and the account that is being removed.
      * @param accountNumber AccountNumber of the account linked to the customer.
-     * @param customerId Id of the customer the account is linked to.
      * @throws SQLException Thrown when the removal query fails.
      */
-    private void verifyAccountLinkPrivelidge(final String accountNumber, final Long customerId) throws SQLException {
+    private void removeAccountLinks(final String accountNumber) throws SQLException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement removeAccountLink = databaseConnection.getConnection()
                                                                 .prepareStatement(SQLStatements.removeAccountLinks);
@@ -908,8 +867,8 @@ class UsersService {
     }
 
     /**
-     * Forwards an account removal request to the ledger, and if the account removal is successfull removes all account
-     * links for the account from the accounts database and sends a successfull callback to the request source. If the
+     * Forwards an account removal request to the ledger, and if the account removal is successful removes all account
+     * links for the account from the accounts database and sends a successful callback to the request source. If the
      * request fails a rejection is sent to the request source.
      * @param accountNumber AccountNumber that should be removed from the system.
      * @param customerId CustomerId of the customer that sent the request.
@@ -921,7 +880,7 @@ class UsersService {
         accountNumber, "customerId", Long.toString(customerId), (httpStatusCode, httpContentType, jsonReply) -> {
             if (httpStatusCode == HTTP_OK) {
                 try {
-                    verifyAccountLinkPrivelidge(accountNumber, customerId);
+                    removeAccountLinks(accountNumber);
                     checkIfCustomerOwnsAccounts(customerId, callbackBuilder);
                 } catch (SQLException e) {
                     System.out.printf("%s Failed to remove accountLink, sending rejection.\n", PREFIX);
@@ -933,73 +892,69 @@ class UsersService {
         });
     }
 
+    // TODO ASK IF "If this is the customer's last bank account" ONLY APPLIES TO PRIMARY ACCOUNTS (ASSUMPTION = YES)
     /**
      * Checks if the customer still owns accounts in the system, and if the customer does not the customer is
      * removed from the system.
      * @param customerId Id of the customer to check accounts for.
      * @param callbackBuilder Used to send the result of the request to the request source.
      */
-    private void checkIfCustomerOwnsAccounts(final Long customerId, CallbackBuilder callbackBuilder)
-                                             throws SQLException {
-        List<String> customerAccounts = getCustomerAccounts(customerId);
-        if (customerAccounts.size() > 0) {
-            DataRequest request = new DataRequest();
-            request.setType(RequestType.CUSTOMERACCESSLIST);
-            request.setAccountNumbers(customerAccounts);
-            ledgerClient.getAsyncWith1Param("/services/ledger/data", "request",
-                    jsonConverter.toJson(request), (httpStatusCode, httpContentType, dataReplyJson) -> {
-                        if (httpStatusCode == HTTP_OK) {
-                            DataReply dataReply = jsonConverter.fromJson(dataReplyJson, DataReply.class);
-                            List<AccountLink> accountLinks = dataReply.getAccounts();
-                            int accountsOwned = 0;
-                            for (AccountLink link : accountLinks) {
-                                if (link.getCustomerId().equals(customerId)) {
-                                    accountsOwned += 1;
-                                }
-                            }
-                            boolean removedCustomer = false;
-                            if (accountsOwned < 1) {
-                                removeCustomer(customerId);
-                                removedCustomer = true;
-                            }
-                            sendAccountRemovalCallback(removedCustomer, true, "", callbackBuilder);
-                        } else {
-                            sendAccountRemovalCallback(false, false,
-                                                        "Internal database error", callbackBuilder);
-                        }
-                    });
-        } else {
-            removeCustomer(customerId);
-            sendAccountRemovalCallback(true, true, "", callbackBuilder);
+    private void checkIfCustomerOwnsAccounts(final Long customerId, CallbackBuilder callbackBuilder) {
+        try {
+            SQLConnection con = databaseConnectionPool.getConnection();
+            PreparedStatement ps = con.getConnection().prepareStatement(SQLStatements.getPrimaryAccountNumbersCount);
+            ps.setLong(1, customerId);
+            ResultSet rs = ps.executeQuery();
+
+            boolean removedCustomer = false;
+            if (rs.next() && rs.getInt(1) < 1) {
+                removeCustomer(customerId);
+                removedCustomer = true;
+            }
+
+            rs.close();
+            ps.close();
+            databaseConnectionPool.returnConnection(con);
+
+            sendAccountRemovalCallback(removedCustomer, callbackBuilder);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            sendAccountRemovalErrorCallback("Internal database error", callbackBuilder);
         }
     }
 
     /**
-     * Removes a customer from the users database.
+     * Removes a customer, and any remaining accountLinks from the users database.
      * @param customerId Id of the customer to remove.
      */
     private void removeCustomer(final Long customerId) {
         try {
-            SQLConnection databaseConnection = databaseConnectionPool.getConnection();
-            PreparedStatement removeCustomer = databaseConnection.getConnection()
-                    .prepareStatement(SQLStatements.removeCustomer);
-            removeCustomer.setLong(1, customerId);
-            removeCustomer.execute();
-            removeCustomer.close();
-            PreparedStatement removeLinks = databaseConnection.getConnection().prepareCall(removeCustomerLinks);
-            removeLinks.setLong(1, customerId);
-            removeLinks.execute();
-            removeLinks.close();
-            databaseConnectionPool.returnConnection(databaseConnection);
+            SQLConnection con = databaseConnectionPool.getConnection();
+
+            PreparedStatement ps = con.getConnection().prepareStatement(SQLStatements.removeCustomer);
+            ps.setLong(1, customerId);
+            ps.executeUpdate();
+
+            ps = con.getConnection().prepareStatement(SQLStatements.removeCustomerLinks);
+            ps.setLong(1, customerId);
+            ps.executeUpdate();
+
+            ps.close();
+            databaseConnectionPool.returnConnection(con);
         } catch (SQLException e) {
             System.out.printf("%s Failed to remove customer from system", PREFIX);
         }
     }
 
-    private void sendAccountRemovalCallback(final boolean removedCustomer, final boolean successfull,
-                                            final String errorMessage, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Account removal successfull, sending callback.\n", PREFIX);
-        CloseAccountReply reply = JSONParser.createCloseAccountReply(removedCustomer, successfull, errorMessage);
+    private void sendAccountRemovalCallback(final boolean removedCustomer, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Account removal successful, sending callback.\n", PREFIX);
+        CloseAccountReply reply = JSONParser.createJsonCloseAccountReply(removedCustomer, true, "");
+        callbackBuilder.build().reply(jsonConverter.toJson(reply));
+    }
+
+    private void sendAccountRemovalErrorCallback(final String errorMessage, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Account removal failed, sending callback.\n", PREFIX);
+        CloseAccountReply reply = JSONParser.createJsonCloseAccountReply(false, false, errorMessage);
         callbackBuilder.build().reply(jsonConverter.toJson(reply));
     }
 

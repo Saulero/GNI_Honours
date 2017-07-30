@@ -1,25 +1,26 @@
 package databeans;
 
 /**
- * @Author noel
+ * @author Noel & Saul
  */
 public class RemoveAccountLinkReply {
-    private boolean successfull;
-    private String errorMessage;
 
-    public boolean isSuccessfull() {
-        return successfull;
+    private boolean successful;
+    private String message;
+
+    public boolean isSuccessful() {
+        return successful;
     }
 
-    public void setSuccessfull(final boolean newSuccessfull) {
-        successfull = newSuccessfull;
+    public void setSuccessful(boolean successful) {
+        this.successful = successful;
     }
 
-    public String getErrorMessage() {
-        return errorMessage;
+    public String getMessage() {
+        return message;
     }
 
-    public void setErrorMessage(final String newErrorMessage) {
-        errorMessage = newErrorMessage;
+    public void setMessage(String message) {
+        this.message = message;
     }
 }

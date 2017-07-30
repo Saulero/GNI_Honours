@@ -50,6 +50,7 @@ public class SystemTest {
      * @param args should be empty argument
      */
     public static void main(final String[] args) {
+        /*
         TableCreator.truncateTables();
         Sys.sleep(1000);
         BootSystem.startServices();
@@ -106,6 +107,7 @@ public class SystemTest {
         Sys.sleep(2000);
         TableCreator.truncateTables();
         System.exit(0);
+        */
     }
 
     /**
@@ -130,12 +132,12 @@ public class SystemTest {
                         Transaction reply = gson.fromJson(JSONParser.removeEscapeCharacters(body), Transaction.class);
                         if (reply.isSuccessful() && reply.isProcessed()) {
                             long transactionId = reply.getTransactionID();
-                            System.out.printf("%s Internal transaction %d successfull.\n\n\n\n",
+                            System.out.printf("%s Internal transaction %d successful.\n\n\n\n",
                                     PREFIX, transactionId);
                         } else if (!reply.isProcessed()) {
                             System.out.printf("%s Internal transaction couldn't be processed\n\n\n\n", PREFIX);
                         } else {
-                            System.out.printf("%s Internal transaction was not successfull\n\n\n\n", PREFIX);
+                            System.out.printf("%s Internal transaction was not successful\n\n\n\n", PREFIX);
                         }
                     } else {
                         System.out.printf("%s Transaction request failed.\n\n\n\n", PREFIX);
@@ -166,11 +168,11 @@ public class SystemTest {
                         Transaction reply = gson.fromJson(JSONParser.removeEscapeCharacters(body), Transaction.class);
                         if (reply.isSuccessful() && reply.isProcessed()) {
                             long transactionId = reply.getTransactionID();
-                            System.out.printf("%s Transaction %d successfull.\n\n\n", PREFIX, transactionId);
+                            System.out.printf("%s Transaction %d successful.\n\n\n", PREFIX, transactionId);
                         } else if (!reply.isProcessed()) {
                             System.out.printf("%s Transaction couldn't be processed.\n\n\n", PREFIX);
                         } else {
-                            System.out.printf("%s Transaction was not successfull\n\n\n", PREFIX);
+                            System.out.printf("%s Transaction was not successful\n\n\n", PREFIX);
                         }
                     } else {
                         System.out.printf("%s Transaction request failed.\n\n\n", PREFIX);
@@ -248,13 +250,13 @@ public class SystemTest {
                             case BALANCE:
                                 DataReply balanceReply = gson.fromJson(JSONParser.removeEscapeCharacters(body),
                                         DataReply.class);
-                                System.out.printf("%s Request successfull, balance: %f\n\n\n\n", PREFIX,
+                                System.out.printf("%s Request successful, balance: %f\n\n\n\n", PREFIX,
                                         balanceReply.getAccountData().getBalance());
                                 break;
                             case TRANSACTIONHISTORY:
                                 DataReply transactionReply = gson.fromJson(JSONParser.removeEscapeCharacters(body),
                                         DataReply.class);
-                                System.out.printf("%s Transaction history request successfull, history:\n", PREFIX);
+                                System.out.printf("%s Transaction history request successful, history:\n", PREFIX);
                                 for (Transaction x : transactionReply.getTransactions()) {
                                     System.out.printf("%s %s \n", PREFIX, x.toString());
                                 }
@@ -263,22 +265,22 @@ public class SystemTest {
                             case CUSTOMERDATA:
                                 Customer customerReply = gson.fromJson(JSONParser.removeEscapeCharacters(body),
                                         Customer.class);
-                                System.out.printf("%s Request successfull, Name: %s, dob: %s\n\n\n\n", PREFIX,
+                                System.out.printf("%s Request successful, Name: %s, dob: %s\n\n\n\n", PREFIX,
                                         customerReply.getInitials() + customerReply.getSurname(),
                                         customerReply.getDob());
-                                break;
+                                break;/*
                             case ACCOUNTS:
                                 DataReply accountsReply = gson.fromJson(JSONParser.removeEscapeCharacters(body),
                                         DataReply.class);
-                                System.out.printf("%s Request successfull, accounts: %s\n\n\n\n", PREFIX,
+                                System.out.printf("%s Request successful, accounts: %s\n\n\n\n", PREFIX,
                                         accountsReply.getAccounts());
-                                break;
+                                break;*/
                             default:
                                 System.out.printf("%s Couldn't get reply data.\n\n\n", PREFIX);
                                 break;
                         }
                     } else {
-                        System.out.printf("%s Request not successfull, body: %s\n", PREFIX, body);
+                        System.out.printf("%s Request not successful, body: %s\n", PREFIX, body);
                     }
                 });
     }
@@ -303,11 +305,11 @@ public class SystemTest {
                     if (code == HTTP_OK) {
                         Transaction reply = gson.fromJson(JSONParser.removeEscapeCharacters(body), Transaction.class);
                         if (reply.isSuccessful() && reply.isProcessed()) {
-                            System.out.printf("%s Pin transaction successfull.\n\n\n", PREFIX);
+                            System.out.printf("%s Pin transaction successful.\n\n\n", PREFIX);
                         } else if (!reply.isProcessed()) {
                             System.out.printf("%s Pin transaction couldn't be processed.\n\n\n", PREFIX);
                         } else {
-                            System.out.printf("%s Pin transaction was not successfull.\n\n\n", PREFIX);
+                            System.out.printf("%s Pin transaction was not successful.\n\n\n", PREFIX);
                         }
                     } else {
                         System.out.printf("%s Pin transaction request failed.\n\n\n", PREFIX);
@@ -341,11 +343,11 @@ public class SystemTest {
                     if (code == HTTP_OK) {
                         Transaction reply = gson.fromJson(JSONParser.removeEscapeCharacters(body), Transaction.class);
                         if (reply.isSuccessful() && reply.isProcessed()) {
-                            System.out.printf("%s ATM transaction successfull.\n\n\n", PREFIX);
+                            System.out.printf("%s ATM transaction successful.\n\n\n", PREFIX);
                         } else if (!reply.isProcessed()) {
                             System.out.printf("%s ATM transaction couldn't be processed.\n\n\n", PREFIX);
                         } else {
-                            System.out.printf("%s ATM transaction was not successfull.\n\n\n", PREFIX);
+                            System.out.printf("%s ATM transaction was not successful.\n\n\n", PREFIX);
                         }
                     } else {
                         System.out.printf("%s ATM transaction request failed.\n\n\n", PREFIX);
@@ -364,11 +366,11 @@ public class SystemTest {
                     if (code == HTTP_OK) {
                         AccountLink reply = gson.fromJson(JSONParser.removeEscapeCharacters(body), AccountLink.class);
                         if (reply.isSuccessful()) {
-                            System.out.printf("%s Account link successfull for Account Holder: %s, AccountNumber: %s\n\n\n\n",
+                            System.out.printf("%s Account link successful for Account Holder: %s, AccountNumber: %s\n\n\n\n",
                                     PREFIX, reply.getCustomerId(), reply.getAccountNumber());
                             //todo request pincard for this user without the cookie.
                         } else {
-                            System.out.printf("%s Account link creation unsuccessfull.\n\n\n\n", PREFIX);
+                            System.out.printf("%s Account link creation unsuccessful.\n\n\n\n", PREFIX);
                         }
                     } else {
                         System.out.printf("%s Account link creation failed.\n\n\n\n", PREFIX);
@@ -383,7 +385,7 @@ public class SystemTest {
                 (code, contentType, body) -> {
                     if (code == HTTP_OK) {
                         Customer reply = gson.fromJson(JSONParser.removeEscapeCharacters(body), Customer.class);
-                        System.out.printf("%s New Account creation successfull, Account Holder: %s, AccountNumber: %s\n\n\n\n",
+                        System.out.printf("%s New Account creation successful, Account Holder: %s, AccountNumber: %s\n\n\n\n",
                                 PREFIX, reply.getCustomerId(), reply.getAccount().getAccountNumber());
                         accountNumbers.add(reply.getAccount().getAccountNumber());
                     } else {
@@ -401,7 +403,7 @@ public class SystemTest {
                     if (code == HTTP_OK) {
                         Authentication authenticationReply = gson.fromJson(JSONParser.removeEscapeCharacters(body),
                                 Authentication.class);
-                        System.out.printf("%s Successfull login, set the following cookie: %s\n\n\n\n",
+                        System.out.printf("%s Successful login, set the following cookie: %s\n\n\n\n",
                                 PREFIX, authenticationReply.getCookie());
                         cookie = authenticationReply.getCookie();
                     } else {

@@ -6,7 +6,7 @@ package databeans;
 public class CloseAccountReply {
     private boolean customerRemoved;
 
-    private boolean successfull;
+    private boolean successful;
 
     private String errorMessage;
 
@@ -18,12 +18,12 @@ public class CloseAccountReply {
         customerRemoved = newRemovedCustomer;
     }
 
-    public boolean isSuccessfull() {
-        return successfull;
+    public boolean isSuccessful() {
+        return successful;
     }
 
-    public void setSuccessfull(final boolean newSuccessfull) {
-        successfull = newSuccessfull;
+    public void setSuccessful(final boolean newSuccessful) {
+        successful = newSuccessful;
     }
 
     public String getErrorMessage() {
@@ -32,5 +32,14 @@ public class CloseAccountReply {
 
     public void setErrorMessage(final String newErrorMessage) {
         errorMessage = newErrorMessage;
+    }
+
+    @Override
+    public String toString() {
+        return "CloseAccountReply{" +
+                "customerRemoved=" + customerRemoved +
+                ", successful=" + successful +
+                ", errorMessage='" + errorMessage + '\'' +
+                '}';
     }
 }

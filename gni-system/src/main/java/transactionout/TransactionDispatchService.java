@@ -94,7 +94,7 @@ class TransactionDispatchService {
             sendTransactionRequestCallback(transactionReplyJson, callbackBuilder);
         } else {
             if (transactionReply.isProcessed()) {
-                System.out.printf("%s Transaction unsuccessfull, sending rejection.\n", prefix);
+                System.out.printf("%s Transaction unsuccessful, sending rejection.\n", prefix);
             } else {
                 System.out.printf("%s Transaction couldn't be processed, sending rejection.\n", prefix);
             }
@@ -109,7 +109,7 @@ class TransactionDispatchService {
      */
     private void sendTransactionRequestCallback(final String transactionReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Successfull transaction, sending callback.\n", prefix);
+        System.out.printf("%s Successful transaction, sending callback.\n", prefix);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(transactionReplyJson));
     }
 }

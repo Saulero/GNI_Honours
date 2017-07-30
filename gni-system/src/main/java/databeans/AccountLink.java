@@ -17,18 +17,18 @@ public class AccountLink {
         this.successful = false;
     }
 
-    public AccountLink(final Long newCustomerId, final String newAccountNumber, final boolean newSuccessfull) {
+    public AccountLink(final Long newCustomerId, final String newAccountNumber, final boolean newSuccessful) {
         this.customerId = newCustomerId;
         this.username = null;
         this.accountNumber = newAccountNumber;
-        this.successful = newSuccessfull;
+        this.successful = newSuccessful;
     }
 
-    public AccountLink(final String newUsername, final String newAccountNumber, final boolean newSuccessfull) {
+    public AccountLink(final String newUsername, final String newAccountNumber, final boolean newSuccessful) {
         this.customerId = null;
         this.username = newUsername;
         this.accountNumber = newAccountNumber;
-        this.successful = newSuccessfull;
+        this.successful = newSuccessful;
     }
 
     public AccountLink(Long customerId, String accountNumber) {

@@ -109,7 +109,7 @@ final class UIService {
      * @return Boolean indicating if the requestType relates to an accountNumber.
      */
     private boolean isAccountNumberRelated(final RequestType requestType) {
-        return requestType != RequestType.CUSTOMERDATA && requestType != RequestType.ACCOUNTS && requestType != RequestType.CUSTOMERACCESSLIST;
+        return requestType != RequestType.CUSTOMERDATA && requestType != RequestType.CUSTOMERACCESSLIST;
     }
 
     /**
@@ -133,7 +133,7 @@ final class UIService {
     }
 
     /**
-     * Checks if a data request was successfull and sends the reply back to the source of the request.
+     * Checks if a data request was successful and sends the reply back to the source of the request.
      * @param dataReplyJson Body of the callback, a Json string representing a {@link DataReply}.
      * @param dataRequestJson Json string containing the {@link DataRequest} that was forwarded.
      * @param callbackBuilder Used to send the received reply back to the source of the request.
@@ -152,11 +152,8 @@ final class UIService {
             case CUSTOMERDATA:
                 sendCustomerDataRequestCallback(dataReplyJson, callbackBuilder);
                 break;
-            case ACCOUNTS:
-                sendAccountsRequestCallback(dataReplyJson, callbackBuilder);
-                break;
             case CUSTOMERACCESSLIST:
-                sendOwnersRequestCallback(dataReplyJson, callbackBuilder);
+                sendCustomerAccessListRequestCallback(dataReplyJson, callbackBuilder);
                 break;
             case ACCOUNTACCESSLIST:
                 sendAccountAccessListRequestCallback(dataReplyJson, callbackBuilder);
@@ -199,23 +196,12 @@ final class UIService {
     }
 
     /**
-     * Forwards the result of an accounts request to the service that requested it.
-     * @param dataReplyJson Json String containing a {@link DataReply} with the accounts belonging to the customer
-     *                      that sent the request.
-     * @param callbackBuilder Used to send the received reply back to the source of the request.
-     */
-    private void sendAccountsRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Sending accounts request callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(dataReplyJson));
-    }
-
-    /**
-     * Forwards the result of an owners request to the service that requested it.
+     * Forwards the result of a customer access list request to the service that requested it.
      * @param dataReplyJson Json String containing a {@link DataReply} with the accounts.
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
-    private void sendOwnersRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Sending owners request callback.\n", PREFIX);
+    private void sendCustomerAccessListRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Sending customer access list request callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(dataReplyJson));
     }
 
@@ -459,7 +445,7 @@ final class UIService {
      */
     private void sendNewCustomerRequestCallback(final String newCustomerReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Customer creation successfull, sending callback.\n", PREFIX);
+        System.out.printf("%s Customer creation successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(newCustomerReplyJson));
     }
 
@@ -520,7 +506,7 @@ final class UIService {
 
     /**
      * Forwards a String representing an account link to the Authentication Service, and processes the reply if it is
-     * successfull or sends a rejection to the requesting source if it fails.
+     * successful or sends a rejection to the requesting source if it fails.
      * @param accountLinkRequestJson String representing an {@link AccountLink} that should be executed.
      * @param cookie Cookie of the User that sent the request.
      * @param callbackBuilder Used to send the result of the request back to the source of the request.
@@ -545,7 +531,7 @@ final class UIService {
      */
     private void sendAccountLinkRequestCallback(final String accountLinkReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Successfull account link, sending callback.\n", PREFIX);
+        System.out.printf("%s Successful account link, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(accountLinkReplyJson));
     }
 
@@ -556,7 +542,7 @@ final class UIService {
      *                               system.
      * @param cookie Cookie of the User that sent the request.
      */
-    @RequestMapping(value = "/accountLink/remove", method = RequestMethod.POST)
+    @RequestMapping(value = "/accountLink/remove", method = RequestMethod.PUT)
     public void processAccountLinkRemoval(final Callback<String> callback,
                                           @RequestParam("request") final String accountLinkJson,
                                           @RequestParam("cookie") final String cookie) {
@@ -589,7 +575,7 @@ final class UIService {
 
     /**
      * Forwards a String representing an account link that is to be removed from the system to the Authentication
-     * Service, and processes the reply if it is successfull or sends a rejection to the requesting source if it fails.
+     * Service, and processes the reply if it is successful or sends a rejection to the requesting source if it fails.
      * @param accountLinkRequestJson String representing an {@link AccountLink} that should be removed from the system.
      * @param cookie Cookie of the User that sent the request.
      * @param callbackBuilder Used to send the result of the request back to the source of the request.
@@ -614,7 +600,7 @@ final class UIService {
      */
     private void sendAccountLinkRemovalCallback(final String accountLinkReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Successfull account link removal, sending callback.\n", PREFIX);
+        System.out.printf("%s Successful account link removal, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(accountLinkReplyJson));
     }
 
@@ -658,7 +644,7 @@ final class UIService {
      */
     private void sendNewAccountRequestCallback(final String newAccountReplyJson,
                                                final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Successfull account creation request, sending callback.\n", PREFIX);
+        System.out.printf("%s Successful account creation request, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(newAccountReplyJson));
     }
 
@@ -673,7 +659,6 @@ final class UIService {
     public void processAccountRemovalRequest(final Callback<String> callback,
                                              @RequestParam("accountNumber") final String accountNumber,
                                              @RequestParam("cookie") final String cookie) {
-        System.out.printf("%s Forwarding account removal request.\n", PREFIX);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         handleAccountRemovalExceptions(accountNumber, cookie, callbackBuilder);
     }
@@ -709,20 +694,21 @@ final class UIService {
 
     /**
      * Forwards the account removal request to the Authentication Service and sends a callback if the request is
-     * successfull, or sends a rejection if the request fails.
+     * successful, or sends a rejection if the request fails.
      * @param accountNumber AccountNumber of the account that is to be removed from the system.
      * @param cookie Cookie of the User that sent the request.
      * @param callbackBuilder Used to send the result of the request back to the source of the request.
      */
     private void doAccountRemovalRequest(final String accountNumber, final String cookie,
                                          final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Forwarding account removal request.\n", PREFIX);
         authenticationClient.putFormAsyncWith2Params("/services/authentication/account/remove",
             "accountNumber", accountNumber, "cookie", cookie,
                 (httpStatusCode, httpContentType, replyJson) -> {
             if (httpStatusCode == HTTP_OK) {
                 sendAccountRemovalCallback(replyJson, callbackBuilder);
             } else {
-                callbackBuilder.build().reject("NewAccount request failed.");
+                callbackBuilder.build().reject("Account removal request failed.");
             }
         });
     }
@@ -733,7 +719,7 @@ final class UIService {
      * @param callbackBuilder Used to send the result of the account removal request to the request source.
      */
     private void sendAccountRemovalCallback(final String accountNumber, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Account removal successfull, sending callback.\n", PREFIX);
+        System.out.printf("%s Account removal successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(accountNumber));
     }
 
@@ -793,7 +779,7 @@ final class UIService {
     }
 
     /**
-     * Forwards the Login request to the Authentication Service and sends a callback if the request is successfull, or
+     * Forwards the Login request to the Authentication Service and sends a callback if the request is successful, or
      * sends a rejection if the request fails.
      * @param authDataJson Json String representing {@link Authentication} information of a user trying to login.
      * @param callbackBuilder Used to send the result of the request back to the request source.
@@ -804,20 +790,20 @@ final class UIService {
             if (code == HTTP_OK) {
                 sendLoginRequestCallback(body, callbackBuilder);
             } else {
-                callbackBuilder.build().reject("Login not successfull.");
+                callbackBuilder.build().reject("Login not successful.");
             }
                 });
     }
 
     /**
-     * Sends the result of a successfull login request, containing a cookie that the user should use to authenticate
+     * Sends the result of a successful login request, containing a cookie that the user should use to authenticate
      * him/herself to the request source.
      * @param loginReplyJson Json String representing an {@link Authentication} object containing the
      *                       cookie the customer should use to authenticate himself in future requests.
      * @param callbackBuilder Used to send the callback to the request source.
      */
     private void sendLoginRequestCallback(final String loginReplyJson, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Login successfull, sending callback containing cookie.\n", PREFIX);
+        System.out.printf("%s Login successful, sending callback containing cookie.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(loginReplyJson));
     }
 
@@ -879,13 +865,13 @@ final class UIService {
                     if (code == HTTP_OK) {
                         sendNewPinCardCallback(body, callbackBuilder);
                     } else {
-                        callbackBuilder.build().reject("new pin card request not successfull.");
+                        callbackBuilder.build().reject("new pin card request not successful.");
                     }
                 });
     }
 
     private void sendNewPinCardCallback(final String jsonReply, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s New pin card request successfull, sending callback.\n", PREFIX);
+        System.out.printf("%s New pin card request successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(jsonReply));
     }
 
@@ -951,7 +937,7 @@ final class UIService {
 
     /**
      * Forwards the pin card removal request to the authentication service, forwards the result to the request source
-     * if the request is successfull, or sends a rejection if it is not.
+     * if the request is successful, or sends a rejection if it is not.
      * @param pinCardJson Json String representing a {@link PinCard} that should be removed from the system.
      * @param cookie Cookie of the user that sent the request.
      * @param callbackBuilder Used to forward the result of the request to the request source.
@@ -963,13 +949,13 @@ final class UIService {
                     if (code == HTTP_OK) {
                         sendPinCardRemovalCallback(body, callbackBuilder);
                     } else {
-                        callbackBuilder.build().reject("Remove pin card request not successfull.");
+                        callbackBuilder.build().reject("Remove pin card request not successful.");
                     }
                 });
     }
 
     private void sendPinCardRemovalCallback(final String jsonReply, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Pin card removal successfull, sending callback.\n", PREFIX);
+        System.out.printf("%s Pin card removal successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(jsonReply));
     }
 

@@ -188,7 +188,7 @@ class LedgerService {
     }
 
     /**
-     * Receives a request for the removal of a customer account, if successfull this account will be removed from
+     * Receives a request for the removal of a customer account, if successful this account will be removed from
      * the system. Calls the exception handler which will process the request.
      * @param callback Used to send the result of the request back to the request source.
      * @param accountNumber AccountNumber of the account that should be removed from the system.
@@ -204,7 +204,7 @@ class LedgerService {
     }
 
     /**
-     * Will try to execute the accountRemoval and then send a callback indicating the successfull removal of the
+     * Will try to execute the accountRemoval and then send a callback indicating the successful removal of the
      * account, if an exception is thrown the request will be rejected.
      * @param accountNumber AccountNumber of the account that should be removed from the system.
      * @param customerId Id of the customer that sent the request.
@@ -328,7 +328,7 @@ class LedgerService {
             System.out.printf("%s Successfully processed incoming transaction, sending callback.\n", PREFIX);
             callback.reply(gson.toJson(transaction));
         } else {
-            System.out.printf("%s Incoming transaction was not successfull, sending callback.\n", PREFIX);
+            System.out.printf("%s Incoming transaction was not successful, sending callback.\n", PREFIX);
             callback.reply(gson.toJson(transaction));
         }
     }
@@ -389,7 +389,7 @@ class LedgerService {
                 System.out.printf("%s Customer with id %s is not authorized to make transactions from this account."
                         + " Sending callback.\n", PREFIX, customerId);
             } else {
-                System.out.printf("%s Outgoing transaction was not successfull, sending callback.\n", PREFIX);
+                System.out.printf("%s Outgoing transaction was not successful, sending callback.\n", PREFIX);
             }
             callback.reply(gson.toJson(transaction));
         }
@@ -468,8 +468,7 @@ class LedgerService {
         DataRequest dataRequest = gson.fromJson(dataRequestJson, DataRequest.class);
         RequestType requestType = dataRequest.getType();
         System.out.printf("%s Received data request of type %s.\n", PREFIX, dataRequest.getType().toString());
-        if (requestType != RequestType.ACCOUNTEXISTS && requestType != RequestType.CUSTOMERACCESSLIST
-                && !getCustomerAuthorization(dataRequest.getAccountNumber(),
+        if (requestType != RequestType.ACCOUNTEXISTS && !getCustomerAuthorization(dataRequest.getAccountNumber(),
                 "" + dataRequest.getCustomerId())) {
             System.out.printf("%s rejecting because not authorized", PREFIX);
             callback.reject("Customer not authorized to request data for this accountNumber.");
@@ -477,7 +476,7 @@ class LedgerService {
             // Method call
             DataReply dataReply = processDataRequest(dataRequest);
             if (dataReply != null) {
-                System.out.printf("%s Data request successfull, sending callback.\n", PREFIX);
+                System.out.printf("%s Data request successful, sending callback.\n", PREFIX);
                 callback.reply(gson.toJson(dataReply));
             } else {
                 System.out.printf("%s Data request failed, sending rejection.\n", PREFIX);

@@ -8,7 +8,7 @@ import java.util.List;
  * @version 1
  * Databean used to send a request.
  */
-public final class DataRequest implements Serializable {
+public class DataRequest implements Serializable {
     /** Account number the request is for. */
     private String accountNumber;
     /** List of accounts the request is for. */

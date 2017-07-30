@@ -103,7 +103,7 @@ public final class JSONParser {
      * @param description Description for the transaction.
      * @param transactionAmount Amount of money that is transferred.
      * @param processed Indicates if the transaction has been processed by the ledger.
-     * @param successfull Indicates if the transaction was successfull.
+     * @param successful Indicates if the transaction was successful.
      * @return Transaction object that can be converted to Json.
      */
     public static Transaction createJsonTransaction(final long transactionID, final String sourceAccountNumber,
@@ -111,7 +111,7 @@ public final class JSONParser {
                                                     final String destinationAccountHolderName,
                                                     final String description,
                                                     final double transactionAmount, final boolean processed,
-                                                    final boolean successfull) {
+                                                    final boolean successful) {
         Transaction transaction = new Transaction();
         transaction.setTransactionID(transactionID);
         transaction.setTimestamp(-1);
@@ -121,7 +121,7 @@ public final class JSONParser {
         transaction.setDescription(description);
         transaction.setTransactionAmount(transactionAmount);
         transaction.setProcessed(processed);
-        transaction.setSuccessful(successfull);
+        transaction.setSuccessful(successful);
         return transaction;
     }
 
@@ -254,20 +254,20 @@ public final class JSONParser {
     }
 
     public static AccountLink createJsonAccountLink(final String newAccountNumber, final Long newCustomerId,
-                                                    final boolean newSuccessfull) {
+                                                    final boolean newSuccessful) {
         AccountLink request = new AccountLink();
         request.setCustomerId(newCustomerId);
         request.setAccountNumber(newAccountNumber);
-        request.setSuccessful(newSuccessfull);
+        request.setSuccessful(newSuccessful);
         return request;
     }
 
     public static AccountLink createJsonAccountLink(final String newAccountNumber, final String newUsername,
-                                                    final boolean newSuccessfull) {
+                                                    final boolean newSuccessful) {
         AccountLink request = new AccountLink();
         request.setUsername(newUsername);
         request.setAccountNumber(newAccountNumber);
-        request.setSuccessful(newSuccessfull);
+        request.setSuccessful(newSuccessful);
         return request;
     }
 
@@ -298,12 +298,19 @@ public final class JSONParser {
         return pinCard;
     }
 
-    public static CloseAccountReply createCloseAccountReply(final boolean removedCustomer, final boolean successfull,
-                                                            final String errorMessage) {
+    public static CloseAccountReply createJsonCloseAccountReply(final boolean removedCustomer, final boolean successful,
+                                                                final String errorMessage) {
         CloseAccountReply reply = new CloseAccountReply();
         reply.setCustomerRemoved(removedCustomer);
-        reply.setSuccessfull(successfull);
+        reply.setSuccessful(successful);
         reply.setErrorMessage(errorMessage);
+        return reply;
+    }
+
+    public static RemoveAccountLinkReply createJsonRemoveAccountLinkReply(final boolean successful, final String message) {
+        RemoveAccountLinkReply reply = new RemoveAccountLinkReply();
+        reply.setSuccessful(successful);
+        reply.setMessage(message);
         return reply;
     }
 
