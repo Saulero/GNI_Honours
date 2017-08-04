@@ -314,6 +314,23 @@ public final class JSONParser {
         return reply;
     }
 
+    public static MessageWrapper createMessageWrapper(boolean isError, int code, String message) {
+        MessageWrapper error = new MessageWrapper();
+        error.setError(isError);
+        error.setCode(code);
+        error.setMessage(message);
+        return error;
+    }
+
+    public static MessageWrapper createMessageWrapper(boolean isError, int code, String message, Object data) {
+        MessageWrapper error = new MessageWrapper();
+        error.setError(isError);
+        error.setCode(code);
+        error.setMessage(message);
+        error.setData(data);
+        return error;
+    }
+
     /**
      * Removes escape characters from a string, this is done to be able to parse json strings received through
      * a callback, as a callback adds escape characters to the json string.

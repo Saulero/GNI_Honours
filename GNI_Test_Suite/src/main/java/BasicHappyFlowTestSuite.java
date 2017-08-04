@@ -66,6 +66,7 @@ public class BasicHappyFlowTestSuite {
         request = OpenAccountMethod.createRequest(customer1);
         response = client.processRequest(request);
 
+            System.out.println(response);
         if((parsedResponse = checkResponse(response)) != null){
             tuple = OpenAccountMethod.parseResponse(parsedResponse, customer1);
             bankAccount1 = tuple.getAccount();

@@ -429,7 +429,7 @@ class UsersService {
             doNewAccountRequest(customerToEnroll, callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
-            callbackBuilder.build().reject(e);
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         }
     }
 
@@ -483,23 +483,27 @@ class UsersService {
                                             jsonConverter.toJson(accountOwner.getAccount()),
                                             (httpStatusCode, httpContentType, replyAccountJson) -> {
             if (httpStatusCode == HTTP_OK) {
-                processNewAccountReply(replyAccountJson, accountOwner, callbackBuilder);
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyAccountJson), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    processNewAccountReply(jsonConverter.fromJson((String) messageWrapper.getData(), Account.class), accountOwner, callbackBuilder);
+                } else {
+                    callbackBuilder.build().reply(replyAccountJson);
+                }
             } else {
-                callbackBuilder.build().reject("Received an error from ledger.");
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
         });
     }
 
     /**
      * Processes a reply from the ledger containing a new account which is to be linked to a customer.
-     * @param replyAccountJson Json String representing an {@link Account} that should be linked to a {@link Customer}.
+     * @param replyAccount Account that should be linked to a {@link Customer}.
      * @param accountOwner The customer that the account should be linked to.
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void processNewAccountReply(final String replyAccountJson, final Customer accountOwner,
+    private void processNewAccountReply(final Account replyAccount, final Customer accountOwner,
                                         final CallbackBuilder callbackBuilder) {
-        Account assignedAccount = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyAccountJson), Account.class);
-        accountOwner.setAccount(assignedAccount);
+        accountOwner.setAccount(replyAccount);
         handleNewAccountLinkExceptions(accountOwner, callbackBuilder);
     }
 
@@ -515,7 +519,7 @@ class UsersService {
             sendNewAccountLinkCallback(jsonConverter.toJson(accountOwner), callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
-            callbackBuilder.build().reject(e);
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to Users database.")));
         }
     }
 
@@ -574,7 +578,7 @@ class UsersService {
      */
     private void sendNewAccountLinkCallback(final String newCustomerJson, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s New account successfully linked, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(newCustomerJson);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", newCustomerJson)));
     }
 
     /**

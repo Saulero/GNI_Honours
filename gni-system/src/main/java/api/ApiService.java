@@ -11,6 +11,7 @@ import io.advantageous.qbit.annotation.RequestMethod;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
+import databeans.MessageWrapper;
 import util.JSONParser;
 
 import java.util.ArrayList;
@@ -108,8 +109,7 @@ final class ApiService {
      * @param callbackBuilder Used to send the result of the request back to the request source.
      * @param id Id of the request.
      */
-    private void openAccount(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
-                             final Object id) {
+    private void openAccount(final Map<String, Object> params, final CallbackBuilder callbackBuilder, final Object id) {
         Customer customer = JSONParser.createJsonCustomer((String) params.get("initials"), (String) params.get("name"),
                 (String) params.get("surname"), (String) params.get("email"), (String) params.get("telephoneNumber"),
                 (String) params.get("address"), (String) params.get("dob"), Long.parseLong((String) params.get("ssn")),
@@ -129,14 +129,21 @@ final class ApiService {
         uiClient.putFormAsyncWith1Param("/services/ui/customer", "customer",
                 jsonConverter.toJson(customer), (statusCode, contentType, replyJson) -> {
                     if (statusCode == HTTP_OK) {
-                        Customer reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyJson),
-                                                                Customer.class);
-                        System.out.printf("%s Customer successfully created in the system.\n\n\n\n", PREFIX);
-                        getAuthTokenForPinCard(customer.getUsername(), customer.getPassword(),
-                                reply.getAccount().getAccountNumber(), callbackBuilder, id);
+                        // TODO FIX THIS BUG (HAVING TO USE THE METHOD TWICE)
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(JSONParser.removeEscapeCharacters(replyJson)), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            System.out.printf("%s Customer successfully created in the system.\n\n\n\n", PREFIX);
+                            Customer reply = jsonConverter.fromJson(((String) messageWrapper.getData()), Customer.class);
+                            getAuthTokenForPinCard(customer.getUsername(), customer.getPassword(),
+                                    reply.getAccount().getAccountNumber(), callbackBuilder, id);
+                        } else {
+                            System.out.printf("%s Customer creation request failed\n\n\n\n", PREFIX);
+                            sendErrorReply(callbackBuilder, messageWrapper, id);
+                        }
                     } else {
                         System.out.printf("%s Customer creation request failed, body: %s\n\n\n\n", PREFIX, replyJson);
-                        //todo send error.
+                        JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
+                        callbackBuilder.build().reply(response.toJSONString());
                     }
                 });
     }
@@ -157,15 +164,20 @@ final class ApiService {
         uiClient.putFormAsyncWith1Param("/services/ui/login", "authData",
                                         jsonConverter.toJson(authentication), (code, contentType, body) -> {
             if (code == HTTP_OK) {
-                Authentication authenticationReply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
-                                                                            Authentication.class);
-                System.out.printf("%s Successful login, set the following cookie: %s\n\n\n\n",
-                                    PREFIX, authenticationReply.getCookie());
-                doNewPinCardRequest(accountNumber, username, authenticationReply.getCookie(), callbackBuilder, id,
-                                    true);
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(JSONParser.removeEscapeCharacters(body)), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    Authentication authenticationReply = jsonConverter.fromJson((String) messageWrapper.getData(), Authentication.class);
+                    System.out.printf("%s Successful login, set the following cookie: %s\n\n\n\n",
+                            PREFIX, authenticationReply.getCookie());
+                    doNewPinCardRequest(accountNumber, username, authenticationReply.getCookie(), callbackBuilder, id, true);
+                } else {
+                    sendErrorReply(callbackBuilder, messageWrapper, id);
+                }
+
             } else {
-                System.out.printf("%s Login failed.\n\n\n\n", PREFIX);
-                //todo send failed reply
+                System.out.printf("%s Login failed, body: %s\n\n\n\n", PREFIX, body);
+                JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
+                callbackBuilder.build().reply(response.toJSONString());
             }
         });
     }
@@ -182,24 +194,30 @@ final class ApiService {
     private void doNewPinCardRequest(final String accountNumber, final String username, final String cookie,
                                      final CallbackBuilder callbackBuilder, final Object id,
                                      final boolean accountNrInResult) {
-        Gson gson = new Gson();
         uiClient.putFormAsyncWith3Params("/services/ui/card", "accountNumber", accountNumber,
                 "cookie", cookie, "username", username, (code, contentType, body) -> {
                     if (code == HTTP_OK) {
-                        PinCard newPinCard = gson.fromJson(JSONParser.removeEscapeCharacters(body), PinCard.class);
-                        System.out.printf("%s Successfully requested a new pin card.\n\n\n\n", PREFIX);
-                        if (accountNrInResult) {
-                            sendOpenAccountCallback(callbackBuilder, accountNumber, newPinCard.getCardNumber(),
-                                    newPinCard.getPinCode(), id);
+                        System.out.println(body);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(JSONParser.removeEscapeCharacters(JSONParser.removeEscapeCharacters(body))), MessageWrapper.class);
+                        System.out.println(messageWrapper);
+                        System.out.println(messageWrapper.getData());
+                        if (!messageWrapper.isError()) {
+                            PinCard newPinCard = jsonConverter.fromJson((String) messageWrapper.getData(), PinCard.class);
+                            System.out.printf("%s Successfully requested a new pin card.\n\n\n\n", PREFIX);
+                            if (accountNrInResult) {
+                                sendOpenAccountCallback(callbackBuilder, accountNumber, newPinCard.getCardNumber(),
+                                        newPinCard.getPinCode(), id);
+                            } else {
+                                sendAccessRequestCallback(callbackBuilder, newPinCard.getCardNumber(),
+                                        newPinCard.getPinCode(), id);
+                            }
                         } else {
-                            sendAccessRequestCallback(callbackBuilder, newPinCard.getCardNumber(),
-                                    newPinCard.getPinCode(), id);
+                            sendErrorReply(callbackBuilder, messageWrapper, id);
                         }
                     } else {
-                        System.out.println(code);
-                        System.out.println(body);
-                        System.out.printf("%s New pin card request failed.\n\n\n\n", PREFIX);
-                        //todo send failed reply
+                        System.out.printf("%s New pin card request failed, body: %s\n\n\n\n", PREFIX, body);
+                        JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
+                        callbackBuilder.build().reply(response.toJSONString());
                     }
                 });
     }
@@ -250,15 +268,20 @@ final class ApiService {
         uiClient.putFormAsyncWith1Param("/services/ui/account/new", "cookie", cookie,
                                         (code, contentType, body) -> {
             if (code == HTTP_OK) {
-                Customer reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
-                                                        Customer.class);
-                String accountNumber = reply.getAccount().getAccountNumber();
-                System.out.printf("%s New Account creation successful, Account Holder: %s,"
-                                    + " AccountNumber: %s\n\n\n\n", PREFIX, reply.getCustomerId(),
-                                    accountNumber);
-                doNewPinCardRequest(accountNumber, "", cookie, callbackBuilder, id, true);
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    Customer reply = (Customer) messageWrapper.getData();
+                    String accountNumber = reply.getAccount().getAccountNumber();
+                    System.out.printf("%s New Account creation successful, Account Holder: %s,"
+                                    + " AccountNumber: %s\n\n\n\n", PREFIX, reply.getCustomerId(), accountNumber);
+                    doNewPinCardRequest(accountNumber, "", cookie, callbackBuilder, id, true);
+                } else {
+                    sendErrorReply(callbackBuilder, messageWrapper, id);
+                }
             } else {
                 System.out.printf("%s Account creation failed. body: %s\n\n\n\n", PREFIX, body);
+                JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
+                callbackBuilder.build().reply(response.toJSONString());
             }
         });
     }
@@ -277,8 +300,9 @@ final class ApiService {
                     if (code == HTTP_OK) {
                         sendCloseAccountCallback(callbackBuilder, id, body);
                     } else {
-                        System.out.printf("%s Account closing failed.\n\n\n\n", PREFIX);
-                        //todo send back result with appropriate error
+                        System.out.printf("%s Account closing failed, body: %s\n\n\n\n", PREFIX, body);
+                        JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
+                        callbackBuilder.build().reply(response.toJSONString());
                     }
                 });
     }
@@ -338,8 +362,9 @@ final class ApiService {
                     //todo send back failure
                 }
             } else {
-                System.out.printf("%s Account link creation failed.\n\n\n\n", PREFIX);
-                //todo send back failure
+                System.out.printf("%s Account link creation failed, body: %s\n\n\n\n", PREFIX, body);
+                JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
+                callbackBuilder.build().reply(response.toJSONString());
             }
         });
     }
@@ -371,8 +396,9 @@ final class ApiService {
                     //todo send back failure
                 }
             } else {
-                System.out.printf("%s Account link removal failed.\n\n\n\n", PREFIX);
-                //todo send back failure
+                System.out.printf("%s Account link removal failed, body: %s\n\n\n\n", PREFIX, body);
+                JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
+                callbackBuilder.build().reply(response.toJSONString());
             }
         });
     }
@@ -410,8 +436,9 @@ final class ApiService {
                             //todo send unsuccessful reply, find way to fetch cause of this.
                         }
                     } else {
-                        System.out.printf("%s ATM transaction request failed.\n\n\n", PREFIX);
-                        //todo figure out a way to find out what made the request fail.
+                        System.out.printf("%s ATM transaction request failed, body: %s\n\n\n\n", PREFIX, body);
+                        JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
+                        callbackBuilder.build().reply(response.toJSONString());
                     }
                 });
     }
@@ -447,8 +474,9 @@ final class ApiService {
                             //todo send unsuccessful reply, find way to fetch cause of this.
                         }
                     } else {
-                        System.out.printf("%s Pin transaction request failed.\n\n\n", PREFIX);
-                        //todo figure out a way to find out what made the request fail.
+                        System.out.printf("%s Pin transaction request failed, body: %s\n\n\n\n", PREFIX, body);
+                        JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
+                        callbackBuilder.build().reply(response.toJSONString());
                     }
                 });
     }
@@ -492,10 +520,8 @@ final class ApiService {
                             //todo send unsuccessful reply, find way to fetch cause of this.
                         }
                     } else {
-                        System.out.printf("%s Transaction request failed.\n\n\n\n", PREFIX);
-                        //todo figure out a way to find out what made the request fail and add the proper error!!.
-                        JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(2,
-                                                        "User is not authorized to make this transaction."), id);
+                        System.out.printf("%s Transaction request failed, body: %s\n\n\n\n", PREFIX, body);
+                        JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
                         callbackBuilder.build().reply(response.toJSONString());
                     }
                 });
@@ -525,9 +551,9 @@ final class ApiService {
                         JSONRPC2Response response = new JSONRPC2Response(result, id);
                         callbackBuilder.build().reply(response.toJSONString());
                     } else {
-                        System.out.printf("%s Login failed.\n\n\n\n", PREFIX);
-                        System.out.println(body);
-                        //todo return error.
+                        System.out.printf("%s Login failed, body: %s\n\n\n\n", PREFIX, body);
+                        JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
+                        callbackBuilder.build().reply(response.toJSONString());
                     }
                 });
     }
@@ -556,8 +582,9 @@ final class ApiService {
                 JSONRPC2Response response = new JSONRPC2Response(result, id);
                 callbackBuilder.build().reply(response.toJSONString());
             } else {
-                System.out.printf("%s Request not successful, body: %s\n", PREFIX, body);
-                //todo return error.
+                System.out.printf("%s Request not successful, body: %s\n\n\n\n", PREFIX, body);
+                JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
+                callbackBuilder.build().reply(response.toJSONString());
             }
         });
     }
@@ -598,8 +625,9 @@ final class ApiService {
                         JSONRPC2Response response = new JSONRPC2Response(transactionList, id);
                         callbackBuilder.build().reply(response.toJSONString());
                     } else {
-                        System.out.printf("%s Request not successful, body: %s\n", PREFIX, body);
-                        //todo return error.
+                        System.out.printf("%s Request not successful, body: %s\n\n\n\n", PREFIX, body);
+                        JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
+                        callbackBuilder.build().reply(response.toJSONString());
                     }
                 });
     }
@@ -630,8 +658,9 @@ final class ApiService {
                         JSONRPC2Response response = new JSONRPC2Response(result, id);
                         callbackBuilder.build().reply(response.toJSONString());
                     } else {
-                        System.out.printf("%s Accounts request not successful, body: %s\n", PREFIX, body);
-                        //todo return error.
+                        System.out.printf("%s Accounts request not successful, body: %s\n\n\n\n", PREFIX, body);
+                        JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
+                        callbackBuilder.build().reply(response.toJSONString());
                     }
                 });
     }
@@ -662,9 +691,22 @@ final class ApiService {
                         JSONRPC2Response response = new JSONRPC2Response(result, id);
                         callbackBuilder.build().reply(response.toJSONString());
                     } else {
-                        System.out.printf("%s BankAccountAccess Request not successful, body: %s\n", PREFIX, body);
-                        //todo return error.
+                        System.out.printf("%s BankAccountAccess Request not successful, body: %s\n\n\n\n", PREFIX, body);
+                        JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
+                        callbackBuilder.build().reply(response.toJSONString());
                     }
                 });
+    }
+
+
+
+    private void sendErrorReply(CallbackBuilder callbackBuilder, MessageWrapper reply, final Object id) {
+        JSONRPC2Response response;
+        if (reply.getData() == null) {
+            response = new JSONRPC2Response(new JSONRPC2Error(reply.getCode(), reply.getMessage()), id);
+        } else {
+            response = new JSONRPC2Response(new JSONRPC2Error(reply.getCode(), reply.getMessage(), reply.getData()), id);
+        }
+        callbackBuilder.build().reply(response.toJSONString());
     }
 }

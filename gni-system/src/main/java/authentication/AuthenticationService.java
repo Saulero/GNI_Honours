@@ -323,9 +323,9 @@ class AuthenticationService {
             validateUsername(jsonConverter.fromJson(newCustomerRequestJson, Customer.class));
             doNewCustomerRequest(newCustomerRequestJson, callbackBuilder);
         } catch (SQLException e) {
-            callbackBuilder.build().reject("Error connecting to authentication database.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         } catch (UsernameTakenException e) {
-            callbackBuilder.build().reject("Username taken, please choose a different username.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "Username taken, please choose a different username.")));
         }
     }
 
@@ -359,14 +359,17 @@ class AuthenticationService {
     private void doNewCustomerRequest(final String newCustomerRequestJson,
                                       final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Forwarding customer creation request.\n", PREFIX);
-        usersClient.putFormAsyncWith1Param("/services/users/customer", "customer",
-                newCustomerRequestJson,
+        usersClient.putFormAsyncWith1Param("/services/users/customer", "customer", newCustomerRequestJson,
                 (httpStatusCode, httpContentType, newCustomerReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        handleLoginCreationExceptions(JSONParser.removeEscapeCharacters(newCustomerReplyJson),
-                                                      callbackBuilder);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(newCustomerReplyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            handleLoginCreationExceptions((String) messageWrapper.getData(), callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(newCustomerReplyJson);
+                        }
                     } else {
-                        callbackBuilder.build().reject("Customer creation request failed.");
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
@@ -382,11 +385,11 @@ class AuthenticationService {
         Customer customerToEnroll = jsonConverter.fromJson(newCustomerReplyJson, Customer.class);
         try {
             registerNewCustomerLogin(customerToEnroll);
-            sendNewCustomerRequestCallback(newCustomerReplyJson, callbackBuilder);
+            sendNewCustomerRequestCallback(customerToEnroll, callbackBuilder);
         } catch (SQLException e) {
             //todo revert customer creation in users database.
             e.printStackTrace();
-            callbackBuilder.build().reject("Couldn't create login data.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         }
     }
 
@@ -409,13 +412,12 @@ class AuthenticationService {
 
     /**
      * Forwards the created customer back to the service that sent the customer creation request to this service.
-     * @param newCustomerReplyJson Json String representing a customer that was created in the system.
+     * @param newCustomer A customer that was created in the system.
      * @param callbackBuilder Json String representing a {@link Customer} that should be created.
      */
-    private void sendNewCustomerRequestCallback(final String newCustomerReplyJson,
-                                                final CallbackBuilder callbackBuilder) {
+    private void sendNewCustomerRequestCallback(final Customer newCustomer, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Customer creation successful, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(newCustomerReplyJson);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", jsonConverter.toJson(newCustomer))));
     }
 
     /**
@@ -441,25 +443,24 @@ class AuthenticationService {
                         setNewToken(userId, newToken);
                         System.out.printf("%s Successful login for user %s, sending callback.\n", PREFIX,
                                           authData.getUsername());
-                        callback.reply(jsonConverter.toJson(JSONParser.createJsonAuthentication(
-                                                    encodeCookie(userId, newToken), AuthenticationType.REPLY)));
+                        callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", jsonConverter.toJson(JSONParser.createJsonAuthentication(encodeCookie(userId, newToken), AuthenticationType.REPLY)))));
                     } else {
                         // Illegitimate info
-                        callback.reject("Invalid username/password combination");
+                        callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 422, "The user could not be authenticated, a wrong combination of credentials was provided.")));
                     }
                 } else {
                     // username not found
-                    callback.reject("Username not found");
+                    callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "The username does not seem to exist.")));
                 }
                 rs.close();
                 ps.close();
                 databaseConnectionPool.returnConnection(connection);
             } catch (SQLException e) {
-                callback.reject(e.getMessage());
                 e.printStackTrace();
+                callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to the authentication database.")));
             }
         } else {
-            callback.reject("Wrong Data Received");
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred.")));
         }
     }
 
@@ -826,14 +827,14 @@ class AuthenticationService {
                 doNewPinCardRequest(accountNumber, Long.toString(requesterId), Long.toString(ownerId), callbackBuilder);
             } else {
                 System.out.println("Rejecting, OwnerId could not be found. Username does not exist.");
-                callbackBuilder.build().reject("OwnerId could not be found. Username does not exist.");
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "The username does not seem to exist.")));
             }
         } catch (SQLException e) {
             System.out.println("Rejecting, Error connecting to authentication database.");
-            callbackBuilder.build().reject("Error connecting to authentication database.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         } catch (UserNotAuthorizedException e) {
             System.out.println("Rejecting, User not authorized, please login.");
-            callbackBuilder.build().reject("User not authorized, please login.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.")));
         }
 
     }
@@ -875,19 +876,21 @@ class AuthenticationService {
                 "ownerId", ownerId, "accountNumber", accountNumber,
                 (httpStatusCode, httpContentType, newAccountReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        sendNewPinCardCallback(newAccountReplyJson, callbackBuilder);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(newAccountReplyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendNewPinCardCallback(newAccountReplyJson, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(newAccountReplyJson);
+                        }
                     } else {
-                        System.out.println(newAccountReplyJson);
-                        System.out.println(httpStatusCode);
-                        System.out.println(httpContentType);
-                        callbackBuilder.build().reject("new pin card request failed.");
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
 
     private void sendNewPinCardCallback(final String newPinCardReplyJson, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s New pin card request successful, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(newPinCardReplyJson));
+        callbackBuilder.build().reply(newPinCardReplyJson);
     }
 
     /**

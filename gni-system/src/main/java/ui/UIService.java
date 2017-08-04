@@ -346,16 +346,14 @@ final class UIService {
             verifyNewCustomerInput(newCustomerJson);
             doNewCustomerRequest(newCustomerJson, callbackBuilder);
         } catch (IncorrectInputException e) {
-            System.out.printf("%s %s", PREFIX, e.getMessage());
-            callbackBuilder.build().reject(e.getMessage());
+            System.out.printf("%s One of the parameters has an invalid value, sending error.", PREFIX);
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.")));
         } catch (JsonSyntaxException e) {
             System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
-            callbackBuilder.build().reject("Syntax error when parsing json.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "Syntax error when parsing json.")));
         } catch (NumberFormatException e) {
-            System.out.printf("%s The ssn, spendinglimit or balance was incorrectly specified, sending rejection.\n",
-                    PREFIX);
-            callbackBuilder.build().reject("One of the following variables was incorrectly specified:"
-                                            + " ssn, spendingLimit, balance.");
+            System.out.printf("%s The ssn, spendinglimit or balance was incorrectly specified, sending rejection.\n", PREFIX);
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the following variables was incorrectly specified: ssn, spendingLimit, balance.")));
         }
     }
 
@@ -430,10 +428,14 @@ final class UIService {
                                             newCustomerRequestJson,
                                             (httpStatusCode, httpContentType, newCustomerReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        sendNewCustomerRequestCallback(newCustomerReplyJson, callbackBuilder);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(newCustomerReplyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendNewCustomerRequestCallback(newCustomerReplyJson, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(newCustomerReplyJson);
+                        }
                     } else {
-                        System.out.println("fail: " + newCustomerReplyJson);
-                        callbackBuilder.build().reject("Customer creation request failed.");
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
@@ -446,7 +448,7 @@ final class UIService {
     private void sendNewCustomerRequestCallback(final String newCustomerReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Customer creation successful, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(newCustomerReplyJson));
+        callbackBuilder.build().reply(newCustomerReplyJson);
     }
 
     /**
@@ -751,10 +753,10 @@ final class UIService {
             doLoginRequest(authDataJson, callbackBuilder);
         } catch (IncorrectInputException e) {
             System.out.printf("%s %s", PREFIX, e.getMessage());
-            callbackBuilder.build().reject(e.getMessage());
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.")));
         } catch (JsonSyntaxException e) {
             System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
-            callbackBuilder.build().reject("Syntax error when parsing json.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.")));
         }
     }
 
@@ -788,9 +790,14 @@ final class UIService {
         authenticationClient.putFormAsyncWith1Param("/services/authentication/login", "authData",
                 authDataJson, (code, contentType, body) -> {
             if (code == HTTP_OK) {
-                sendLoginRequestCallback(body, callbackBuilder);
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    sendLoginRequestCallback(body, callbackBuilder);
+                } else {
+                    callbackBuilder.build().reply(body);
+                }
             } else {
-                callbackBuilder.build().reject("Login not successful.");
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
                 });
     }
@@ -804,7 +811,7 @@ final class UIService {
      */
     private void sendLoginRequestCallback(final String loginReplyJson, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Login successful, sending callback containing cookie.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(loginReplyJson));
+        callbackBuilder.build().reply(loginReplyJson);
     }
 
     /**
@@ -840,7 +847,7 @@ final class UIService {
             doNewPinCardRequest(accountNumber, cookie, username, callbackBuilder);
         } catch (IncorrectInputException e) {
             System.out.printf("%s %s", PREFIX, e.getMessage());
-            callbackBuilder.build().reject(e.getMessage());
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.")));
         }
     }
 
@@ -863,7 +870,12 @@ final class UIService {
         authenticationClient.putFormAsyncWith3Params("/services/authentication/card", "accountNumber",
                 accountNumber, "cookie", cookie, "username", username, (code, contentType, body) -> {
                     if (code == HTTP_OK) {
-                        sendNewPinCardCallback(body, callbackBuilder);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(JSONParser.removeEscapeCharacters(body)), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendNewPinCardCallback(body, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(body);
+                        }
                     } else {
                         callbackBuilder.build().reject("new pin card request not successful.");
                     }
@@ -872,7 +884,7 @@ final class UIService {
 
     private void sendNewPinCardCallback(final String jsonReply, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s New pin card request successful, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(jsonReply));
+        callbackBuilder.build().reply(jsonReply);
     }
 
     /**

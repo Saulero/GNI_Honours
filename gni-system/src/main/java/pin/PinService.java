@@ -383,11 +383,11 @@ class PinService {
             addPinCardToDatabase(pinCard);
             sendNewPinCardCallback(pinCard, callbackBuilder);
         } catch (SQLException e) {
-            callbackBuilder.build().reject("Something went wrong connecting to the pin database.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to pin database.")));
         } catch (NumberFormatException e) {
-            callbackBuilder.build().reject("Something went wrong when parsing the customerId in Pin.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "Something went wrong when parsing the customerId in Pin.")));
         } catch (NoSuchAlgorithmException e) {
-            callbackBuilder.build().reject("Couldn't generate pinCode in PinService.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred.")));
         }
     }
 
@@ -452,16 +452,15 @@ class PinService {
         addPinCard.setLong(3, pinCard.getCardNumber());
         addPinCard.setString(4, pinCard.getPinCode());
         addPinCard.setDate(5, new java.sql.Date(pinCard.getExpirationDate().getTime()));
-        addPinCard.execute();
+        addPinCard.executeUpdate();
         addPinCard.close();
         databaseConnectionPool.returnConnection(databaseConnection);
     }
 
 
     private void sendNewPinCardCallback(final PinCard pinCard, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Successfully created pin card, card #%s, accountno. %s  sending callback\n", PREFIX,
-                          pinCard.getCardNumber(), pinCard.getAccountNumber());
-        callbackBuilder.build().reply(jsonConverter.toJson(pinCard));
+        System.out.printf("%s Successfully created pin card, card #%s, accountno. %s  sending callback\n", PREFIX, pinCard.getCardNumber(), pinCard.getAccountNumber());
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", jsonConverter.toJson(pinCard))));
     }
 
     /**

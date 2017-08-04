@@ -34,6 +34,8 @@ class LedgerService {
 
     /** Database connection pool containing persistent database connections. */
     private ConnectionPool db;
+    /** Used for json conversions. */
+    private Gson jsonConverter;
     /** Prefix used when printing to indicate the message is coming from the Ledger Service. */
     private static final String PREFIX = "[Ledger]              :";
 
@@ -42,6 +44,7 @@ class LedgerService {
      */
     LedgerService() {
         db = new ConnectionPool();
+        jsonConverter = new Gson();
     }
 
     /**
@@ -63,9 +66,9 @@ class LedgerService {
         if (newAccount != null) {
             System.out.printf("%s Added user %s with accountNumber %s to ledger, sending callback.\n", PREFIX,
                     newAccount.getAccountHolderName(), newAccount.getAccountNumber());
-            callback.reply(gson.toJson(newAccount));
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", jsonConverter.toJson(newAccount))));
         } else {
-            callback.reject("SQLException");
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to ledger database.")));
         }
     }
 
