@@ -339,6 +339,6 @@ public final class JSONParser {
      */
     public static String removeEscapeCharacters(String dataString) {
         dataString = dataString.replace("\\", "");
-        return dataString.substring(dataString.indexOf('{'));
+        return dataString.substring(dataString.indexOf('{'), dataString.lastIndexOf('}') + 1);
     }
 }

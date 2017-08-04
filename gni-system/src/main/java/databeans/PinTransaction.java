@@ -1,10 +1,12 @@
 package databeans;
 
+import java.io.Serializable;
+
 /**
  * @author Noel
  * @version 1
  */
-public class PinTransaction {
+public class PinTransaction implements Serializable {
 
     private String sourceAccountNumber;
     private String destinationAccountNumber;

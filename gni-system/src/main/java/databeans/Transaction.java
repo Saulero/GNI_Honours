@@ -1,9 +1,11 @@
 package databeans;
 
+import java.io.Serializable;
+
 /**
  * @author Saul
  */
-public class Transaction {
+public class Transaction implements Serializable {
 
     private long transactionID;
     private long timestamp;

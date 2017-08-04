@@ -364,7 +364,7 @@ class AuthenticationService {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(newCustomerReplyJson), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
-                            handleLoginCreationExceptions((String) messageWrapper.getData(), callbackBuilder);
+                            handleLoginCreationExceptions((Customer) messageWrapper.getData(), callbackBuilder);
                         } else {
                             callbackBuilder.build().reply(newCustomerReplyJson);
                         }
@@ -377,15 +377,14 @@ class AuthenticationService {
     /**
      * Creates login information for the customer in the users database and then sends a callback to the service that
      * sent the customer creation request.
-     * @param newCustomerReplyJson Json String representing the customer that should be created in the system.
+     * @param newCustomer The customer that should be created in the system.
      * @param callbackBuilder used to send a reply to the service that sent the request.
      */
-    private void handleLoginCreationExceptions(final String newCustomerReplyJson,
+    private void handleLoginCreationExceptions(final Customer newCustomer,
                                                final CallbackBuilder callbackBuilder) {
-        Customer customerToEnroll = jsonConverter.fromJson(newCustomerReplyJson, Customer.class);
         try {
-            registerNewCustomerLogin(customerToEnroll);
-            sendNewCustomerRequestCallback(customerToEnroll, callbackBuilder);
+            registerNewCustomerLogin(newCustomer);
+            sendNewCustomerRequestCallback(newCustomer, callbackBuilder);
         } catch (SQLException e) {
             //todo revert customer creation in users database.
             e.printStackTrace();
@@ -417,7 +416,7 @@ class AuthenticationService {
      */
     private void sendNewCustomerRequestCallback(final Customer newCustomer, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Customer creation successful, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", jsonConverter.toJson(newCustomer))));
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", newCustomer)));
     }
 
     /**
@@ -443,7 +442,7 @@ class AuthenticationService {
                         setNewToken(userId, newToken);
                         System.out.printf("%s Successful login for user %s, sending callback.\n", PREFIX,
                                           authData.getUsername());
-                        callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", jsonConverter.toJson(JSONParser.createJsonAuthentication(encodeCookie(userId, newToken), AuthenticationType.REPLY)))));
+                        callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", new Authentication(encodeCookie(userId, newToken), AuthenticationType.REPLY))));
                     } else {
                         // Illegitimate info
                         callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 422, "The user could not be authenticated, a wrong combination of credentials was provided.")));

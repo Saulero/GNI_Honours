@@ -1,9 +1,11 @@
 package databeans;
 
+import java.io.Serializable;
+
 /**
  * @author Noel & Saul
  */
-public class RemoveAccountLinkReply {
+public class RemoveAccountLinkReply implements Serializable {
 
     private boolean successful;
     private String message;

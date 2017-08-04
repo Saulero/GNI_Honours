@@ -1,9 +1,11 @@
 package databeans;
 
+import java.io.Serializable;
+
 /**
  * @Author noel
  */
-public class CloseAccountReply {
+public class CloseAccountReply implements Serializable {
     private boolean customerRemoved;
 
     private boolean successful;

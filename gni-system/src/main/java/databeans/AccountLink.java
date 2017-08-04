@@ -1,10 +1,12 @@
 package databeans;
 
+import java.io.Serializable;
+
 /**
  * @author Noel
  * @version 1
  */
-public class AccountLink {
+public class AccountLink implements Serializable {
     private Long customerId;
     private String username;
     private String accountNumber;

@@ -870,7 +870,7 @@ final class UIService {
         authenticationClient.putFormAsyncWith3Params("/services/authentication/card", "accountNumber",
                 accountNumber, "cookie", cookie, "username", username, (code, contentType, body) -> {
                     if (code == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(JSONParser.removeEscapeCharacters(body)), MessageWrapper.class);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
                             sendNewPinCardCallback(body, callbackBuilder);
                         } else {

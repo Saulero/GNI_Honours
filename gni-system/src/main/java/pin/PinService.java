@@ -460,7 +460,7 @@ class PinService {
 
     private void sendNewPinCardCallback(final PinCard pinCard, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Successfully created pin card, card #%s, accountno. %s  sending callback\n", PREFIX, pinCard.getCardNumber(), pinCard.getAccountNumber());
-        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", jsonConverter.toJson(pinCard))));
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", pinCard)));
     }
 
     /**

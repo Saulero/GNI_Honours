@@ -485,7 +485,7 @@ class UsersService {
             if (httpStatusCode == HTTP_OK) {
                 MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyAccountJson), MessageWrapper.class);
                 if (!messageWrapper.isError()) {
-                    processNewAccountReply(jsonConverter.fromJson((String) messageWrapper.getData(), Account.class), accountOwner, callbackBuilder);
+                    processNewAccountReply((Account) messageWrapper.getData(), accountOwner, callbackBuilder);
                 } else {
                     callbackBuilder.build().reply(replyAccountJson);
                 }
@@ -516,7 +516,7 @@ class UsersService {
     private void handleNewAccountLinkExceptions(final Customer accountOwner, final CallbackBuilder callbackBuilder) {
         try {
             linkAccountToCustomer(accountOwner.getAccount().getAccountNumber(), accountOwner.getCustomerId(), true);
-            sendNewAccountLinkCallback(jsonConverter.toJson(accountOwner), callbackBuilder);
+            sendNewAccountLinkCallback(accountOwner, callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to Users database.")));
@@ -572,13 +572,12 @@ class UsersService {
     /**
      * Sends a callback to the service that requested the account link/customer creation indicating that the request
      * was successful.
-     * @param newCustomerJson String representing a {@link Customer} containing an {@link Account} with an account
-     *                        that was linked to the customer.
+     * @param newCustomer A Customer containing an Account with an account that was linked to the customer.
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void sendNewAccountLinkCallback(final String newCustomerJson, final CallbackBuilder callbackBuilder) {
+    private void sendNewAccountLinkCallback(final Customer newCustomer, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s New account successfully linked, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", newCustomerJson)));
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", newCustomer)));
     }
 
     /**

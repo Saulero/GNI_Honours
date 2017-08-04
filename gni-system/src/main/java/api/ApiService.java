@@ -129,11 +129,10 @@ final class ApiService {
         uiClient.putFormAsyncWith1Param("/services/ui/customer", "customer",
                 jsonConverter.toJson(customer), (statusCode, contentType, replyJson) -> {
                     if (statusCode == HTTP_OK) {
-                        // TODO FIX THIS BUG (HAVING TO USE THE METHOD TWICE)
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(JSONParser.removeEscapeCharacters(replyJson)), MessageWrapper.class);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
                             System.out.printf("%s Customer successfully created in the system.\n\n\n\n", PREFIX);
-                            Customer reply = jsonConverter.fromJson(((String) messageWrapper.getData()), Customer.class);
+                            Customer reply = (Customer) messageWrapper.getData();
                             getAuthTokenForPinCard(customer.getUsername(), customer.getPassword(),
                                     reply.getAccount().getAccountNumber(), callbackBuilder, id);
                         } else {
@@ -164,9 +163,9 @@ final class ApiService {
         uiClient.putFormAsyncWith1Param("/services/ui/login", "authData",
                                         jsonConverter.toJson(authentication), (code, contentType, body) -> {
             if (code == HTTP_OK) {
-                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(JSONParser.removeEscapeCharacters(body)), MessageWrapper.class);
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
                 if (!messageWrapper.isError()) {
-                    Authentication authenticationReply = jsonConverter.fromJson((String) messageWrapper.getData(), Authentication.class);
+                    Authentication authenticationReply = (Authentication) messageWrapper.getData();
                     System.out.printf("%s Successful login, set the following cookie: %s\n\n\n\n",
                             PREFIX, authenticationReply.getCookie());
                     doNewPinCardRequest(accountNumber, username, authenticationReply.getCookie(), callbackBuilder, id, true);
@@ -197,12 +196,9 @@ final class ApiService {
         uiClient.putFormAsyncWith3Params("/services/ui/card", "accountNumber", accountNumber,
                 "cookie", cookie, "username", username, (code, contentType, body) -> {
                     if (code == HTTP_OK) {
-                        System.out.println(body);
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(JSONParser.removeEscapeCharacters(JSONParser.removeEscapeCharacters(body))), MessageWrapper.class);
-                        System.out.println(messageWrapper);
-                        System.out.println(messageWrapper.getData());
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
-                            PinCard newPinCard = jsonConverter.fromJson((String) messageWrapper.getData(), PinCard.class);
+                            PinCard newPinCard = (PinCard) messageWrapper.getData();
                             System.out.printf("%s Successfully requested a new pin card.\n\n\n\n", PREFIX);
                             if (accountNrInResult) {
                                 sendOpenAccountCallback(callbackBuilder, accountNumber, newPinCard.getCardNumber(),
