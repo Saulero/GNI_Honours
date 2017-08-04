@@ -337,17 +337,8 @@ public final class JSONParser {
      * @param dataString Json to remove escape characters from.
      * @return Json string without escape characters.
      */
-    public static String removeEscapeCharacters(final String dataString) {
-        char[] characters = dataString.substring(1, dataString.length() - 1).toCharArray();
-        StringBuilder stringWithoutEscapes = new StringBuilder();
-        for (int i = 0; i < characters.length; i++) {
-            if (characters[i] == '\\') {
-                stringWithoutEscapes.append(characters[i + 1]);
-                i++;
-            } else {
-                stringWithoutEscapes.append(characters[i]);
-            }
-        }
-        return stringWithoutEscapes.toString();
+    public static String removeEscapeCharacters(String dataString) {
+        dataString = dataString.replace("\\", "");
+        return dataString.substring(dataString.indexOf('{'));
     }
 }
