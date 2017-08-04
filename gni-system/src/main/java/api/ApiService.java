@@ -538,14 +538,17 @@ final class ApiService {
         uiClient.putFormAsyncWith1Param("/services/ui/login", "authData", gson.toJson(authentication),
                 (code, contentType, body) -> {
                     if (code == HTTP_OK) {
-                        Authentication authenticationReply = gson.fromJson(JSONParser.removeEscapeCharacters(body),
-                                Authentication.class);
-                        System.out.printf("%s Successful login, set the following cookie: %s\n\n\n\n",
-                                PREFIX, authenticationReply.getCookie());
-                        Map<String, Object> result = new HashMap<>();
-                        result.put("authToken", authenticationReply.getCookie());
-                        JSONRPC2Response response = new JSONRPC2Response(result, id);
-                        callbackBuilder.build().reply(response.toJSONString());
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            Authentication authenticationReply = (Authentication) messageWrapper.getData();
+                            System.out.printf("%s Successful login, set the following cookie: %s\n\n\n\n",
+                                    PREFIX, authenticationReply.getCookie());
+                            Map<String, Object> result = new HashMap<>();
+                            result.put("authToken", authenticationReply.getCookie());
+                            callbackBuilder.build().reply(new JSONRPC2Response(result, id).toJSONString());
+                        } else {
+                            sendErrorReply(callbackBuilder, messageWrapper, id);
+                        }
                     } else {
                         System.out.printf("%s Login failed, body: %s\n\n\n\n", PREFIX, body);
                         JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);

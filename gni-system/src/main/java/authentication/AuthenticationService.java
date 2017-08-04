@@ -653,9 +653,9 @@ class AuthenticationService {
             authenticateRequest(cookie);
             doNewAccountRequest(getCustomerId(cookie), callbackBuilder);
         } catch (SQLException e) {
-            callbackBuilder.build().reject("Error connecting to authentication database.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to the authentication database.")));
         } catch (UserNotAuthorizedException e) {
-            callbackBuilder.build().reject("User not authorized, please login.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "The does not appear to be logged in.")));
         }
     }
 
@@ -669,7 +669,12 @@ class AuthenticationService {
         usersClient.putFormAsyncWith1Param("/services/users/account/new", "customerId", customerId,
                 (httpStatusCode, httpContentType, newAccountReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        sendNewAccountRequestCallback(newAccountReplyJson, callbackBuilder);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(newAccountReplyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendNewAccountRequestCallback(newAccountReplyJson, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(newAccountReplyJson);
+                        }
                     } else {
                         callbackBuilder.build().reject("NewAccount request failed.");
                     }

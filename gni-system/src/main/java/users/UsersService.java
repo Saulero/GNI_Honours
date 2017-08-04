@@ -798,15 +798,17 @@ class UsersService {
     private void handleNewAccountExceptions(final Long customerId, final CallbackBuilder callbackBuilder) {
         try {
             if (!getCustomerExistence(customerId)) {
-                callbackBuilder.build().reject("Account link failed, customer with customerId does not exist.");
+                throw new CustomerDoesNotExistException("Customer with the given customerId does not appear to exist.");
             } else {
                 Customer accountOwner = getCustomerData(customerId);
                 accountOwner.setAccount(new Account(accountOwner.getInitials()
                                                     + accountOwner.getSurname(), 0.0, 0.0));
                 doNewAccountRequest(accountOwner, callbackBuilder);
             }
-        } catch (SQLException | CustomerDoesNotExistException e) {
-            callbackBuilder.build().reject(e);
+        } catch (SQLException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to Users database.")));
+        } catch (CustomerDoesNotExistException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", e.getMessage())));
         }
     }
 

@@ -617,8 +617,7 @@ final class UIService {
     public void processNewAccountRequest(final Callback<String> callback,
                                          @RequestParam("cookie") final String cookie) {
         System.out.printf("%s Forwarding account creation request.\n", PREFIX);
-        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder()
-                                                                   .withStringCallback(callback);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         doNewAccountRequest(cookie, callbackBuilder);
     }
 
@@ -632,7 +631,12 @@ final class UIService {
         authenticationClient.putFormAsyncWith1Param("/services/authentication/account/new", "cookie",
                 cookie, (httpStatusCode, httpContentType, newAccountReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        sendNewAccountRequestCallback(newAccountReplyJson, callbackBuilder);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(newAccountReplyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendNewAccountRequestCallback(newAccountReplyJson, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(newAccountReplyJson);
+                        }
                     } else {
                         callbackBuilder.build().reject("NewAccount request failed.");
                     }
