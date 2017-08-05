@@ -574,10 +574,10 @@ final class UIService {
             doAccountLinkRemoval(accountLinkJson, cookie, callbackBuilder);
         } catch (IncorrectInputException e) {
             System.out.printf("%s %s", PREFIX, e.getMessage());
-            callbackBuilder.build().reject(e.getMessage());
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", e.getMessage())));
         } catch (JsonSyntaxException e) {
             System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
-            callbackBuilder.build().reject("Syntax error when parsing json.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred.")));
         }
     }
 
@@ -594,7 +594,12 @@ final class UIService {
                 accountLinkRequestJson, "cookie", cookie,
                 ((httpStatusCode, httpContentType, accountLinkReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        sendAccountLinkRemovalCallback(accountLinkReplyJson, callbackBuilder);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(accountLinkReplyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendAccountLinkRemovalCallback(accountLinkReplyJson, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(accountLinkReplyJson);
+                        }
                     } else {
                         callbackBuilder.build().reject("AccountLink request failed.");
                     }
@@ -609,7 +614,7 @@ final class UIService {
     private void sendAccountLinkRemovalCallback(final String accountLinkReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Successful account link removal, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(accountLinkReplyJson));
+        callbackBuilder.build().reply(accountLinkReplyJson);
     }
 
 

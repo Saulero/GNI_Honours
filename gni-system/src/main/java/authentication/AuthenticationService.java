@@ -610,13 +610,13 @@ class AuthenticationService {
             doAccountLinkRemoval(accountLink, "" + getCustomerId(cookie), callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
-            callbackBuilder.build().reject("Error connecting to authentication database.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         } catch (UserNotAuthorizedException e) {
             e.printStackTrace();
-            callbackBuilder.build().reject("User not authorized, please login.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "User does not appear to be logged in.")));
         } catch (CustomerDoesNotExistException e) {
             e.printStackTrace();
-            callbackBuilder.build().reject("User with username does not exist, please specify correctly.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "User with username does not appear to exist.")));
         }
     }
 
@@ -626,8 +626,13 @@ class AuthenticationService {
                                             jsonConverter.toJson(accountLink), "requesterId", requesterId,
                                             (httpStatusCode, httpContentType, removalReplyJson) -> {
             if (httpStatusCode == HTTP_OK) {
-                System.out.printf("%s Forwarding accountLink removal reply.\n", PREFIX);
-                callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(removalReplyJson));
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(removalReplyJson), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    System.out.printf("%s Forwarding accountLink removal reply.\n", PREFIX);
+                    callbackBuilder.build().reply(removalReplyJson);
+                } else {
+                    callbackBuilder.build().reply(removalReplyJson);
+                }
             } else {
                 callbackBuilder.build().reject("Error connecting to users service.");
             }

@@ -749,15 +749,15 @@ class UsersService {
     }
 
     private void sendRemoveAccountLinkCallback(final String customerId, final CallbackBuilder callbackBuilder) {
-        RemoveAccountLinkReply reply = JSONParser.createJsonRemoveAccountLinkReply(true, customerId);
+        RemoveAccountLinkReply reply = new RemoveAccountLinkReply(true, customerId);
         System.out.printf("%s Account link removal successful, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(jsonConverter.toJson(reply));
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", reply)));
     }
 
     private void sendRemoveAccountLinkErrorCallback(final String errorMessage, final CallbackBuilder callbackBuilder) {
-        RemoveAccountLinkReply reply = JSONParser.createJsonRemoveAccountLinkReply(false, errorMessage);
+        RemoveAccountLinkReply reply = new RemoveAccountLinkReply(false, errorMessage);
         System.out.printf("%s Account link removal unsuccessful, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(jsonConverter.toJson(reply));
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", reply)));
     }
 
     /**

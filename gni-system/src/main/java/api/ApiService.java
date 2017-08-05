@@ -361,7 +361,7 @@ final class ApiService {
                         doNewPinCardRequest(accountNumber, username, cookie, callbackBuilder, id, false);
                     } else {
                         System.out.printf("%s Account link creation unsuccessful.\n\n\n\n", PREFIX);
-                        //todo send back failure
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred.")));
                     }
                 } else {
                     sendErrorReply(callbackBuilder, messageWrapper, id);
@@ -392,13 +392,18 @@ final class ApiService {
         uiClient.putFormAsyncWith2Params("/services/ui/accountLink/remove", "request",
                 jsonConverter.toJson(request), "cookie", cookie, (code, contentType, body) -> {
             if (code == HTTP_OK) {
-                RemoveAccountLinkReply reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), RemoveAccountLinkReply.class);
-                if (reply.isSuccessful()) {
-                    System.out.printf("%s Account link removal successful for Account Holder: %s, AccountNumber: %s\n\n\n\n", PREFIX, reply.getMessage(), accountNumber);
-                    sendRevokeAccessCallback(callbackBuilder, id);
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    RemoveAccountLinkReply reply = (RemoveAccountLinkReply) messageWrapper.getData();
+                    if (reply.isSuccessful()) {
+                        System.out.printf("%s Account link removal successful for Account Holder: %s, AccountNumber: %s\n\n\n\n", PREFIX, reply.getMessage(), accountNumber);
+                        sendRevokeAccessCallback(callbackBuilder, id);
+                    } else {
+                        System.out.printf("%s Account link removal unsuccessful.\n\n\n\n", PREFIX);
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred.", reply.getMessage())));
+                    }
                 } else {
-                    System.out.printf("%s Account link removal unsuccessful.\n\n\n\n", PREFIX);
-                    //todo send back failure
+                    sendErrorReply(callbackBuilder, messageWrapper, id);
                 }
             } else {
                 System.out.printf("%s Account link removal failed, body: %s\n\n\n\n", PREFIX, body);

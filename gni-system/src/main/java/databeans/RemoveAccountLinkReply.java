@@ -10,6 +10,11 @@ public class RemoveAccountLinkReply implements Serializable {
     private boolean successful;
     private String message;
 
+    public RemoveAccountLinkReply(boolean successful, String message) {
+        this.successful = successful;
+        this.message = message;
+    }
+
     public boolean isSuccessful() {
         return successful;
     }
