@@ -352,14 +352,19 @@ final class ApiService {
         uiClient.putFormAsyncWith2Params("/services/ui/accountLink", "request",
                 jsonConverter.toJson(request), "cookie", cookie, (code, contentType, body) -> {
             if (code == HTTP_OK) {
-                AccountLink reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), AccountLink.class);
-                if (reply.isSuccessful()) {
-                    System.out.printf("%s Account link successful for Account Holder: %s, AccountNumber: %s\n\n\n\n",
-                            PREFIX, reply.getCustomerId(), accountNumber);
-                    doNewPinCardRequest(accountNumber, username, cookie, callbackBuilder, id, false);
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    AccountLink reply = (AccountLink) messageWrapper.getData();
+                    if (reply.isSuccessful()) {
+                        System.out.printf("%s Account link successful for Account Holder: %s, AccountNumber: %s\n\n\n\n",
+                                PREFIX, reply.getCustomerId(), accountNumber);
+                        doNewPinCardRequest(accountNumber, username, cookie, callbackBuilder, id, false);
+                    } else {
+                        System.out.printf("%s Account link creation unsuccessful.\n\n\n\n", PREFIX);
+                        //todo send back failure
+                    }
                 } else {
-                    System.out.printf("%s Account link creation unsuccessful.\n\n\n\n", PREFIX);
-                    //todo send back failure
+                    sendErrorReply(callbackBuilder, messageWrapper, id);
                 }
             } else {
                 System.out.printf("%s Account link creation failed, body: %s\n\n\n\n", PREFIX, body);

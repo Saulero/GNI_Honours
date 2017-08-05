@@ -614,10 +614,14 @@ class UsersService {
                                         jsonConverter.toJson(accountExistsRequest),
                                         (httpStatusCode, httpContentType, dataReplyJson) -> {
             if (httpStatusCode == HTTP_OK) {
-                processAccountExistsReply(dataReplyJson, customerId, requesterId, callbackBuilder);
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(dataReplyJson), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    processAccountExistsReply((DataReply) messageWrapper.getData(), customerId, requesterId, callbackBuilder);
+                } else {
+                    callbackBuilder.build().reply(dataReplyJson);
+                }
             } else {
-                System.out.printf("%s Account does not exist, rejecting.\n", PREFIX);
-                callbackBuilder.build().reject("Unsuccessful call, code: " + httpStatusCode);
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
         });
     }
@@ -625,17 +629,16 @@ class UsersService {
     /**
      * Checks if the account exists in the ledger, if it does calls the exception handler so the account link can be
      * done, if not it will reject the accountLink request.
-     * @param dataReplyJson Json String representing a DataReply object that was received from the ledger.
+     * @param dataReply A DataReply object that was received from the ledger.
      * @param customerId Id of the customer the account should be linked to.
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void processAccountExistsReply(final String dataReplyJson, final long customerId, final String requesterId,
+    private void processAccountExistsReply(final DataReply dataReply, final long customerId, final String requesterId,
                                            final CallbackBuilder callbackBuilder) {
-        DataReply ledgerReply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(dataReplyJson), DataReply.class);
-        if (ledgerReply.isAccountInLedger()) {
-            handleAccountLinkExceptions(ledgerReply.getAccountNumber(), customerId, requesterId, callbackBuilder);
+        if (dataReply.isAccountInLedger()) {
+            handleAccountLinkExceptions(dataReply.getAccountNumber(), customerId, requesterId, callbackBuilder);
         } else {
-            callbackBuilder.build().reject("Account does not exist.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "Account does not appear to exist.")));
         }
     }
 
@@ -650,7 +653,7 @@ class UsersService {
                                              final String requesterId, final CallbackBuilder callbackBuilder) {
         try {
             if (!getCustomerExistence(customerId)) {
-                callbackBuilder.build().reject("Account link failed, customer with customerId does not exist.");
+                throw new AccountDoesNotExistException("Account link failed, customer with customerId does not exist.");
             } else {
                 if (isCustomerPrimaryOwner(accountNumber, Long.parseLong(requesterId))) {
                     linkAccountToCustomer(accountNumber, customerId, false);
@@ -661,9 +664,12 @@ class UsersService {
             }
         } catch (SQLException e) {
             e.printStackTrace();
-            callbackBuilder.build().reject(e);
-        } catch (UserNotAuthorizedException | AccountDoesNotExistException e) {
-            callbackBuilder.build().reject(e.getMessage());
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to the Users database.")));
+        } catch (UserNotAuthorizedException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
+        } catch (AccountDoesNotExistException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", e.getMessage())));
         }
     }
 
@@ -674,11 +680,10 @@ class UsersService {
      * @param customerId Id of the customer the account was linked to.
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void sendAccountLinkCallback(final String accountNumber, final long customerId,
-                                         final CallbackBuilder callbackBuilder) {
-        AccountLink reply = JSONParser.createJsonAccountLink(accountNumber, customerId, true);
+    private void sendAccountLinkCallback(final String accountNumber, final long customerId, final CallbackBuilder callbackBuilder) {
+        AccountLink reply = new AccountLink(customerId, accountNumber, true);
         System.out.printf("%s Account link successful, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(jsonConverter.toJson(reply));
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", reply)));
     }
 
     /**

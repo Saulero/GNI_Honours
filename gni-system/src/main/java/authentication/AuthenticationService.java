@@ -525,13 +525,13 @@ class AuthenticationService {
             doAccountLinkRequest(jsonConverter.toJson(accountLinkRequest), getCustomerId(cookie), callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
-            callbackBuilder.build().reject("Error connecting to authentication database.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         } catch (UserNotAuthorizedException e) {
             e.printStackTrace();
-            callbackBuilder.build().reject("User not authorized, please login.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.")));
         } catch (CustomerDoesNotExistException e) {
             e.printStackTrace();
-            callbackBuilder.build().reject("User with username does not exist, please specify correctly.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "User with username does not appear to exist.")));
         }
     }
 
@@ -564,10 +564,14 @@ class AuthenticationService {
                 accountLinkRequestJson,"requesterId", requesterId,
                 ((httpStatusCode, httpContentType, accountLinkReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        sendAccountLinkRequestCallback(accountLinkReplyJson, callbackBuilder);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(accountLinkReplyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendAccountLinkRequestCallback(accountLinkReplyJson, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(accountLinkReplyJson);
+                        }
                     } else {
-                        System.out.println(accountLinkReplyJson);
-                        callbackBuilder.build().reject("AccountLink request failed.");
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 }));
     }
@@ -577,10 +581,9 @@ class AuthenticationService {
      * @param accountLinkReplyJson Json String representing the result of an account link request.
      * @param callbackBuilder Used to send the result of the request back to the source of the request.
      */
-    private void sendAccountLinkRequestCallback(final String accountLinkReplyJson,
-                                                final CallbackBuilder callbackBuilder) {
+    private void sendAccountLinkRequestCallback(final String accountLinkReplyJson, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Successful account link, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(accountLinkReplyJson));
+        callbackBuilder.build().reply(accountLinkReplyJson);
     }
 
     @RequestMapping(value = "/accountLink/remove", method = RequestMethod.PUT)

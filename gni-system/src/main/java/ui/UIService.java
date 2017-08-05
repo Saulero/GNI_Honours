@@ -2,6 +2,7 @@ package ui;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
+import com.thetransactioncompany.jsonrpc2.JSONRPC2Error;
 import databeans.*;
 import io.advantageous.qbit.annotation.*;
 import io.advantageous.qbit.http.client.HttpClient;
@@ -483,10 +484,10 @@ final class UIService {
             doAccountLinkRequest(accountLinkRequestJson, cookie, callbackBuilder);
         } catch (IncorrectInputException e) {
             System.out.printf("%s %s", PREFIX, e.getMessage());
-            callbackBuilder.build().reject(e.getMessage());
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", e.getMessage())));
         } catch (JsonSyntaxException e) {
             System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
-            callbackBuilder.build().reject("Syntax error when parsing json.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred.")));
         }
     }
 
@@ -519,9 +520,14 @@ final class UIService {
                 accountLinkRequestJson, "cookie", cookie,
                 ((httpStatusCode, httpContentType, accountLinkReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        sendAccountLinkRequestCallback(accountLinkReplyJson, callbackBuilder);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(accountLinkReplyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendAccountLinkRequestCallback(accountLinkReplyJson, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(accountLinkReplyJson);
+                        }
                     } else {
-                        callbackBuilder.build().reject("AccountLink request failed.");
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 }));
     }
@@ -534,7 +540,7 @@ final class UIService {
     private void sendAccountLinkRequestCallback(final String accountLinkReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Successful account link, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(accountLinkReplyJson));
+        callbackBuilder.build().reply(accountLinkReplyJson);
     }
 
     /**

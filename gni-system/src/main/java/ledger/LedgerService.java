@@ -474,16 +474,17 @@ class LedgerService {
         if (requestType != RequestType.ACCOUNTEXISTS && !getCustomerAuthorization(dataRequest.getAccountNumber(),
                 "" + dataRequest.getCustomerId())) {
             System.out.printf("%s rejecting because not authorized", PREFIX);
-            callback.reject("Customer not authorized to request data for this accountNumber.");
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "Customer not authorized to request data for this accountNumber.")));
         } else {
             // Method call
             DataReply dataReply = processDataRequest(dataRequest);
+
             if (dataReply != null) {
                 System.out.printf("%s Data request successful, sending callback.\n", PREFIX);
-                callback.reply(gson.toJson(dataReply));
+                callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", dataReply)));
             } else {
                 System.out.printf("%s Data request failed, sending rejection.\n", PREFIX);
-                callback.reject("SQLException");
+                callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to the Ledger database.")));
             }
         }
     }
