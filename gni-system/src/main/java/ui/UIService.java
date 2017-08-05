@@ -683,7 +683,7 @@ final class UIService {
             doAccountRemovalRequest(accountNumber, cookie, callbackBuilder);
         } catch (IncorrectInputException e) {
             e.printStackTrace();
-            callbackBuilder.build().reject(e.getMessage());
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.")));
         }
     }
 
@@ -712,21 +712,26 @@ final class UIService {
             "accountNumber", accountNumber, "cookie", cookie,
                 (httpStatusCode, httpContentType, replyJson) -> {
             if (httpStatusCode == HTTP_OK) {
-                sendAccountRemovalCallback(replyJson, callbackBuilder);
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    sendAccountRemovalCallback(replyJson, callbackBuilder);
+                } else {
+                    callbackBuilder.build().reply(replyJson);
+                }
             } else {
-                callbackBuilder.build().reject("Account removal request failed.");
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
         });
     }
 
     /**
      * Sends the result of an account removal request to the request source.
-     * @param accountNumber accountNumber that was removed from the system.
+     * @param replyJson accountNumber that was removed from the system.
      * @param callbackBuilder Used to send the result of the account removal request to the request source.
      */
-    private void sendAccountRemovalCallback(final String accountNumber, final CallbackBuilder callbackBuilder) {
+    private void sendAccountRemovalCallback(final String replyJson, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Account removal successful, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(accountNumber));
+        callbackBuilder.build().reply(replyJson);
     }
 
     /**

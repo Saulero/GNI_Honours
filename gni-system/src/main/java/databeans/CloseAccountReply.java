@@ -3,14 +3,19 @@ package databeans;
 import java.io.Serializable;
 
 /**
- * @Author noel
+ * @author Noel & Saul
  */
 public class CloseAccountReply implements Serializable {
+
     private boolean customerRemoved;
-
     private boolean successful;
-
     private String errorMessage;
+
+    public CloseAccountReply(boolean customerRemoved, boolean successful, String errorMessage) {
+        this.customerRemoved = customerRemoved;
+        this.successful = successful;
+        this.errorMessage = errorMessage;
+    }
 
     public boolean isCustomerRemoved() {
         return customerRemoved;

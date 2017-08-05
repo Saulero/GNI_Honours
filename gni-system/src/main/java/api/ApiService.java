@@ -294,7 +294,13 @@ final class ApiService {
         uiClient.putFormAsyncWith2Params("/services/ui/account/remove", "accountNumber",
                 params.get("iBAN"), "cookie", params.get("authToken"), (code, contentType, body) -> {
                     if (code == HTTP_OK) {
-                        sendCloseAccountCallback(callbackBuilder, id, body);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            AccountLink reply = (AccountLink) messageWrapper.getData();
+                            sendCloseAccountCallback(callbackBuilder, id, reply);
+                        } else {
+                            sendErrorReply(callbackBuilder, messageWrapper, id);
+                        }
                     } else {
                         System.out.printf("%s Account closing failed, body: %s\n\n\n\n", PREFIX, body);
                         JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
@@ -310,12 +316,10 @@ final class ApiService {
      * @param reply Used to show which accountNumber is closed.
      */
     private void sendCloseAccountCallback(final CallbackBuilder callbackBuilder, final Object id,
-                                          final String reply) {
-        AccountLink replyObject = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(reply), AccountLink.class);
-        System.out.printf("%s Successfully closed account %s\n\n\n\n", PREFIX, replyObject.getAccountNumber());
+                                          final AccountLink reply) {
+        System.out.printf("%s Successfully closed account %s\n\n\n\n", PREFIX, reply.getAccountNumber());
         Map<String, Object> result = new HashMap<>();
-        JSONRPC2Response response = new JSONRPC2Response(result, id);
-        callbackBuilder.build().reply(response.toJSONString());
+        callbackBuilder.build().reply(new JSONRPC2Response(result, id).toJSONString());
     }
 
     /**

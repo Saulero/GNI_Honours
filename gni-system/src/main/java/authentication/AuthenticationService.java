@@ -721,9 +721,9 @@ class AuthenticationService {
             authenticateRequest(cookie);
             doAccountRemovalRequest(accountNumber, Long.toString(getCustomerId(cookie)), callbackBuilder);
         } catch (SQLException e) {
-            callbackBuilder.build().reject("Error connecting to authentication database.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to the authentication database.")));
         } catch (UserNotAuthorizedException e) {
-            callbackBuilder.build().reject("User not authorized, please login.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.")));
         }
     }
 
@@ -740,17 +740,22 @@ class AuthenticationService {
                 "accountNumber", accountNumber, "customerId", customerId,
                 (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        CloseAccountReply reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyJson), CloseAccountReply.class);
-                        if (!reply.isSuccessful()) {
-                            callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(replyJson));
-                        } else {
-                            if (reply.isCustomerRemoved()) {
-                                removeCustomerTokens(customerId);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            CloseAccountReply reply = (CloseAccountReply) messageWrapper.getData();
+                            if (!reply.isSuccessful()) {
+                                callbackBuilder.build().reply(replyJson);
+                            } else {
+                                if (reply.isCustomerRemoved()) {
+                                    removeCustomerTokens(customerId);
+                                }
+                                doAccountPinCardsRemovalRequest(accountNumber, callbackBuilder);
                             }
-                            doAccountPinCardsRemovalRequest(accountNumber, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(replyJson);
                         }
                     } else {
-                        callbackBuilder.build().reject("Account removal request failed.");
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
@@ -778,16 +783,21 @@ class AuthenticationService {
         pinClient.putFormAsyncWith1Param("/services/pin/account/remove", "accountNumber",
                                         accountNumber, (httpStatusCode, httpContentType, replyJson) -> {
             if (httpStatusCode == HTTP_OK) {
-                sendAccountRemovalCallback(replyJson, callbackBuilder);
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    sendAccountRemovalCallback(replyJson, callbackBuilder);
+                } else {
+                    callbackBuilder.build().reply(replyJson);
+                }
             } else {
-                callbackBuilder.build().reject("Removing pinCards of account failed.");
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
         });
     }
 
     private void sendAccountRemovalCallback(final String replyJson, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Account removal successful, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(replyJson));
+        callbackBuilder.build().reply(replyJson);
     }
 
     /**

@@ -8,7 +8,7 @@ import java.util.LinkedList;
 /**
  * Creates objects by initializing them using empty constructors and then setting all variables. Needed to use the
  * objects as Json objects.
- * @author Noel
+ * @author Noel & Saul
  * @version 1
  */
 public final class JSONParser {
@@ -296,15 +296,6 @@ public final class JSONParser {
         pinCard.setCustomerId(customerId);
         pinCard.setExpirationDate(expirationDate);
         return pinCard;
-    }
-
-    public static CloseAccountReply createJsonCloseAccountReply(final boolean removedCustomer, final boolean successful,
-                                                                final String errorMessage) {
-        CloseAccountReply reply = new CloseAccountReply();
-        reply.setCustomerRemoved(removedCustomer);
-        reply.setSuccessful(successful);
-        reply.setErrorMessage(errorMessage);
-        return reply;
     }
 
     public static RemoveAccountLinkReply createJsonRemoveAccountLinkReply(final boolean successful, final String message) {

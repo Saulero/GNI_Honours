@@ -535,7 +535,7 @@ class PinService {
             deleteAccountCardsFromDatabase(accountNumber);
             sendRemoveAccountCardsCallback(accountNumber, callbackBuilder);
         } catch (SQLException e) {
-            callbackBuilder.build().reject("Something went wrong connecting to the pin database.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to the pin database.")));
         }
     }
 
@@ -551,8 +551,8 @@ class PinService {
     private void sendRemoveAccountCardsCallback(final String accountNumber, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s All pin cards for account with accountNumber %s successfully deleted from the system,"
                             + " sending callback.\n", PREFIX, accountNumber);
-        AccountLink reply = JSONParser.createJsonAccountLink(accountNumber, 0L);
-        callbackBuilder.build().reply(jsonConverter.toJson(reply));
+        AccountLink reply = new AccountLink(0L, accountNumber);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", reply)));
     }
 
     /**

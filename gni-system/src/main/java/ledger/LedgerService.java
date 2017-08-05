@@ -197,7 +197,7 @@ class LedgerService {
      * @param accountNumber AccountNumber of the account that should be removed from the system.
      * @param customerId CustomerId of the User that requested the removal of the account.
      */
-    @RequestMapping(value = "account/remove", method = RequestMethod.PUT)
+    @RequestMapping(value = "/account/remove", method = RequestMethod.PUT)
     public void processRemoveAccountRequest(final Callback<String> callback,
                                             final @RequestParam("accountNumber") String accountNumber,
                                             final @RequestParam("customerId") String customerId) {
@@ -220,7 +220,7 @@ class LedgerService {
             sendAccountRemovalCallback(accountNumber, callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
-            callbackBuilder.build().reject(e.getMessage());
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to Ledger database.")));
         }
     }
 
@@ -243,7 +243,7 @@ class LedgerService {
 
     private void sendAccountRemovalCallback(final String accountNumber, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Successfully removed account %s, sending callback.\n", PREFIX, accountNumber);
-        callbackBuilder.build().reply(accountNumber);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", accountNumber)));
     }
 
     /**

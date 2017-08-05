@@ -842,17 +842,17 @@ class UsersService {
                                            final CallbackBuilder callbackBuilder) {
         try {
             if (!getCustomerExistence(customerId)) {
-                callbackBuilder.build().reject(
-                        "Account removal failed, customer with customerId does not exist.");
+                throw new AccountDoesNotExistException("Customer with given customerId does not appear to exist.");
             } else if (!isCustomerPrimaryOwner(accountNumber, customerId)) {
-                callbackBuilder.build().reject(
-                        "Account removal failed, this customer is not the primary account owner.");
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "Account removal failed, this customer is not the primary account owner.")));
             } else {
                 doAccountRemovalRequest(accountNumber, customerId, callbackBuilder);
             }
-        } catch (SQLException | AccountDoesNotExistException e) {
+        } catch (SQLException e) {
             e.printStackTrace();
-            callbackBuilder.build().reject(e);
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to Users database.")));
+        } catch (AccountDoesNotExistException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", e.getMessage())));
         }
     }
 
@@ -884,15 +884,20 @@ class UsersService {
         ledgerClient.putFormAsyncWith2Params("/services/ledger/account/remove", "accountNumber",
         accountNumber, "customerId", Long.toString(customerId), (httpStatusCode, httpContentType, jsonReply) -> {
             if (httpStatusCode == HTTP_OK) {
-                try {
-                    removeAccountLinks(accountNumber);
-                    checkIfCustomerOwnsAccounts(customerId, callbackBuilder);
-                } catch (SQLException e) {
-                    System.out.printf("%s Failed to remove accountLink, sending rejection.\n", PREFIX);
-                    callbackBuilder.build().reject(e.getMessage());
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(jsonReply), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    try {
+                        removeAccountLinks(accountNumber);
+                        checkIfCustomerOwnsAccounts(customerId, callbackBuilder);
+                    } catch (SQLException e) {
+                        System.out.printf("%s Failed to remove accountLink, sending rejection.\n", PREFIX);
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to Users database.")));
+                    }
+                } else {
+                    callbackBuilder.build().reply(jsonReply);
                 }
             } else {
-                callbackBuilder.build().reject("Couldn't reach transactionDispatch.");
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
         });
     }
@@ -923,7 +928,7 @@ class UsersService {
             sendAccountRemovalCallback(removedCustomer, callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
-            sendAccountRemovalErrorCallback("Internal database error", callbackBuilder);
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to Users database.")));
         }
     }
 
@@ -952,14 +957,8 @@ class UsersService {
 
     private void sendAccountRemovalCallback(final boolean removedCustomer, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Account removal successful, sending callback.\n", PREFIX);
-        CloseAccountReply reply = JSONParser.createJsonCloseAccountReply(removedCustomer, true, "");
-        callbackBuilder.build().reply(jsonConverter.toJson(reply));
-    }
-
-    private void sendAccountRemovalErrorCallback(final String errorMessage, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Account removal failed, sending callback.\n", PREFIX);
-        CloseAccountReply reply = JSONParser.createJsonCloseAccountReply(false, false, errorMessage);
-        callbackBuilder.build().reply(jsonConverter.toJson(reply));
+        CloseAccountReply reply = new CloseAccountReply(removedCustomer, true, "");
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", reply)));
     }
 
     /**
