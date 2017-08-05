@@ -355,15 +355,11 @@ final class ApiService {
                 MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
                 if (!messageWrapper.isError()) {
                     AccountLink reply = (AccountLink) messageWrapper.getData();
-                    if (reply.isSuccessful()) {
-                        System.out.printf("%s Account link successful for Account Holder: %s, AccountNumber: %s\n\n\n\n",
-                                PREFIX, reply.getCustomerId(), accountNumber);
-                        doNewPinCardRequest(accountNumber, username, cookie, callbackBuilder, id, false);
-                    } else {
-                        System.out.printf("%s Account link creation unsuccessful.\n\n\n\n", PREFIX);
-                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred.")));
-                    }
+                    System.out.printf("%s Account link successful for Account Holder: %s, AccountNumber: %s\n\n\n\n",
+                            PREFIX, reply.getCustomerId(), accountNumber);
+                    doNewPinCardRequest(accountNumber, username, cookie, callbackBuilder, id, false);
                 } else {
+                    System.out.printf("%s Account link creation unsuccessful.\n\n\n\n", PREFIX);
                     sendErrorReply(callbackBuilder, messageWrapper, id);
                 }
             } else {
@@ -394,15 +390,11 @@ final class ApiService {
             if (code == HTTP_OK) {
                 MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
                 if (!messageWrapper.isError()) {
-                    RemoveAccountLinkReply reply = (RemoveAccountLinkReply) messageWrapper.getData();
-                    if (reply.isSuccessful()) {
-                        System.out.printf("%s Account link removal successful for Account Holder: %s, AccountNumber: %s\n\n\n\n", PREFIX, reply.getMessage(), accountNumber);
-                        sendRevokeAccessCallback(callbackBuilder, id);
-                    } else {
-                        System.out.printf("%s Account link removal unsuccessful.\n\n\n\n", PREFIX);
-                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred.", reply.getMessage())));
-                    }
+                    String message = (String) messageWrapper.getData();
+                    System.out.printf("%s Account link removal successful for Account Holder: %s, AccountNumber: %s\n\n\n\n", PREFIX, message, accountNumber);
+                    sendRevokeAccessCallback(callbackBuilder, id);
                 } else {
+                    System.out.printf("%s Account link removal unsuccessful.\n\n\n\n", PREFIX);
                     sendErrorReply(callbackBuilder, messageWrapper, id);
                 }
             } else {

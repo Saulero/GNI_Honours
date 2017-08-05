@@ -298,13 +298,6 @@ public final class JSONParser {
         return pinCard;
     }
 
-    public static RemoveAccountLinkReply createJsonRemoveAccountLinkReply(final boolean successful, final String message) {
-        RemoveAccountLinkReply reply = new RemoveAccountLinkReply();
-        reply.setSuccessful(successful);
-        reply.setMessage(message);
-        return reply;
-    }
-
     public static MessageWrapper createMessageWrapper(boolean isError, int code, String message) {
         MessageWrapper error = new MessageWrapper();
         error.setError(isError);

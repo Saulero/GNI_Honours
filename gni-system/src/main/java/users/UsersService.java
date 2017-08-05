@@ -715,22 +715,22 @@ class UsersService {
                     removeAccountLink(accountNumber, customerId, callbackBuilder);
                     sendRemoveAccountLinkCallback(customerId, callbackBuilder);
                 } else {
-                    sendRemoveAccountLinkErrorCallback("User is the primary owner, access can not be revoked.", callbackBuilder);
+                    callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "User is the primary owner, access can not be revoked.")));
                 }
             } else {
                 if (customerId.equals(requesterId)) {
                     removeAccountLink(accountNumber, customerId, callbackBuilder);
                     sendRemoveAccountLinkCallback(customerId, callbackBuilder);
                 } else {
-                    sendRemoveAccountLinkErrorCallback("User does not have sufficient permissions.", callbackBuilder);
+                    callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.")));
                 }
             }
         } catch (SQLException e) {
             e.printStackTrace();
-            sendRemoveAccountLinkErrorCallback("Internal database error", callbackBuilder);
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to Users database.")));
         } catch (AccountDoesNotExistException e) {
             e.printStackTrace();
-            sendRemoveAccountLinkErrorCallback("The provided account does not exist.", callbackBuilder);
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "The provided account does not appear to exist.")));
         }
     }
 
@@ -744,20 +744,13 @@ class UsersService {
             removeAccountLink.close();
             databaseConnectionPool.returnConnection(databaseConnection);
         } catch (SQLException e) {
-            sendRemoveAccountLinkErrorCallback("No account permissions found.", callbackBuilder);
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "No account permissions found.")));
         }
     }
 
     private void sendRemoveAccountLinkCallback(final String customerId, final CallbackBuilder callbackBuilder) {
-        RemoveAccountLinkReply reply = new RemoveAccountLinkReply(true, customerId);
         System.out.printf("%s Account link removal successful, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", reply)));
-    }
-
-    private void sendRemoveAccountLinkErrorCallback(final String errorMessage, final CallbackBuilder callbackBuilder) {
-        RemoveAccountLinkReply reply = new RemoveAccountLinkReply(false, errorMessage);
-        System.out.printf("%s Account link removal unsuccessful, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", reply)));
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", customerId)));
     }
 
     /**
