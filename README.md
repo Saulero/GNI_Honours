@@ -9,9 +9,9 @@ All required libraries are managed by Gradle, ensure that they are properly load
 Run the util/TableCreator.java main method once to create all the tables in the database. Running this main method again will remake the database, deleting all existing data in the GNI tables.
 
 # How to run the system
-Each service package contains a main class which you can run to start up the service. Once all services have been started you can make requests to each service on their uri, by default this uri is services/<service>/<requestType>.
+Each service package contains a main class which you can run to start up the service. Once all services have been started you can make requests to each service on their uri, by default this uri is services/[service]/<requestType>.
 The system can easily be started by running the util/BootSystem.java main method.
-When communicating according to the API protocol, the address is by default http://<IP or localhost>:9997/services/api/request
+When communicating according to the API protocol, the address is by default http://[IP or localhost]:9997/services/api/request
 
 # How to test/demo the system
 Several Junit tests have been provided in the test packages.
