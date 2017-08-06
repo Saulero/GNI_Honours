@@ -261,9 +261,9 @@ class AuthenticationService {
             authenticateRequest(cookie);
             doTransactionRequest(transactionRequestJson, getCustomerId(cookie), callbackBuilder);
         } catch (SQLException e) {
-            callbackBuilder.build().reject("Failed to query database.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         } catch (UserNotAuthorizedException e) {
-            callbackBuilder.build().reject("CookieData does not belong to an authorized user.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "CookieData does not belong to an authorized user.")));
         }
     }
 
@@ -280,9 +280,14 @@ class AuthenticationService {
                 transactionRequestJson, "customerId", customerId.toString(),
                 (httpStatusCode, httpContentType, transactionReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        sendTransactionRequestCallback(transactionReplyJson, callbackBuilder);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendTransactionRequestCallback(transactionReplyJson, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(transactionReplyJson);
+                        }
                     } else {
-                        callbackBuilder.build().reject("Transaction request failed.");
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
@@ -295,7 +300,7 @@ class AuthenticationService {
     private void sendTransactionRequestCallback(final String transactionReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Transaction successful, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(transactionReplyJson));
+        callbackBuilder.build().reply(transactionReplyJson);
     }
 
     /**

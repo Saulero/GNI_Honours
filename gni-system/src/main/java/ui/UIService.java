@@ -245,14 +245,13 @@ final class UIService {
             doTransactionRequest(transactionRequestJson, cookie, callbackBuilder);
         } catch (IncorrectInputException e) {
             System.out.printf("%s %s, sending rejection.\n", PREFIX, e.getMessage());
-            callbackBuilder.build().reject(e.getMessage());
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.")));
         } catch (JsonSyntaxException e) {
             System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
-            callbackBuilder.build().reject("Syntax error when parsing json.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred.", "Syntax error when parsing json.")));
         } catch (NumberFormatException e) {
             System.out.printf("%s The transaction amount was incorrectly specified, sending rejection.\n", PREFIX);
-            callbackBuilder.build().reject("The following variable was incorrectly specified:"
-                                            + " transactionAmount.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "The following variable was incorrectly specified: transactionAmount.")));
         }
     }
 
@@ -306,9 +305,14 @@ final class UIService {
                                             transactionRequestJson, "cookie", cookie,
                                             (httpStatusCode, httpContentType, transactionReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        sendTransactionCallback(transactionReplyJson, callbackBuilder);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendTransactionCallback(transactionReplyJson, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(transactionReplyJson);
+                        }
                     } else {
-                        callbackBuilder.build().reject("Transaction request failed.");
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
@@ -321,7 +325,7 @@ final class UIService {
     private void sendTransactionCallback(final String transactionReplyJson,
                                          final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Transaction successfully executed, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(transactionReplyJson));
+        callbackBuilder.build().reply(transactionReplyJson);
     }
 
     /**

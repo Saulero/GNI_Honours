@@ -329,10 +329,10 @@ class LedgerService {
 
         if (transaction.isSuccessful()) {
             System.out.printf("%s Successfully processed incoming transaction, sending callback.\n", PREFIX);
-            callback.reply(gson.toJson(transaction));
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", transaction)));
         } else {
             System.out.printf("%s Incoming transaction was not successful, sending callback.\n", PREFIX);
-            callback.reply(gson.toJson(transaction));
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.")));
         }
     }
 
@@ -386,15 +386,16 @@ class LedgerService {
 
         if (transaction.isSuccessful()) {
             System.out.printf("%s Successfully processed outgoing transaction, sending callback.\n", PREFIX);
-            callback.reply(gson.toJson(transaction));
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", transaction)));
         } else {
             if (!customerIsAuthorized) {
                 System.out.printf("%s Customer with id %s is not authorized to make transactions from this account."
                         + " Sending callback.\n", PREFIX, customerId);
+                callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "Customer is not authorized to make transactions from this account")));
             } else {
                 System.out.printf("%s Outgoing transaction was not successful, sending callback.\n", PREFIX);
+                callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "There is probably not enough balance in the account.")));
             }
-            callback.reply(gson.toJson(transaction));
         }
     }
 

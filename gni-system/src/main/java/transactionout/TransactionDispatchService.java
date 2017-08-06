@@ -1,6 +1,7 @@
 package transactionout;
 
 import com.google.gson.Gson;
+import databeans.MessageWrapper;
 import io.advantageous.qbit.annotation.RequestMapping;
 import io.advantageous.qbit.annotation.RequestMethod;
 import io.advantageous.qbit.annotation.RequestParam;
@@ -71,9 +72,15 @@ class TransactionDispatchService {
                 transactionRequestJson, "customerId", customerId,
                 (httpStatusCode, httpContentType, transactionReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        processOutgoingTransactionReply(transactionReplyJson, callbackBuilder);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            Transaction transaction = (Transaction) messageWrapper.getData();
+                            processOutgoingTransactionReply(transaction, transactionReplyJson, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(transactionReplyJson);
+                        }
                     } else {
-                        callbackBuilder.build().reject("Recieved an error from ledger.");
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
@@ -81,35 +88,18 @@ class TransactionDispatchService {
     /**
      * Checks if the transaction is processed and successful, if it is forwards the reply to the requesting service,
      * if it is not sends a rejection to the requesting service.
-     * @param transactionReplyJson Json String representing a transaction that the ledger tried to execute
-     *                             {@link Transaction}.
+     * @param transaction A transaction that the ledger tried to execute {@link Transaction}.
+     * @param transactionReplyJson The original JSON.
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
-    private void processOutgoingTransactionReply(final String transactionReplyJson,
+    private void processOutgoingTransactionReply(final Transaction transaction, String transactionReplyJson,
                                                  final CallbackBuilder callbackBuilder) {
-        Transaction transactionReply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson),
-                                                              Transaction.class);
-        if (transactionReply.isProcessed() && transactionReply.isSuccessful()) {
+        if (transaction.isProcessed() && transaction.isSuccessful()) {
             //TODO send outgoing transaction.
-            sendTransactionRequestCallback(transactionReplyJson, callbackBuilder);
+            System.out.printf("%s Successful transaction, sending callback.\n", prefix);
+            callbackBuilder.build().reply(transactionReplyJson);
         } else {
-            if (transactionReply.isProcessed()) {
-                System.out.printf("%s Transaction unsuccessful, sending rejection.\n", prefix);
-            } else {
-                System.out.printf("%s Transaction couldn't be processed, sending rejection.\n", prefix);
-            }
-            callbackBuilder.build().reject("Transaction couldn't be processed.");
+            callbackBuilder.build().reply(transactionReplyJson);
         }
-    }
-
-    /**
-     * Forwards a String representing a transaction that was executed to the service that sent the transaction request.
-     * @param transactionReplyJson Json String representing a transaction that the ledger executed {@link Transaction}.
-     * @param callbackBuilder Used to send the received reply back to the source of the request.
-     */
-    private void sendTransactionRequestCallback(final String transactionReplyJson,
-                                                final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Successful transaction, sending callback.\n", prefix);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(transactionReplyJson));
     }
 }

@@ -423,19 +423,20 @@ final class ApiService {
         pinClient.putFormAsyncWith1Param("/services/pin/transaction", "request",
                 jsonConverter.toJson(pin), (code, contentType, body) -> {
                     if (code == HTTP_OK) {
-                        Transaction reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
-                                Transaction.class);
-                        if (reply.isSuccessful() && reply.isProcessed()) {
-                            System.out.printf("%s ATM transaction successful.\n\n\n", PREFIX);
-                            Map<String, Object> result = new HashMap<>();
-                            JSONRPC2Response response = new JSONRPC2Response(result, id);
-                            callbackBuilder.build().reply(response.toJSONString());
-                        } else if (!reply.isProcessed()) {
-                            System.out.printf("%s ATM transaction couldn't be processed.\n\n\n", PREFIX);
-                            //todo figure out how to fetch what cause the failed processing.
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            Transaction reply = (Transaction) messageWrapper.getData();
+                            if (reply.isSuccessful() && reply.isProcessed()) {
+                                System.out.printf("%s ATM transaction successful.\n\n\n", PREFIX);
+                                Map<String, Object> result = new HashMap<>();
+                                JSONRPC2Response response = new JSONRPC2Response(result, id);
+                                callbackBuilder.build().reply(response.toJSONString());
+                            } else {
+                                System.out.printf("%s ATM transaction was not successful.\n\n\n", PREFIX);
+                                sendErrorReply(callbackBuilder, JSONParser.createMessageWrapper(true, 500, "Unknown error occurred."), id);
+                            }
                         } else {
-                            System.out.printf("%s ATM transaction was not successful.\n\n\n", PREFIX);
-                            //todo send unsuccessful reply, find way to fetch cause of this.
+                            sendErrorReply(callbackBuilder, messageWrapper, id);
                         }
                     } else {
                         System.out.printf("%s ATM transaction request failed, body: %s\n\n\n\n", PREFIX, body);
@@ -461,19 +462,20 @@ final class ApiService {
         pinClient.putFormAsyncWith1Param("/services/pin/transaction", "request",
                 jsonConverter.toJson(pin), (code, contentType, body) -> {
                     if (code == HTTP_OK) {
-                        Transaction reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
-                                                                   Transaction.class);
-                        if (reply.isSuccessful() && reply.isProcessed()) {
-                            System.out.printf("%s Pin transaction successful.\n\n\n", PREFIX);
-                            Map<String, Object> result = new HashMap<>();
-                            JSONRPC2Response response = new JSONRPC2Response(result, id);
-                            callbackBuilder.build().reply(response.toJSONString());
-                        } else if (!reply.isProcessed()) {
-                            System.out.printf("%s Pin transaction couldn't be processed.\n\n\n", PREFIX);
-                            //todo figure out how to fetch what cause the failed processing.
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            Transaction reply = (Transaction) messageWrapper.getData();
+                            if (reply.isSuccessful() && reply.isProcessed()) {
+                                System.out.printf("%s Pin transaction successful.\n\n\n", PREFIX);
+                                Map<String, Object> result = new HashMap<>();
+                                JSONRPC2Response response = new JSONRPC2Response(result, id);
+                                callbackBuilder.build().reply(response.toJSONString());
+                            } else {
+                                System.out.printf("%s Pin transaction was not successful.\n\n\n", PREFIX);
+                                sendErrorReply(callbackBuilder, JSONParser.createMessageWrapper(true, 500, "Unknown error occurred."), id);
+                            }
                         } else {
-                            System.out.printf("%s Pin transaction was not successful.\n\n\n", PREFIX);
-                            //todo send unsuccessful reply, find way to fetch cause of this.
+                            sendErrorReply(callbackBuilder, messageWrapper, id);
                         }
                     } else {
                         System.out.printf("%s Pin transaction request failed, body: %s\n\n\n\n", PREFIX, body);
@@ -501,25 +503,22 @@ final class ApiService {
                 jsonConverter.toJson(transaction), "cookie", cookie,
                 (code, contentType, body) -> {
                     if (code == HTTP_OK) {
-                        Transaction reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
-                                                                   Transaction.class);
-                        if (reply.isSuccessful() && reply.isProcessed()) {
-                            long transactionId = reply.getTransactionID();
-                            System.out.printf("%s Internal transaction %d successful.\n\n\n\n",
-                                    PREFIX, transactionId);
-                            Map<String, Object> result = new HashMap<>();
-                            JSONRPC2Response response = new JSONRPC2Response(result, id);
-                            callbackBuilder.build().reply(response.toJSONString());
-                        } else if (!reply.isProcessed()) {
-                            System.out.printf("%s Internal transaction couldn't be processed\n\n\n\n", PREFIX);
-                            //todo figure out how to fetch what cause the failed processing.
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            Transaction reply = (Transaction) messageWrapper.getData();
+                            if (reply.isSuccessful() && reply.isProcessed()) {
+                                long transactionId = reply.getTransactionID();
+                                System.out.printf("%s Internal transaction %d successful.\n\n\n\n",
+                                        PREFIX, transactionId);
+                                Map<String, Object> result = new HashMap<>();
+                                JSONRPC2Response response = new JSONRPC2Response(result, id);
+                                callbackBuilder.build().reply(response.toJSONString());
+                            } else {
+                                System.out.printf("%s Internal transaction was not successful\n\n\n\n", PREFIX);
+                                sendErrorReply(callbackBuilder, JSONParser.createMessageWrapper(true, 500, "Unknown error occurred."), id);
+                            }
                         } else {
-                            System.out.printf("%s Internal transaction was not successful\n\n\n\n", PREFIX);
-                            Map<String, Object> result = new HashMap<>();
-                            result.put("NotAuthorizedError", "User is not authorized to make this transaction.");
-                            JSONRPC2Response response = new JSONRPC2Response(result, id);
-                            callbackBuilder.build().reply(response.toJSONString());
-                            //todo send unsuccessful reply, find way to fetch cause of this.
+                            sendErrorReply(callbackBuilder, messageWrapper, id);
                         }
                     } else {
                         System.out.printf("%s Transaction request failed, body: %s\n\n\n\n", PREFIX, body);

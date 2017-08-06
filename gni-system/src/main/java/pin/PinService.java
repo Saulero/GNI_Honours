@@ -104,7 +104,7 @@ class PinService {
                     }
                 } else {
                     System.out.printf("%s Rejecting atm request, not authorized.\n", PREFIX);
-                    callbackBuilder.build().reject("Unauthorized ATM request.");
+                    callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.")));
                 }
             } else {
                 if (getPinTransactionAuthorization(request)) {
@@ -116,18 +116,17 @@ class PinService {
                     doTransactionRequest(transaction, customerId, callbackBuilder);
                 } else {
                     System.out.printf("%s Rejecting Pin request, not authorized.\n", PREFIX);
-                    callbackBuilder.build().reject("Unauthorized Pin request.");
+                    callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "Unauthorized Pin request.")));
                 }
             }
         } catch (SQLException e) {
             e.printStackTrace();
-            callbackBuilder.build().reject("Something went wrong when connecting to the pin database.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to the pin database.")));
         } catch (IncorrectPinException e) {
-            e.printStackTrace();
-            callbackBuilder.build().reject("Incorrect PIN/CardNumber.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 422, "The user could not be authenticated, a wrong combination of credentials was provided.", "Incorrect PIN/CardNumber.")));
         } catch (JsonSyntaxException e) {
             e.printStackTrace();
-            callbackBuilder.build().reject("Invalid json specification.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred.", "Invalid json specification.")));
         }
     }
 
@@ -286,12 +285,16 @@ class PinService {
                 "request", jsonConverter.toJson(request), "customerId", customerId,
         (code, contentType, replyBody) -> {
             if (code == HTTP_OK) {
-                Transaction reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyBody),
-                                                            Transaction.class);
-                processTransactionReply(reply, request, callbackBuilder);
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyBody), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    Transaction reply = (Transaction) messageWrapper.getData();
+                    processTransactionReply(reply, request, replyBody, callbackBuilder);
+                } else {
+                    callbackBuilder.build().reply(replyBody);
+                }
             } else {
                 System.out.printf("%s Transaction request failed, sending rejection.\n", PREFIX);
-                callbackBuilder.build().reject("PIN: Transaction failed.");
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
         });
     }
@@ -307,12 +310,15 @@ class PinService {
         transactionReceiveClient.putFormAsyncWith1Param("/services/transactionReceive/transaction",
                 "request", jsonConverter.toJson(request), ((code, contentType, body) -> {
             if (code == HTTP_OK) {
-                Transaction reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
-                        Transaction.class);
-                processTransactionReply(reply, request, callbackBuilder);
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    Transaction reply = (Transaction) messageWrapper.getData();
+                    processTransactionReply(reply, request, body, callbackBuilder);
+                } else {
+                    callbackBuilder.build().reply(body);
+                }
             } else {
-                System.out.printf("%s ATM deposit failed, sending rejection.\n", PREFIX);
-                callbackBuilder.build().reject("PIN: ATM deposit failed.");
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
         }));
     }
@@ -322,21 +328,19 @@ class PinService {
      * request that was sent and sends the matching callback to the request source.
      * @param reply Transaction reply for the transaction request that was made.
      * @param request Transaction request that was sent to the Transaction Dispatch service.
+     * @param replyJson Original message
      * @param callbackBuilder Used to send a reply to the request source.
      */
-    private void processTransactionReply(final Transaction reply, final Transaction request,
+    private void processTransactionReply(final Transaction reply, final Transaction request, final String replyJson,
                                          final CallbackBuilder callbackBuilder) {
-        if (reply.isProcessed() && reply.equalsRequest(request)) {
+        if (reply.equalsRequest(request)) {
             if (reply.isSuccessful()) {
                 System.out.printf("%s Pin transaction was successful, sending callback.\n", PREFIX);
-                callbackBuilder.build().reply(jsonConverter.toJson(reply));
-            } else {
-                System.out.printf("%s Pin transaction was unsuccessful, sending rejection.\n", PREFIX);
-                callbackBuilder.build().reject("PIN: Pin Transaction was unsuccessful.");
+                callbackBuilder.build().reply(replyJson);
             }
         } else {
-            System.out.printf("%s Pin transaction couldn't be processed, sending rejection.\n", PREFIX);
-            callbackBuilder.build().reject("PIN: Pin Transaction couldn't be processed.");
+            System.out.printf("%s Pin transaction was unsuccessful, sending rejection.\n", PREFIX);
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred.")));
         }
     }
 

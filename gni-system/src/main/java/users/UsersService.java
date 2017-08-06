@@ -364,28 +364,29 @@ class UsersService {
                                                         "customerId", customerId,
                                                         (httpStatusCode, httpContentType, transactionReplyJson) -> {
             if (httpStatusCode == HTTP_OK) {
-                processTransactionReply(transactionReplyJson, callbackBuilder);
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    processTransactionReply((Transaction) messageWrapper.getData(), transactionReplyJson, callbackBuilder);
+                } else {
+                    callbackBuilder.build().reply(transactionReplyJson);
+                }
             } else {
-                callbackBuilder.build().reject("Couldn't reach transactionDispatch.");
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
         });
     }
 
     /**
      * Checks if the transaction was processed and successful, and then invokes the corresponding callback.
-     * @param transactionReplyJson Json String representing a Transaction resply that was received from the
-     *                  TransactionDispatchService.
+     * @param transaction A Transaction reply that was received from the TransactionDispatchService.
+     * @param transactionReplyJson Original Json String
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void processTransactionReply(final String transactionReplyJson, final CallbackBuilder callbackBuilder) {
-        Transaction transactionReply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson),
-                                                              Transaction.class);
-        if (transactionReply.isProcessed() && transactionReply.isSuccessful()) {
+    private void processTransactionReply(final Transaction transaction, final String transactionReplyJson, final CallbackBuilder callbackBuilder) {
+        if (transaction.isProcessed() && transaction.isSuccessful()) {
             sendTransactionRequestCallback(transactionReplyJson, callbackBuilder);
         } else {
-            callbackBuilder.build().reject("Transaction failed, processed: "
-                                            + transactionReply.isProcessed() + " successful: "
-                                            + transactionReply.isSuccessful());
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred.")));
         }
     }
 
@@ -398,7 +399,7 @@ class UsersService {
     private void sendTransactionRequestCallback(final String transactionReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Transaction was successful, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(transactionReplyJson));
+        callbackBuilder.build().reply(transactionReplyJson);
     }
 
     /**
