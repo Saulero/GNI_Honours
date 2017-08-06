@@ -636,12 +636,10 @@ class AuthenticationService {
                 MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(removalReplyJson), MessageWrapper.class);
                 if (!messageWrapper.isError()) {
                     System.out.printf("%s Forwarding accountLink removal reply.\n", PREFIX);
-                    callbackBuilder.build().reply(removalReplyJson);
-                } else {
-                    callbackBuilder.build().reply(removalReplyJson);
                 }
+                callbackBuilder.build().reply(removalReplyJson);
             } else {
-                callbackBuilder.build().reject("Error connecting to users service.");
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
         });
     }
@@ -691,7 +689,7 @@ class AuthenticationService {
                             callbackBuilder.build().reply(newAccountReplyJson);
                         }
                     } else {
-                        callbackBuilder.build().reject("NewAccount request failed.");
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
@@ -704,7 +702,7 @@ class AuthenticationService {
     private void sendNewAccountRequestCallback(final String newAccountReplyJson,
                                                final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Account creation request successful, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(newAccountReplyJson));
+        callbackBuilder.build().reply(newAccountReplyJson);
     }
 
     /**
@@ -952,9 +950,9 @@ class AuthenticationService {
             pinCard.setCustomerId(getCustomerId(cookie));
             doPinCardRemovalRequest(jsonConverter.toJson(pinCard), callbackBuilder);
         } catch (SQLException e) {
-            callbackBuilder.build().reject("Error connecting to authentication database.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         } catch (UserNotAuthorizedException e) {
-            callbackBuilder.build().reject("User not authorized, please login.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "User does not appear to be logged in.")));
         }
     }
 
@@ -968,16 +966,21 @@ class AuthenticationService {
         pinClient.putFormAsyncWith1Param("/services/pin/card/remove",
                 "pinCard", pinCardJson, (code, contentType, body) -> {
                     if (code == HTTP_OK) {
-                        sendPinCardRemovalCallback(body, callbackBuilder);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendPinCardRemovalCallback(body, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(body);
+                        }
                     } else {
-                        callbackBuilder.build().reject("Remove pin card request not successful.");
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
 
     private void sendPinCardRemovalCallback(final String jsonReply, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Pin card removal successful, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(jsonReply));
+        callbackBuilder.build().reply(jsonReply);
     }
 
 

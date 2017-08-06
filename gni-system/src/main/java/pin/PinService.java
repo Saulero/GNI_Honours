@@ -491,9 +491,9 @@ class PinService {
             deletePinCardFromDatabase(pinCard);
             sendDeletePinCardCallback(pinCard, callbackBuilder);
         } catch (SQLException e) {
-            callbackBuilder.build().reject("Something went wrong connecting to the pin database.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to the Pin database.")));
         } catch (NumberFormatException e) {
-            callbackBuilder.build().reject("Something went wrong when parsing the customerId in Pin.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "Something went wrong when parsing the customerId in Pin.")));
         }
     }
 
@@ -517,9 +517,8 @@ class PinService {
     }
 
     private void sendDeletePinCardCallback(final PinCard pinCard, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Pin card #%s successfully deleted from the system, sending callback.\n", PREFIX,
-                          pinCard.getCardNumber());
-        callbackBuilder.build().reply(jsonConverter.toJson(pinCard));
+        System.out.printf("%s Pin card #%s successfully deleted from the system, sending callback.\n", PREFIX, pinCard.getCardNumber());
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", pinCard)));
     }
 
     /**

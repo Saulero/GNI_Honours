@@ -563,7 +563,7 @@ final class UIService {
                             callbackBuilder.build().reply(accountLinkReplyJson);
                         }
                     } else {
-                        callbackBuilder.build().reject("AccountLink request failed.");
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 }));
     }
@@ -611,7 +611,7 @@ final class UIService {
                             callbackBuilder.build().reply(newAccountReplyJson);
                         }
                     } else {
-                        callbackBuilder.build().reject("NewAccount request failed.");
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
@@ -624,7 +624,7 @@ final class UIService {
     private void sendNewAccountRequestCallback(final String newAccountReplyJson,
                                                final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Successful account creation request, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(newAccountReplyJson));
+        callbackBuilder.build().reply(newAccountReplyJson);
     }
 
     /**
@@ -859,7 +859,7 @@ final class UIService {
                             callbackBuilder.build().reply(body);
                         }
                     } else {
-                        callbackBuilder.build().reject("new pin card request not successful.");
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
@@ -898,10 +898,10 @@ final class UIService {
             doPinCardRemovalRequest(pinCardJson, cookie, callbackBuilder);
         } catch (IncorrectInputException e) {
             System.out.printf("%s %s", PREFIX, e.getMessage());
-            callbackBuilder.build().reject(e.getMessage());
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 422, "The user could not be authenticated, a wrong combination of credentials was provided.", e.getMessage())));
         } catch (JsonSyntaxException e) {
             System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
-            callbackBuilder.build().reject("Syntax error when parsing json.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred.", "Syntax error when parsing json.")));
         }
     }
 
@@ -941,16 +941,21 @@ final class UIService {
         authenticationClient.putFormAsyncWith2Params("/services/authentication/card/remove",
                 "pinCard", pinCardJson, "cookie", cookie, (code, contentType, body) -> {
                     if (code == HTTP_OK) {
-                        sendPinCardRemovalCallback(body, callbackBuilder);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendPinCardRemovalCallback(body, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(body);
+                        }
                     } else {
-                        callbackBuilder.build().reject("Remove pin card request not successful.");
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
 
     private void sendPinCardRemovalCallback(final String jsonReply, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Pin card removal successful, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(jsonReply));
+        callbackBuilder.build().reply(jsonReply);
     }
 
     /**
