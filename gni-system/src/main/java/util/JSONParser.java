@@ -8,7 +8,7 @@ import java.util.LinkedList;
 /**
  * Creates objects by initializing them using empty constructors and then setting all variables. Needed to use the
  * objects as Json objects.
- * @author Noel
+ * @author Noel & Saul
  * @version 1
  */
 public final class JSONParser {
@@ -103,7 +103,7 @@ public final class JSONParser {
      * @param description Description for the transaction.
      * @param transactionAmount Amount of money that is transferred.
      * @param processed Indicates if the transaction has been processed by the ledger.
-     * @param successfull Indicates if the transaction was successfull.
+     * @param successful Indicates if the transaction was successful.
      * @return Transaction object that can be converted to Json.
      */
     public static Transaction createJsonTransaction(final long transactionID, final String sourceAccountNumber,
@@ -111,7 +111,7 @@ public final class JSONParser {
                                                     final String destinationAccountHolderName,
                                                     final String description,
                                                     final double transactionAmount, final boolean processed,
-                                                    final boolean successfull) {
+                                                    final boolean successful) {
         Transaction transaction = new Transaction();
         transaction.setTransactionID(transactionID);
         transaction.setTimestamp(-1);
@@ -121,7 +121,7 @@ public final class JSONParser {
         transaction.setDescription(description);
         transaction.setTransactionAmount(transactionAmount);
         transaction.setProcessed(processed);
-        transaction.setSuccessful(successfull);
+        transaction.setSuccessful(successful);
         return transaction;
     }
 
@@ -254,11 +254,20 @@ public final class JSONParser {
     }
 
     public static AccountLink createJsonAccountLink(final String newAccountNumber, final Long newCustomerId,
-                                                    final boolean newSuccessfull) {
+                                                    final boolean newSuccessful) {
         AccountLink request = new AccountLink();
         request.setCustomerId(newCustomerId);
         request.setAccountNumber(newAccountNumber);
-        request.setSuccessful(newSuccessfull);
+        request.setSuccessful(newSuccessful);
+        return request;
+    }
+
+    public static AccountLink createJsonAccountLink(final String newAccountNumber, final String newUsername,
+                                                    final boolean newSuccessful) {
+        AccountLink request = new AccountLink();
+        request.setUsername(newUsername);
+        request.setAccountNumber(newAccountNumber);
+        request.setSuccessful(newSuccessful);
         return request;
     }
 
@@ -289,23 +298,31 @@ public final class JSONParser {
         return pinCard;
     }
 
+    public static MessageWrapper createMessageWrapper(boolean isError, int code, String message) {
+        MessageWrapper error = new MessageWrapper();
+        error.setError(isError);
+        error.setCode(code);
+        error.setMessage(message);
+        return error;
+    }
+
+    public static MessageWrapper createMessageWrapper(boolean isError, int code, String message, Object data) {
+        MessageWrapper error = new MessageWrapper();
+        error.setError(isError);
+        error.setCode(code);
+        error.setMessage(message);
+        error.setData(data);
+        return error;
+    }
+
     /**
      * Removes escape characters from a string, this is done to be able to parse json strings received through
      * a callback, as a callback adds escape characters to the json string.
      * @param dataString Json to remove escape characters from.
      * @return Json string without escape characters.
      */
-    public static String removeEscapeCharacters(final String dataString) {
-        char[] characters = dataString.substring(1, dataString.length() - 1).toCharArray();
-        StringBuilder stringWithoutEscapes = new StringBuilder();
-        for (int i = 0; i < characters.length; i++) {
-            if (characters[i] == '\\') {
-                stringWithoutEscapes.append(characters[i + 1]);
-                i++;
-            } else {
-                stringWithoutEscapes.append(characters[i]);
-            }
-        }
-        return stringWithoutEscapes.toString();
+    public static String removeEscapeCharacters(String dataString) {
+        dataString = dataString.replace("\\", "");
+        return dataString.substring(dataString.indexOf('{'), dataString.lastIndexOf('}') + 1);
     }
 }

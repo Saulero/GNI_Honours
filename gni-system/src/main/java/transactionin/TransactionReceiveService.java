@@ -1,6 +1,7 @@
 package transactionin;
 
 import com.google.gson.Gson;
+import databeans.MessageWrapper;
 import io.advantageous.qbit.annotation.RequestMapping;
 import io.advantageous.qbit.annotation.RequestMethod;
 import io.advantageous.qbit.annotation.RequestParam;
@@ -63,35 +64,33 @@ class TransactionReceiveService {
         ledgerClient.putFormAsyncWith1Param("/services/ledger/transaction/in", "request",
                 transactionRequestJson, (httpStatusCode, httpContentType, transactionReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        processIncomingTransactionReply(transactionReplyJson, callbackBuilder);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            processIncomingTransactionReply((Transaction) messageWrapper.getData(), transactionReplyJson, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(transactionReplyJson);
+                        }
                     } else {
-                        //TODO send unsuccessfull reply instead of rejection
                         System.out.printf("%s Received a rejection from ledger, sending rejection.\n", prefix);
-                        callbackBuilder.build().reject("Recieved an error from ledger.");
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests4")));
                     }
                 });
     }
 
-    private void processIncomingTransactionReply(final String transactionReplyJson,
+    private void processIncomingTransactionReply(final Transaction transaction, final String transactionReplyJson,
                                                  final CallbackBuilder callbackBuilder) {
-        Transaction reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson), Transaction.class);
-        if (reply.isProcessed() && reply.isSuccessful()) {
+        if (transaction.isProcessed() && transaction.isSuccessful()) {
             sendIncomingTransactionRequestCallback(transactionReplyJson, callbackBuilder);
             //TODO send reply to external bank.
         } else {
-            if (reply.isProcessed()) {
-                System.out.printf("%s Transaction unsuccessfull, sending rejection.\n", prefix);
-            } else {
-                System.out.printf("%s Transaction couldn't be processed, sending rejection.\n", prefix);
-            }
-            //TODO convert to json-rpc reply when protocol is known.
-            callbackBuilder.build().reject("Transaction couldn't be processed.");
+            System.out.printf("%s Transaction unsuccessful, sending rejection.\n", prefix);
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred.")));
         }
     }
 
     private void sendIncomingTransactionRequestCallback(final String transactionReplyJson,
                                                         final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Successfully processed incoming transaction, sending callback.\n", prefix);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(transactionReplyJson));
+        callbackBuilder.build().reply(transactionReplyJson);
     }
 }

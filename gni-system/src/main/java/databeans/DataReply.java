@@ -10,7 +10,7 @@ import java.util.List;
  * Databean used to send a reply to another service.
  */
 //TODO needs to be reworked to not be dependent on accountNumber
-public final class DataReply implements Serializable {
+public class DataReply implements Serializable {
     /** Account number the reply corresponds to. */
     private String accountNumber;
     /** The type of request that this reply is for. */
@@ -20,7 +20,7 @@ public final class DataReply implements Serializable {
     /** The data of the reply, in case it was a transaction history request. */
     private List<Transaction> transactions;
     /** The data of the reply, in case it was an accounts request. */
-    private List<String> accounts;
+    private List<AccountLink> accounts;
     /** The data of the reply, in case it was an account exists request. */
     private boolean accountInLedger;
 
@@ -36,6 +36,7 @@ public final class DataReply implements Serializable {
         this.accountData = newAccountData;
         this.transactions = null;
         this.accounts = null;
+        this.accountInLedger = false;
     }
 
     /**
@@ -49,6 +50,8 @@ public final class DataReply implements Serializable {
         this.type = newType;
         this.accountData = null;
         this.transactions = newTransactions;
+        this.accounts = null;
+        this.accountInLedger = false;
     }
 
     /**
@@ -56,12 +59,13 @@ public final class DataReply implements Serializable {
      * @param newType Type of request that this reply is for.
      * @param newAccounts Account numbers that belong to the requestee.
      */
-    public DataReply(final RequestType newType, final List<String> newAccounts) {
+    public DataReply(final RequestType newType, final List<AccountLink> newAccounts) {
         this.accountNumber = null;
         this.type = newType;
         this.accountData = null;
         this.transactions = null;
         this.accounts = newAccounts;
+        this.accountInLedger = false;
     }
 
     /**
@@ -71,8 +75,11 @@ public final class DataReply implements Serializable {
      * @param newAccountInLedger Boolean indicating if the account exists in the ledger.
      */
     public DataReply(final RequestType newType, final String newAccountNumber, final boolean newAccountInLedger) {
-        this.type = newType;
         this.accountNumber = newAccountNumber;
+        this.type = newType;
+        this.accountData = null;
+        this.transactions = null;
+        this.accounts = null;
         this.accountInLedger = newAccountInLedger;
     }
 
@@ -113,11 +120,11 @@ public final class DataReply implements Serializable {
         this.transactions = newTransactions;
     }
 
-    public List<String> getAccounts() {
+    public List<AccountLink> getAccounts() {
         return accounts;
     }
 
-    public void setAccounts(final List<String> newAccountNumbers) {
+    public void setAccounts(final List<AccountLink> newAccountNumbers) {
         accounts = newAccountNumbers;
     }
 

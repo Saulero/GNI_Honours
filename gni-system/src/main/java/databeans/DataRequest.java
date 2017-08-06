@@ -1,15 +1,18 @@
 package databeans;
 
 import java.io.Serializable;
+import java.util.List;
 
 /**
  * @author Noel
  * @version 1
  * Databean used to send a request.
  */
-public final class DataRequest implements Serializable {
+public class DataRequest implements Serializable {
     /** Account number the request is for. */
     private String accountNumber;
+    /** List of accounts the request is for. */
+    private List<String> accountNumbers;
     /** Type of request {@link RequestType}. */
     private RequestType type;
     /** User id of the customer the request is for. */
@@ -53,6 +56,18 @@ public final class DataRequest implements Serializable {
 
     public void setCustomerId(final Long newCustomerId) {
         this.customerId = newCustomerId;
+    }
+
+    public List<String> getAccountNumbers() {
+        return accountNumbers;
+    }
+
+    public void setAccountNumbers(final List<String> newAccountNumbers) {
+        accountNumbers = newAccountNumbers;
+    }
+
+    public void setCustomerId(final long newCustomerId) {
+        customerId = newCustomerId;
     }
 
     @Override

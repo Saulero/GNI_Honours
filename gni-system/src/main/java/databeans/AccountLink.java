@@ -1,24 +1,43 @@
 package databeans;
 
+import java.io.Serializable;
+
 /**
  * @author Noel
  * @version 1
  */
-public class AccountLink {
+public class AccountLink implements Serializable {
     private Long customerId;
+    private String username;
     private String accountNumber;
     private boolean successful;
 
     public AccountLink(final Long newCustomerId) {
         this.customerId = newCustomerId;
+        this.username = null;
         this.accountNumber = null;
         this.successful = false;
     }
 
-    public AccountLink(final Long newCustomerId, final String newAccountNumber, final boolean newSuccessfull) {
+    public AccountLink(final Long newCustomerId, final String newAccountNumber, final boolean newSuccessful) {
         this.customerId = newCustomerId;
+        this.username = null;
         this.accountNumber = newAccountNumber;
-        this.successful = newSuccessfull;
+        this.successful = newSuccessful;
+    }
+
+    public AccountLink(final String newUsername, final String newAccountNumber, final boolean newSuccessful) {
+        this.customerId = null;
+        this.username = newUsername;
+        this.accountNumber = newAccountNumber;
+        this.successful = newSuccessful;
+    }
+
+    public AccountLink(Long customerId, String accountNumber) {
+        this.customerId = customerId;
+        this.username = null;
+        this.accountNumber = accountNumber;
+        this.successful = false;
     }
 
     /** Constructor for Json conversions, do not use unless you manually fill the object afterwards. */
@@ -47,6 +66,14 @@ public class AccountLink {
 
     public void setSuccessful(final boolean newSuccessful) {
         successful = newSuccessful;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(final String newUsername) {
+        username = newUsername;
     }
 
     @Override

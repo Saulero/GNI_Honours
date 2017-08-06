@@ -3,6 +3,7 @@ package authentication;
 import com.google.gson.Gson;
 import database.ConnectionPool;
 import database.SQLConnection;
+import database.SQLStatements;
 import databeans.*;
 import io.advantageous.qbit.annotation.RequestMapping;
 import io.advantageous.qbit.annotation.RequestMethod;
@@ -10,7 +11,7 @@ import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
-import jdk.nashorn.internal.codegen.CompilerConstants;
+import users.CustomerDoesNotExistException;
 import util.JSONParser;
 
 import java.security.SecureRandom;
@@ -83,9 +84,9 @@ class AuthenticationService {
             dataRequest.setCustomerId(getCustomerId(cookie));
             doDataRequest(jsonConverter.toJson(dataRequest), callbackBuilder);
         } catch (SQLException e) {
-            callbackBuilder.build().reject("Failed to query database.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         } catch (UserNotAuthorizedException e) {
-            callbackBuilder.build().reject("CookieData does not belong to an authorized user.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "CookieData does not belong to an authorized user.")));
         }
     }
 
@@ -181,21 +182,58 @@ class AuthenticationService {
         usersClient.getAsyncWith1Param("/services/users/data", "request",
                                         dataRequestJson, (httpStatusCode, httpContentType, dataReplyJson) -> {
             if (httpStatusCode == HTTP_OK) {
-                sendDataRequestCallback(dataReplyJson, callbackBuilder);
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(dataReplyJson), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    handleDataReply((DataReply) messageWrapper.getData(), callbackBuilder);
+                } else {
+                    callbackBuilder.build().reply(dataReplyJson);
+                }
             } else {
-                callbackBuilder.build().reject("Transaction history request failed.");
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
         });
     }
 
+    private void handleDataReply(final DataReply dataReply, final CallbackBuilder callbackBuilder) {
+        try {
+            if (dataReply.getType() == RequestType.CUSTOMERACCESSLIST || dataReply.getType() == RequestType.ACCOUNTACCESSLIST) {
+                for (AccountLink link : dataReply.getAccounts()) {
+                    link.setUsername(getUserNameFromCustomerId(link.getCustomerId()));
+                }
+            }
+            sendDataRequestCallback(dataReply, callbackBuilder);
+        } catch (CustomerDoesNotExistException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "The provided customer does not seem to exist.")));
+        } catch (SQLException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
+        }
+    }
+
+    private String getUserNameFromCustomerId(final Long customerId) throws SQLException, CustomerDoesNotExistException {
+        String username;
+        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+        PreparedStatement getUsername = databaseConnection.getConnection()
+                                                            .prepareStatement(getUsernameFromCustomerId);
+        getUsername.setLong(1, customerId);
+        ResultSet usernameSet = getUsername.executeQuery();
+        if (usernameSet.next()) {
+            username = usernameSet.getString("username");
+        } else {
+            throw new CustomerDoesNotExistException("username not found");
+        }
+        getUsername.close();
+        databaseConnectionPool.returnConnection(databaseConnection);
+        return username;
+    }
+
     /**
      * Sends the result of a data request back to the service that requested it.
-     * @param dataReplyJson Json String containing the reply that was received.
+     * @param dataReply The reply that was received.
      * @param callbackBuilder Used to send back the reply to the service that requested it.
      */
-    private void sendDataRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Data request successfull, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(dataReplyJson));
+    private void sendDataRequestCallback(final DataReply dataReply, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Data request successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", dataReply)));
     }
 
     /**
@@ -225,9 +263,9 @@ class AuthenticationService {
             authenticateRequest(cookie);
             doTransactionRequest(transactionRequestJson, getCustomerId(cookie), callbackBuilder);
         } catch (SQLException e) {
-            callbackBuilder.build().reject("Failed to query database.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         } catch (UserNotAuthorizedException e) {
-            callbackBuilder.build().reject("CookieData does not belong to an authorized user.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "CookieData does not belong to an authorized user.")));
         }
     }
 
@@ -244,9 +282,14 @@ class AuthenticationService {
                 transactionRequestJson, "customerId", customerId.toString(),
                 (httpStatusCode, httpContentType, transactionReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        sendTransactionRequestCallback(transactionReplyJson, callbackBuilder);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendTransactionRequestCallback(transactionReplyJson, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(transactionReplyJson);
+                        }
                     } else {
-                        callbackBuilder.build().reject("Transaction request failed.");
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
@@ -258,8 +301,8 @@ class AuthenticationService {
      */
     private void sendTransactionRequestCallback(final String transactionReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Transaction successfull, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(transactionReplyJson));
+        System.out.printf("%s Transaction successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(transactionReplyJson);
     }
 
     /**
@@ -287,9 +330,9 @@ class AuthenticationService {
             validateUsername(jsonConverter.fromJson(newCustomerRequestJson, Customer.class));
             doNewCustomerRequest(newCustomerRequestJson, callbackBuilder);
         } catch (SQLException e) {
-            callbackBuilder.build().reject("Error connecting to authentication database.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         } catch (UsernameTakenException e) {
-            callbackBuilder.build().reject("Username taken, please choose a different username.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "Username taken, please choose a different username.")));
         }
     }
 
@@ -323,14 +366,17 @@ class AuthenticationService {
     private void doNewCustomerRequest(final String newCustomerRequestJson,
                                       final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Forwarding customer creation request.\n", PREFIX);
-        usersClient.putFormAsyncWith1Param("/services/users/customer", "customer",
-                newCustomerRequestJson,
+        usersClient.putFormAsyncWith1Param("/services/users/customer", "customer", newCustomerRequestJson,
                 (httpStatusCode, httpContentType, newCustomerReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        handleLoginCreationExceptions(JSONParser.removeEscapeCharacters(newCustomerReplyJson),
-                                                      callbackBuilder);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(newCustomerReplyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            handleLoginCreationExceptions((Customer) messageWrapper.getData(), callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(newCustomerReplyJson);
+                        }
                     } else {
-                        callbackBuilder.build().reject("Customer creation request failed.");
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
@@ -338,19 +384,18 @@ class AuthenticationService {
     /**
      * Creates login information for the customer in the users database and then sends a callback to the service that
      * sent the customer creation request.
-     * @param newCustomerReplyJson Json String representing the customer that should be created in the system.
+     * @param newCustomer The customer that should be created in the system.
      * @param callbackBuilder used to send a reply to the service that sent the request.
      */
-    private void handleLoginCreationExceptions(final String newCustomerReplyJson,
+    private void handleLoginCreationExceptions(final Customer newCustomer,
                                                final CallbackBuilder callbackBuilder) {
-        Customer customerToEnroll = jsonConverter.fromJson(newCustomerReplyJson, Customer.class);
         try {
-            registerNewCustomerLogin(customerToEnroll);
-            sendNewCustomerRequestCallback(newCustomerReplyJson, callbackBuilder);
+            registerNewCustomerLogin(newCustomer);
+            sendNewCustomerRequestCallback(newCustomer, callbackBuilder);
         } catch (SQLException e) {
             //todo revert customer creation in users database.
             e.printStackTrace();
-            callbackBuilder.build().reject("Couldn't create login data.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         }
     }
 
@@ -373,13 +418,12 @@ class AuthenticationService {
 
     /**
      * Forwards the created customer back to the service that sent the customer creation request to this service.
-     * @param newCustomerReplyJson Json String representing a customer that was created in the system.
+     * @param newCustomer A customer that was created in the system.
      * @param callbackBuilder Json String representing a {@link Customer} that should be created.
      */
-    private void sendNewCustomerRequestCallback(final String newCustomerReplyJson,
-                                                final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Customer creation successfull, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(newCustomerReplyJson);
+    private void sendNewCustomerRequestCallback(final Customer newCustomer, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Customer creation successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", newCustomer)));
     }
 
     /**
@@ -403,27 +447,26 @@ class AuthenticationService {
                         // Legitimate info
                         long newToken = secureRandomNumberGenerator.nextLong();
                         setNewToken(userId, newToken);
-                        System.out.printf("%s Successfull login for user %s, sending callback.\n", PREFIX,
+                        System.out.printf("%s Successful login for user %s, sending callback.\n", PREFIX,
                                           authData.getUsername());
-                        callback.reply(jsonConverter.toJson(JSONParser.createJsonAuthentication(
-                                                    encodeCookie(userId, newToken), AuthenticationType.REPLY)));
+                        callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", new Authentication(encodeCookie(userId, newToken), AuthenticationType.REPLY))));
                     } else {
                         // Illegitimate info
-                        callback.reject("Invalid username/password combination");
+                        callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 422, "The user could not be authenticated, a wrong combination of credentials was provided.")));
                     }
                 } else {
                     // username not found
-                    callback.reject("Username not found");
+                    callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "The username does not seem to exist.")));
                 }
                 rs.close();
                 ps.close();
                 databaseConnectionPool.returnConnection(connection);
             } catch (SQLException e) {
-                callback.reject(e.getMessage());
                 e.printStackTrace();
+                callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to the authentication database.")));
             }
         } else {
-            callback.reject("Wrong Data Received");
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred.")));
         }
     }
 
@@ -465,14 +508,12 @@ class AuthenticationService {
      * @param accountLinkRequestJson Json string representing an {@link AccountLink} that should be created in the
      *                               database.
      */
-    @RequestMapping(value = "/account", method = RequestMethod.PUT)
+    @RequestMapping(value = "/accountLink", method = RequestMethod.PUT)
     public void processAccountLinkRequest(final Callback<String> callback,
                                           @RequestParam("request") final String accountLinkRequestJson,
                                           @RequestParam("cookie") final String cookie) {
         AccountLink accountLinkRequest = jsonConverter.fromJson(accountLinkRequestJson, AccountLink.class);
-        accountLinkRequest.setCustomerId(getCustomerId(cookie));
-        System.out.printf("%s Forwarding account link request for customer %d account number %s.\n", PREFIX,
-                          accountLinkRequest.getCustomerId(), accountLinkRequest.getAccountNumber());
+        System.out.printf("%s Forwarding account link request.\n", PREFIX);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         handleAccountLinkExceptions(accountLinkRequest, cookie, callbackBuilder);
     }
@@ -487,31 +528,57 @@ class AuthenticationService {
                                              final CallbackBuilder callbackBuilder) {
         try {
             authenticateRequest(cookie);
-            accountLinkRequest.setCustomerId(getCustomerId(cookie));
-            doAccountLinkRequest(jsonConverter.toJson(accountLinkRequest), callbackBuilder);
+            accountLinkRequest.setCustomerId(getCustomerIdFromUsername(accountLinkRequest.getUsername()));
+            doAccountLinkRequest(jsonConverter.toJson(accountLinkRequest), getCustomerId(cookie), callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
-            callbackBuilder.build().reject("Error connecting to authentication database.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         } catch (UserNotAuthorizedException e) {
             e.printStackTrace();
-            callbackBuilder.build().reject("User not authorized, please login.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.")));
+        } catch (CustomerDoesNotExistException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "User with username does not appear to exist.")));
         }
+    }
+
+
+    private Long getCustomerIdFromUsername(final String username) throws SQLException, CustomerDoesNotExistException {
+        Long customerId;
+        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+        PreparedStatement getCustomerId = databaseConnection.getConnection().prepareStatement(getCustomerIdFromUsername);
+        getCustomerId.setString(1, username);
+        ResultSet customerIdSet = getCustomerId.executeQuery();
+        if (customerIdSet.next()) {
+            customerId = customerIdSet.getLong("user_id");
+        } else {
+            throw new CustomerDoesNotExistException("username not found");
+        }
+        getCustomerId.close();
+        databaseConnectionPool.returnConnection(databaseConnection);
+        return customerId;
     }
 
     /**
      * Forwards a String representing an account link to the Users database, and processes the reply if it is
-     * successfull or sends a rejection to the requesting service if it fails.
+     * successful or sends a rejection to the requesting service if it fails.
      * @param accountLinkRequestJson String representing an {@link AccountLink} that should be executed.
      * @param callbackBuilder Used to send the result of the request back to the source of the request.
      */
-    private void doAccountLinkRequest(final String accountLinkRequestJson, final CallbackBuilder callbackBuilder) {
-        usersClient.putFormAsyncWith1Param("/services/users/account", "body", accountLinkRequestJson,
+    private void doAccountLinkRequest(final String accountLinkRequestJson, final long requesterId,
+                                      final CallbackBuilder callbackBuilder) {
+        usersClient.putFormAsyncWith2Params("/services/users/accountLink", "body",
+                accountLinkRequestJson,"requesterId", requesterId,
                 ((httpStatusCode, httpContentType, accountLinkReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        sendAccountLinkRequestCallback(accountLinkReplyJson, callbackBuilder);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(accountLinkReplyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendAccountLinkRequestCallback(accountLinkReplyJson, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(accountLinkReplyJson);
+                        }
                     } else {
-                        System.out.println(accountLinkReplyJson);
-                        callbackBuilder.build().reject("AccountLink request failed.");
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 }));
     }
@@ -521,63 +588,108 @@ class AuthenticationService {
      * @param accountLinkReplyJson Json String representing the result of an account link request.
      * @param callbackBuilder Used to send the result of the request back to the source of the request.
      */
-    private void sendAccountLinkRequestCallback(final String accountLinkReplyJson,
-                                                final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Successfull account link, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(accountLinkReplyJson));
+    private void sendAccountLinkRequestCallback(final String accountLinkReplyJson, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Successful account link, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(accountLinkReplyJson);
+    }
+
+    @RequestMapping(value = "/accountLink/remove", method = RequestMethod.PUT)
+    public void processAccountLinkRemoval(final Callback<String> callback,
+                                          @RequestParam("request") final String accountLinkJson,
+                                          @RequestParam("cookie") final String cookie) {
+        AccountLink linkToRemove = jsonConverter.fromJson(accountLinkJson, AccountLink.class);
+        System.out.printf("%s Forwarding account link removal.\n", PREFIX);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleAccountLinkRemovalExceptions(linkToRemove, cookie, callbackBuilder);
+    }
+
+    /**
+     * Authenticates the account link removal request and then forwards the request to the Users service.
+     * @param accountLink Account Link that should be removed.
+     * @param cookie Cookie of the customer requesting the account link.
+     * @param callbackBuilder Used to send the reply back to the requesting service.
+     */
+    private void handleAccountLinkRemovalExceptions(final AccountLink accountLink, final String cookie,
+                                             final CallbackBuilder callbackBuilder) {
+        try {
+            authenticateRequest(cookie);
+            accountLink.setCustomerId(getCustomerIdFromUsername(accountLink.getUsername()));
+            doAccountLinkRemoval(accountLink, "" + getCustomerId(cookie), callbackBuilder);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
+        } catch (UserNotAuthorizedException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "User does not appear to be logged in.")));
+        } catch (CustomerDoesNotExistException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "User with username does not appear to exist.")));
+        }
+    }
+
+    private void doAccountLinkRemoval(final AccountLink accountLink, final String requesterId,
+                                      final CallbackBuilder callbackBuilder) {
+        usersClient.putFormAsyncWith2Params("/services/users/accountLink/remove", "request",
+                                            jsonConverter.toJson(accountLink), "requesterId", requesterId,
+                                            (httpStatusCode, httpContentType, removalReplyJson) -> {
+            if (httpStatusCode == HTTP_OK) {
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(removalReplyJson), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    System.out.printf("%s Forwarding accountLink removal reply.\n", PREFIX);
+                }
+                callbackBuilder.build().reply(removalReplyJson);
+            } else {
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+            }
+        });
     }
 
     /**
      * Creates a callback builder for the account creation request and then forwards the request to the UsersService.
      * @param callback Used to send the result of the request back to the source of the request.
-     * @param newAccountRequestJson Json String representing a customer object which is the account owner, with an
-     *                              Account object inside representing the account that should be created.
      */
     @RequestMapping(value = "/account/new", method = RequestMethod.PUT)
     public void processNewAccountRequest(final Callback<String> callback,
-                                         @RequestParam("request") final String newAccountRequestJson,
                                          @RequestParam("cookie") final String cookie) {
-        Customer accountOwner = jsonConverter.fromJson(newAccountRequestJson, Customer.class);
-        accountOwner.setCustomerId(getCustomerId(cookie));
-        System.out.printf("%s Forwarding account creation request for customer %d.\n", PREFIX,
-                          accountOwner.getCustomerId());
+        System.out.printf("%s Forwarding account creation request for customer %d.\n", PREFIX, getCustomerId(cookie));
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handleNewAccountExceptions(jsonConverter.toJson(accountOwner), cookie, callbackBuilder);
+        handleNewAccountExceptions(cookie, callbackBuilder);
     }
 
     /**
      * Authenticates the request and then forwards the request to the Users service.
-     * @param newAccountRequestJson Json String representing the new account request.
      * @param cookie Cookie of the customer making the request.
      * @param callbackBuilder Used to send the reply back to the requesting service.
      */
-    private void handleNewAccountExceptions(final String newAccountRequestJson, final String cookie,
-                                            final CallbackBuilder callbackBuilder) {
+    private void handleNewAccountExceptions(final String cookie, final CallbackBuilder callbackBuilder) {
         try {
             authenticateRequest(cookie);
-            doNewAccountRequest(newAccountRequestJson, callbackBuilder);
+            doNewAccountRequest(getCustomerId(cookie), callbackBuilder);
         } catch (SQLException e) {
-            callbackBuilder.build().reject("Error connecting to authentication database.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to the authentication database.")));
         } catch (UserNotAuthorizedException e) {
-            callbackBuilder.build().reject("User not authorized, please login.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "The does not appear to be logged in.")));
         }
     }
 
     /**
-     * Forwards the Json String representing a customer with the account to be created to the Users Service and sends
+     * Forwards the customerId of the customer a new account should be created for to the Users Service and sends
      * the result back to the requesting service, or rejects the request if the forwarding fails.
-     * @param newAccountRequestJson Json String representing a customer object which is the account owner, with an
-     *                              Account object inside representing the account that should be created.
+     * @param customerId customerId of the customer the account should be created for.
      * @param callbackBuilder Used to send the result of the request back to the source of the request.
      */
-    private void doNewAccountRequest(final String newAccountRequestJson,
-                                     final CallbackBuilder callbackBuilder) {
-        usersClient.putFormAsyncWith1Param("/services/users/account/new", "body", newAccountRequestJson,
+    private void doNewAccountRequest(final Long customerId, final CallbackBuilder callbackBuilder) {
+        usersClient.putFormAsyncWith1Param("/services/users/account/new", "customerId", customerId,
                 (httpStatusCode, httpContentType, newAccountReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        sendNewAccountRequestCallback(newAccountReplyJson, callbackBuilder);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(newAccountReplyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendNewAccountRequestCallback(newAccountReplyJson, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(newAccountReplyJson);
+                        }
                     } else {
-                        callbackBuilder.build().reject("NewAccount request failed.");
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
@@ -589,8 +701,8 @@ class AuthenticationService {
      */
     private void sendNewAccountRequestCallback(final String newAccountReplyJson,
                                                final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Account creation request successfull, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(newAccountReplyJson));
+        System.out.printf("%s Account creation request successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(newAccountReplyJson);
     }
 
     /**
@@ -622,14 +734,14 @@ class AuthenticationService {
             authenticateRequest(cookie);
             doAccountRemovalRequest(accountNumber, Long.toString(getCustomerId(cookie)), callbackBuilder);
         } catch (SQLException e) {
-            callbackBuilder.build().reject("Error connecting to authentication database.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to the authentication database.")));
         } catch (UserNotAuthorizedException e) {
-            callbackBuilder.build().reject("User not authorized, please login.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.")));
         }
     }
 
     /**
-     * Forwards an account removal request to the Users service and sends a callback if the request is successfull, or
+     * Forwards an account removal request to the Users service and sends a callback if the request is successful, or
      * a rejection if the request fails.
      * @param accountNumber AccountNumber that should be removed from the system.
      * @param customerId CustomerId of the User that sent the request.
@@ -641,16 +753,64 @@ class AuthenticationService {
                 "accountNumber", accountNumber, "customerId", customerId,
                 (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        sendAccountRemovalCallback(replyJson, callbackBuilder);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            CloseAccountReply reply = (CloseAccountReply) messageWrapper.getData();
+                            if (!reply.isSuccessful()) {
+                                callbackBuilder.build().reply(replyJson);
+                            } else {
+                                if (reply.isCustomerRemoved()) {
+                                    removeCustomerTokens(customerId);
+                                }
+                                doAccountPinCardsRemovalRequest(accountNumber, callbackBuilder);
+                            }
+                        } else {
+                            callbackBuilder.build().reply(replyJson);
+                        }
                     } else {
-                        callbackBuilder.build().reject("NewAccount request failed.");
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
 
+    private void removeCustomerTokens(final String customerId) {
+        try {
+            SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+            PreparedStatement removeTokens = databaseConnection.getConnection()
+                    .prepareStatement(SQLStatements.removeCustomerTokens);
+            removeTokens.setLong(1, Long.parseLong(customerId));
+            removeTokens.execute();
+            removeTokens.close();
+            databaseConnectionPool.returnConnection(databaseConnection);
+        } catch (SQLException e) {
+            System.out.printf("%s failed to remove tokens when deleting customer.", PREFIX);
+        }
+    }
+
+    /**
+     * Sends a request to remove all pincards for the account with accountNumber to the pinService.
+     * @param accountNumber AccountNumber of the account for which all pinCards need to be removed.
+     * @param callbackBuilder Used to forward the result of the request to the request source.
+     */
+    private void doAccountPinCardsRemovalRequest(final String accountNumber, final CallbackBuilder callbackBuilder) {
+        pinClient.putFormAsyncWith1Param("/services/pin/account/remove", "accountNumber",
+                                        accountNumber, (httpStatusCode, httpContentType, replyJson) -> {
+            if (httpStatusCode == HTTP_OK) {
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    sendAccountRemovalCallback(replyJson, callbackBuilder);
+                } else {
+                    callbackBuilder.build().reply(replyJson);
+                }
+            } else {
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+            }
+        });
+    }
+
     private void sendAccountRemovalCallback(final String replyJson, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Account removal successfull, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(replyJson));
+        System.out.printf("%s Account removal successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(replyJson);
     }
 
     /**
@@ -658,15 +818,18 @@ class AuthenticationService {
      * customer.
      * @param callback Used to send the result of the request back to the request source.
      * @param accountNumber AccountNumber the pin card should be linked to.
-     * @param cookie Cookie of the user that sent the request, so the system knows who the pincard is for.
+     * @param cookie Cookie of the user that sent the request, must be a user that is authorized to use
+     *               the accountNumber.
+     * @param username username of the user that owns the pincard.
      */
     @RequestMapping(value = "/card", method = RequestMethod.PUT)
     public void processNewPinCardRequest(final Callback<String> callback,
                                          @RequestParam("accountNumber") final String accountNumber,
-                                         @RequestParam("cookie") final String cookie) {
+                                         @RequestParam("cookie") final String cookie,
+                                         @RequestParam("username") final String username) {
         System.out.printf("%s Received new Pin card request, attempting to forward request.\n", PREFIX);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handleNewPinCardExceptions(accountNumber, cookie, callbackBuilder);
+        handleNewPinCardExceptions(accountNumber, cookie, username, callbackBuilder);
     }
 
     /**
@@ -676,42 +839,85 @@ class AuthenticationService {
      * @param cookie Cookie of the user that sent the request, so the system knows who the pincard is for.
      * @param callbackBuilder Used to send the result of the request to the request source.
      */
-    private void handleNewPinCardExceptions(final String accountNumber, final String cookie,
+    private void handleNewPinCardExceptions(final String accountNumber, final String cookie, final String username,
                                             final CallbackBuilder callbackBuilder) {
         try {
             authenticateRequest(cookie);
-            Long customerId = getCustomerId(cookie);
-            doNewPinCardRequest(accountNumber, Long.toString(customerId), callbackBuilder);
+            Long requesterId = getCustomerId(cookie);
+            Long ownerId;
+            if (username == null) {
+                ownerId = requesterId;
+            } else {
+                ownerId = getIdFromUsername(username);
+            }
+            if (ownerId != null) {
+                doNewPinCardRequest(accountNumber, Long.toString(requesterId), Long.toString(ownerId), callbackBuilder);
+            } else {
+                System.out.println("Rejecting, OwnerId could not be found. Username does not exist.");
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "The username does not seem to exist.")));
+            }
         } catch (SQLException e) {
-            callbackBuilder.build().reject("Error connecting to authentication database.");
+            System.out.println("Rejecting, Error connecting to authentication database.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         } catch (UserNotAuthorizedException e) {
-            callbackBuilder.build().reject("User not authorized, please login.");
+            System.out.println("Rejecting, User not authorized, please login.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.")));
         }
 
+    }
+
+    /**
+     * Fetch the customerId of the user with username.
+     * @param username Username of the user the customerId must be located for.
+     */
+    private Long getIdFromUsername(final String username) {
+        try {
+            SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+            PreparedStatement getCustomerID = databaseConnection.getConnection()
+                    .prepareStatement(SQLStatements.getCustomerIdFromUsername);
+            getCustomerID.setString(1, username);
+            ResultSet customerIds = getCustomerID.executeQuery();
+            Long customerId = null;
+            if (customerIds.next()) {
+                customerId = customerIds.getLong("user_id");
+            }
+            getCustomerID.close();
+            databaseConnectionPool.returnConnection(databaseConnection);
+            return customerId;
+        } catch (SQLException e) {
+            return null;
+        }
     }
 
     /**
      * Forwards the new pin card request to the Pin service and forwards the result of the request to
      * the service that requested it.
      * @param accountNumber AccountNumber the pin card should be created for.
-     * @param customerId The customerId of the user that sent the request.
+     * @param requesterId CustomerId of the user that sent the request.
+     * @param ownerId The customerId of the user that sent the request.
      * @param callbackBuilder Used to send the result of the request back to the request source.
      */
-    private void doNewPinCardRequest(final String accountNumber, final String customerId,
+    private void doNewPinCardRequest(final String accountNumber, final String requesterId, final String ownerId,
                                      final CallbackBuilder callbackBuilder) {
-        pinClient.putFormAsyncWith2Params("/services/pin/card", "accountNumber", accountNumber,
-                "customerId", customerId, (httpStatusCode, httpContentType, newAccountReplyJson) -> {
+        pinClient.putFormAsyncWith3Params("/services/pin/card", "requesterId", requesterId,
+                "ownerId", ownerId, "accountNumber", accountNumber,
+                (httpStatusCode, httpContentType, newAccountReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        sendNewPinCardCallback(newAccountReplyJson, callbackBuilder);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(newAccountReplyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendNewPinCardCallback(newAccountReplyJson, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(newAccountReplyJson);
+                        }
                     } else {
-                        callbackBuilder.build().reject("new pin card request failed.");
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
 
     private void sendNewPinCardCallback(final String newPinCardReplyJson, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s New pin card request successfull, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(newPinCardReplyJson));
+        System.out.printf("%s New pin card request successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(newPinCardReplyJson);
     }
 
     /**
@@ -744,15 +950,15 @@ class AuthenticationService {
             pinCard.setCustomerId(getCustomerId(cookie));
             doPinCardRemovalRequest(jsonConverter.toJson(pinCard), callbackBuilder);
         } catch (SQLException e) {
-            callbackBuilder.build().reject("Error connecting to authentication database.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         } catch (UserNotAuthorizedException e) {
-            callbackBuilder.build().reject("User not authorized, please login.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "User does not appear to be logged in.")));
         }
     }
 
     /**
      * Forwards the pin card removal request to the pin service, forwards the result to the request source if the
-     * request is successfull, or sends a rejection to the request source if the request fails.
+     * request is successful, or sends a rejection to the request source if the request fails.
      * @param pinCardJson Json String representing a {@link PinCard} that should be removed from the system.
      * @param callbackBuilder Used to send the result of the request back to the request source.
      */
@@ -760,16 +966,21 @@ class AuthenticationService {
         pinClient.putFormAsyncWith1Param("/services/pin/card/remove",
                 "pinCard", pinCardJson, (code, contentType, body) -> {
                     if (code == HTTP_OK) {
-                        sendPinCardRemovalCallback(body, callbackBuilder);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendPinCardRemovalCallback(body, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(body);
+                        }
                     } else {
-                        callbackBuilder.build().reject("Remove pin card request not successfull.");
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
 
     private void sendPinCardRemovalCallback(final String jsonReply, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Pin card removal successfull, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(jsonReply));
+        System.out.printf("%s Pin card removal successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonReply);
     }
 
 

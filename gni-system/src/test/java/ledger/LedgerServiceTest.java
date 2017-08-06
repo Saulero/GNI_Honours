@@ -201,9 +201,10 @@ public class LedgerServiceTest {
 
         SQLConnection con = new SQLConnection();
         long customer_id = -1;
-        PreparedStatement ps = con.getConnection().prepareStatement("INSERT INTO accounts (user_id, account_number) VALUES (?, ?)");
+        PreparedStatement ps = con.getConnection().prepareStatement("INSERT INTO accounts (user_id, account_number, primary_owner) VALUES (?, ?, ?)");
         ps.setLong(1, customer_id);
         ps.setString(2, testAccount.getAccountNumber());
+        ps.setBoolean(3, true);
         ps.executeUpdate();
         ps.close();
 
@@ -238,9 +239,10 @@ public class LedgerServiceTest {
 
         SQLConnection con = new SQLConnection();
         long customer_id = -1;
-        PreparedStatement ps = con.getConnection().prepareStatement("INSERT INTO accounts (user_id, account_number) VALUES (?, ?)");
+        PreparedStatement ps = con.getConnection().prepareStatement("INSERT INTO accounts (user_id, account_number, primary_owner) VALUES (?, ?, ?)");
         ps.setLong(1, customer_id);
         ps.setString(2, testAccount.getAccountNumber());
+        ps.setBoolean(3, true);
         ps.executeUpdate();
         ps.close();
 
@@ -262,8 +264,6 @@ public class LedgerServiceTest {
         dataReply1 = ledger.processDataRequest(dataRequest1);
 
         assertEquals(2, dataReply1.getTransactions().size());
-        System.out.println(transactionIn.toString());
-        System.out.println(dataReply1.getTransactions().get(0));
         assertTrue(transactionIn.minimalEquals(dataReply1.getTransactions().get(0)));
         assertTrue(transactionOut.minimalEquals(dataReply1.getTransactions().get(1)));
 

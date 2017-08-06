@@ -5,15 +5,14 @@ import com.google.gson.JsonSyntaxException;
 import database.ConnectionPool;
 import database.SQLConnection;
 import database.SQLStatements;
-import databeans.PinCard;
-import databeans.PinTransaction;
+import databeans.*;
 import io.advantageous.qbit.annotation.RequestMapping;
 import io.advantageous.qbit.annotation.RequestMethod;
 import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
-import databeans.Transaction;
+import jdk.nashorn.internal.codegen.CompilerConstants;
 import util.JSONParser;
 
 import java.security.NoSuchAlgorithmException;
@@ -105,7 +104,7 @@ class PinService {
                     }
                 } else {
                     System.out.printf("%s Rejecting atm request, not authorized.\n", PREFIX);
-                    callbackBuilder.build().reject("Unauthorized ATM request.");
+                    callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.")));
                 }
             } else {
                 if (getPinTransactionAuthorization(request)) {
@@ -117,18 +116,17 @@ class PinService {
                     doTransactionRequest(transaction, customerId, callbackBuilder);
                 } else {
                     System.out.printf("%s Rejecting Pin request, not authorized.\n", PREFIX);
-                    callbackBuilder.build().reject("Unauthorized Pin request.");
+                    callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "Unauthorized Pin request.")));
                 }
             }
         } catch (SQLException e) {
             e.printStackTrace();
-            callbackBuilder.build().reject("Something went wrong when connecting to the pin database.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to the pin database.")));
         } catch (IncorrectPinException e) {
-            e.printStackTrace();
-            callbackBuilder.build().reject("Incorrect PIN/CardNumber.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 422, "The user could not be authenticated, a wrong combination of credentials was provided.", "Incorrect PIN/CardNumber.")));
         } catch (JsonSyntaxException e) {
             e.printStackTrace();
-            callbackBuilder.build().reject("Invalid json specification.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred.", "Invalid json specification.")));
         }
     }
 
@@ -275,7 +273,7 @@ class PinService {
 
     /**
      * Sends the Transaction to the transactionDispatchClient and handles the reply when it is received by checking
-     * if the request was successfull, and sending it off for processing if it was, or sending a rejection to the
+     * if the request was successful, and sending it off for processing if it was, or sending a rejection to the
      * request source of the request failed.
      * @param request Transaction that should be processed.
      * @param customerId CustomerId of the customer that requested the transaction.
@@ -287,19 +285,23 @@ class PinService {
                 "request", jsonConverter.toJson(request), "customerId", customerId,
         (code, contentType, replyBody) -> {
             if (code == HTTP_OK) {
-                Transaction reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyBody),
-                                                            Transaction.class);
-                processTransactionReply(reply, request, callbackBuilder);
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyBody), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    Transaction reply = (Transaction) messageWrapper.getData();
+                    processTransactionReply(reply, request, replyBody, callbackBuilder);
+                } else {
+                    callbackBuilder.build().reply(replyBody);
+                }
             } else {
                 System.out.printf("%s Transaction request failed, sending rejection.\n", PREFIX);
-                callbackBuilder.build().reject("PIN: Transaction failed.");
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
         });
     }
 
     /**
      * Sends the deposit request to the transaction receive client and handles the the reply when it is received by
-     * checking if the request was successfull, and sending it off for processing if it was, or sending a rejection
+     * checking if the request was successful, and sending it off for processing if it was, or sending a rejection
      * to the request source of the request failed.
      * @param request Transaction that should be processed.
      * @param callbackBuilder Used to send a reply to the request source.
@@ -308,36 +310,37 @@ class PinService {
         transactionReceiveClient.putFormAsyncWith1Param("/services/transactionReceive/transaction",
                 "request", jsonConverter.toJson(request), ((code, contentType, body) -> {
             if (code == HTTP_OK) {
-                Transaction reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
-                        Transaction.class);
-                processTransactionReply(reply, request, callbackBuilder);
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    Transaction reply = (Transaction) messageWrapper.getData();
+                    processTransactionReply(reply, request, body, callbackBuilder);
+                } else {
+                    callbackBuilder.build().reply(body);
+                }
             } else {
-                System.out.printf("%s ATM deposit failed, sending rejection.\n", PREFIX);
-                callbackBuilder.build().reject("PIN: ATM deposit failed.");
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
         }));
     }
 
     /**
-     * Processes a transaction reply by checking if it was successfull, and the request that was executed matches the
+     * Processes a transaction reply by checking if it was successful, and the request that was executed matches the
      * request that was sent and sends the matching callback to the request source.
      * @param reply Transaction reply for the transaction request that was made.
      * @param request Transaction request that was sent to the Transaction Dispatch service.
+     * @param replyJson Original message
      * @param callbackBuilder Used to send a reply to the request source.
      */
-    private void processTransactionReply(final Transaction reply, final Transaction request,
+    private void processTransactionReply(final Transaction reply, final Transaction request, final String replyJson,
                                          final CallbackBuilder callbackBuilder) {
-        if (reply.isProcessed() && reply.equalsRequest(request)) {
+        if (reply.equalsRequest(request)) {
             if (reply.isSuccessful()) {
-                System.out.printf("%s Pin transaction was successfull, sending callback.\n", PREFIX);
-                callbackBuilder.build().reply(jsonConverter.toJson(reply));
-            } else {
-                System.out.printf("%s Pin transaction was unsuccessfull, sending rejection.\n", PREFIX);
-                callbackBuilder.build().reject("PIN: Pin Transaction was unsuccessfull.");
+                System.out.printf("%s Pin transaction was successful, sending callback.\n", PREFIX);
+                callbackBuilder.build().reply(replyJson);
             }
         } else {
-            System.out.printf("%s Pin transaction couldn't be processed, sending rejection.\n", PREFIX);
-            callbackBuilder.build().reject("PIN: Pin Transaction couldn't be processed.");
+            System.out.printf("%s Pin transaction was unsuccessful, sending rejection.\n", PREFIX);
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred.")));
         }
     }
 
@@ -345,40 +348,50 @@ class PinService {
      * Creates a callbackbuilder so the result of the new pin card request can be sent to the request source and then
      * calls the correct exception handler to execute the request.
      * @param callback Used to send the result of the request to the request source.
-     * @param customerId CustomerId of the customer that wants a new pin card.
+     * @param requesterId CustomerId of the user that sent the request.
+     * @param ownerId CustomerId of the customer that wants a new pin card.
      * @param accountNumber AccountNumber the pin card should be created for.
      */
     @RequestMapping(value = "/card", method = RequestMethod.PUT)
-    public void addNewPinCard(final Callback<String> callback, final @RequestParam("customerId") String customerId,
+    public void addNewPinCard(final Callback<String> callback, final @RequestParam("requesterId") String requesterId,
+                              final @RequestParam("ownerId") String ownerId,
                               final @RequestParam("accountNumber") String accountNumber) {
         System.out.printf("%s Received new pin card request.\n", PREFIX);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handleNewPinCardExceptions(customerId, accountNumber, callbackBuilder);
+        handleNewPinCardExceptions(requesterId, ownerId, accountNumber, callbackBuilder);
     }
 
     /**
      * Creates a new pin card for the Customer with customerId and accountNumber if the creation succeeds sends the
      * result back to the request source, otherwise rejects the request.
-     * @param customerId CustomerId of the customer that requested a new card.
+     * @param requesterId CustomerId of the user that sent the request.
+     * @param ownerId CustomerId of the customer that will own the new card.
      * @param accountNumber AccountNumber the card should be created for.
      * @param callbackBuilder Used to send the creation result to the request source.
      */
-    private void handleNewPinCardExceptions(final String customerId, final String accountNumber,
+    private void handleNewPinCardExceptions(final String requesterId, final String ownerId, final String accountNumber,
                                             final CallbackBuilder callbackBuilder) {
         try {
             Long cardNumber = getNextAvailableCardNumber();
             String pinCode = generatePinCode();
             Date expirationDate = generateExpirationDate();
-            PinCard pinCard = JSONParser.createJsonPinCard(accountNumber, cardNumber, pinCode,
-                                                            Long.parseLong(customerId), expirationDate);
+            //todo check if the requester has permissions for the card.
+            PinCard pinCard;
+            if (ownerId.length() > 0) {
+                pinCard = JSONParser.createJsonPinCard(accountNumber, cardNumber, pinCode,
+                        Long.parseLong(ownerId), expirationDate);
+            } else {
+                pinCard = JSONParser.createJsonPinCard(accountNumber, cardNumber, pinCode,
+                        Long.parseLong(requesterId), expirationDate);
+            }
             addPinCardToDatabase(pinCard);
             sendNewPinCardCallback(pinCard, callbackBuilder);
         } catch (SQLException e) {
-            callbackBuilder.build().reject("Something went wrong connecting to the pin database.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to pin database.")));
         } catch (NumberFormatException e) {
-            callbackBuilder.build().reject("Something went wrong when parsing the customerId in Pin.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "Something went wrong when parsing the customerId in Pin.")));
         } catch (NoSuchAlgorithmException e) {
-            callbackBuilder.build().reject("Couldn't generate pinCode in PinService.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred.")));
         }
     }
 
@@ -443,21 +456,20 @@ class PinService {
         addPinCard.setLong(3, pinCard.getCardNumber());
         addPinCard.setString(4, pinCard.getPinCode());
         addPinCard.setDate(5, new java.sql.Date(pinCard.getExpirationDate().getTime()));
-        addPinCard.execute();
+        addPinCard.executeUpdate();
         addPinCard.close();
         databaseConnectionPool.returnConnection(databaseConnection);
     }
 
 
     private void sendNewPinCardCallback(final PinCard pinCard, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Successfully created pin card, card #%s, accountno. %s  sending callback\n", PREFIX,
-                          pinCard.getCardNumber(), pinCard.getAccountNumber());
-        callbackBuilder.build().reply(jsonConverter.toJson(pinCard));
+        System.out.printf("%s Successfully created pin card, card #%s, accountno. %s  sending callback\n", PREFIX, pinCard.getCardNumber(), pinCard.getAccountNumber());
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", pinCard)));
     }
 
     /**
      * Creates a callbackbuilder to send the result of the request to and then calls the exception handler to execute
-     * the pin card removal. Sends a callback if the removal is successfull or a rejection if the removal fails.
+     * the pin card removal. Sends a callback if the removal is successful or a rejection if the removal fails.
      * @param callback Used to send the result of the request to the request source.
      * @param pinCardJson Json String representing a {@link PinCard} that should be removed from the system.
      */
@@ -469,7 +481,7 @@ class PinService {
 
     /**
      * Tries to create a {@link PinCard} from the Json string and then delete it from the database. Sends a rejection
-     * if this fails or a callback with the {@link PinCard} that was removed from the system if it is successfull.
+     * if this fails or a callback with the {@link PinCard} that was removed from the system if it is successful.
      * @param pinCardJson Json String representing a {@link PinCard} that should be removed from the system.
      * @param callbackBuilder Used to send the result of the request to the request source.
      */
@@ -479,9 +491,9 @@ class PinService {
             deletePinCardFromDatabase(pinCard);
             sendDeletePinCardCallback(pinCard, callbackBuilder);
         } catch (SQLException e) {
-            callbackBuilder.build().reject("Something went wrong connecting to the pin database.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to the Pin database.")));
         } catch (NumberFormatException e) {
-            callbackBuilder.build().reject("Something went wrong when parsing the customerId in Pin.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "Something went wrong when parsing the customerId in Pin.")));
         }
     }
 
@@ -501,12 +513,49 @@ class PinService {
         removePinCard.setLong(3, pinCard.getCardNumber());
         removePinCard.setString(4, pinCard.getPinCode());
         removePinCard.execute();
+        databaseConnection.close();
     }
 
     private void sendDeletePinCardCallback(final PinCard pinCard, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Pin card #%s successfully deleted from the system, sending callback.\n", PREFIX,
-                          pinCard.getCardNumber());
-        callbackBuilder.build().reply(jsonConverter.toJson(pinCard));
+        System.out.printf("%s Pin card #%s successfully deleted from the system, sending callback.\n", PREFIX, pinCard.getCardNumber());
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", pinCard)));
+    }
+
+    /**
+     * Removes all pin cards linked to the account with accountNumber from the system.
+     * @param callback Used to send the result of the removal to the request source.
+     * @param accountNumber AccountNumber for which all pin cards should be removed.
+     */
+    @RequestMapping(value = "/account/remove", method = RequestMethod.PUT)
+    public void removeAccountCards(final Callback<String> callback,
+                                   final @RequestParam("accountNumber") String accountNumber) {
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleRemoveAccountCardsExceptions(accountNumber, callbackBuilder);
+    }
+
+    private void handleRemoveAccountCardsExceptions(final String accountNumber, final CallbackBuilder callbackBuilder) {
+        try {
+            deleteAccountCardsFromDatabase(accountNumber);
+            sendRemoveAccountCardsCallback(accountNumber, callbackBuilder);
+        } catch (SQLException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to the pin database.")));
+        }
+    }
+
+    private void deleteAccountCardsFromDatabase(final String accountNumber) throws SQLException {
+        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+        PreparedStatement removeAccountCards = databaseConnection.getConnection()
+                                                                .prepareStatement(SQLStatements.removeAccountCards);
+        removeAccountCards.setString(1, accountNumber);
+        removeAccountCards.execute();
+        databaseConnection.close();
+    }
+
+    private void sendRemoveAccountCardsCallback(final String accountNumber, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s All pin cards for account with accountNumber %s successfully deleted from the system,"
+                            + " sending callback.\n", PREFIX, accountNumber);
+        AccountLink reply = new AccountLink(0L, accountNumber);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", reply)));
     }
 
     /**

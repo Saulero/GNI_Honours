@@ -7,7 +7,7 @@ import java.io.Serializable;
  * @version 1
  * Databean used to send customer data over queues.
  */
-public final class Customer implements Serializable {
+public class Customer implements Serializable {
     /** Initials of the customer. */
     private String initials;
     /** First name of the customer. */

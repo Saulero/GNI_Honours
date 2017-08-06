@@ -1,5 +1,6 @@
 package system;
 
+import api.ApiServiceMain;
 import authentication.AuthenticationServiceMain;
 import com.google.gson.Gson;
 import databeans.*;
@@ -11,6 +12,7 @@ import transactionin.TransactionReceiveServiceMain;
 import transactionout.TransactionDispatchServiceMain;
 import ui.UIServiceMain;
 import users.UsersServiceMain;
+import util.BootSystem;
 import util.JSONParser;
 import util.TableCreator;
 
@@ -48,9 +50,10 @@ public class SystemTest {
      * @param args should be empty argument
      */
     public static void main(final String[] args) {
+        /*
         TableCreator.truncateTables();
         Sys.sleep(1000);
-        initializeServices();
+        BootSystem.startServices();
         Sys.sleep(1000);
         //test variables
         //String ownAccountNumber = "NL00GNIB4134192911";
@@ -92,7 +95,7 @@ public class SystemTest {
         Sys.sleep(2000);
         doSecondCustomerRequest(uiClient); // sets the secondAccountNumber variable with an account owned by someone else
         Sys.sleep(2000);
-        doAccountLinkRequest(uiClient, secondAccountNumber, cookie);
+        doAccountLinkRequest(uiClient, secondAccountNumber, userName, cookie);
         Sys.sleep(2000);
         doGet(uiClient, "", RequestType.ACCOUNTS, cookie);
         Sys.sleep(2000);
@@ -104,17 +107,7 @@ public class SystemTest {
         Sys.sleep(2000);
         TableCreator.truncateTables();
         System.exit(0);
-    }
-
-    private static void initializeServices() {
-        LedgerServiceMain.main();
-        UsersServiceMain.main();
-        UIServiceMain.main();
-        AuthenticationServiceMain.main();
-        PinServiceMain.main();
-        TransactionDispatchServiceMain.main();
-        TransactionReceiveServiceMain.main();
-        System.out.println("\n\n\n");
+        */
     }
 
     /**
@@ -139,12 +132,12 @@ public class SystemTest {
                         Transaction reply = gson.fromJson(JSONParser.removeEscapeCharacters(body), Transaction.class);
                         if (reply.isSuccessful() && reply.isProcessed()) {
                             long transactionId = reply.getTransactionID();
-                            System.out.printf("%s Internal transaction %d successfull.\n\n\n\n",
+                            System.out.printf("%s Internal transaction %d successful.\n\n\n\n",
                                     PREFIX, transactionId);
                         } else if (!reply.isProcessed()) {
                             System.out.printf("%s Internal transaction couldn't be processed\n\n\n\n", PREFIX);
                         } else {
-                            System.out.printf("%s Internal transaction was not successfull\n\n\n\n", PREFIX);
+                            System.out.printf("%s Internal transaction was not successful\n\n\n\n", PREFIX);
                         }
                     } else {
                         System.out.printf("%s Transaction request failed.\n\n\n\n", PREFIX);
@@ -175,11 +168,11 @@ public class SystemTest {
                         Transaction reply = gson.fromJson(JSONParser.removeEscapeCharacters(body), Transaction.class);
                         if (reply.isSuccessful() && reply.isProcessed()) {
                             long transactionId = reply.getTransactionID();
-                            System.out.printf("%s Transaction %d successfull.\n\n\n", PREFIX, transactionId);
+                            System.out.printf("%s Transaction %d successful.\n\n\n", PREFIX, transactionId);
                         } else if (!reply.isProcessed()) {
                             System.out.printf("%s Transaction couldn't be processed.\n\n\n", PREFIX);
                         } else {
-                            System.out.printf("%s Transaction was not successfull\n\n\n", PREFIX);
+                            System.out.printf("%s Transaction was not successful\n\n\n", PREFIX);
                         }
                     } else {
                         System.out.printf("%s Transaction request failed.\n\n\n", PREFIX);
@@ -257,13 +250,13 @@ public class SystemTest {
                             case BALANCE:
                                 DataReply balanceReply = gson.fromJson(JSONParser.removeEscapeCharacters(body),
                                         DataReply.class);
-                                System.out.printf("%s Request successfull, balance: %f\n\n\n\n", PREFIX,
+                                System.out.printf("%s Request successful, balance: %f\n\n\n\n", PREFIX,
                                         balanceReply.getAccountData().getBalance());
                                 break;
                             case TRANSACTIONHISTORY:
                                 DataReply transactionReply = gson.fromJson(JSONParser.removeEscapeCharacters(body),
                                         DataReply.class);
-                                System.out.printf("%s Transaction history request successfull, history:\n", PREFIX);
+                                System.out.printf("%s Transaction history request successful, history:\n", PREFIX);
                                 for (Transaction x : transactionReply.getTransactions()) {
                                     System.out.printf("%s %s \n", PREFIX, x.toString());
                                 }
@@ -272,22 +265,22 @@ public class SystemTest {
                             case CUSTOMERDATA:
                                 Customer customerReply = gson.fromJson(JSONParser.removeEscapeCharacters(body),
                                         Customer.class);
-                                System.out.printf("%s Request successfull, Name: %s, dob: %s\n\n\n\n", PREFIX,
+                                System.out.printf("%s Request successful, Name: %s, dob: %s\n\n\n\n", PREFIX,
                                         customerReply.getInitials() + customerReply.getSurname(),
                                         customerReply.getDob());
-                                break;
+                                break;/*
                             case ACCOUNTS:
                                 DataReply accountsReply = gson.fromJson(JSONParser.removeEscapeCharacters(body),
                                         DataReply.class);
-                                System.out.printf("%s Request successfull, accounts: %s\n\n\n\n", PREFIX,
+                                System.out.printf("%s Request successful, accounts: %s\n\n\n\n", PREFIX,
                                         accountsReply.getAccounts());
-                                break;
+                                break;*/
                             default:
                                 System.out.printf("%s Couldn't get reply data.\n\n\n", PREFIX);
                                 break;
                         }
                     } else {
-                        System.out.printf("%s Request not successfull, body: %s\n", PREFIX, body);
+                        System.out.printf("%s Request not successful, body: %s\n", PREFIX, body);
                     }
                 });
     }
@@ -312,11 +305,11 @@ public class SystemTest {
                     if (code == HTTP_OK) {
                         Transaction reply = gson.fromJson(JSONParser.removeEscapeCharacters(body), Transaction.class);
                         if (reply.isSuccessful() && reply.isProcessed()) {
-                            System.out.printf("%s Pin transaction successfull.\n\n\n", PREFIX);
+                            System.out.printf("%s Pin transaction successful.\n\n\n", PREFIX);
                         } else if (!reply.isProcessed()) {
                             System.out.printf("%s Pin transaction couldn't be processed.\n\n\n", PREFIX);
                         } else {
-                            System.out.printf("%s Pin transaction was not successfull.\n\n\n", PREFIX);
+                            System.out.printf("%s Pin transaction was not successful.\n\n\n", PREFIX);
                         }
                     } else {
                         System.out.printf("%s Pin transaction request failed.\n\n\n", PREFIX);
@@ -350,11 +343,11 @@ public class SystemTest {
                     if (code == HTTP_OK) {
                         Transaction reply = gson.fromJson(JSONParser.removeEscapeCharacters(body), Transaction.class);
                         if (reply.isSuccessful() && reply.isProcessed()) {
-                            System.out.printf("%s ATM transaction successfull.\n\n\n", PREFIX);
+                            System.out.printf("%s ATM transaction successful.\n\n\n", PREFIX);
                         } else if (!reply.isProcessed()) {
                             System.out.printf("%s ATM transaction couldn't be processed.\n\n\n", PREFIX);
                         } else {
-                            System.out.printf("%s ATM transaction was not successfull.\n\n\n", PREFIX);
+                            System.out.printf("%s ATM transaction was not successful.\n\n\n", PREFIX);
                         }
                     } else {
                         System.out.printf("%s ATM transaction request failed.\n\n\n", PREFIX);
@@ -363,10 +356,9 @@ public class SystemTest {
                 });
     }
 
-    //TODO update format when new protocol arrives
     private static void doAccountLinkRequest(final HttpClient uiClient, final String accountNumber,
-                                             final String cookie) {
-        AccountLink request = JSONParser.createJsonAccountLink(accountNumber, 0L);
+                                             final String username, final String cookie) {
+        AccountLink request = JSONParser.createJsonAccountLink(accountNumber, username, false);
         Gson gson = new Gson();
         System.out.printf("%s Sending account link request.\n", PREFIX);
         uiClient.putFormAsyncWith2Params("/services/ui/account", "request", gson.toJson(request),
@@ -374,10 +366,11 @@ public class SystemTest {
                     if (code == HTTP_OK) {
                         AccountLink reply = gson.fromJson(JSONParser.removeEscapeCharacters(body), AccountLink.class);
                         if (reply.isSuccessful()) {
-                            System.out.printf("%s Account link successfull for Account Holder: %s, AccountNumber: %s\n\n\n\n",
+                            System.out.printf("%s Account link successful for Account Holder: %s, AccountNumber: %s\n\n\n\n",
                                     PREFIX, reply.getCustomerId(), reply.getAccountNumber());
+                            //todo request pincard for this user without the cookie.
                         } else {
-                            System.out.printf("%s Account link creation unsuccessfull.\n\n\n\n", PREFIX);
+                            System.out.printf("%s Account link creation unsuccessful.\n\n\n\n", PREFIX);
                         }
                     } else {
                         System.out.printf("%s Account link creation failed.\n\n\n\n", PREFIX);
@@ -385,22 +378,14 @@ public class SystemTest {
                 });
     }
 
-    //TODO update format when new protocol arrives
     private static void doNewAccountRequest(final HttpClient uiClient, final String cookie) {
-        Customer accountOwner = JSONParser.createJsonCustomer("M.S.", "Mats", "Bats",
-                "mats@bats.nl", "0656579876",
-                "Batslaan 35", "20-04-1889",
-                new Long("1234567890"), 0,
-                0, 0L,  "matsbats",
-                "matsbats");
         Gson gson = new Gson();
         System.out.printf("%s Sending new account request.\n", PREFIX);
-        uiClient.putFormAsyncWith2Params("/services/ui/account/new", "request",
-                gson.toJson(accountOwner), "cookie", cookie,
+        uiClient.putFormAsyncWith1Param("/services/ui/account/new", "cookie", cookie,
                 (code, contentType, body) -> {
                     if (code == HTTP_OK) {
                         Customer reply = gson.fromJson(JSONParser.removeEscapeCharacters(body), Customer.class);
-                        System.out.printf("%s New Account creation successfull, Account Holder: %s, AccountNumber: %s\n\n\n\n",
+                        System.out.printf("%s New Account creation successful, Account Holder: %s, AccountNumber: %s\n\n\n\n",
                                 PREFIX, reply.getCustomerId(), reply.getAccount().getAccountNumber());
                         accountNumbers.add(reply.getAccount().getAccountNumber());
                     } else {
@@ -418,7 +403,7 @@ public class SystemTest {
                     if (code == HTTP_OK) {
                         Authentication authenticationReply = gson.fromJson(JSONParser.removeEscapeCharacters(body),
                                 Authentication.class);
-                        System.out.printf("%s Successfull login, set the following cookie: %s\n\n\n\n",
+                        System.out.printf("%s Successful login, set the following cookie: %s\n\n\n\n",
                                 PREFIX, authenticationReply.getCookie());
                         cookie = authenticationReply.getCookie();
                     } else {

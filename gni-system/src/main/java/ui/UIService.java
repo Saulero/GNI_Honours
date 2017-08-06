@@ -75,10 +75,10 @@ final class UIService {
             doDataRequest(dataRequestJson, cookie, callbackBuilder);
         } catch (IncorrectInputException e) {
             System.out.printf("%s %s, sending rejection.\n", PREFIX, e.getMessage());
-            callbackBuilder.build().reject(e.getMessage());
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", e.getMessage())));
         } catch (JsonSyntaxException e) {
             System.out.printf("%s Incorrect json syntax detected, sending rejection.\n", PREFIX);
-            callbackBuilder.build().reject("Incorrect json syntax used.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred.", "Incorrect json syntax used.")));
         }
     }
 
@@ -93,10 +93,12 @@ final class UIService {
         DataRequest dataRequest = jsonConverter.fromJson(dataRequestJson, DataRequest.class);
         RequestType requestType = dataRequest.getType();
         String accountNumber = dataRequest.getAccountNumber();
+
         if (requestType == null || !Arrays.asList(RequestType.values()).contains(dataRequest.getType())) {
             throw new IncorrectInputException("RequestType not correctly specified.");
-        } else if (accountNumber == null || (isAccountNumberRelated(dataRequest.getType())
-                                                && accountNumber.length() != accountNumberLength)) {
+        } else if (accountNumber == null && isAccountNumberRelated(dataRequest.getType())) {
+            throw new IncorrectInputException("AccountNumber specified is null.");
+        } else if (accountNumber != null && accountNumber.length() != accountNumberLength && isAccountNumberRelated(dataRequest.getType())) {
             throw new IncorrectInputException("AccountNumber specified is of an incorrect length.");
         }
     }
@@ -107,7 +109,7 @@ final class UIService {
      * @return Boolean indicating if the requestType relates to an accountNumber.
      */
     private boolean isAccountNumberRelated(final RequestType requestType) {
-        return requestType != RequestType.CUSTOMERDATA && requestType != RequestType.ACCOUNTS;
+        return requestType != RequestType.CUSTOMERDATA && requestType != RequestType.CUSTOMERACCESSLIST;
     }
 
     /**
@@ -123,15 +125,20 @@ final class UIService {
                                                   dataRequestJson, "cookie", cookie,
                                                   (httpStatusCode, httpContentType, dataReplyJson) -> {
             if (httpStatusCode == HTTP_OK) {
-                processDataReply(dataReplyJson, dataRequestJson, callbackBuilder);
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(dataReplyJson), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    processDataReply(dataReplyJson, dataRequestJson, callbackBuilder);
+                } else {
+                    callbackBuilder.build().reply(dataReplyJson);
+                }
             } else {
-                callbackBuilder.build().reject("Transaction history request failed.");
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
         });
     }
 
     /**
-     * Checks if a data request was successfull and sends the reply back to the source of the request.
+     * Checks if a data request was successful and sends the reply back to the source of the request.
      * @param dataReplyJson Body of the callback, a Json string representing a {@link DataReply}.
      * @param dataRequestJson Json string containing the {@link DataRequest} that was forwarded.
      * @param callbackBuilder Used to send the received reply back to the source of the request.
@@ -142,63 +149,29 @@ final class UIService {
         RequestType requestType = dataRequest.getType();
         switch (requestType) {
             case BALANCE:
-                sendBalanceRequestCallback(dataReplyJson, callbackBuilder);
+                System.out.printf("%s Sending balance request callback.\n", PREFIX);
+                callbackBuilder.build().reply(dataReplyJson);
                 break;
             case TRANSACTIONHISTORY:
-                sendTransactionHistoryRequestCallback(dataReplyJson, callbackBuilder);
+                System.out.printf("%s Sending transaction history request callback.\n", PREFIX);
+                callbackBuilder.build().reply(dataReplyJson);
                 break;
             case CUSTOMERDATA:
-                sendCustomerDataRequestCallback(dataReplyJson, callbackBuilder);
+                System.out.printf("%s Sending customer data request callback.\n", PREFIX);
+                callbackBuilder.build().reply(dataReplyJson);
                 break;
-            case ACCOUNTS:
-                sendAccountsRequestCallback(dataReplyJson, callbackBuilder);
+            case CUSTOMERACCESSLIST:
+                System.out.printf("%s Sending customer access list request callback.\n", PREFIX);
+                callbackBuilder.build().reply(dataReplyJson);
+                break;
+            case ACCOUNTACCESSLIST:
+                System.out.printf("%s Sending account access list request callback.\n", PREFIX);
+                callbackBuilder.build().reply(dataReplyJson);
                 break;
             default:
-                callbackBuilder.build().reject("Incorrect requestType specified.");
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Internal system error occurred.", "Incorrect requestType specified.")));
                 break;
         }
-    }
-
-    /**
-     * Forwards the result of a balance request to the service that requested it.
-     * @param dataReplyJson Json String containing the {@link DataReply}.
-     * @param callbackBuilder Used to send the received reply back to the source of the request.
-     */
-    private void sendBalanceRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Sending balance request callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(dataReplyJson));
-    }
-
-    /**
-     * Forwards the result of a transaction history request to the service that requested it.
-     * @param dataReplyJson Json String containing the {@link DataReply}.
-     * @param callbackBuilder Used to send the received reply back to the source of the request.
-     */
-    private void sendTransactionHistoryRequestCallback(final String dataReplyJson,
-                                                       final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Sending transaction history request callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(dataReplyJson));
-    }
-
-    /**
-     * Forwards the result of a customer data request to the service that requested it.
-     * @param dataReplyJson Json String containing a {@link Customer}.
-     * @param callbackBuilder Used to send the received reply back to the source of the request.
-     */
-    private void sendCustomerDataRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Sending customer data request callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(dataReplyJson));
-    }
-
-    /**
-     * Forwards the result of an accounts request to the service that requested it.
-     * @param dataReplyJson Json String containing a {@link DataReply} with the accounts belonging to the customer
-     *                      that sent the request..
-     * @param callbackBuilder Used to send the received reply back to the source of the request.
-     */
-    private void sendAccountsRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Sending accounts request callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(dataReplyJson));
     }
 
     /**
@@ -229,14 +202,13 @@ final class UIService {
             doTransactionRequest(transactionRequestJson, cookie, callbackBuilder);
         } catch (IncorrectInputException e) {
             System.out.printf("%s %s, sending rejection.\n", PREFIX, e.getMessage());
-            callbackBuilder.build().reject(e.getMessage());
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.")));
         } catch (JsonSyntaxException e) {
             System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
-            callbackBuilder.build().reject("Syntax error when parsing json.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred.", "Syntax error when parsing json.")));
         } catch (NumberFormatException e) {
             System.out.printf("%s The transaction amount was incorrectly specified, sending rejection.\n", PREFIX);
-            callbackBuilder.build().reject("The following variable was incorrectly specified:"
-                                            + " transactionAmount.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "The following variable was incorrectly specified: transactionAmount.")));
         }
     }
 
@@ -290,9 +262,14 @@ final class UIService {
                                             transactionRequestJson, "cookie", cookie,
                                             (httpStatusCode, httpContentType, transactionReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        sendTransactionCallback(transactionReplyJson, callbackBuilder);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendTransactionCallback(transactionReplyJson, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(transactionReplyJson);
+                        }
                     } else {
-                        callbackBuilder.build().reject("Transaction request failed.");
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
@@ -305,7 +282,7 @@ final class UIService {
     private void sendTransactionCallback(final String transactionReplyJson,
                                          final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Transaction successfully executed, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(transactionReplyJson));
+        callbackBuilder.build().reply(transactionReplyJson);
     }
 
     /**
@@ -331,16 +308,14 @@ final class UIService {
             verifyNewCustomerInput(newCustomerJson);
             doNewCustomerRequest(newCustomerJson, callbackBuilder);
         } catch (IncorrectInputException e) {
-            System.out.printf("%s %s", PREFIX, e.getMessage());
-            callbackBuilder.build().reject(e.getMessage());
+            System.out.printf("%s One of the parameters has an invalid value, sending error.", PREFIX);
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.")));
         } catch (JsonSyntaxException e) {
             System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
-            callbackBuilder.build().reject("Syntax error when parsing json.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "Syntax error when parsing json.")));
         } catch (NumberFormatException e) {
-            System.out.printf("%s The ssn, spendinglimit or balance was incorrectly specified, sending rejection.\n",
-                    PREFIX);
-            callbackBuilder.build().reject("One of the following variables was incorrectly specified:"
-                                            + " ssn, spendingLimit, balance.");
+            System.out.printf("%s The ssn, spendinglimit or balance was incorrectly specified, sending rejection.\n", PREFIX);
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the following variables was incorrectly specified: ssn, spendingLimit, balance.")));
         }
     }
 
@@ -415,10 +390,14 @@ final class UIService {
                                             newCustomerRequestJson,
                                             (httpStatusCode, httpContentType, newCustomerReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        sendNewCustomerRequestCallback(newCustomerReplyJson, callbackBuilder);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(newCustomerReplyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendNewCustomerRequestCallback(newCustomerReplyJson, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(newCustomerReplyJson);
+                        }
                     } else {
-                        System.out.println("fail: " + newCustomerReplyJson);
-                        callbackBuilder.build().reject("Customer creation request failed.");
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
@@ -430,8 +409,8 @@ final class UIService {
      */
     private void sendNewCustomerRequestCallback(final String newCustomerReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Customer creation successfull, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(newCustomerReplyJson));
+        System.out.printf("%s Customer creation successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(newCustomerReplyJson);
     }
 
     /**
@@ -442,7 +421,7 @@ final class UIService {
      * @param accountLinkRequestJson Json string representing an {@link AccountLink} that should be created in the
      *                               database.
      */
-    @RequestMapping(value = "/account", method = RequestMethod.PUT)
+    @RequestMapping(value = "/accountLink", method = RequestMethod.PUT)
     public void processAccountLinkRequest(final Callback<String> callback,
                                           @RequestParam("request") final String accountLinkRequestJson,
                                           @RequestParam("cookie") final String cookie) {
@@ -466,10 +445,10 @@ final class UIService {
             doAccountLinkRequest(accountLinkRequestJson, cookie, callbackBuilder);
         } catch (IncorrectInputException e) {
             System.out.printf("%s %s", PREFIX, e.getMessage());
-            callbackBuilder.build().reject(e.getMessage());
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", e.getMessage())));
         } catch (JsonSyntaxException e) {
             System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
-            callbackBuilder.build().reject("Syntax error when parsing json.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred.")));
         }
     }
 
@@ -491,20 +470,25 @@ final class UIService {
 
     /**
      * Forwards a String representing an account link to the Authentication Service, and processes the reply if it is
-     * successfull or sends a rejection to the requesting source if it fails.
+     * successful or sends a rejection to the requesting source if it fails.
      * @param accountLinkRequestJson String representing an {@link AccountLink} that should be executed.
      * @param cookie Cookie of the User that sent the request.
      * @param callbackBuilder Used to send the result of the request back to the source of the request.
      */
     private void doAccountLinkRequest(final String accountLinkRequestJson, final String cookie,
                                       final CallbackBuilder callbackBuilder) {
-        authenticationClient.putFormAsyncWith2Params("/services/authentication/account", "request",
+        authenticationClient.putFormAsyncWith2Params("/services/authentication/accountLink", "request",
                 accountLinkRequestJson, "cookie", cookie,
                 ((httpStatusCode, httpContentType, accountLinkReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        sendAccountLinkRequestCallback(accountLinkReplyJson, callbackBuilder);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(accountLinkReplyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendAccountLinkRequestCallback(accountLinkReplyJson, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(accountLinkReplyJson);
+                        }
                     } else {
-                        callbackBuilder.build().reject("AccountLink request failed.");
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 }));
     }
@@ -516,89 +500,117 @@ final class UIService {
      */
     private void sendAccountLinkRequestCallback(final String accountLinkReplyJson,
                                                 final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Successfull account link, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(accountLinkReplyJson));
+        System.out.printf("%s Successful account link, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(accountLinkReplyJson);
     }
+
+    /**
+     * Checks the input of the request and then forwards it to the authentication service.
+     * @param callback Used to send the result of the request back to the source of the request.
+     * @param accountLinkJson Json string representing an {@link AccountLink} that should be removed from the
+     *                               system.
+     * @param cookie Cookie of the User that sent the request.
+     */
+    @RequestMapping(value = "/accountLink/remove", method = RequestMethod.PUT)
+    public void processAccountLinkRemoval(final Callback<String> callback,
+                                          @RequestParam("request") final String accountLinkJson,
+                                          @RequestParam("cookie") final String cookie) {
+        System.out.printf("%s Forwarding account link removal.\n", PREFIX);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleAccountLinkRemovalExceptions(accountLinkJson, cookie, callbackBuilder);
+    }
+
+    /**
+     * Tries to parse the accountLink and verifies it contains a correct accountNumber. Then forwards the request to
+     * the authenticationService.
+     * @param accountLinkJson Json string representing an {@link AccountLink} that should be removed from the
+     *                               system.
+     * @param cookie Cookie of the User that sent the request.
+     * @param callbackBuilder Used to send the result of the request back to the source of the request.
+     */
+    private void handleAccountLinkRemovalExceptions(final String accountLinkJson, final String cookie,
+                                             final CallbackBuilder callbackBuilder) {
+        try {
+            verifyAccountLinkInput(accountLinkJson);
+            doAccountLinkRemoval(accountLinkJson, cookie, callbackBuilder);
+        } catch (IncorrectInputException e) {
+            System.out.printf("%s %s", PREFIX, e.getMessage());
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", e.getMessage())));
+        } catch (JsonSyntaxException e) {
+            System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred.")));
+        }
+    }
+
+    /**
+     * Forwards a String representing an account link that is to be removed from the system to the Authentication
+     * Service, and processes the reply if it is successful or sends a rejection to the requesting source if it fails.
+     * @param accountLinkRequestJson String representing an {@link AccountLink} that should be removed from the system.
+     * @param cookie Cookie of the User that sent the request.
+     * @param callbackBuilder Used to send the result of the request back to the source of the request.
+     */
+    private void doAccountLinkRemoval(final String accountLinkRequestJson, final String cookie,
+                                      final CallbackBuilder callbackBuilder) {
+        authenticationClient.putFormAsyncWith2Params("/services/authentication/accountLink/remove", "request",
+                accountLinkRequestJson, "cookie", cookie,
+                ((httpStatusCode, httpContentType, accountLinkReplyJson) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(accountLinkReplyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendAccountLinkRemovalCallback(accountLinkReplyJson, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(accountLinkReplyJson);
+                        }
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                    }
+                }));
+    }
+
+    /**
+     * Forwards the result of an account link removal to the service that sent the request.
+     * @param accountLinkReplyJson Json String representing the result of an account link removal.
+     * @param callbackBuilder Used to send the result of the request back to the source of the request.
+     */
+    private void sendAccountLinkRemovalCallback(final String accountLinkReplyJson,
+                                                final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Successful account link removal, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(accountLinkReplyJson);
+    }
+
 
     /**
      * Creates a callback builder for the account creation request and then forwards the request to the Authentication
      * Service.
      * @param callback Used to send the result of the request back to the source of the request.
      * @param cookie Cookie of the User that sent the request.
-     * @param accountOwnerJson Json String representing a {@link Customer} which is the account owner,
-     *                         with an Account object inside representing the account that should be created.
      */
     @RequestMapping(value = "/account/new", method = RequestMethod.PUT)
     public void processNewAccountRequest(final Callback<String> callback,
-                                         @RequestParam("request") final String accountOwnerJson,
                                          @RequestParam("cookie") final String cookie) {
         System.out.printf("%s Forwarding account creation request.\n", PREFIX);
-        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder()
-                                                                   .withStringCallback(callback);
-        handleNewAccountExceptions(accountOwnerJson, cookie, callbackBuilder);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        doNewAccountRequest(cookie, callbackBuilder);
     }
 
     /**
-     * Tries to verify the input of a new account request and then forward the request, sends a rejection if an
-     * exception occurs.
-     * @param accountOwnerJson Json string representing the {@link Customer} that an account should be created
-     * for.
-     * @param cookie Cookie of the User that sent the request.
-     * @param callbackBuilder Used to send the result of the request back to the source of the request.
-     */
-    private void handleNewAccountExceptions(final String accountOwnerJson, final String cookie,
-                                            final CallbackBuilder callbackBuilder) {
-        try {
-            verifyNewAccountInput(accountOwnerJson);
-            doNewAccountRequest(accountOwnerJson, cookie, callbackBuilder);
-        } catch (IncorrectInputException e) {
-            System.out.printf("%s %s", PREFIX, e.getMessage());
-            callbackBuilder.build().reject(e.getMessage());
-        } catch (JsonSyntaxException e) {
-            System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
-            callbackBuilder.build().reject("Syntax error when parsing json.");
-        }
-    }
-
-    /**
-     * Checks if the input for an new account request is correctly formatted and contains correct values.
-     * @param accountOwnerJson Json string representing the {@link Customer} that an account should be created
-     * for.
-     * @throws IncorrectInputException Thrown when a value is not correctly specified.
-     * @throws JsonSyntaxException Thrown when the json string is incorrect and cant be parsed.
-     */
-    void verifyNewAccountInput(final String accountOwnerJson)
-                                        throws IncorrectInputException, JsonSyntaxException {
-        Customer accountOwner = jsonConverter.fromJson(accountOwnerJson, Customer.class);
-        final String initials = accountOwner.getInitials();
-        final String name = accountOwner.getName();
-        final String surname = accountOwner.getSurname();
-        if (initials == null || !valueHasCorrectLength(initials)) {
-            throw new IncorrectInputException("The following variable was incorrectly specified: initials.");
-        } else if (name == null || !valueHasCorrectLength(name)) {
-            throw new IncorrectInputException("The following variable was incorrectly specified: name.");
-        } else if (surname == null || !valueHasCorrectLength(surname)) {
-            throw new IncorrectInputException("The following variable was incorrectly specified: surname.");
-        }
-    }
-
-    /**
-     * Forwards the Json String representing a customer with the account to be created to the Authentication Service
+     * Forwards the cookie containing the customerId of the owner of the new account to the Authentication Service
      * and sends the result back to the request source, or rejects the request if the forwarding fails.
-     * @param newAccountRequestJson Json String representing a {@link Customer} which is the account
-     *                              owner, with an Account object inside representing the account that is to be created.
      * @param cookie Cookie of the User that sent the request.
      * @param callbackBuilder Used to send the result of the request back to the source of the request.
      */
-    private void doNewAccountRequest(final String newAccountRequestJson, final String cookie,
-                                     final CallbackBuilder callbackBuilder) {
-        authenticationClient.putFormAsyncWith2Params("/services/authentication/account/new", "request",
-                newAccountRequestJson, "cookie", cookie,
-                (httpStatusCode, httpContentType, newAccountReplyJson) -> {
+    private void doNewAccountRequest(final String cookie, final CallbackBuilder callbackBuilder) {
+        authenticationClient.putFormAsyncWith1Param("/services/authentication/account/new", "cookie",
+                cookie, (httpStatusCode, httpContentType, newAccountReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        sendNewAccountRequestCallback(newAccountReplyJson, callbackBuilder);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(newAccountReplyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendNewAccountRequestCallback(newAccountReplyJson, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(newAccountReplyJson);
+                        }
                     } else {
-                        callbackBuilder.build().reject("NewAccount request failed.");
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
@@ -610,8 +622,8 @@ final class UIService {
      */
     private void sendNewAccountRequestCallback(final String newAccountReplyJson,
                                                final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Successfull account creation request, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(newAccountReplyJson));
+        System.out.printf("%s Successful account creation request, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(newAccountReplyJson);
     }
 
     /**
@@ -625,7 +637,6 @@ final class UIService {
     public void processAccountRemovalRequest(final Callback<String> callback,
                                              @RequestParam("accountNumber") final String accountNumber,
                                              @RequestParam("cookie") final String cookie) {
-        System.out.printf("%s Forwarding account removal request.\n", PREFIX);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         handleAccountRemovalExceptions(accountNumber, cookie, callbackBuilder);
     }
@@ -644,7 +655,7 @@ final class UIService {
             doAccountRemovalRequest(accountNumber, cookie, callbackBuilder);
         } catch (IncorrectInputException e) {
             e.printStackTrace();
-            callbackBuilder.build().reject(e.getMessage());
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.")));
         }
     }
 
@@ -661,32 +672,38 @@ final class UIService {
 
     /**
      * Forwards the account removal request to the Authentication Service and sends a callback if the request is
-     * successfull, or sends a rejection if the request fails.
+     * successful, or sends a rejection if the request fails.
      * @param accountNumber AccountNumber of the account that is to be removed from the system.
      * @param cookie Cookie of the User that sent the request.
      * @param callbackBuilder Used to send the result of the request back to the source of the request.
      */
     private void doAccountRemovalRequest(final String accountNumber, final String cookie,
                                          final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Forwarding account removal request.\n", PREFIX);
         authenticationClient.putFormAsyncWith2Params("/services/authentication/account/remove",
             "accountNumber", accountNumber, "cookie", cookie,
                 (httpStatusCode, httpContentType, replyJson) -> {
             if (httpStatusCode == HTTP_OK) {
-                sendAccountRemovalCallback(replyJson, callbackBuilder);
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    sendAccountRemovalCallback(replyJson, callbackBuilder);
+                } else {
+                    callbackBuilder.build().reply(replyJson);
+                }
             } else {
-                callbackBuilder.build().reject("NewAccount request failed.");
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
         });
     }
 
     /**
      * Sends the result of an account removal request to the request source.
-     * @param accountNumber accountNumber that was removed from the system.
+     * @param replyJson accountNumber that was removed from the system.
      * @param callbackBuilder Used to send the result of the account removal request to the request source.
      */
-    private void sendAccountRemovalCallback(final String accountNumber, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Account removal successfull, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(accountNumber));
+    private void sendAccountRemovalCallback(final String replyJson, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Account removal successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(replyJson);
     }
 
     /**
@@ -717,10 +734,10 @@ final class UIService {
             doLoginRequest(authDataJson, callbackBuilder);
         } catch (IncorrectInputException e) {
             System.out.printf("%s %s", PREFIX, e.getMessage());
-            callbackBuilder.build().reject(e.getMessage());
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.")));
         } catch (JsonSyntaxException e) {
             System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
-            callbackBuilder.build().reject("Syntax error when parsing json.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.")));
         }
     }
 
@@ -745,7 +762,7 @@ final class UIService {
     }
 
     /**
-     * Forwards the Login request to the Authentication Service and sends a callback if the request is successfull, or
+     * Forwards the Login request to the Authentication Service and sends a callback if the request is successful, or
      * sends a rejection if the request fails.
      * @param authDataJson Json String representing {@link Authentication} information of a user trying to login.
      * @param callbackBuilder Used to send the result of the request back to the request source.
@@ -754,38 +771,46 @@ final class UIService {
         authenticationClient.putFormAsyncWith1Param("/services/authentication/login", "authData",
                 authDataJson, (code, contentType, body) -> {
             if (code == HTTP_OK) {
-                sendLoginRequestCallback(body, callbackBuilder);
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    sendLoginRequestCallback(body, callbackBuilder);
+                } else {
+                    callbackBuilder.build().reply(body);
+                }
             } else {
-                callbackBuilder.build().reject("Login not successfull.");
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
                 });
     }
 
     /**
-     * Sends the result of a successfull login request, containing a cookie that the user should use to authenticate
+     * Sends the result of a successful login request, containing a cookie that the user should use to authenticate
      * him/herself to the request source.
      * @param loginReplyJson Json String representing an {@link Authentication} object containing the
      *                       cookie the customer should use to authenticate himself in future requests.
      * @param callbackBuilder Used to send the callback to the request source.
      */
     private void sendLoginRequestCallback(final String loginReplyJson, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Login successfull, sending callback containing cookie.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(loginReplyJson));
+        System.out.printf("%s Login successful, sending callback containing cookie.\n", PREFIX);
+        callbackBuilder.build().reply(loginReplyJson);
     }
 
     /**
      * Creates a callbackbuilder for the request and then calls the exception handler.
      * @param callback Used to send the result of the request back to the request source.
      * @param accountNumber AccountNumber the pin card should be linked to.
-     * @param cookie Cookie of the user that sent the request, so the system knows who the pincard is for.
+     * @param cookie Cookie of the user that sent the request, this user needs to be authorized to use
+     *               the accountNumber.
+     * @param username The username of the user that owns the new pincard.
      */
     @RequestMapping(value = "/card", method = RequestMethod.PUT)
     public void processNewPinCard(final Callback<String> callback,
                                          @RequestParam("accountNumber") final String accountNumber,
-                                         @RequestParam("cookie") final String cookie) {
+                                         @RequestParam("cookie") final String cookie,
+                                         @RequestParam("username") final String username) {
         System.out.printf("%s Received new Pin card request, attempting to forward request.\n", PREFIX);
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handleNewPinCardExceptions(accountNumber, cookie, callbackBuilder);
+        handleNewPinCardExceptions(accountNumber, cookie, username, callbackBuilder);
     }
 
     /**
@@ -793,16 +818,17 @@ final class UIService {
      * rejects the request if an exception occurs.
      * @param accountNumber AccountNumber the pin card should be linked to.
      * @param cookie Cookie of the user that requested the pin card.
+     * @param username username of the user that owns the pincard.
      * @param callbackBuilder Used to send the result of the request back to the request source.
      */
-    private void handleNewPinCardExceptions(final String accountNumber, final String cookie,
+    private void handleNewPinCardExceptions(final String accountNumber, final String cookie, final String username,
                                             final CallbackBuilder callbackBuilder) {
         try {
             verifyNewPinCardInput(accountNumber);
-            doNewPinCardRequest(accountNumber, cookie, callbackBuilder);
+            doNewPinCardRequest(accountNumber, cookie, username, callbackBuilder);
         } catch (IncorrectInputException e) {
             System.out.printf("%s %s", PREFIX, e.getMessage());
-            callbackBuilder.build().reject(e.getMessage());
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.")));
         }
     }
 
@@ -817,23 +843,29 @@ final class UIService {
      * the service that requested it.
      * @param accountNumber AccountNumber the pin card should be created for.
      * @param cookie Cookie of the user that sent the request.
+     * @param username username of the user that owns the pincard.
      * @param callbackBuilder Used to send the result of the request back to the request source.
      */
-    private void doNewPinCardRequest(final String accountNumber, final String cookie,
+    private void doNewPinCardRequest(final String accountNumber, final String cookie, final String username,
                                      final CallbackBuilder callbackBuilder) {
-        authenticationClient.putFormAsyncWith2Params("/services/authentication/card", "accountNumber",
-                accountNumber, "cookie", cookie, (code, contentType, body) -> {
+        authenticationClient.putFormAsyncWith3Params("/services/authentication/card", "accountNumber",
+                accountNumber, "cookie", cookie, "username", username, (code, contentType, body) -> {
                     if (code == HTTP_OK) {
-                        sendNewPinCardCallback(body, callbackBuilder);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendNewPinCardCallback(body, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(body);
+                        }
                     } else {
-                        callbackBuilder.build().reject("new pin card request not successfull.");
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
 
     private void sendNewPinCardCallback(final String jsonReply, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s New pin card request successfull, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(jsonReply));
+        System.out.printf("%s New pin card request successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonReply);
     }
 
     /**
@@ -865,10 +897,10 @@ final class UIService {
             doPinCardRemovalRequest(pinCardJson, cookie, callbackBuilder);
         } catch (IncorrectInputException e) {
             System.out.printf("%s %s", PREFIX, e.getMessage());
-            callbackBuilder.build().reject(e.getMessage());
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 422, "The user could not be authenticated, a wrong combination of credentials was provided.", e.getMessage())));
         } catch (JsonSyntaxException e) {
             System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
-            callbackBuilder.build().reject("Syntax error when parsing json.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred.", "Syntax error when parsing json.")));
         }
     }
 
@@ -898,7 +930,7 @@ final class UIService {
 
     /**
      * Forwards the pin card removal request to the authentication service, forwards the result to the request source
-     * if the request is successfull, or sends a rejection if it is not.
+     * if the request is successful, or sends a rejection if it is not.
      * @param pinCardJson Json String representing a {@link PinCard} that should be removed from the system.
      * @param cookie Cookie of the user that sent the request.
      * @param callbackBuilder Used to forward the result of the request to the request source.
@@ -908,16 +940,21 @@ final class UIService {
         authenticationClient.putFormAsyncWith2Params("/services/authentication/card/remove",
                 "pinCard", pinCardJson, "cookie", cookie, (code, contentType, body) -> {
                     if (code == HTTP_OK) {
-                        sendPinCardRemovalCallback(body, callbackBuilder);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendPinCardRemovalCallback(body, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(body);
+                        }
                     } else {
-                        callbackBuilder.build().reject("Remove pin card request not successfull.");
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
 
     private void sendPinCardRemovalCallback(final String jsonReply, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Pin card removal successfull, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(jsonReply));
+        System.out.printf("%s Pin card removal successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonReply);
     }
 
     /**

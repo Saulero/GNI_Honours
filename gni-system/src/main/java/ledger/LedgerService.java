@@ -34,6 +34,8 @@ class LedgerService {
 
     /** Database connection pool containing persistent database connections. */
     private ConnectionPool db;
+    /** Used for json conversions. */
+    private Gson jsonConverter;
     /** Prefix used when printing to indicate the message is coming from the Ledger Service. */
     private static final String PREFIX = "[Ledger]              :";
 
@@ -42,6 +44,7 @@ class LedgerService {
      */
     LedgerService() {
         db = new ConnectionPool();
+        jsonConverter = new Gson();
     }
 
     /**
@@ -63,9 +66,9 @@ class LedgerService {
         if (newAccount != null) {
             System.out.printf("%s Added user %s with accountNumber %s to ledger, sending callback.\n", PREFIX,
                     newAccount.getAccountHolderName(), newAccount.getAccountNumber());
-            callback.reply(gson.toJson(newAccount));
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", newAccount)));
         } else {
-            callback.reject("SQLException");
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to ledger database.")));
         }
     }
 
@@ -188,13 +191,13 @@ class LedgerService {
     }
 
     /**
-     * Receives a request for the removal of a customer account, if successfull this account will be removed from
+     * Receives a request for the removal of a customer account, if successful this account will be removed from
      * the system. Calls the exception handler which will process the request.
      * @param callback Used to send the result of the request back to the request source.
      * @param accountNumber AccountNumber of the account that should be removed from the system.
      * @param customerId CustomerId of the User that requested the removal of the account.
      */
-    @RequestMapping(value = "account/remove", method = RequestMethod.PUT)
+    @RequestMapping(value = "/account/remove", method = RequestMethod.PUT)
     public void processRemoveAccountRequest(final Callback<String> callback,
                                             final @RequestParam("accountNumber") String accountNumber,
                                             final @RequestParam("customerId") String customerId) {
@@ -204,7 +207,7 @@ class LedgerService {
     }
 
     /**
-     * Will try to execute the accountRemoval and then send a callback indicating the successfull removal of the
+     * Will try to execute the accountRemoval and then send a callback indicating the successful removal of the
      * account, if an exception is thrown the request will be rejected.
      * @param accountNumber AccountNumber of the account that should be removed from the system.
      * @param customerId Id of the customer that sent the request.
@@ -217,7 +220,7 @@ class LedgerService {
             sendAccountRemovalCallback(accountNumber, callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
-            callbackBuilder.build().reject(e.getMessage());
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to Ledger database.")));
         }
     }
 
@@ -240,7 +243,7 @@ class LedgerService {
 
     private void sendAccountRemovalCallback(final String accountNumber, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Successfully removed account %s, sending callback.\n", PREFIX, accountNumber);
-        callbackBuilder.build().reply(accountNumber);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", accountNumber)));
     }
 
     /**
@@ -326,10 +329,10 @@ class LedgerService {
 
         if (transaction.isSuccessful()) {
             System.out.printf("%s Successfully processed incoming transaction, sending callback.\n", PREFIX);
-            callback.reply(gson.toJson(transaction));
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", transaction)));
         } else {
-            System.out.printf("%s Incoming transaction was not successfull, sending callback.\n", PREFIX);
-            callback.reply(gson.toJson(transaction));
+            System.out.printf("%s Incoming transaction was not successful, sending callback.\n", PREFIX);
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.")));
         }
     }
 
@@ -383,15 +386,16 @@ class LedgerService {
 
         if (transaction.isSuccessful()) {
             System.out.printf("%s Successfully processed outgoing transaction, sending callback.\n", PREFIX);
-            callback.reply(gson.toJson(transaction));
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", transaction)));
         } else {
             if (!customerIsAuthorized) {
                 System.out.printf("%s Customer with id %s is not authorized to make transactions from this account."
                         + " Sending callback.\n", PREFIX, customerId);
+                callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "Customer is not authorized to make transactions from this account")));
             } else {
-                System.out.printf("%s Outgoing transaction was not successfull, sending callback.\n", PREFIX);
+                System.out.printf("%s Outgoing transaction was not successful, sending callback.\n", PREFIX);
+                callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "There is probably not enough balance in the account.")));
             }
-            callback.reply(gson.toJson(transaction));
         }
     }
 
@@ -433,6 +437,7 @@ class LedgerService {
      */
     private boolean getCustomerAuthorization(final String accountNumber, final String customerId) {
         try {
+            // TODO THIS SERVICE IS NOT ALLOWED TO USE THE TABLES FROM THE USERS SERVICE
             SQLConnection databaseConnection = db.getConnection();
             PreparedStatement getAccountNumbers = databaseConnection.getConnection()
                     .prepareStatement(SQLStatements.getAccountNumbers);
@@ -467,20 +472,20 @@ class LedgerService {
         DataRequest dataRequest = gson.fromJson(dataRequestJson, DataRequest.class);
         RequestType requestType = dataRequest.getType();
         System.out.printf("%s Received data request of type %s.\n", PREFIX, dataRequest.getType().toString());
-        if (requestType != RequestType.ACCOUNTEXISTS
-                && !getCustomerAuthorization(dataRequest.getAccountNumber(),
+        if (requestType != RequestType.ACCOUNTEXISTS && !getCustomerAuthorization(dataRequest.getAccountNumber(),
                 "" + dataRequest.getCustomerId())) {
-            callback.reject("Customer not authorized to request data for this accountNumber.");
+            System.out.printf("%s rejecting because not authorized", PREFIX);
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "Customer not authorized to request data for this accountNumber.")));
         } else {
             // Method call
             DataReply dataReply = processDataRequest(dataRequest);
 
             if (dataReply != null) {
-                System.out.printf("%s Data request successfull, sending callback.\n", PREFIX);
-                callback.reply(gson.toJson(dataReply));
+                System.out.printf("%s Data request successful, sending callback.\n", PREFIX);
+                callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", dataReply)));
             } else {
                 System.out.printf("%s Data request failed, sending rejection.\n", PREFIX);
-                callback.reject("SQLException");
+                callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to the Ledger database.")));
             }
         }
     }

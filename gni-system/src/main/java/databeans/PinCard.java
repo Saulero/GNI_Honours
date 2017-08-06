@@ -1,11 +1,12 @@
 package databeans;
 
+import java.io.Serializable;
 import java.util.Date;
 
 /**
  * @author Noel
  */
-public class PinCard {
+public class PinCard implements Serializable {
     private String accountNumber;
     private Long cardNumber;
     private String pinCode;
