@@ -2,7 +2,6 @@ package ui;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
-import com.thetransactioncompany.jsonrpc2.JSONRPC2Error;
 import databeans.*;
 import io.advantageous.qbit.annotation.*;
 import io.advantageous.qbit.http.client.HttpClient;
