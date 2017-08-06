@@ -106,7 +106,7 @@ class UsersService {
                 handleCustomerAccessListRequestExceptions(dataRequest.getCustomerId(), callbackBuilder);
                 break;
             default:
-                callbackBuilder.build().reject("Incorrect requestType specified.");
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Internal system error occurred.", "Incorrect requestType specified.")));
                 break;
         }
     }
@@ -145,9 +145,11 @@ class UsersService {
     private void handleCustomerDataRequestExceptions(final long customerId, final CallbackBuilder callbackBuilder) {
         try {
             sendCustomerDataRequestCallback(getCustomerData(customerId), callbackBuilder);
-        } catch (SQLException | CustomerDoesNotExistException e) {
+        } catch (SQLException e) {
             e.printStackTrace();
-            callbackBuilder.build().reject(e);
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to Users database.")));
+        } catch (CustomerDoesNotExistException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "The provided customer does not seem to exist.")));
         }
     }
 
@@ -159,7 +161,7 @@ class UsersService {
      */
     private void sendCustomerDataRequestCallback(final Customer customerData, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Sending customer data request callback.\n", PREFIX);
-        callbackBuilder.build().reply(jsonConverter.toJson(customerData));
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", customerData)));
     }
 
     /**
@@ -212,9 +214,13 @@ class UsersService {
             }
             DataReply reply = new DataReply(RequestType.ACCOUNTACCESSLIST, getAccountAccessList(accountNumber));
             sendAccountAccessListRequestCallback(reply, callbackBuilder);
-        } catch (SQLException | AccountDoesNotExistException | users.UserNotAuthorizedException e) {
+        } catch (SQLException e) {
             e.printStackTrace();
-            callbackBuilder.build().reject(e);
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to Users database.")));
+        } catch (UserNotAuthorizedException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.")));
+        } catch (AccountDoesNotExistException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "The provided account does not seem to exist.")));
         }
     }
 
@@ -226,7 +232,7 @@ class UsersService {
      */
     private void sendAccountAccessListRequestCallback(final DataReply reply, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Sending account access list request callback.\n", PREFIX);
-        callbackBuilder.build().reply(jsonConverter.toJson(reply));
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", reply)));
     }
 
     private long getPrimaryOwner(final String accountNumber) throws SQLException, AccountDoesNotExistException {
@@ -283,9 +289,11 @@ class UsersService {
     private void handleCustomerAccessListRequestExceptions(final long customerId, final CallbackBuilder callbackBuilder) {
         try {
             sendCustomerAccessListRequestCallback(processCustomerAccessListRequest(customerId), callbackBuilder);
-        } catch (SQLException | CustomerDoesNotExistException e) {
+        } catch (SQLException e) {
             e.printStackTrace();
-            callbackBuilder.build().reject(e);
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to Users database.")));
+        } catch (CustomerDoesNotExistException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "The provided customer does not seem to exist.")));
         }
     }
 
@@ -296,7 +304,7 @@ class UsersService {
      */
     private void sendCustomerAccessListRequestCallback(final DataReply customerAccounts, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Sending accounts request callback.\n", PREFIX);
-        callbackBuilder.build().reply(jsonConverter.toJson(customerAccounts));
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", customerAccounts)));
     }
 
     //todo write unit test for this method. in fact, update all Junit
@@ -319,9 +327,14 @@ class UsersService {
                                         jsonConverter.toJson(dataRequest),
                                         (httpStatusCode, httpContentType, dataReplyJson) -> {
             if (httpStatusCode == HTTP_OK) {
-                sendLedgerDataRequestCallback(dataReplyJson, callbackBuilder);
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(dataReplyJson), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    sendLedgerDataRequestCallback(dataReplyJson, callbackBuilder);
+                } else {
+                    callbackBuilder.build().reply(dataReplyJson);
+                }
             } else {
-                callbackBuilder.build().reject("Received an error from ledger.");
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
         });
     }
@@ -333,7 +346,7 @@ class UsersService {
      */
     private void sendLedgerDataRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Sending data request callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(dataReplyJson));
+        callbackBuilder.build().reply(dataReplyJson);
     }
 
 

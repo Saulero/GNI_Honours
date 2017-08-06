@@ -84,9 +84,9 @@ class AuthenticationService {
             dataRequest.setCustomerId(getCustomerId(cookie));
             doDataRequest(jsonConverter.toJson(dataRequest), callbackBuilder);
         } catch (SQLException e) {
-            callbackBuilder.build().reject("Failed to query database.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         } catch (UserNotAuthorizedException e) {
-            callbackBuilder.build().reject("CookieData does not belong to an authorized user.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "CookieData does not belong to an authorized user.")));
         }
     }
 
@@ -182,56 +182,58 @@ class AuthenticationService {
         usersClient.getAsyncWith1Param("/services/users/data", "request",
                                         dataRequestJson, (httpStatusCode, httpContentType, dataReplyJson) -> {
             if (httpStatusCode == HTTP_OK) {
-                handleDataReply(dataReplyJson, callbackBuilder);
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(dataReplyJson), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    handleDataReply((DataReply) messageWrapper.getData(), callbackBuilder);
+                } else {
+                    callbackBuilder.build().reply(dataReplyJson);
+                }
             } else {
-                System.out.println("Data request failed");
-                callbackBuilder.build().reject("Data request failed.");
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
         });
     }
 
-    private void handleDataReply(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
-        DataReply reply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(dataReplyJson), DataReply.class);
-        if (reply.getType() == RequestType.CUSTOMERACCESSLIST || reply.getType() == RequestType.ACCOUNTACCESSLIST) {
-            for (AccountLink link : reply.getAccounts()) {
-                link.setUsername(getUserNameFromCustomerId(link.getCustomerId()));
+    private void handleDataReply(final DataReply dataReply, final CallbackBuilder callbackBuilder) {
+        try {
+            if (dataReply.getType() == RequestType.CUSTOMERACCESSLIST || dataReply.getType() == RequestType.ACCOUNTACCESSLIST) {
+                for (AccountLink link : dataReply.getAccounts()) {
+                    link.setUsername(getUserNameFromCustomerId(link.getCustomerId()));
+                }
             }
-            sendDataRequestCallback(jsonConverter.toJson(reply), callbackBuilder);
-        } else {
-            sendDataRequestCallback(JSONParser.removeEscapeCharacters(dataReplyJson), callbackBuilder);
+            sendDataRequestCallback(dataReply, callbackBuilder);
+        } catch (CustomerDoesNotExistException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "The provided customer does not seem to exist.")));
+        } catch (SQLException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         }
     }
 
-    private String getUserNameFromCustomerId(final Long customerId) {
+    private String getUserNameFromCustomerId(final Long customerId) throws SQLException, CustomerDoesNotExistException {
         String username;
-        try {
-            SQLConnection databaseConnection = databaseConnectionPool.getConnection();
-            PreparedStatement getUsername = databaseConnection.getConnection()
-                                                                .prepareStatement(getUsernameFromCustomerId);
-            getUsername.setLong(1, customerId);
-            ResultSet usernameSet = getUsername.executeQuery();
-            if (usernameSet.next()) {
-                username = usernameSet.getString("username");
-            } else {
-                throw new CustomerDoesNotExistException("username not found");
-            }
-            getUsername.close();
-            databaseConnectionPool.returnConnection(databaseConnection);
-            return username;
-        } catch (SQLException | CustomerDoesNotExistException e) {
-            e.printStackTrace();
-            return null;
+        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+        PreparedStatement getUsername = databaseConnection.getConnection()
+                                                            .prepareStatement(getUsernameFromCustomerId);
+        getUsername.setLong(1, customerId);
+        ResultSet usernameSet = getUsername.executeQuery();
+        if (usernameSet.next()) {
+            username = usernameSet.getString("username");
+        } else {
+            throw new CustomerDoesNotExistException("username not found");
         }
+        getUsername.close();
+        databaseConnectionPool.returnConnection(databaseConnection);
+        return username;
     }
 
     /**
      * Sends the result of a data request back to the service that requested it.
-     * @param dataReplyJson Json String containing the reply that was received.
+     * @param dataReply The reply that was received.
      * @param callbackBuilder Used to send back the reply to the service that requested it.
      */
-    private void sendDataRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
+    private void sendDataRequestCallback(final DataReply dataReply, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Data request successful, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(dataReplyJson);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", dataReply)));
     }
 
     /**

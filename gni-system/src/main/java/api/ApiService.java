@@ -577,14 +577,18 @@ final class ApiService {
         uiClient.getAsyncWith2Params("/services/ui/data", "request", jsonConverter.toJson(request),
                                     "cookie", params.get("authToken"), (code, contentType, body) -> {
             if (code == HTTP_OK) {
-                DataReply balanceReply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
-                                                                DataReply.class);
-                System.out.printf("%s Request successful, balance: %f\n\n\n\n", PREFIX,
-                        balanceReply.getAccountData().getBalance());
-                Map<String, Object> result = new HashMap<>();
-                result.put("balance", balanceReply.getAccountData().getBalance());
-                JSONRPC2Response response = new JSONRPC2Response(result, id);
-                callbackBuilder.build().reply(response.toJSONString());
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    DataReply balanceReply = (DataReply) messageWrapper.getData();
+                    System.out.printf("%s Request successful, balance: %f\n\n\n\n", PREFIX,
+                            balanceReply.getAccountData().getBalance());
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("balance", balanceReply.getAccountData().getBalance());
+                    JSONRPC2Response response = new JSONRPC2Response(result, id);
+                    callbackBuilder.build().reply(response.toJSONString());
+                } else {
+                    sendErrorReply(callbackBuilder, messageWrapper, id);
+                }
             } else {
                 System.out.printf("%s Request not successful, body: %s\n\n\n\n", PREFIX, body);
                 JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
@@ -608,26 +612,30 @@ final class ApiService {
         uiClient.getAsyncWith2Params("/services/ui/data", "request", jsonConverter.toJson(request),
                 "cookie", params.get("authToken"), (code, contentType, body) -> {
                     if (code == HTTP_OK) {
-                        DataReply balanceReply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
-                                                                        DataReply.class);
-                        System.out.printf("%s TransactionOverview request successful.\n\n\n\n", PREFIX);
-                        List<Map<String, Object>> transactionList = new ArrayList<>();
-                        Long nrOfTransactions = (Long) params.get("nrOfTransactions");
-                        List<Transaction> transactions = balanceReply.getTransactions().subList(0,
-                                                                                Math.toIntExact(nrOfTransactions) - 1);
-                        for (Transaction transaction : transactions) {
-                            Map<String, Object> transactionMap = new HashMap<>();
-                            transactionMap.put("sourceIBAN", transaction.getSourceAccountNumber());
-                            transactionMap.put("targetIBAN", transaction.getDestinationAccountNumber());
-                            transactionMap.put("targetName", transaction.getDestinationAccountHolderName());
-                            transactionMap.put("date", transaction.getTimestamp());
-                            //todo create proper date indication instead of timestamp.
-                            transactionMap.put("amount", transaction.getTransactionAmount());
-                            transactionMap.put("description", transaction.getDescription());
-                            transactionList.add(transactionMap);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            DataReply balanceReply = (DataReply) messageWrapper.getData();
+                            System.out.printf("%s TransactionOverview request successful.\n\n\n\n", PREFIX);
+                            List<Map<String, Object>> transactionList = new ArrayList<>();
+                            Long nrOfTransactions = (Long) params.get("nrOfTransactions");
+                            List<Transaction> transactions = balanceReply.getTransactions().subList(0,
+                                    Math.toIntExact(nrOfTransactions) - 1);
+                            for (Transaction transaction : transactions) {
+                                Map<String, Object> transactionMap = new HashMap<>();
+                                transactionMap.put("sourceIBAN", transaction.getSourceAccountNumber());
+                                transactionMap.put("targetIBAN", transaction.getDestinationAccountNumber());
+                                transactionMap.put("targetName", transaction.getDestinationAccountHolderName());
+                                transactionMap.put("date", transaction.getTimestamp());
+                                //todo create proper date indication instead of timestamp.
+                                transactionMap.put("amount", transaction.getTransactionAmount());
+                                transactionMap.put("description", transaction.getDescription());
+                                transactionList.add(transactionMap);
+                            }
+                            JSONRPC2Response response = new JSONRPC2Response(transactionList, id);
+                            callbackBuilder.build().reply(response.toJSONString());
+                        } else {
+                            sendErrorReply(callbackBuilder, messageWrapper, id);
                         }
-                        JSONRPC2Response response = new JSONRPC2Response(transactionList, id);
-                        callbackBuilder.build().reply(response.toJSONString());
                     } else {
                         System.out.printf("%s Request not successful, body: %s\n\n\n\n", PREFIX, body);
                         JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
@@ -649,18 +657,22 @@ final class ApiService {
         uiClient.getAsyncWith2Params("/services/ui/data", "request", jsonConverter.toJson(request),
                 "cookie", params.get("authToken"), (code, contentType, body) -> {
                     if (code == HTTP_OK) {
-                        DataReply accountsReply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
-                                                                         DataReply.class);
-                        System.out.printf("%s Accounts request successful.\n\n\n\n", PREFIX);
-                        List<Map<String, Object>> result = new ArrayList<>();
-                        accountsReply.getAccounts().forEach(k -> {
-                            Map<String, Object> account = new HashMap<>();
-                            account.put("iBAN", k.getAccountNumber());
-                            account.put("owner", k.getUsername());
-                            result.add(account);
-                        });
-                        JSONRPC2Response response = new JSONRPC2Response(result, id);
-                        callbackBuilder.build().reply(response.toJSONString());
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            DataReply accountsReply = (DataReply) messageWrapper.getData();
+                            System.out.printf("%s Accounts request successful.\n\n\n\n", PREFIX);
+                            List<Map<String, Object>> result = new ArrayList<>();
+                            accountsReply.getAccounts().forEach(k -> {
+                                Map<String, Object> account = new HashMap<>();
+                                account.put("iBAN", k.getAccountNumber());
+                                account.put("owner", k.getUsername());
+                                result.add(account);
+                            });
+                            JSONRPC2Response response = new JSONRPC2Response(result, id);
+                            callbackBuilder.build().reply(response.toJSONString());
+                        } else {
+                            sendErrorReply(callbackBuilder, messageWrapper, id);
+                        }
                     } else {
                         System.out.printf("%s Accounts request not successful, body: %s\n\n\n\n", PREFIX, body);
                         JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
@@ -683,17 +695,21 @@ final class ApiService {
         uiClient.getAsyncWith2Params("/services/ui/data", "request", jsonConverter.toJson(request),
                 "cookie", params.get("authToken"), (code, contentType, body) -> {
                     if (code == HTTP_OK) {
-                        DataReply accountsReply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
-                                DataReply.class);
-                        System.out.printf("%s BankAccountAccess request successful.\n\n\n\n", PREFIX);
-                        List<Map<String, Object>> result = new ArrayList<>();
-                        accountsReply.getAccounts().forEach(k -> {
-                            Map<String, Object> account = new HashMap<>();
-                            account.put("username", k.getUsername());
-                            result.add(account);
-                        });
-                        JSONRPC2Response response = new JSONRPC2Response(result, id);
-                        callbackBuilder.build().reply(response.toJSONString());
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            DataReply accountsReply = (DataReply) messageWrapper.getData();
+                            System.out.printf("%s BankAccountAccess request successful.\n\n\n\n", PREFIX);
+                            List<Map<String, Object>> result = new ArrayList<>();
+                            accountsReply.getAccounts().forEach(k -> {
+                                Map<String, Object> account = new HashMap<>();
+                                account.put("username", k.getUsername());
+                                result.add(account);
+                            });
+                            JSONRPC2Response response = new JSONRPC2Response(result, id);
+                            callbackBuilder.build().reply(response.toJSONString());
+                        } else {
+                            sendErrorReply(callbackBuilder, messageWrapper, id);
+                        }
                     } else {
                         System.out.printf("%s BankAccountAccess Request not successful, body: %s\n\n\n\n", PREFIX, body);
                         JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);

@@ -76,10 +76,10 @@ final class UIService {
             doDataRequest(dataRequestJson, cookie, callbackBuilder);
         } catch (IncorrectInputException e) {
             System.out.printf("%s %s, sending rejection.\n", PREFIX, e.getMessage());
-            callbackBuilder.build().reject(e.getMessage());
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", e.getMessage())));
         } catch (JsonSyntaxException e) {
             System.out.printf("%s Incorrect json syntax detected, sending rejection.\n", PREFIX);
-            callbackBuilder.build().reject("Incorrect json syntax used.");
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred.", "Incorrect json syntax used.")));
         }
     }
 
@@ -126,9 +126,14 @@ final class UIService {
                                                   dataRequestJson, "cookie", cookie,
                                                   (httpStatusCode, httpContentType, dataReplyJson) -> {
             if (httpStatusCode == HTTP_OK) {
-                processDataReply(dataReplyJson, dataRequestJson, callbackBuilder);
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(dataReplyJson), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    processDataReply(dataReplyJson, dataRequestJson, callbackBuilder);
+                } else {
+                    callbackBuilder.build().reply(dataReplyJson);
+                }
             } else {
-                callbackBuilder.build().reject("Data request failed.");
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
         });
     }
@@ -145,76 +150,29 @@ final class UIService {
         RequestType requestType = dataRequest.getType();
         switch (requestType) {
             case BALANCE:
-                sendBalanceRequestCallback(dataReplyJson, callbackBuilder);
+                System.out.printf("%s Sending balance request callback.\n", PREFIX);
+                callbackBuilder.build().reply(dataReplyJson);
                 break;
             case TRANSACTIONHISTORY:
-                sendTransactionHistoryRequestCallback(dataReplyJson, callbackBuilder);
+                System.out.printf("%s Sending transaction history request callback.\n", PREFIX);
+                callbackBuilder.build().reply(dataReplyJson);
                 break;
             case CUSTOMERDATA:
-                sendCustomerDataRequestCallback(dataReplyJson, callbackBuilder);
+                System.out.printf("%s Sending customer data request callback.\n", PREFIX);
+                callbackBuilder.build().reply(dataReplyJson);
                 break;
             case CUSTOMERACCESSLIST:
-                sendCustomerAccessListRequestCallback(dataReplyJson, callbackBuilder);
+                System.out.printf("%s Sending customer access list request callback.\n", PREFIX);
+                callbackBuilder.build().reply(dataReplyJson);
                 break;
             case ACCOUNTACCESSLIST:
-                sendAccountAccessListRequestCallback(dataReplyJson, callbackBuilder);
+                System.out.printf("%s Sending account access list request callback.\n", PREFIX);
+                callbackBuilder.build().reply(dataReplyJson);
                 break;
             default:
-                callbackBuilder.build().reject("Incorrect requestType specified.");
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Internal system error occurred.", "Incorrect requestType specified.")));
                 break;
         }
-    }
-
-    /**
-     * Forwards the result of a balance request to the service that requested it.
-     * @param dataReplyJson Json String containing the {@link DataReply}.
-     * @param callbackBuilder Used to send the received reply back to the source of the request.
-     */
-    private void sendBalanceRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Sending balance request callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(dataReplyJson));
-    }
-
-    /**
-     * Forwards the result of a transaction history request to the service that requested it.
-     * @param dataReplyJson Json String containing the {@link DataReply}.
-     * @param callbackBuilder Used to send the received reply back to the source of the request.
-     */
-    private void sendTransactionHistoryRequestCallback(final String dataReplyJson,
-                                                       final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Sending transaction history request callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(dataReplyJson));
-    }
-
-    /**
-     * Forwards the result of a customer data request to the service that requested it.
-     * @param dataReplyJson Json String containing a {@link Customer}.
-     * @param callbackBuilder Used to send the received reply back to the source of the request.
-     */
-    private void sendCustomerDataRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Sending customer data request callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(dataReplyJson));
-    }
-
-    /**
-     * Forwards the result of a customer access list request to the service that requested it.
-     * @param dataReplyJson Json String containing a {@link DataReply} with the accounts.
-     * @param callbackBuilder Used to send the received reply back to the source of the request.
-     */
-    private void sendCustomerAccessListRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Sending customer access list request callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(dataReplyJson));
-    }
-
-    /**
-     * Forwards the result of an account access list request to the service that requested it.
-     * @param dataReplyJson Json String containing a {@link DataReply} with the accounts that have access
-     *                      to the provided iBAN to the customer.
-     * @param callbackBuilder Used to send the received reply back to the source of the request.
-     */
-    private void sendAccountAccessListRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Sending account access list request callback.\n", PREFIX);
-        callbackBuilder.build().reply(JSONParser.removeEscapeCharacters(dataReplyJson));
     }
 
     /**
