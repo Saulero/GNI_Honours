@@ -193,6 +193,14 @@ class PinService {
                 if (!pinTransaction.getSourceAccountNumber().equals(pinTransaction.getDestinationAccountNumber())) {
                     if (cardInfo.getLong("incorrect_attempts") < 3) {
                         if (cardInfo.getString("pin_code").equals(pinTransaction.getPinCode())) {
+
+                            // reset the count
+                            try {
+                                unblockPinCard(new PinCard(accountNumberLinkedToCard, pinTransaction.getCardNumber()));
+                            } catch (NoEffectException e) {
+                                // do nothing
+                            }
+
                             if (!cardInfo.getDate("expiration_date").after(new Date())) {
                                 getCardInfo.close();
                                 databaseConnectionPool.returnConnection(databaseConnection);
@@ -301,6 +309,14 @@ class PinService {
                 if (cardInfo.getLong("incorrect_attempts") < 3) {
                     if ((transaction.getTransactionAmount() < CONTACTLESS_TRANSACTION_LIMIT && pinCode == null)
                             || (pinCode.equals(cardInfo.getString("pin_code")))) {
+
+                        // reset the count
+                        try {
+                            unblockPinCard(new PinCard(transaction.getSourceAccountNumber(), transaction.getCardNumber()));
+                        } catch (NoEffectException e) {
+                            // do nothing
+                        }
+
                         if (!cardInfo.getDate("expiration_date").after(new Date())) { //check if expiration date is after current date
                             getCardInfo.close();
                             databaseConnectionPool.returnConnection(databaseConnection);
@@ -601,6 +617,7 @@ class PinService {
         removePinCard.setString(4, pinCard.getPinCode());
         removePinCard.execute();
         databaseConnection.close();
+        databaseConnectionPool.returnConnection(databaseConnection);
     }
 
     private void sendDeletePinCardCallback(final PinCard pinCard, final CallbackBuilder callbackBuilder) {
@@ -713,6 +730,7 @@ class PinService {
 
         ps.close();
         con.close();
+        databaseConnectionPool.returnConnection(con);
     }
 
     private void sendPinCardUnblockCallback(final PinCard pinCard, final CallbackBuilder callbackBuilder) {
