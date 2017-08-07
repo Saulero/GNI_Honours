@@ -41,7 +41,10 @@ class SystemInformationService {
     @RequestMapping(value = "/date/increment", method = RequestMethod.PUT)
     void incrementDate(final Callback<String> callback, final @RequestParam("days") Long days) {
         this.systemDate = this.systemDate.plusDays(days);
-        System.out.printf("%s Added %d days to system date, new date is %s", PREFIX, days, this.systemDate.toString());
+        System.out.printf("%s Added %d days to system date, new date is %s\n", PREFIX, days,
+                this.systemDate.toString());
+        callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200,
+                "Normal Reply")));
     }
 
     /**
@@ -50,7 +53,7 @@ class SystemInformationService {
      */
     @RequestMapping(value = "/date", method = RequestMethod.GET)
     void getDate(final Callback<String> callback) {
-        System.out.printf("%s received date request, sending callback.", PREFIX);
+        System.out.printf("%s received date request, sending callback.\n", PREFIX);
         callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200,
                 "Normal Reply", this.systemDate)));
     }

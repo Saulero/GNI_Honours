@@ -223,7 +223,7 @@ class PinService {
      */
     private void checkPinValidity(final PinCard pinCard, final PinTransaction pinTransaction, final boolean isATM,
                                   final CallbackBuilder callbackBuilder) throws SQLException, IncorrectInputException {
-        systemInformationClient.getAsync("services/systemInfo/date",
+        systemInformationClient.getAsync("/services/systemInfo/date",
             (httpStatusCode, contentType, body) -> {
                 if (httpStatusCode == HTTP_OK) {
                     MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser
@@ -233,8 +233,13 @@ class PinService {
                         if (pinCard.getExpirationDate().isAfter(systemDate)) {
                             try {
                                 if (pinCard.getPinCode().equals(pinTransaction.getPinCode())) {
-                                    // reset the count
-                                    unblockPinCard(new PinCard(pinCard.getAccountNumber(), pinCard.getCardNumber()));
+                                    try {
+                                        // reset the count
+                                        unblockPinCard(new PinCard(pinCard.getAccountNumber(),
+                                                        pinCard.getCardNumber()));
+                                    } catch (NoEffectException e) {
+                                        // do nothing
+                                    }
                                     if (pinCard.getAccountNumber().equals(pinTransaction.getSourceAccountNumber())) {
                                         if (isATM) {
                                             Transaction transaction = createATMTransaction(pinTransaction,
@@ -262,8 +267,6 @@ class PinService {
                                                     "The pin code used is incorrect.",
                                                     "An invalid PINcard, -code or -combination was used.")));
                                 }
-                            } catch (NoEffectException e) {
-                                // do nothing
                             } catch (SQLException e) {
                                 e.printStackTrace();
                                 callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
