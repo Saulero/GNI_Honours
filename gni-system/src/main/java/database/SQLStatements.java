@@ -37,6 +37,7 @@ public final class SQLStatements {
     public static final String getCustomerIdFromCardNumber = "SELECT user_id FROM pin WHERE card_number = ?";
     public static final String getPinCard = "SELECT * FROM pin WHERE card_number = ?";
     public static final String removePinCard = "DELETE FROM pin WHERE account_number = ? AND user_id = ? AND card_number = ? AND pin_code = ?";
+    public static final String unblockPinCard = "UPDATE pin SET incorrect_attempts = 0 WHERE card_number = ?";
     public static final String incrementIncorrectAttempts = "UPDATE pin SET incorrect_attempts = incorrect_attempts + 1 WHERE card_number = ?";
     public static final String removeAccountCards = "DELETE FROM pin WHERE account_number = ?";
     public static final String removeCustomer = "DELETE FROM users WHERE id = ?";

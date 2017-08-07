@@ -646,6 +646,81 @@ class PinService {
     }
 
     /**
+     * Creates a callbackbuilder to send the result of the request to and then calls the exception handler to execute
+     * the pin card unblock. Sends a callback if the removal is successful or a rejection if the removal fails.
+     * @param callback Used to send the result of the request to the request source.
+     * @param pinCardJson Json String representing a {@link PinCard} that should be unblocked.
+     */
+    @RequestMapping(value = "/unblockCard", method = RequestMethod.PUT)
+    public void unblockCard(final Callback<String> callback, final @RequestParam("pinCard") String pinCardJson) {
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handlePinCardUnblockExceptions(pinCardJson, callbackBuilder);
+    }
+
+    /**
+     * Tries to create a {@link PinCard} from the Json string and then unblock it. Sends a rejection
+     * if this fails or a callback with the {@link PinCard} that was unblocked if it is successful.
+     * @param pinCardJson Json String representing a {@link PinCard} that should be unblocked.
+     * @param callbackBuilder Used to send the result of the request to the request source.
+     */
+    private void handlePinCardUnblockExceptions(final String pinCardJson, final CallbackBuilder callbackBuilder) {
+        try {
+            PinCard pinCard = jsonConverter.fromJson(pinCardJson, PinCard.class);
+            unblockPinCard(pinCard);
+            sendPinCardUnblockCallback(pinCard, callbackBuilder);
+        } catch (SQLException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to the Pin database.")));
+        } catch (IncorrectInputException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", e.getMessage())));
+        } catch (NoEffectException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 420, "The action has no real effect.", e.getMessage())));
+        }
+    }
+
+    /**
+     * Unblocks a PinCard in the pin database.
+     * @param pinCard Pin card that should be unblocked.
+     * @throws SQLException Thrown when the sql query fails, will cause the unblock request to be rejected.
+     * @throws NumberFormatException Cause when a parameter is incorrectly specified, will cause the unblock request
+     * to be rejected.
+     */
+    void unblockPinCard(final PinCard pinCard) throws SQLException, IncorrectInputException, NoEffectException {
+        SQLConnection con = databaseConnectionPool.getConnection();
+        PreparedStatement ps = con.getConnection().prepareStatement(SQLStatements.getPinCard);
+        ps.setLong(1, pinCard.getCardNumber());
+        ResultSet rs = ps.executeQuery();
+        if (rs.next()) {
+            String accountNumber = rs.getString("account_number");
+            Long attempts = rs.getLong("incorrect_attempts");
+            rs.close();
+
+            if (!pinCard.getAccountNumber().equals(accountNumber)) {
+                throw new IncorrectInputException("The provided account number does not match the account number in the system.");
+            } else {
+                // reset the count
+                ps = con.getConnection().prepareStatement(SQLStatements.unblockPinCard);
+                ps.setLong(1, pinCard.getCardNumber());
+                ps.executeUpdate();
+
+                if (attempts < 3) {
+                    throw new NoEffectException("The card was not blocked in the first place, but the attempts count has been reset none the less");
+                }
+            }
+        } else {
+            rs.close();
+            throw new IncorrectInputException("The provided pin card does not appear to exist.");
+        }
+
+        ps.close();
+        con.close();
+    }
+
+    private void sendPinCardUnblockCallback(final PinCard pinCard, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Pin card #%s successfully unblocked, sending callback.\n", PREFIX, pinCard.getCardNumber());
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", pinCard)));
+    }
+
+    /**
      * Safely shuts down the PinService.
      */
     void shutdown() {
