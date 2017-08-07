@@ -1,6 +1,7 @@
 package databeans;
 
 import java.io.Serializable;
+import java.time.LocalDate;
 import java.util.Date;
 
 /**
@@ -11,10 +12,10 @@ public class PinCard implements Serializable {
     private Long cardNumber;
     private String pinCode;
     private Long customerId;
-    private Date expirationDate;
+    private LocalDate expirationDate;
 
     public PinCard(final String accountNumber, final Long cardNumber, final String pinCode, final Long customerId,
-                   final Date expirationDate) {
+                   final LocalDate expirationDate) {
         this.accountNumber = accountNumber;
         this.cardNumber = cardNumber;
         this.pinCode = pinCode;
@@ -58,11 +59,11 @@ public class PinCard implements Serializable {
         customerId = newCustomerId;
     }
 
-    public Date getExpirationDate() {
+    public LocalDate getExpirationDate() {
         return expirationDate;
     }
 
-    public void setExpirationDate(final Date newExpirationDate) {
+    public void setExpirationDate(final LocalDate newExpirationDate) {
         expirationDate = newExpirationDate;
     }
 

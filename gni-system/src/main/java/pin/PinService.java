@@ -12,7 +12,6 @@ import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
-import jdk.nashorn.internal.codegen.CompilerConstants;
 import ui.IncorrectInputException;
 import util.JSONParser;
 
@@ -21,6 +20,7 @@ import java.security.SecureRandom;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.Calendar;
 import java.util.Date;
 
@@ -35,10 +35,12 @@ import static java.net.HttpURLConnection.HTTP_OK;
  */
 @RequestMapping("/pin")
 class PinService {
-    /** Connection to the Transaction Dispatch service.*/
+    /** Connection to the Transaction Dispatch Service.*/
     private HttpClient transactionDispatchClient;
-    /** Connection to the Transaction Receive service.*/
+    /** Connection to the Transaction Receive Service.*/
     private HttpClient transactionReceiveClient;
+    /** Connection to the System Information Service.*/
+    private HttpClient systemInformationClient;
     /** Database connection pool containing persistent database connections. */
     private ConnectionPool databaseConnectionPool;
     /** Used for Json conversions. */
@@ -58,13 +60,18 @@ class PinService {
      * @param transactionDispatchHost Host the Transaction Dispatch Service can be found on.
      * @param transactionReceivePort Port the Transaction Receive Service can be found on.
      * @param transactionReceiveHost Host the Transaction Receive Service can be found on.
+     * @param systemInformationPort Port the System Information Service can be found on.
+     * @param systemInformationHost Host the System Information Service can be found on.
      */
     PinService(final int transactionDispatchPort, final String transactionDispatchHost,
-               final int transactionReceivePort, final String transactionReceiveHost) {
+               final int transactionReceivePort, final String transactionReceiveHost,
+               final int systemInformationPort, final String systemInformationHost) {
         transactionDispatchClient = httpClientBuilder().setHost(transactionDispatchHost)
-                                                        .setPort(transactionDispatchPort).buildAndStart();
+                .setPort(transactionDispatchPort).buildAndStart();
         transactionReceiveClient = httpClientBuilder().setHost(transactionReceiveHost)
                 .setPort(transactionReceivePort).buildAndStart();
+        systemInformationClient = httpClientBuilder().setHost(systemInformationHost)
+                .setPort(systemInformationPort).buildAndStart();
         databaseConnectionPool = new ConnectionPool();
         this.jsonConverter = new Gson();
     }
@@ -93,24 +100,10 @@ class PinService {
     private void handlePinExceptions(final String pinTransactionRequestJson, final CallbackBuilder callbackBuilder) {
         try {
             PinTransaction request = jsonConverter.fromJson(pinTransactionRequestJson, PinTransaction.class);
-            Long customerId = getCustomerIdFromCardNumber(request.getCardNumber());
             if (request.isATMTransaction()) {
-                getATMTransactionAuthorization(request);
-                String cardAccountNumber = getAccountNumberWithCardNumber(request.getCardNumber());
-                Transaction transaction = createATMTransaction(request, cardAccountNumber);
-                if (cardAccountNumber.equals(transaction.getSourceAccountNumber())) {
-                    doTransactionRequest(transaction, customerId, callbackBuilder);
-                } else {
-                    doDepositTransactionRequest(transaction, callbackBuilder);
-                }
+                getATMTransactionAuthorization(request, callbackBuilder);
             } else {
-                getPinTransactionAuthorization(request);
-                Transaction transaction = JSONParser.createJsonTransaction(-1,
-                        request.getSourceAccountNumber(), request.getDestinationAccountNumber(),
-                        request.getDestinationAccountHolderName(),
-                        "PIN Transaction card #" + request.getCardNumber(),
-                        request.getTransactionAmount(), false, false);
-                doTransactionRequest(transaction, customerId, callbackBuilder);
+                getPinTransactionAuthorization(request, callbackBuilder);
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -163,13 +156,15 @@ class PinService {
      * Fetches card information for the card used in the transaction from the database, then checks if there is money
      * taken from or written to this account, if the pincode is correct, and if the card is still valid.
      * @param pinTransaction Pin transaction that needs to be authorized.
+     * @param callbackBuilder Used to send the result of the request to the requester.
      * @throws SQLException Thrown when the database cannot be reached, will cause a rejection of the transaction.
      * @throws CardBlockedException Thrown when the card used in the transaction is blocked.
      * @throws IncorrectPinException Thrown when the pincode used in the transaction is incorrect.
      * @throws CardExpiredException Thrown when the card used in the transaction is expired.
      * @throws IncorrectInputException Thrown when a field is incorrectly specified.
      */
-    void getATMTransactionAuthorization(final PinTransaction pinTransaction) throws SQLException,
+    void getATMTransactionAuthorization(final PinTransaction pinTransaction,
+                                        final CallbackBuilder callbackBuilder) throws SQLException,
             CardBlockedException, IncorrectPinException, CardExpiredException, IncorrectInputException {
         if (pinTransaction.getTransactionAmount() < 0
                 || pinTransaction.getSourceAccountNumber().equals(pinTransaction.getDestinationAccountNumber())
@@ -184,33 +179,17 @@ class PinService {
         ResultSet cardInfo = getCardInfo.executeQuery();
         if (cardInfo.next()) {
             String accountNumberLinkedToCard = cardInfo.getString("account_number");
+            Long incorrectAttempts = cardInfo.getLong("incorrect_attempts");
+            PinCard pinCard = new PinCard(accountNumberLinkedToCard, pinTransaction.getCardNumber(),
+                    cardInfo.getString("pin_code"),
+                    getCustomerIdFromCardNumber(pinTransaction.getCardNumber()),
+                    cardInfo.getDate("expiration_date").toLocalDate());
             if (accountNumberLinkedToCard.equals(pinTransaction.getDestinationAccountNumber())
                     || accountNumberLinkedToCard.equals(pinTransaction.getSourceAccountNumber())) {
                 if (!pinTransaction.getSourceAccountNumber().equals(pinTransaction.getDestinationAccountNumber())) {
-                    if (cardInfo.getLong("incorrect_attempts") < 3) {
-                        if (cardInfo.getString("pin_code").equals(pinTransaction.getPinCode())) {
-
-                            // reset the count
-                            try {
-                                unblockPinCard(new PinCard(accountNumberLinkedToCard, pinTransaction.getCardNumber()));
-                            } catch (NoEffectException e) {
-                                // do nothing
-                            }
-
-                            if (!cardInfo.getDate("expiration_date").after(new Date())) {
-                                getCardInfo.close();
-                                databaseConnectionPool.returnConnection(databaseConnection);
-                                throw new CardExpiredException("The card used is expired.");
-                            }
-                        } else {
-                            getCardInfo.close();
-                            databaseConnectionPool.returnConnection(databaseConnection);
-                            incrementIncorrectAttempts(pinTransaction.getCardNumber());
-                            throw new IncorrectPinException("The pin code used is incorrect.");
-                        }
-                    } else {
-                        getCardInfo.close();
-                        databaseConnectionPool.returnConnection(databaseConnection);
+                    if (incorrectAttempts < 3) {
+                        checkPinValidity(pinCard, pinTransaction, true, callbackBuilder);
+                    }  else {
                         throw new CardBlockedException("The card used is blocked.");
                     }
                 } else {
@@ -233,6 +212,85 @@ class PinService {
         }
         getCardInfo.close();
         databaseConnectionPool.returnConnection(databaseConnection);
+    }
+
+    /**
+     * Checks if the pin card used is not blocked or expired and if the pinCode used is correct.
+     * @param callbackBuilder Used to send rejections to the requester if the request fails.
+     * @param pinTransaction Transaction that this card is used for.
+     * @throws SQLException Thrown when a database error occurs.
+     * @throws IncorrectInputException Thrown when the card cannot be unblocked due to an incorrect input.
+     */
+    private void checkPinValidity(final PinCard pinCard, final PinTransaction pinTransaction, final boolean isATM,
+                                  final CallbackBuilder callbackBuilder) throws SQLException, IncorrectInputException {
+        systemInformationClient.getAsync("services/systemInfo/date",
+            (httpStatusCode, contentType, body) -> {
+                if (httpStatusCode == HTTP_OK) {
+                    MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser
+                            .removeEscapeCharacters(body), MessageWrapper.class);
+                    if (!messageWrapper.isError()) {
+                        LocalDate systemDate = (LocalDate) messageWrapper.getData();
+                        if (pinCard.getExpirationDate().isAfter(systemDate)) {
+                            try {
+                                if (pinCard.getPinCode().equals(pinTransaction.getPinCode())) {
+                                    // reset the count
+                                    unblockPinCard(new PinCard(pinCard.getAccountNumber(), pinCard.getCardNumber()));
+                                    if (pinCard.getAccountNumber().equals(pinTransaction.getSourceAccountNumber())) {
+                                        if (isATM) {
+                                            Transaction transaction = createATMTransaction(pinTransaction,
+                                                    pinCard.getAccountNumber());
+                                            doTransactionRequest(transaction, pinCard.getCustomerId(), callbackBuilder);
+                                        } else {
+                                            Transaction transaction = JSONParser.createJsonTransaction(-1,
+                                                    pinTransaction.getSourceAccountNumber(),
+                                                    pinTransaction.getDestinationAccountNumber(),
+                                                    pinTransaction.getDestinationAccountHolderName(),
+                                                    "PIN Transaction card #" + pinTransaction.getCardNumber(),
+                                                    pinTransaction.getTransactionAmount(), false,
+                                                    false);
+                                            doTransactionRequest(transaction, pinCard.getCustomerId(), callbackBuilder);
+                                        }
+                                    } else {
+                                        Transaction transaction = createATMTransaction(pinTransaction,
+                                                pinCard.getAccountNumber());
+                                        doDepositTransactionRequest(transaction, callbackBuilder);
+                                    }
+                                } else {
+                                    incrementIncorrectAttempts(pinTransaction.getCardNumber());
+                                    callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
+                                            .createMessageWrapper(true, 421,
+                                                    "The pin code used is incorrect.",
+                                                    "An invalid PINcard, -code or -combination was used.")));
+                                }
+                            } catch (NoEffectException e) {
+                                // do nothing
+                            } catch (SQLException e) {
+                                e.printStackTrace();
+                                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
+                                        .createMessageWrapper(true, 500,
+                                                "Error connecting to the pin database.")));
+                            } catch (IncorrectInputException e) {
+                                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
+                                        .createMessageWrapper(true, 421, e.getMessage(),
+                                        "A field was incorrectly specified,"
+                                                + " or not specified at all, see message.")));
+                            }
+                        } else {
+                            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
+                                    .createMessageWrapper(true, 421,
+                                            "The card used is expired.",
+                                            "The pin card used is no longer valid.")));
+                        }
+                    } else {
+                        callbackBuilder.build().reply(body);
+                    }
+                } else {
+                    callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
+                            .createMessageWrapper(true, 500,
+                                    "An unknown error occurred.",
+                                    "There was a problem with one of the HTTP requests")));
+                }
+            });
     }
 
     /**
@@ -278,51 +336,54 @@ class PinService {
     /**
      * Checks if the source account number of the transaction matches the account number of the card that was used and
      * if the pin code for the card was correct/the card is not expired.
-     * @param transaction PinTransaction that should be authorized.
+     * @param pinTransaction PinTransaction that should be authorized.
      * @throws SQLException Thrown when the database cannot be reached, will cause a rejection of the transaction.
      * @throws CardBlockedException Thrown when the card used in the transaction is blocked.
      * @throws IncorrectPinException Thrown when the pincode used in the transaction is incorrect.
      * @throws CardExpiredException Thrown when the card used in the transaction is expired.
      * @throws IncorrectInputException Thrown when a field is incorrectly specified.
      */
-    void getPinTransactionAuthorization(final PinTransaction transaction) throws SQLException, CardExpiredException,
-        IncorrectInputException, IncorrectPinException, CardBlockedException {
-        if (transaction.getTransactionAmount() < 0
-                || transaction.getSourceAccountNumber().equals(transaction.getDestinationAccountNumber())
-                || transaction.getSourceAccountNumber().length() != accountNumberLength
-                || transaction.getDestinationAccountNumber().length() != accountNumberLength) {
+    void getPinTransactionAuthorization(final PinTransaction pinTransaction,
+                                        final CallbackBuilder callbackBuilder) throws SQLException,
+                                        CardExpiredException, IncorrectInputException, IncorrectPinException,
+                                        CardBlockedException {
+        if (pinTransaction.getTransactionAmount() < 0
+                || pinTransaction.getSourceAccountNumber().equals(pinTransaction.getDestinationAccountNumber())
+                || pinTransaction.getSourceAccountNumber().length() != accountNumberLength
+                || pinTransaction.getDestinationAccountNumber().length() != accountNumberLength) {
             throw new IncorrectInputException(
                     "The transaction amount or source/destination accountNumbers were incorrectly specified.");
         }
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement getCardInfo = databaseConnection.getConnection()
                                                     .prepareStatement(SQLStatements.getPinCard);
-        getCardInfo.setLong(1, transaction.getCardNumber());
+        getCardInfo.setLong(1, pinTransaction.getCardNumber());
         ResultSet cardInfo = getCardInfo.executeQuery();
         if (cardInfo.next()) {
-            if (transaction.getSourceAccountNumber().equals(cardInfo.getString("account_number"))) {
-                final String pinCode = transaction.getPinCode();
-                if (cardInfo.getLong("incorrect_attempts") < 3) {
-                    if ((transaction.getTransactionAmount() < CONTACTLESS_TRANSACTION_LIMIT && pinCode == null)
-                            || (pinCode.equals(cardInfo.getString("pin_code")))) {
-
-                        // reset the count
-                        try {
-                            unblockPinCard(new PinCard(transaction.getSourceAccountNumber(), transaction.getCardNumber()));
-                        } catch (NoEffectException e) {
-                            // do nothing
-                        }
-
-                        if (!cardInfo.getDate("expiration_date").after(new Date())) { //check if expiration date is after current date
+            final String pinCodeUsed = pinTransaction.getPinCode();
+            String accountNumberLinkedToCard = cardInfo.getString("account_number");
+            Long incorrectAttempts = cardInfo.getLong("incorrect_attempts");
+            PinCard pinCard = new PinCard(accountNumberLinkedToCard, pinTransaction.getCardNumber(),
+                    cardInfo.getString("pin_code"),
+                    getCustomerIdFromCardNumber(pinTransaction.getCardNumber()),
+                    cardInfo.getDate("expiration_date").toLocalDate());
+            if (pinTransaction.getSourceAccountNumber().equals(accountNumberLinkedToCard)) {
+                if (incorrectAttempts < 3) {
+                    if (pinCodeUsed == null) {
+                        if (pinTransaction.getTransactionAmount() < CONTACTLESS_TRANSACTION_LIMIT) {
+                            checkPinValidity(pinCard, pinTransaction, false, callbackBuilder);
+                        } else {
                             getCardInfo.close();
                             databaseConnectionPool.returnConnection(databaseConnection);
-                            throw new CardExpiredException("The card used is expired.");
+                            throw new IncorrectPinException("The transfer amount is too high, please enter pin code.");
                         }
+                    } else if (pinCodeUsed.equals(pinCard.getPinCode())) {
+                        checkPinValidity(pinCard, pinTransaction, false, callbackBuilder);
                     } else {
                         getCardInfo.close();
                         databaseConnectionPool.returnConnection(databaseConnection);
-                        incrementIncorrectAttempts(transaction.getCardNumber());
-                        throw new IncorrectPinException("The pin code used is incorrect.");
+                        incrementIncorrectAttempts(pinCard.getCardNumber());
+                        throw new IncorrectPinException("The pin code used was incorrect.");
                     }
                 } else {
                     getCardInfo.close();
@@ -332,13 +393,13 @@ class PinService {
             } else {
                 getCardInfo.close();
                 databaseConnectionPool.returnConnection(databaseConnection);
-                incrementIncorrectAttempts(transaction.getCardNumber());
+                incrementIncorrectAttempts(pinTransaction.getCardNumber());
                 throw new IncorrectPinException("Pin card does not belong to accountNumber used in the transaction.");
             }
         } else {
             getCardInfo.close();
             databaseConnectionPool.returnConnection(databaseConnection);
-            incrementIncorrectAttempts(transaction.getCardNumber());
+            incrementIncorrectAttempts(pinTransaction.getCardNumber());
             throw new IncorrectPinException("Pin card does not exist.");
         }
         getCardInfo.close();
@@ -438,7 +499,8 @@ class PinService {
             }
         } else {
             System.out.printf("%s Pin transaction was unsuccessful, sending rejection.\n", PREFIX);
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred.")));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                                                                "Unknown error occurred.")));
         }
     }
 
@@ -456,23 +518,52 @@ class PinService {
                               final @RequestParam("accountNumber") String accountNumber) {
         System.out.printf("%s Received new pin card request.\n", PREFIX);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handleNewPinCardExceptions(requesterId, ownerId, accountNumber, callbackBuilder);
+        generateExpirationDate(requesterId, ownerId, accountNumber, callbackBuilder);
     }
 
     /**
-     * Creates a new pin card for the Customer with customerId and accountNumber if the creation succeeds sends the
-     * result back to the request source, otherwise rejects the request.
+     * Generates an expiration date for a pin card by adding the valid card duration to the current date.
      * @param requesterId CustomerId of the user that sent the request.
      * @param ownerId CustomerId of the customer that will own the new card.
      * @param accountNumber AccountNumber the card should be created for.
      * @param callbackBuilder Used to send the creation result to the request source.
      */
-    private void handleNewPinCardExceptions(final String requesterId, final String ownerId, final String accountNumber,
+    void generateExpirationDate(final String requesterId, final String ownerId, final String accountNumber,
+                                final CallbackBuilder callbackBuilder) {
+        systemInformationClient.getAsync("/services/systemInfo/date", (httpStatusCode, contentType, body) -> {
+            if (httpStatusCode == HTTP_OK) {
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
+                        MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    LocalDate systemDate = (LocalDate) messageWrapper.getData();
+                    LocalDate expirationDate = systemDate.plusYears(VALID_CARD_DURATION);
+                    handleNewPinCardExceptions(expirationDate, requesterId, ownerId, accountNumber, callbackBuilder);
+                } else {
+                    callbackBuilder.build().reply(body);
+                }
+            } else {
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true,
+                        500, "An unknown error occurred.",
+                        "There was a problem with one of the HTTP requests")));
+            }
+        });
+    }
+
+    /**
+     * Creates a new pin card for the Customer with customerId and accountNumber if the creation succeeds sends the
+     * result back to the request source, otherwise rejects the request.
+     * @param expirationDate ExpirationDate for the new pin card.
+     * @param requesterId CustomerId of the user that sent the request.
+     * @param ownerId CustomerId of the customer that will own the new card.
+     * @param accountNumber AccountNumber the card should be created for.
+     * @param callbackBuilder Used to send the creation result to the request source.
+     */
+    private void handleNewPinCardExceptions(final LocalDate expirationDate, final String requesterId,
+                                            final String ownerId, final String accountNumber,
                                             final CallbackBuilder callbackBuilder) {
         try {
             Long cardNumber = getNextAvailableCardNumber();
             String pinCode = generatePinCode();
-            Date expirationDate = generateExpirationDate();
             //todo check if the requester has permissions for the card.
             PinCard pinCard;
             if (ownerId.length() > 0) {
@@ -528,17 +619,6 @@ class PinService {
     }
 
     /**
-     * Generates an expiration date for a pin card by adding the valid card duration to the current date.
-     * @return Expiration date for a new pin card.
-     */
-    Date generateExpirationDate() {
-        Calendar c = Calendar.getInstance();
-        c.setTime(new Date());
-        c.add(Calendar.YEAR, VALID_CARD_DURATION);
-        return c.getTime();
-    }
-
-    /**
      * Inserts a pin card into the pin database.
      * ExpirationDate for the card will be set to the day that the date is on, time is disregarded once the card is
      * in the database.
@@ -553,7 +633,7 @@ class PinService {
         addPinCard.setLong(2, pinCard.getCustomerId());
         addPinCard.setLong(3, pinCard.getCardNumber());
         addPinCard.setString(4, pinCard.getPinCode());
-        addPinCard.setDate(5, new java.sql.Date(pinCard.getExpirationDate().getTime()));
+        addPinCard.setDate(5, java.sql.Date.valueOf(pinCard.getExpirationDate()));
         addPinCard.setLong(6, 0L);
         addPinCard.executeUpdate();
         addPinCard.close();

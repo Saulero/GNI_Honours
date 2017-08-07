@@ -4,6 +4,7 @@ import api.ApiServiceMain;
 import authentication.AuthenticationServiceMain;
 import ledger.LedgerServiceMain;
 import pin.PinServiceMain;
+import systeminformation.SystemInformationServiceMain;
 import transactionin.TransactionReceiveServiceMain;
 import transactionout.TransactionDispatchServiceMain;
 import ui.UIServiceMain;
@@ -22,7 +23,7 @@ public class BootSystem {
 
     public static void startServices() {
         TableCreator.truncateTables();
-
+        SystemInformationServiceMain.main();
         LedgerServiceMain.main();
         UsersServiceMain.main();
         UIServiceMain.main();

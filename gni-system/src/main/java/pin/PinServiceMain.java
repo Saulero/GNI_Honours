@@ -25,7 +25,8 @@ public final class PinServiceMain {
                         .setRootURI("/services") //Defaults to services
                         .setPort(9995);
         managedServiceBuilder.addEndpointService(new PinService(9993,
-                "localhost", 9994, "localhost"))
+                "localhost", 9994, "localhost",
+                9998, "localhost"))
                 .getEndpointServerBuilder()
                 .build().startServer();
         System.out.println("Pin service started");
