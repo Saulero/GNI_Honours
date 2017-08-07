@@ -22,6 +22,8 @@ public class PinCard {
         this.expirationDate = expirationDate;
     }
 
+    public PinCard() {}
+
     public BankAccount getBankAccount() {
         return bankAccount;
     }

@@ -970,7 +970,7 @@ final class UIService {
                                           @RequestParam("cookie") final String cookie) {
         System.out.printf("%s Forwarding pinCard unblock request.\n", PREFIX);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handleAccountLinkExceptions(requestJson, cookie, callbackBuilder);
+        handlePinCardUnblockExceptions(requestJson, cookie, callbackBuilder);
     }
 
     /**

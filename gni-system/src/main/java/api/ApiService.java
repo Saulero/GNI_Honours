@@ -729,9 +729,9 @@ final class ApiService {
     private void unblockCard(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
                                final Object id) {
         String accountNumber = (String) params.get("iBAN");
-        Long pinCard = (Long) params.get("pinCard");
+        String pinCard = (String) params.get("pinCard");
         String cookie = (String) params.get("authToken");
-        PinCard request = JSONParser.createJsonPinCard(accountNumber, pinCard, null, 0L, null);
+        PinCard request = JSONParser.createJsonPinCard(accountNumber, Long.parseLong(pinCard), null, 0L, null);
         System.out.printf("%s Sending pinCard unblock request.\n", PREFIX);
         uiClient.putFormAsyncWith2Params("/services/ui/unblockCard", "request",
                 jsonConverter.toJson(request), "cookie", cookie, (code, contentType, body) -> {

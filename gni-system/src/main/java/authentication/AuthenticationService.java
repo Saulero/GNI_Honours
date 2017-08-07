@@ -1025,7 +1025,7 @@ class AuthenticationService {
      * @param callbackBuilder Used to send the result of the request back to the source of the request.
      */
     private void doPinCardUnblockRequest(final String requestJson, final CallbackBuilder callbackBuilder) {
-        pinClient.putFormAsyncWith1Param("/services/pin/unblockCard", "body",
+        pinClient.putFormAsyncWith1Param("/services/pin/unblockCard", "pinCard",
                 requestJson, ((httpStatusCode, httpContentType, body) -> {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);

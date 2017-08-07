@@ -117,22 +117,18 @@ class PinService {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
                     .createMessageWrapper(true, 500, "Error connecting to the pin database.")));
         } catch (IncorrectInputException e) {
-            e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
                     .createMessageWrapper(true, 421, e.getMessage(),
                         "A field was incorrectly specified, or not specified at all, see message.")));
         } catch (CardBlockedException e) {
-            e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
                     .createMessageWrapper(true, 419, e.getMessage(),
                             "The pin card used does not have the authorization to perform this request.")));
         } catch (IncorrectPinException e) {
-            e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
                     .createMessageWrapper(true, 421, e.getMessage(),
                             "An invalid PINcard, -code or -combination was used.")));
         } catch (CardExpiredException e) {
-            e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
                     .createMessageWrapper(true, 421, e.getMessage(),
                             "The pin card used is no longer valid.")));
