@@ -983,6 +983,72 @@ class AuthenticationService {
         callbackBuilder.build().reply(jsonReply);
     }
 
+    /**
+     * Creates a callback builder for a pinCard unblock request and then forwards the request to the PinService.
+     * @param callback Used to send the result of the request back to the source of the request.
+     * @param requestJson Json string representing a {@link PinCard} that should be unblocked.
+     */
+    @RequestMapping(value = "/unblockCard", method = RequestMethod.PUT)
+    public void processPinCardUnblockRequest(final Callback<String> callback,
+                                          @RequestParam("request") final String requestJson,
+                                          @RequestParam("cookie") final String cookie) {
+        PinCard pinCard = jsonConverter.fromJson(requestJson, PinCard.class);
+        System.out.printf("%s Forwarding pinCard unblock request.\n", PREFIX);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handlePinCardUnblockExceptions(pinCard, cookie, callbackBuilder);
+    }
+
+    /**
+     * Authenticates the PinCard unblock request and then forwards the request to the Pinservice.
+     * @param pinCard PinCard that should be unblocked.
+     * @param cookie Cookie of the customer requesting the account link.
+     * @param callbackBuilder Used to send the reply back to the requesting service.
+     */
+    private void handlePinCardUnblockExceptions(final PinCard pinCard, final String cookie,
+                                             final CallbackBuilder callbackBuilder) {
+        try {
+            authenticateRequest(cookie);
+            doPinCardUnblockRequest(jsonConverter.toJson(pinCard), callbackBuilder);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
+        } catch (UserNotAuthorizedException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.")));
+        }
+    }
+
+    /**
+     * Forwards a String representing a pinCard to the PinService, and processes the reply if it is
+     * successful or sends a rejection to the requesting service if it fails.
+     * @param requestJson String representing an {@link PinCard} that should be unblocked.
+     * @param callbackBuilder Used to send the result of the request back to the source of the request.
+     */
+    private void doPinCardUnblockRequest(final String requestJson, final CallbackBuilder callbackBuilder) {
+        pinClient.putFormAsyncWith1Param("/services/pin/unblockCard", "pinCard",
+                requestJson, ((httpStatusCode, httpContentType, body) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendPinCardUnblockCallback(body, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(body);
+                        }
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                    }
+                }));
+    }
+
+    /**
+     * Forwards the result of a pinCard unblock request to the service that sent the request.
+     * @param replyJson Json String representing the result of a PinCard unblock request.
+     * @param callbackBuilder Used to send the result of the request back to the source of the request.
+     */
+    private void sendPinCardUnblockCallback(final String replyJson, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Successful pinCard unblock, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(replyJson);
+    }
 
     /**
      * Safely shuts down the AuthenticationService.

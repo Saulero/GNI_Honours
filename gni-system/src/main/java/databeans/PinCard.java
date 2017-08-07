@@ -22,6 +22,11 @@ public class PinCard implements Serializable {
         this.expirationDate = expirationDate;
     }
 
+    public PinCard(final String accountNumber, final Long cardNumber) {
+        this.accountNumber = accountNumber;
+        this.cardNumber = cardNumber;
+    }
+
     public PinCard() {
     }
 
