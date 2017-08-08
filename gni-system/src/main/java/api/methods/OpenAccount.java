@@ -3,6 +3,7 @@ package api.methods;
 import api.ApiBean;
 import api.IncorrectInputException;
 import com.google.gson.JsonSyntaxException;
+import databeans.Account;
 import databeans.Authentication;
 import databeans.Customer;
 import databeans.MessageWrapper;
@@ -28,11 +29,10 @@ public class OpenAccount {
      * @param params all parameters for the method call, if a parameter is not in this map the request will be rejected.
      */
     public static void openAccount(final Map<String, Object> params, final ApiBean api) {
-        Customer customer = JSONParser.createJsonCustomer((String) params.get("initials"), (String) params.get("name"),
+        Customer customer = new Customer((String) params.get("initials"), (String) params.get("name"),
                 (String) params.get("surname"), (String) params.get("email"), (String) params.get("telephoneNumber"),
                 (String) params.get("address"), (String) params.get("dob"), Long.parseLong((String) params.get("ssn")),
-                0.0, 0.0, 0L, (String) params.get("username"),
-                (String) params.get("password"));
+                (String) params.get("username"), (String) params.get("password"));
         handleNewCustomerExceptions(customer, api);
     }
 
@@ -118,8 +118,10 @@ public class OpenAccount {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = api.getJsonConverter().fromJson(JSONParser.removeEscapeCharacters(newCustomerReplyJson), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
-                            getAuthTokenForPinCard(new Authentication(customer.getUsername(), customer.getPassword()),
-                                    customer.getAccount().getAccountNumber(), api);
+                            Customer customerReply = (Customer) messageWrapper.getData();
+                            getAuthTokenForPinCard(new Authentication(
+                                    customerReply.getUsername(), customerReply.getPassword()),
+                                    customerReply.getAccount().getAccountNumber(), api);
                         } else {
                             sendErrorReply(messageWrapper, api);
                         }
