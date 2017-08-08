@@ -4,10 +4,18 @@ import api.ApiBean;
 import api.IncorrectInputException;
 import com.google.gson.JsonSyntaxException;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
-import databeans.*;
+import databeans.DataReply;
+import databeans.DataRequest;
+import databeans.MessageWrapper;
+import databeans.RequestType;
+import databeans.Transaction;
 import util.JSONParser;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static api.ApiService.PREFIX;
 import static api.ApiService.accountNumberLength;
@@ -129,8 +137,14 @@ public class ProcessDataRequest {
                 sendDataRequestResponse(accounts, api);
                 break;
             case ACCOUNTACCESSLIST:
-                System.out.printf("%s Sending account access list request callback.\n", PREFIX);
-                api.getCallbackBuilder().build().reply(dataReply);
+                System.out.printf("%s BankAccountAccess request successful.\n\n\n\n", PREFIX);
+                List<Map<String, Object>> result = new ArrayList<>();
+                dataReply.getAccounts().forEach(k -> {
+                    Map<String, Object> account = new HashMap<>();
+                    account.put("username", k.getUsername());
+                    result.add(account);
+                });
+                sendDataRequestResponse(result, api);
                 break;
             default:
                 sendErrorReply(JSONParser.createMessageWrapper(
