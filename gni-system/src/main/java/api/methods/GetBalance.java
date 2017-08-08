@@ -21,6 +21,6 @@ public class GetBalance {
     public static void getBalance(final Map<String, Object> params, final ApiBean api) {
         DataRequest request = new DataRequest((String) params.get("iBAN"), RequestType.BALANCE, 0L);
         System.out.printf("%s Sending getBalance request.\n", PREFIX);
-        handleDataRequestExceptions(request, (String) params.get("authToken"), api);
+        handleDataRequestExceptions(request, (String) params.get("authToken"), 0L, api);
     }
 }

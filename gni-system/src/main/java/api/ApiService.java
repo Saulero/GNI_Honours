@@ -100,7 +100,7 @@ public class ApiService {
                     break;
                 case "getBalance":              GetBalance.getBalance(params, api);
                     break;
-                case "getTransactionsOverview": getTransactionsOverview(params, callbackBuilder, id);
+                case "getTransactionsOverview": GetTransactionsOverview.getTransactionsOverview(params, api);
                     break;
                 case "getUserAccess":           getUserAccess(params, callbackBuilder, id);
                     break;
@@ -137,52 +137,6 @@ public class ApiService {
 
     public Gson getJsonConverter() {
         return jsonConverter;
-    }
-
-    /**
-     * Fetches the transaction history of an account, the authToken needs to belong to a user that is authorized to view
-     * the transaction history of the iBAN.
-     * @param params Parameters of the request (authToken, iBAN, nrOfTransactions).
-     * @param callbackBuilder Used to send the result of the request back to the request source.
-     * @param id Id of the request.
-     */
-    private void getTransactionsOverview(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
-                                         final Object id) {
-        DataRequest request = JSONParser.createJsonDataRequest((String) params.get("iBAN"),
-                                                                RequestType.TRANSACTIONHISTORY, 0L);
-        System.out.printf("%s Sending transactionOverview request.\n", PREFIX);
-        uiClient.getAsyncWith2Params("/services/ui/data", "request", jsonConverter.toJson(request),
-                "cookie", params.get("authToken"), (code, contentType, body) -> {
-                    if (code == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
-                        if (!messageWrapper.isError()) {
-                            DataReply balanceReply = (DataReply) messageWrapper.getData();
-                            System.out.printf("%s TransactionOverview request successful.\n\n\n\n", PREFIX);
-                            List<Map<String, Object>> transactionList = new ArrayList<>();
-                            Long nrOfTransactions = (Long) params.get("nrOfTransactions");
-                            List<Transaction> transactions = balanceReply.getTransactions().subList(0,
-                                    Math.toIntExact(nrOfTransactions) - 1);
-                            for (Transaction transaction : transactions) {
-                                Map<String, Object> transactionMap = new HashMap<>();
-                                transactionMap.put("sourceIBAN", transaction.getSourceAccountNumber());
-                                transactionMap.put("targetIBAN", transaction.getDestinationAccountNumber());
-                                transactionMap.put("targetName", transaction.getDestinationAccountHolderName());
-                                transactionMap.put("date", transaction.getDate().toString());
-                                transactionMap.put("amount", transaction.getTransactionAmount());
-                                transactionMap.put("description", transaction.getDescription());
-                                transactionList.add(transactionMap);
-                            }
-                            JSONRPC2Response response = new JSONRPC2Response(transactionList, id);
-                            callbackBuilder.build().reply(response.toJSONString());
-                        } else {
-                            sendErrorReply(callbackBuilder, messageWrapper, id);
-                        }
-                    } else {
-                        System.out.printf("%s Request not successful, body: %s\n\n\n\n", PREFIX, body);
-                        JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
-                        callbackBuilder.build().reply(response.toJSONString());
-                    }
-                });
     }
 
     /**
