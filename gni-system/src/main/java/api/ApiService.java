@@ -108,7 +108,7 @@ public class ApiService {
                     break;
                 case "unblockCard":             UnblockCard.unblockCard(params, api);
                     break;
-                case "simulateTime":            simulateTime(params, callbackBuilder, id);
+                case "simulateTime":            SimulateTime.simulateTime(params, api);
                     break;
                 case "reset":                   reset(callbackBuilder, id);
                     break;
@@ -137,37 +137,6 @@ public class ApiService {
 
     public Gson getJsonConverter() {
         return jsonConverter;
-    }
-
-    /**
-     * Process passing of time withint the system.
-     * @param params Parameters of the request(nrOfDays).
-     * @param callbackBuilder Used to send the result of the request back to the request source.
-     * @param id Id of the request.
-     */
-    private void simulateTime(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
-                             final Object id) {
-        Long nrOfDays = (Long) params.get("nrOfDays");
-        System.out.printf("%s Sending simulate time request.\n", PREFIX);
-        systemInformationClient.putFormAsyncWith1Param("/services/systemInfo/date/increment", "days",
-                jsonConverter.toJson(nrOfDays), (code, contentType, body) -> {
-                    if (code == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
-                        if (!messageWrapper.isError()) {
-                            System.out.printf("%s %s days have now passed on the system.\n\n\n\n", PREFIX, "" + nrOfDays);
-                            Map<String, Object> result = new HashMap<>();
-                            JSONRPC2Response response = new JSONRPC2Response(result, id);
-                            callbackBuilder.build().reply(response.toJSONString());
-                        } else {
-                            System.out.printf("%s Simulate time request unsuccessful.\n\n\n\n", PREFIX);
-                            sendErrorReply(callbackBuilder, messageWrapper, id);
-                        }
-                    } else {
-                        System.out.printf("%s Simulate time request unsuccessful.\n\n\n\n", PREFIX);
-                        JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
-                        callbackBuilder.build().reply(response.toJSONString());
-                    }
-                });
     }
 
     /**
