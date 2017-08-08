@@ -654,8 +654,7 @@ class LedgerService {
     private void fillTransactionList(final List<Transaction> list, final ResultSet rs) throws SQLException {
         while (rs.next()) {
             long id = rs.getLong("id");
-            Date realDate = rs.getDate("date");
-            LocalDate date = LocalDate.of(realDate.getYear(), realDate.getMonth(), realDate.getDate());
+            LocalDate date = rs.getDate("date").toLocalDate();
             String sourceAccount = rs.getString("account_from");
             String destinationAccount = rs.getString("account_to");
             String destinationAccountHolderName = rs.getString("account_to_name");
