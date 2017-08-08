@@ -14,6 +14,7 @@ import io.advantageous.qbit.reactive.CallbackBuilder;
 import databeans.MessageWrapper;
 import util.JSONParser;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -30,8 +31,10 @@ import static java.net.HttpURLConnection.HTTP_OK;
 final class ApiService {
     /** Connection to the ui service. */
     private HttpClient uiClient;
-    /** Connection to the upini service. */
+    /** Connection to the pin service. */
     private HttpClient pinClient;
+    /** Connection to the SystemInformation service. */
+    private HttpClient systemInformationClient;
     /** Used for json conversions. */
     private Gson jsonConverter;
     /** Prefix used when printing to indicate the message is coming from the Api Service. */
@@ -46,9 +49,11 @@ final class ApiService {
      * @param pinPort Port the pin service is located on.
      * @param pinHost Host the pin service is located on.
      */
-    public ApiService(final int uiPort, final String uiHost, final int pinPort, final String pinHost) {
+    public ApiService(final int uiPort, final String uiHost, final int pinPort, final String pinHost,
+                      final int sysInfoPort, final String sysInfoHost) {
         uiClient = httpClientBuilder().setHost(uiHost).setPort(uiPort).buildAndStart();
         pinClient = httpClientBuilder().setHost(pinHost).setPort(pinPort).buildAndStart();
+        systemInformationClient = httpClientBuilder().setHost(sysInfoHost).setPort(sysInfoPort).buildAndStart();
         jsonConverter = new Gson();
     }
 
@@ -94,6 +99,12 @@ final class ApiService {
                     break;
                 case "unblockCard":             unblockCard(params, callbackBuilder, id);
                     break;
+                case "simulateTime":            simulateTime(params, callbackBuilder, id);
+                    break;
+                case "reset":                   reset(callbackBuilder, id);
+                    break;
+                case "getDate":                 getDate(callbackBuilder, id);
+                    break;
                 default:                        callback.reply(new JSONRPC2Response(JSONRPC2Error.METHOD_NOT_FOUND,
                         request.getID()).toJSONString());
                     break;
@@ -105,8 +116,8 @@ final class ApiService {
 
     /**
      * Creates a customer object that represents the customer an account should be created for. This method will create
-     * getAuthTokenForPinCard information for a customer, put the customer's information into the system and create a new bank account
-     * for the customer.
+     * getAuthTokenForPinCard information for a customer, put the customer's information into the system and create
+     * a new bank account for the customer.
      * @param params all parameters for the method call, if a parameter is not in this map the request will be rejected.
      * @param callbackBuilder Used to send the result of the request back to the request source.
      * @param id Id of the request.
@@ -749,6 +760,95 @@ final class ApiService {
                         }
                     } else {
                         System.out.printf("%s PinCard unblocking failed, body: %s\n\n\n\n", PREFIX, body);
+                        JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
+                        callbackBuilder.build().reply(response.toJSONString());
+                    }
+                });
+    }
+
+    /**
+     * Process passing of time withint the system.
+     * @param params Parameters of the request(nrOfDays).
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     * @param id Id of the request.
+     */
+    private void simulateTime(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
+                             final Object id) {
+        Long nrOfDays = (Long) params.get("nrOfDays");
+        System.out.printf("%s Sending simulate time request.\n", PREFIX);
+        systemInformationClient.putFormAsyncWith1Param("/services/systemInfo/date/increment", "days",
+                jsonConverter.toJson(nrOfDays), (code, contentType, body) -> {
+                    if (code == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            System.out.printf("%s %s days have now passed on the system.\n\n\n\n", PREFIX, "" + nrOfDays);
+                            Map<String, Object> result = new HashMap<>();
+                            JSONRPC2Response response = new JSONRPC2Response(result, id);
+                            callbackBuilder.build().reply(response.toJSONString());
+                        } else {
+                            System.out.printf("%s Simulate time request unsuccessful.\n\n\n\n", PREFIX);
+                            sendErrorReply(callbackBuilder, messageWrapper, id);
+                        }
+                    } else {
+                        System.out.printf("%s Simulate time request unsuccessful.\n\n\n\n", PREFIX);
+                        JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
+                        callbackBuilder.build().reply(response.toJSONString());
+                    }
+                });
+    }
+
+    /**
+     * Resets the system's Database and system time.
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     * @param id Id of the request.
+     */
+    private void reset(final CallbackBuilder callbackBuilder, final Object id) {
+        System.out.printf("%s Sending Reset request.\n", PREFIX);
+        systemInformationClient.postAsync("/services/systemInfo/reset", (code, contentType, body) -> {
+            if (code == HTTP_OK) {
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    LocalDate date = (LocalDate) messageWrapper.getData();
+                    System.out.printf("%s Reset successful, the current date is: %s\n\n\n\n", PREFIX, date.toString());
+                    Map<String, Object> result = new HashMap<>();
+                    JSONRPC2Response response = new JSONRPC2Response(result, id);
+                    callbackBuilder.build().reply(response.toJSONString());
+                } else {
+                    System.out.printf("%s Reset unsuccessful.\n\n\n\n", PREFIX);
+                    sendErrorReply(callbackBuilder, messageWrapper, id);
+                }
+            } else {
+                System.out.printf("%s Reset request failed, body: %s\n\n\n\n", PREFIX, body);
+                JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
+                callbackBuilder.build().reply(response.toJSONString());
+            }
+        });
+    }
+
+    /**
+     * Requests the current system date.
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     * @param id Id of the request.
+     */
+    private void getDate(final CallbackBuilder callbackBuilder, final Object id) {
+        System.out.printf("%s Sending current date request.\n", PREFIX);
+        systemInformationClient.getAsync("/services/systemInfo/date", (code, contentType, body) -> {
+                    if (code == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            LocalDate date = (LocalDate) messageWrapper.getData();
+                            System.out.printf("%s Current date successfully queried, the current date is: %s\n\n\n\n",
+                                    PREFIX, date.toString());
+                            Map<String, Object> result = new HashMap<>();
+                            result.put("date", date.toString());
+                            JSONRPC2Response response = new JSONRPC2Response(result, id);
+                            callbackBuilder.build().reply(response.toJSONString());
+                        } else {
+                            System.out.printf("%s Date request unsuccessful.\n\n\n\n", PREFIX);
+                            sendErrorReply(callbackBuilder, messageWrapper, id);
+                        }
+                    } else {
+                        System.out.printf("%s Date request unblocking failed, body: %s\n\n\n\n", PREFIX, body);
                         JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
                         callbackBuilder.build().reply(response.toJSONString());
                     }

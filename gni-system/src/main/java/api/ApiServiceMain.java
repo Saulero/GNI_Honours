@@ -25,7 +25,7 @@ public final class ApiServiceMain {
                         .setRootURI("/services") //Defaults to services
                         .setPort(9997);
         managedServiceBuilder.addEndpointService(new ApiService(9990,
-                "localhost", 9995, "localhost"))
+                "localhost", 9995, "localhost", 9998, "localhost"))
                 .getEndpointServerBuilder()
                 .build().startServer();
         System.out.println("Api service started");

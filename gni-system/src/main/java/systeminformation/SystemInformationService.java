@@ -6,6 +6,7 @@ import io.advantageous.qbit.annotation.RequestMethod;
 import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.reactive.Callback;
 import util.JSONParser;
+import util.TableCreator;
 
 import java.time.LocalDate;
 
@@ -30,7 +31,7 @@ class SystemInformationService {
     SystemInformationService() {
         this.systemDate = LocalDate.now();
         this.jsonConverter = new Gson();
-        System.out.printf("%s Set date to %s", PREFIX, this.systemDate.toString());
+        System.out.printf("%s Set date to %s\n", PREFIX, this.systemDate.toString());
     }
 
     /**
@@ -43,8 +44,7 @@ class SystemInformationService {
         this.systemDate = this.systemDate.plusDays(days);
         System.out.printf("%s Added %d days to system date, new date is %s\n", PREFIX, days,
                 this.systemDate.toString());
-        callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200,
-                "Normal Reply")));
+        callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply")));
     }
 
     /**
@@ -54,6 +54,19 @@ class SystemInformationService {
     @RequestMapping(value = "/date", method = RequestMethod.GET)
     void getDate(final Callback<String> callback) {
         System.out.printf("%s received date request, sending callback.\n", PREFIX);
+        callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200,
+                "Normal Reply", this.systemDate)));
+    }
+
+    /**
+     * Reset method for the systemDate & Database.
+     * @param callback Used to send the result of the request back to the requester.
+     */
+    @RequestMapping(value = "/reset", method = RequestMethod.POST)
+    void reset(final Callback<String> callback) {
+        TableCreator.truncateTables();
+        this.systemDate = LocalDate.now();
+        System.out.printf("%s Reset request successful, sending callback.\n", PREFIX);
         callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200,
                 "Normal Reply", this.systemDate)));
     }
