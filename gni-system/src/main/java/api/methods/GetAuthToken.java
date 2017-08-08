@@ -13,8 +13,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static api.ApiService.PREFIX;
-import static api.methods.SharedMethods.doNewPinCardRequest;
-import static api.methods.SharedMethods.valueHasCorrectLength;
+import static api.methods.NewPinCard.doNewPinCardRequest;
+import static api.methods.SharedUtilityMethods.valueHasCorrectLength;
 import static java.net.HttpURLConnection.HTTP_OK;
 
 /**

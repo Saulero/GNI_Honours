@@ -8,7 +8,7 @@ import util.JSONParser;
 import java.util.Map;
 
 import static api.ApiService.PREFIX;
-import static api.methods.SharedMethods.doNewPinCardRequest;
+import static api.methods.NewPinCard.doNewPinCardRequest;
 import static java.net.HttpURLConnection.HTTP_OK;
 
 /**

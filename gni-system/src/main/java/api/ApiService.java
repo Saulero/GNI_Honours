@@ -2,6 +2,7 @@ package api;
 
 import api.methods.GetAuthToken;
 import api.methods.OpenAccount;
+import api.methods.OpenAdditionalAccount;
 import com.google.gson.Gson;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Error;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2ParseException;
@@ -83,7 +84,7 @@ public class ApiService {
             switch (method) {
                 case "openAccount":             OpenAccount.openAccount(params, api);
                     break;
-                case "openAdditionalAccount":   openAdditionalAccount(params, callbackBuilder, id);
+                case "openAdditionalAccount":   OpenAdditionalAccount.openAdditionalAccount(params, api);
                     break;
                 case "closeAccount":            closeAccount(params, callbackBuilder, id);
                     break;
@@ -138,46 +139,6 @@ public class ApiService {
 
     public Gson getJsonConverter() {
         return jsonConverter;
-    }
-
-    /**
-     * Removes an account from the system.
-     * @param params Map containing the parameters of the request (authToken, IBAN).
-     * @param callbackBuilder Used to send the result of the request back to the request source.
-     * @param id Id of the request.
-     */
-    private void closeAccount(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
-                              final Object id) {
-        System.out.printf("%s Sending close account request.\n", PREFIX);
-        uiClient.putFormAsyncWith2Params("/services/ui/account/remove", "accountNumber",
-                params.get("iBAN"), "cookie", params.get("authToken"), (code, contentType, body) -> {
-                    if (code == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
-                        if (!messageWrapper.isError()) {
-                            AccountLink reply = (AccountLink) messageWrapper.getData();
-                            sendCloseAccountCallback(callbackBuilder, id, reply);
-                        } else {
-                            sendErrorReply(callbackBuilder, messageWrapper, id);
-                        }
-                    } else {
-                        System.out.printf("%s Account closing failed, body: %s\n\n\n\n", PREFIX, body);
-                        JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
-                        callbackBuilder.build().reply(response.toJSONString());
-                    }
-                });
-    }
-
-    /**
-     * Sends te result of the closeAccountRequest back to the request source using a JSONRPC object.
-     * @param callbackBuilder Used to send the result of the request back to the request source.
-     * @param id Id of the request.
-     * @param reply Used to show which accountNumber is closed.
-     */
-    private void sendCloseAccountCallback(final CallbackBuilder callbackBuilder, final Object id,
-                                          final AccountLink reply) {
-        System.out.printf("%s Successfully closed account %s\n\n\n\n", PREFIX, reply.getAccountNumber());
-        Map<String, Object> result = new HashMap<>();
-        callbackBuilder.build().reply(new JSONRPC2Response(result, id).toJSONString());
     }
 
     /**
