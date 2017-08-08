@@ -140,47 +140,6 @@ public class ApiService {
     }
 
     /**
-     * Makes a deposit into an account using a pincard.
-     * @param params Parameters of the request (iBAN, pinCard, pinCode, amount).
-     * @param callbackBuilder Used to send the result of the request back to the request source.
-     * @param id Id of the request.
-     */
-    private void depositIntoAccount(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
-                                    final Object id) {
-        System.out.printf("%s Sending deposit transaction.\n", PREFIX);
-        String accountNumber = (String) params.get("iBAN");
-        String pinCode = (String) params.get("pinCode");
-        String pinCard = (String) params.get("pinCard");
-        Double amount = (Double) params.get("amount");
-        PinTransaction pin = JSONParser.createJsonPinTransaction(ATMNUMBER, accountNumber,
-                "", pinCode, Long.parseLong(pinCard), amount, true);
-        pinClient.putFormAsyncWith1Param("/services/pin/transaction", "request",
-                jsonConverter.toJson(pin), (code, contentType, body) -> {
-                    if (code == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
-                        if (!messageWrapper.isError()) {
-                            Transaction reply = (Transaction) messageWrapper.getData();
-                            if (reply.isSuccessful() && reply.isProcessed()) {
-                                System.out.printf("%s ATM transaction successful.\n\n\n", PREFIX);
-                                Map<String, Object> result = new HashMap<>();
-                                JSONRPC2Response response = new JSONRPC2Response(result, id);
-                                callbackBuilder.build().reply(response.toJSONString());
-                            } else {
-                                System.out.printf("%s ATM transaction was not successful.\n\n\n", PREFIX);
-                                sendErrorReply(callbackBuilder, JSONParser.createMessageWrapper(true, 500, "Unknown error occurred."), id);
-                            }
-                        } else {
-                            sendErrorReply(callbackBuilder, messageWrapper, id);
-                        }
-                    } else {
-                        System.out.printf("%s ATM transaction request failed, body: %s\n\n\n\n", PREFIX, body);
-                        JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
-                        callbackBuilder.build().reply(response.toJSONString());
-                    }
-                });
-    }
-
-    /**
      * A money transfer between accounts by use of a pinCard, the user doing the transaction needs to use a pinCard
      * linked to the sourceAccount.
      * @param params Parameters of the request (sourceIBAN, targetIBAN, pinCard, pinCode, amount).
