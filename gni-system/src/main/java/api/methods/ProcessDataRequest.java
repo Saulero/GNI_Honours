@@ -54,20 +54,11 @@ public class ProcessDataRequest {
 
         if (requestType == null || !Arrays.asList(RequestType.values()).contains(dataRequest.getType())) {
             throw new IncorrectInputException("RequestType not correctly specified.");
-        } else if (accountNumber == null && isAccountNumberRelated(dataRequest.getType())) {
+        } else if (accountNumber == null && dataRequest.getType() != RequestType.CUSTOMERACCESSLIST) {
             throw new IncorrectInputException("AccountNumber specified is null.");
-        } else if (accountNumber != null && accountNumber.length() != accountNumberLength && isAccountNumberRelated(dataRequest.getType())) {
+        } else if (accountNumber != null && accountNumber.length() != accountNumberLength && dataRequest.getType() != RequestType.CUSTOMERACCESSLIST) {
             throw new IncorrectInputException("AccountNumber specified is of an incorrect length.");
         }
-    }
-
-    /**
-     * Returns a boolean indicating if the request type is related to a specific accountNumber.
-     * @param requestType Type of request to check.
-     * @return Boolean indicating if the requestType relates to an accountNumber.
-     */
-    private static boolean isAccountNumberRelated(final RequestType requestType) {
-        return requestType != RequestType.CUSTOMERDATA && requestType != RequestType.CUSTOMERACCESSLIST;
     }
 
     /**
@@ -126,20 +117,24 @@ public class ProcessDataRequest {
                 }
                 sendDataRequestResponse(transactionList, api);
                 break;
-            case CUSTOMERDATA:
-                System.out.printf("%s Sending customer data request callback.\n", PREFIX);
-                api.getCallbackBuilder().build().reply(dataReply);
-                break;
             case CUSTOMERACCESSLIST:
-                System.out.printf("%s Sending customer access list request callback.\n", PREFIX);
-                api.getCallbackBuilder().build().reply(dataReply);
+                System.out.printf("%s Accounts request successful.\n\n\n\n", PREFIX);
+                List<Map<String, Object>> accounts = new ArrayList<>();
+                dataReply.getAccounts().forEach(k -> {
+                    Map<String, Object> account = new HashMap<>();
+                    account.put("iBAN", k.getAccountNumber());
+                    account.put("owner", k.getUsername());
+                    accounts.add(account);
+                });
+                sendDataRequestResponse(accounts, api);
                 break;
             case ACCOUNTACCESSLIST:
                 System.out.printf("%s Sending account access list request callback.\n", PREFIX);
                 api.getCallbackBuilder().build().reply(dataReply);
                 break;
             default:
-                sendErrorReply(JSONParser.createMessageWrapper(true, 500, "Internal system error occurred.", "Incorrect requestType specified."), api);
+                sendErrorReply(JSONParser.createMessageWrapper(
+                        true, 500, "Internal system error occurred.", "Incorrect requestType specified."), api);
                 break;
         }
     }
