@@ -25,7 +25,7 @@ public class DepositIntoAccount {
      * Makes a deposit into an account using a pincard.
      * @param params Parameters of the request (iBAN, pinCard, pinCode, amount).
      */
-    private void depositIntoAccount(final Map<String, Object> params, final ApiBean api) {
+    public static void depositIntoAccount(final Map<String, Object> params, final ApiBean api) {
         System.out.printf("%s Sending deposit transaction.\n", PREFIX);
         String accountNumber = (String) params.get("iBAN");
         String pinCode = (String) params.get("pinCode");
@@ -53,7 +53,7 @@ public class DepositIntoAccount {
                         }
                     } else {
                         System.out.printf("%s ATM transaction request failed, body: %s\n\n\n\n", PREFIX, body);
-                        JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
+                        JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), api.getId());
                         api.getCallbackBuilder().build().reply(response.toJSONString());
                     }
                 });

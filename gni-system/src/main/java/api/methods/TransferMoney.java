@@ -21,9 +21,23 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Saul
  */
-public class DoTransaction {
+public class TransferMoney {
 
-    public static void handleTransactionExceptions(final Transaction transaction, final String cookie, final ApiBean api) {
+    /**
+     * Transfer money between accounts, the authToken needs to belong to a user that is authorized to make transactions
+     * from the sourceAccount.
+     * @param params Parameters of the request (authToken, sourceIBAN, targetIBAN, targetName, amount, description).
+     */
+    public static void transferMoney(final Map<String, Object> params, final ApiBean api) {
+        String cookie = (String) params.get("authToken");
+        Transaction transaction = JSONParser.createJsonTransaction(-1, (String) params.get("sourceIBAN"),
+                (String) params.get("targetIBAN"), (String) params.get("targetName"),
+                (String) params.get("description"), (Double) params.get("amount"), false, false);
+        System.out.printf("%s Sending internal transaction.\n", PREFIX);
+        handleTransactionExceptions(transaction, cookie, api);
+    }
+
+    private static void handleTransactionExceptions(final Transaction transaction, final String cookie, final ApiBean api) {
         try {
             verifyTransactionInput(transaction);
             doTransactionRequest(transaction, cookie, api);
@@ -87,7 +101,7 @@ public class DoTransaction {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = api.getJsonConverter().fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
-                            sendTransactionCallback(api);
+                            sendTransactionCallback((Transaction) messageWrapper.getData(), api);
                         } else {
                             sendErrorReply(messageWrapper, api);
                         }
@@ -100,10 +114,16 @@ public class DoTransaction {
     /**
      * Forwards the result of a transaction request to the service that sent the request.
      */
-    private static void sendTransactionCallback(final ApiBean api) {
-        System.out.printf("%s Transaction successfully executed.\n", PREFIX);
-        Map<String, Object> result = new HashMap<>();
-        JSONRPC2Response response = new JSONRPC2Response(result, api.getId());
-        api.getCallbackBuilder().build().reply(response.toJSONString());
+    private static void sendTransactionCallback(final Transaction reply, final ApiBean api) {
+        if (reply.isSuccessful() && reply.isProcessed()) {
+            long transactionId = reply.getTransactionID();
+            System.out.printf("%s Internal transaction %d successful.\n\n\n\n", PREFIX, transactionId);
+            Map<String, Object> result = new HashMap<>();
+            JSONRPC2Response response = new JSONRPC2Response(result, api.getId());
+            api.getCallbackBuilder().build().reply(response.toJSONString());
+        } else {
+            System.out.printf("%s Internal transaction was not successful\n\n\n\n", PREFIX);
+            sendErrorReply(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred."), api);
+        }
     }
 }

@@ -90,11 +90,11 @@ public class ApiService {
                     break;
                 case "revokeAccess":            RevokeAccess.revokeAccess(params, api);
                     break;
-                case "depositIntoAccount":      depositIntoAccount(params, callbackBuilder, id);
+                case "depositIntoAccount":      DepositIntoAccount.depositIntoAccount(params, api);
                     break;
                 case "payFromAccount":          payFromAccount(params, callbackBuilder, id);
                     break;
-                case "transferMoney":           transferMoney(params, callbackBuilder, id);
+                case "transferMoney":           TransferMoney.transferMoney(params, api);
                     break;
                 case "getAuthToken":            GetAuthToken.getAuthToken(params, api);
                     break;
@@ -172,49 +172,6 @@ public class ApiService {
                         }
                     } else {
                         System.out.printf("%s Pin transaction request failed, body: %s\n\n\n\n", PREFIX, body);
-                        JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
-                        callbackBuilder.build().reply(response.toJSONString());
-                    }
-                });
-    }
-
-    /**
-     * Transfer money between accounts, the authToken needs to belong to a user that is authorized to make transactions
-     * from the sourceAccount.
-     * @param params Parameters of the request (authToken, sourceIBAN, targetIBAN, targetName, amount, description).
-     * @param callbackBuilder Used to send the result of the request back to the request source.
-     * @param id Id of the request.
-     */
-    private void transferMoney(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
-                               final Object id) {
-        String cookie = (String) params.get("authToken");
-        Transaction transaction = JSONParser.createJsonTransaction(-1, (String) params.get("sourceIBAN"),
-                (String) params.get("targetIBAN"), (String) params.get("targetName"),
-                (String) params.get("description"), (Double) params.get("amount"), false, false);
-        System.out.printf("%s Sending internal transaction.\n", PREFIX);
-        uiClient.putFormAsyncWith2Params("/services/ui/transaction", "request",
-                jsonConverter.toJson(transaction), "cookie", cookie,
-                (code, contentType, body) -> {
-                    if (code == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
-                        if (!messageWrapper.isError()) {
-                            Transaction reply = (Transaction) messageWrapper.getData();
-                            if (reply.isSuccessful() && reply.isProcessed()) {
-                                long transactionId = reply.getTransactionID();
-                                System.out.printf("%s Internal transaction %d successful.\n\n\n\n",
-                                        PREFIX, transactionId);
-                                Map<String, Object> result = new HashMap<>();
-                                JSONRPC2Response response = new JSONRPC2Response(result, id);
-                                callbackBuilder.build().reply(response.toJSONString());
-                            } else {
-                                System.out.printf("%s Internal transaction was not successful\n\n\n\n", PREFIX);
-                                sendErrorReply(callbackBuilder, JSONParser.createMessageWrapper(true, 500, "Unknown error occurred."), id);
-                            }
-                        } else {
-                            sendErrorReply(callbackBuilder, messageWrapper, id);
-                        }
-                    } else {
-                        System.out.printf("%s Transaction request failed, body: %s\n\n\n\n", PREFIX, body);
                         JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
                         callbackBuilder.build().reply(response.toJSONString());
                     }
