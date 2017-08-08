@@ -1,9 +1,6 @@
 package api;
 
-import api.methods.CloseAccount;
-import api.methods.GetAuthToken;
-import api.methods.OpenAccount;
-import api.methods.OpenAdditionalAccount;
+import api.methods.*;
 import com.google.gson.Gson;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Error;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2ParseException;
@@ -89,9 +86,9 @@ public class ApiService {
                     break;
                 case "closeAccount":            CloseAccount.closeAccount(params, api);
                     break;
-                case "provideAccess":           provideAccess(params, callbackBuilder, id);
+                case "provideAccess":           ProvideAccess.provideAccess(params, api);
                     break;
-                case "revokeAccess":            revokeAccess(params, callbackBuilder, id);
+                case "revokeAccess":            RevokeAccess.revokeAccess(params, api);
                     break;
                 case "depositIntoAccount":      depositIntoAccount(params, callbackBuilder, id);
                     break;
@@ -140,52 +137,6 @@ public class ApiService {
 
     public Gson getJsonConverter() {
         return jsonConverter;
-    }
-
-    /**
-     * Sends te result of the revokeAccess request back to the request source using a JSONRPC object.
-     * @param callbackBuilder Used to send the result of the request back to the request source.
-     * @param id Id of the request.
-     */
-    private void sendRevokeAccessCallback(final CallbackBuilder callbackBuilder, final Object id) {
-        Map<String, Object> result = new HashMap<>();
-        JSONRPC2Response response = new JSONRPC2Response(result, id);
-        callbackBuilder.build().reply(response.toJSONString());
-    }
-
-    /**
-     * Removes a users access to an account based on the username specified.
-     * @param params Parameters of the request (authToken, iBAN, username).
-     * @param callbackBuilder Used to send the result of the request back to the request source.
-     * @param id Id of the request.
-     */
-    private void revokeAccess(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
-                              final Object id) {
-        // performs an account Link removal and then removes the pincard(s) of said customer.
-        // look at documentation for more specifics.
-        String accountNumber = (String) params.get("iBAN");
-        String username = (String) params.get("username");
-        String cookie = (String) params.get("authToken");
-        AccountLink request = JSONParser.createJsonAccountLink(accountNumber, username, false);
-        System.out.printf("%s Sending account link removal request.\n", PREFIX);
-        uiClient.putFormAsyncWith2Params("/services/ui/accountLink/remove", "request",
-                jsonConverter.toJson(request), "cookie", cookie, (code, contentType, body) -> {
-            if (code == HTTP_OK) {
-                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
-                if (!messageWrapper.isError()) {
-                    String message = (String) messageWrapper.getData();
-                    System.out.printf("%s Account link removal successful for Account Holder: %s, AccountNumber: %s\n\n\n\n", PREFIX, message, accountNumber);
-                    sendRevokeAccessCallback(callbackBuilder, id);
-                } else {
-                    System.out.printf("%s Account link removal unsuccessful.\n\n\n\n", PREFIX);
-                    sendErrorReply(callbackBuilder, messageWrapper, id);
-                }
-            } else {
-                System.out.printf("%s Account link removal failed, body: %s\n\n\n\n", PREFIX, body);
-                JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
-                callbackBuilder.build().reply(response.toJSONString());
-            }
-        });
     }
 
     /**
