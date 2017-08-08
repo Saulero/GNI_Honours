@@ -154,43 +154,6 @@ public class ApiService {
     }
 
     /**
-     * Links an account to the user with the username specified in params. Then creates a new pin card for the user
-     * and returns the pincard and pincode.
-     * @param params Parameters of the request(authToken, iBAN, username).
-     * @param callbackBuilder Used to send the result of the request back to the request source.
-     * @param id Id of the request.
-     */
-    private void provideAccess(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
-                               final Object id) {
-        // does an account Link to a username(so we need a conversion for this internally)
-        // then performs a new pin card request for the customer with username.
-        String accountNumber = (String) params.get("iBAN");
-        String username = (String) params.get("username");
-        String cookie = (String) params.get("authToken");
-        AccountLink request = JSONParser.createJsonAccountLink(accountNumber, username, false);
-        System.out.printf("%s Sending account link request.\n", PREFIX);
-        uiClient.putFormAsyncWith2Params("/services/ui/accountLink", "request",
-                jsonConverter.toJson(request), "cookie", cookie, (code, contentType, body) -> {
-            if (code == HTTP_OK) {
-                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
-                if (!messageWrapper.isError()) {
-                    AccountLink reply = (AccountLink) messageWrapper.getData();
-                    System.out.printf("%s Account link successful for Account Holder: %s, AccountNumber: %s\n\n\n\n",
-                            PREFIX, reply.getCustomerId(), accountNumber);
-                    doNewPinCardRequest(accountNumber, username, cookie, callbackBuilder, id, false);
-                } else {
-                    System.out.printf("%s Account link creation unsuccessful.\n\n\n\n", PREFIX);
-                    sendErrorReply(callbackBuilder, messageWrapper, id);
-                }
-            } else {
-                System.out.printf("%s Account link creation failed, body: %s\n\n\n\n", PREFIX, body);
-                JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
-                callbackBuilder.build().reply(response.toJSONString());
-            }
-        });
-    }
-
-    /**
      * Removes a users access to an account based on the username specified.
      * @param params Parameters of the request (authToken, iBAN, username).
      * @param callbackBuilder Used to send the result of the request back to the request source.
