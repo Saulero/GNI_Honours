@@ -115,7 +115,7 @@ public final class JSONParser {
                                                     final boolean successful) {
         Transaction transaction = new Transaction();
         transaction.setTransactionID(transactionID);
-        transaction.setTimestamp(-1);
+        transaction.setDate(null);
         transaction.setSourceAccountNumber(sourceAccountNumber);
         transaction.setDestinationAccountNumber(destinationAccountNumber);
         transaction.setDestinationAccountHolderName(destinationAccountHolderName);
@@ -143,7 +143,7 @@ public final class JSONParser {
                                                     final double transactionAmount) {
         Transaction transaction = new Transaction();
         transaction.setTransactionID(transactionID);
-        transaction.setTimestamp(-1);
+        transaction.setDate(null);
         transaction.setSourceAccountNumber(sourceAccountNumber);
         transaction.setDestinationAccountNumber(destinationAccountNumber);
         transaction.setDestinationAccountHolderName(destinationAccountHolderName);
