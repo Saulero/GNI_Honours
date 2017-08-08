@@ -92,7 +92,7 @@ public class ApiService {
                     break;
                 case "depositIntoAccount":      DepositIntoAccount.depositIntoAccount(params, api);
                     break;
-                case "payFromAccount":          payFromAccount(params, callbackBuilder, id);
+                case "payFromAccount":          PayFromAccount.payFromAccount(params, api);
                     break;
                 case "transferMoney":           TransferMoney.transferMoney(params, api);
                     break;
@@ -137,45 +137,6 @@ public class ApiService {
 
     public Gson getJsonConverter() {
         return jsonConverter;
-    }
-
-    /**
-     * A money transfer between accounts by use of a pinCard, the user doing the transaction needs to use a pinCard
-     * linked to the sourceAccount.
-     * @param params Parameters of the request (sourceIBAN, targetIBAN, pinCard, pinCode, amount).
-     * @param callbackBuilder Used to send the result of the request back to the request source.
-     * @param id Id of the request.
-     */
-    private void payFromAccount(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
-                                final Object id) {
-        PinTransaction pin = JSONParser.createJsonPinTransaction((String) params.get("sourceIBAN"),
-                (String) params.get("targetIBAN"), "", (String) params.get("pinCode"),
-                Long.parseLong((String) params.get("pinCard")), (Double) params.get("amount"), false);
-        System.out.printf("%s Sending pin transaction.\n", PREFIX);
-        pinClient.putFormAsyncWith1Param("/services/pin/transaction", "request",
-                jsonConverter.toJson(pin), (code, contentType, body) -> {
-                    if (code == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
-                        if (!messageWrapper.isError()) {
-                            Transaction reply = (Transaction) messageWrapper.getData();
-                            if (reply.isSuccessful() && reply.isProcessed()) {
-                                System.out.printf("%s Pin transaction successful.\n\n\n", PREFIX);
-                                Map<String, Object> result = new HashMap<>();
-                                JSONRPC2Response response = new JSONRPC2Response(result, id);
-                                callbackBuilder.build().reply(response.toJSONString());
-                            } else {
-                                System.out.printf("%s Pin transaction was not successful.\n\n\n", PREFIX);
-                                sendErrorReply(callbackBuilder, JSONParser.createMessageWrapper(true, 500, "Unknown error occurred."), id);
-                            }
-                        } else {
-                            sendErrorReply(callbackBuilder, messageWrapper, id);
-                        }
-                    } else {
-                        System.out.printf("%s Pin transaction request failed, body: %s\n\n\n\n", PREFIX, body);
-                        JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
-                        callbackBuilder.build().reply(response.toJSONString());
-                    }
-                });
     }
 
     /**
