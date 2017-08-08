@@ -921,69 +921,6 @@ class AuthenticationService {
     }
 
     /**
-     * Creates a callbackBuilder for the request so that the result can be sent back to the request source and then
-     * calls the exception handler for the request. Removes a pincard belonging to a customer.
-     * @param callback Used to send the result of the request back to the request source.
-     * @param pinCardJson Json String representing a {@link PinCard} that is to be removed from the system.
-     * @param cookie Cookie of the user that sent the request.
-     */
-    @RequestMapping(value = "/card/remove", method = RequestMethod.PUT)
-    public void processPinCardRemovalRequest(final Callback<String> callback,
-                                         @RequestParam("pinCard") final String pinCardJson,
-                                         @RequestParam("cookie") final String cookie) {
-        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handlePinCardRemovalExceptions(pinCardJson, cookie, callbackBuilder);
-    }
-
-    /**
-     * Tries to authenticate the user that sent the request, creates a {@link PinCard} object based on the request
-     * json and then forwards the request with the customerId of the user that sent the request.
-     * @param pinCardJson Json String representing a {@link PinCard} that should be removed from the system.
-     * @param cookie Cookie of the user that sent the request.
-     * @param callbackBuilder Used to send the result of the request back to the request source.
-     */
-    private void handlePinCardRemovalExceptions(final String pinCardJson, final String cookie,
-                                                final CallbackBuilder callbackBuilder) {
-        try {
-            authenticateRequest(cookie);
-            PinCard pinCard = jsonConverter.fromJson(pinCardJson, PinCard.class);
-            pinCard.setCustomerId(getCustomerId(cookie));
-            doPinCardRemovalRequest(jsonConverter.toJson(pinCard), callbackBuilder);
-        } catch (SQLException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
-        } catch (UserNotAuthorizedException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "User does not appear to be logged in.")));
-        }
-    }
-
-    /**
-     * Forwards the pin card removal request to the pin service, forwards the result to the request source if the
-     * request is successful, or sends a rejection to the request source if the request fails.
-     * @param pinCardJson Json String representing a {@link PinCard} that should be removed from the system.
-     * @param callbackBuilder Used to send the result of the request back to the request source.
-     */
-    private void doPinCardRemovalRequest(final String pinCardJson, final CallbackBuilder callbackBuilder) {
-        pinClient.putFormAsyncWith1Param("/services/pin/card/remove",
-                "pinCard", pinCardJson, (code, contentType, body) -> {
-                    if (code == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
-                        if (!messageWrapper.isError()) {
-                            sendPinCardRemovalCallback(body, callbackBuilder);
-                        } else {
-                            callbackBuilder.build().reply(body);
-                        }
-                    } else {
-                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
-                    }
-                });
-    }
-
-    private void sendPinCardRemovalCallback(final String jsonReply, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Pin card removal successful, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(jsonReply);
-    }
-
-    /**
      * Creates a callback builder for a pinCard unblock request and then forwards the request to the PinService.
      * @param callback Used to send the result of the request back to the source of the request.
      * @param requestJson Json string representing a {@link PinCard} that should be unblocked.

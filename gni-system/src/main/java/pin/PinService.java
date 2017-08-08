@@ -648,61 +648,6 @@ class PinService {
     }
 
     /**
-     * Creates a callbackbuilder to send the result of the request to and then calls the exception handler to execute
-     * the pin card removal. Sends a callback if the removal is successful or a rejection if the removal fails.
-     * @param callback Used to send the result of the request to the request source.
-     * @param pinCardJson Json String representing a {@link PinCard} that should be removed from the system.
-     */
-    @RequestMapping(value = "/card/remove", method = RequestMethod.PUT)
-    public void removePinCard(final Callback<String> callback, final @RequestParam("pinCard") String pinCardJson) {
-        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handleRemovePinCardExceptions(pinCardJson, callbackBuilder);
-    }
-
-    /**
-     * Tries to create a {@link PinCard} from the Json string and then delete it from the database. Sends a rejection
-     * if this fails or a callback with the {@link PinCard} that was removed from the system if it is successful.
-     * @param pinCardJson Json String representing a {@link PinCard} that should be removed from the system.
-     * @param callbackBuilder Used to send the result of the request to the request source.
-     */
-    private void handleRemovePinCardExceptions(final String pinCardJson, final CallbackBuilder callbackBuilder) {
-        try {
-            PinCard pinCard = jsonConverter.fromJson(pinCardJson, PinCard.class);
-            deletePinCardFromDatabase(pinCard);
-            sendDeletePinCardCallback(pinCard, callbackBuilder);
-        } catch (SQLException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to the Pin database.")));
-        } catch (NumberFormatException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "Something went wrong when parsing the customerId in Pin.")));
-        }
-    }
-
-    /**
-     * Deletes a pincard from the pin database.
-     * @param pinCard Pin card that should be deleted from the database.
-     * @throws SQLException Thrown when the sql query fails, will cause the removal request to be rejected.
-     * @throws NumberFormatException Cause when a parameter is incorrectly specified, will cause the removal request
-     * to be rejected.
-     */
-    void deletePinCardFromDatabase(final PinCard pinCard) throws SQLException, NumberFormatException {
-        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
-        PreparedStatement removePinCard = databaseConnection.getConnection()
-                                                            .prepareStatement(SQLStatements.removePinCard);
-        removePinCard.setString(1, pinCard.getAccountNumber());
-        removePinCard.setLong(2, pinCard.getCustomerId());
-        removePinCard.setLong(3, pinCard.getCardNumber());
-        removePinCard.setString(4, pinCard.getPinCode());
-        removePinCard.execute();
-        databaseConnection.close();
-        databaseConnectionPool.returnConnection(databaseConnection);
-    }
-
-    private void sendDeletePinCardCallback(final PinCard pinCard, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Pin card #%s successfully deleted from the system, sending callback.\n", PREFIX, pinCard.getCardNumber());
-        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", pinCard)));
-    }
-
-    /**
      * Removes all pin cards linked to the account with accountNumber from the system.
      * @param callback Used to send the result of the removal to the request source.
      * @param accountNumber AccountNumber for which all pin cards should be removed.
