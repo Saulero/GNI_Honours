@@ -1,6 +1,6 @@
 package api;
 
-import api.test.Test;
+import api.methods.OpenAccountMethod;
 import com.google.gson.Gson;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Error;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2ParseException;
@@ -29,32 +29,39 @@ import static java.net.HttpURLConnection.HTTP_OK;
  * @version 1
  */
 @RequestMapping("/api")
-final class ApiService {
-    /** Connection to the ui service. */
-    private HttpClient uiClient;
+public class ApiService {
     /** Connection to the pin service. */
     private HttpClient pinClient;
     /** Connection to the SystemInformation service. */
     private HttpClient systemInformationClient;
+    /** Connection to the authentication service. */
+    private HttpClient authenticationClient;
     /** Used for json conversions. */
     private Gson jsonConverter;
     /** Prefix used when printing to indicate the message is coming from the Api Service. */
-    private static final String PREFIX = "[API]                 :";
+    public static final String PREFIX = "[API]                 :";
     /** Number of the ATM system for internal use*/
-    private static final String ATMNUMBER = "NL52GNIB3676451168";
+    public static final String ATMNUMBER = "NL52GNIB3676451168";
+    /** Used to check if accountNumber are of the correct length. */
+    public static final int accountNumberLength = 18;
+    /** Character limit used to check if a fields value is too long. */
+    public static final int characterLimit = 50;
+    /** Character limit used to check if a transaction description is too long. */
+    public static final int descriptionLimit = 200;
 
     /**
      * Constructor
-     * @param uiPort Port the ui service is located on.
-     * @param uiHost Host the ui service is located on.
+     * @param authenticationPort Port the ui service is located on.
+     * @param authenticationHost Host the ui service is located on.
      * @param pinPort Port the pin service is located on.
      * @param pinHost Host the pin service is located on.
      */
-    public ApiService(final int uiPort, final String uiHost, final int pinPort, final String pinHost,
+    public ApiService(final int authenticationPort, final String authenticationHost, final int pinPort, final String pinHost,
                       final int sysInfoPort, final String sysInfoHost) {
-        uiClient = httpClientBuilder().setHost(uiHost).setPort(uiPort).buildAndStart();
         pinClient = httpClientBuilder().setHost(pinHost).setPort(pinPort).buildAndStart();
         systemInformationClient = httpClientBuilder().setHost(sysInfoHost).setPort(sysInfoPort).buildAndStart();
+        authenticationClient = httpClientBuilder().setHost(authenticationHost).setPort(authenticationPort)
+                .buildAndStart();
         jsonConverter = new Gson();
     }
 
@@ -71,8 +78,9 @@ final class ApiService {
             Object id = request.getID();
             Map<String, Object> params = request.getNamedParams();
             CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+            ApiBean api = new ApiBean(this, callbackBuilder, id);
             switch (method) {
-                case "openAccount":             openAccount(params, callbackBuilder, id);
+                case "openAccount":             OpenAccountMethod.openAccount(params, api);
                     break;
                 case "openAdditionalAccount":   openAdditionalAccount(params, callbackBuilder, id);
                     break;
@@ -115,155 +123,20 @@ final class ApiService {
         }
     }
 
-    /**
-     * Creates a customer object that represents the customer an account should be created for. This method will create
-     * getAuthTokenForPinCard information for a customer, put the customer's information into the system and create
-     * a new bank account for the customer.
-     * @param params all parameters for the method call, if a parameter is not in this map the request will be rejected.
-     * @param callbackBuilder Used to send the result of the request back to the request source.
-     * @param id Id of the request.
-     */
-    private void openAccount(final Map<String, Object> params, final CallbackBuilder callbackBuilder, final Object id) {
-        Customer customer = JSONParser.createJsonCustomer((String) params.get("initials"), (String) params.get("name"),
-                (String) params.get("surname"), (String) params.get("email"), (String) params.get("telephoneNumber"),
-                (String) params.get("address"), (String) params.get("dob"), Long.parseLong((String) params.get("ssn")),
-                0.0, 0.0, 0L, (String) params.get("username"),
-                (String) params.get("password"));
-        doNewCustomerRequest(customer, callbackBuilder, id);
+    public HttpClient getPinClient() {
+        return pinClient;
     }
 
-    /**
-     * Sends a new customer request to the ui service for processing, if this is successful logs in and requests a
-     * new pin card and sends the result of the request back to the request source.
-     * @param customer Customer that will be created in the system.
-     * @param callbackBuilder Used to send the result of the request back to the request source.
-     * @param id Id of the request.
-     */
-    private void doNewCustomerRequest(final Customer customer, final CallbackBuilder callbackBuilder, final Object id) {
-        uiClient.putFormAsyncWith1Param("/services/ui/customer", "customer",
-                jsonConverter.toJson(customer), (statusCode, contentType, replyJson) -> {
-                    if (statusCode == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
-                        if (!messageWrapper.isError()) {
-                            System.out.printf("%s Customer successfully created in the system.\n\n\n\n", PREFIX);
-                            Customer reply = (Customer) messageWrapper.getData();
-                            getAuthTokenForPinCard(customer.getUsername(), customer.getPassword(),
-                                    reply.getAccount().getAccountNumber(), callbackBuilder, id);
-                        } else {
-                            System.out.printf("%s Customer creation request failed\n\n\n\n", PREFIX);
-                            sendErrorReply(callbackBuilder, messageWrapper, id);
-                        }
-                    } else {
-                        System.out.printf("%s Customer creation request failed, body: %s\n\n\n\n", PREFIX, replyJson);
-                        JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
-                        callbackBuilder.build().reply(response.toJSONString());
-                    }
-                });
+    public HttpClient getSystemInformationClient() {
+        return systemInformationClient;
     }
 
-    /**
-     * Performs a login request to fetch an authentication that can be used to request a new pin card, then performs a
-     * new pin card request.
-     * @param username Username to login with.
-     * @param password Password to login with.
-     * @param accountNumber AccountNumber the new pin card should be requested for.
-     * @param callbackBuilder Used to send the result of the request back to the request source.
-     * @param id Id of the request.
-     */
-    private void getAuthTokenForPinCard(final String username, final String password, final String accountNumber,
-                                        final CallbackBuilder callbackBuilder, final Object id) {
-        Authentication authentication = JSONParser.createJsonAuthenticationLogin(username, password);
-        System.out.printf("%s Logging in.\n", PREFIX);
-        uiClient.putFormAsyncWith1Param("/services/ui/login", "authData",
-                                        jsonConverter.toJson(authentication), (code, contentType, body) -> {
-            if (code == HTTP_OK) {
-                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
-                if (!messageWrapper.isError()) {
-                    Authentication authenticationReply = (Authentication) messageWrapper.getData();
-                    System.out.printf("%s Successful login, set the following cookie: %s\n\n\n\n",
-                            PREFIX, authenticationReply.getCookie());
-                    doNewPinCardRequest(accountNumber, username, authenticationReply.getCookie(), callbackBuilder, id, true);
-                } else {
-                    sendErrorReply(callbackBuilder, messageWrapper, id);
-                }
-
-            } else {
-                System.out.printf("%s Login failed, body: %s\n\n\n\n", PREFIX, body);
-                JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
-                callbackBuilder.build().reply(response.toJSONString());
-            }
-        });
+    public HttpClient getAuthenticationClient() {
+        return authenticationClient;
     }
 
-    /**
-     * Performs a new pin card request for a given account number.
-     * @param accountNumber AccountNumber the new pin card should be linked to.
-     * @param username Username of the user the pinCard is for.
-     * @param cookie Cookie used to perform the request.
-     * @param callbackBuilder Used to send the result of the request back to the request source.
-     * @param id Id of the request.
-     * @param accountNrInResult Boolean indicating if the accountNumber should be in the result of the request.
-     */
-    private void doNewPinCardRequest(final String accountNumber, final String username, final String cookie,
-                                     final CallbackBuilder callbackBuilder, final Object id,
-                                     final boolean accountNrInResult) {
-        uiClient.putFormAsyncWith3Params("/services/ui/card", "accountNumber", accountNumber,
-                "cookie", cookie, "username", username, (code, contentType, body) -> {
-                    if (code == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
-                        if (!messageWrapper.isError()) {
-                            PinCard newPinCard = (PinCard) messageWrapper.getData();
-                            System.out.printf("%s Successfully requested a new pin card.\n\n\n\n", PREFIX);
-                            if (accountNrInResult) {
-                                sendOpenAccountCallback(callbackBuilder, accountNumber, newPinCard.getCardNumber(),
-                                        newPinCard.getPinCode(), id);
-                            } else {
-                                sendAccessRequestCallback(callbackBuilder, newPinCard.getCardNumber(),
-                                        newPinCard.getPinCode(), id);
-                            }
-                        } else {
-                            sendErrorReply(callbackBuilder, messageWrapper, id);
-                        }
-                    } else {
-                        System.out.printf("%s New pin card request failed, body: %s\n\n\n\n", PREFIX, body);
-                        JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
-                        callbackBuilder.build().reply(response.toJSONString());
-                    }
-                });
-    }
-
-    /**
-     * Creates and sends a JSONRPC response for an openAccount request.
-     * @param callbackBuilder Used to send the result of the request to the request source.
-     * @param accountNumber AccountNumber of the opened account.
-     * @param cardNumber CardNumber of the card created with the new account.
-     * @param pinCode Pincode for the new pinCard.
-     * @param id Id of the request.
-     */
-    private void sendOpenAccountCallback(final CallbackBuilder callbackBuilder, final String accountNumber,
-                                         final Long cardNumber, final String pinCode, final Object id) {
-        Map<String, Object> result = new HashMap<>();
-        result.put("iBAN", accountNumber);
-        result.put("pinCard", cardNumber);
-        result.put("pinCode", pinCode);
-        JSONRPC2Response response = new JSONRPC2Response(result, id);
-        callbackBuilder.build().reply(response.toJSONString());
-    }
-
-    /**
-     * Creates and sends a JSONRPC response for an Access request.
-     * @param callbackBuilder Used to send the result of the request to the request source.
-     * @param cardNumber CardNumber of the card created with the new access link.
-     * @param pinCode Pincode for the new pinCard.
-     * @param id Id of the request.
-     */
-    private void sendAccessRequestCallback(final CallbackBuilder callbackBuilder, final Long cardNumber,
-                                           final String pinCode, final Object id) {
-        Map<String, Object> result = new HashMap<>();
-        result.put("pinCard", cardNumber);
-        result.put("pinCode", pinCode);
-        JSONRPC2Response response = new JSONRPC2Response(result, id);
-        callbackBuilder.build().reply(response.toJSONString());
+    public Gson getJsonConverter() {
+        return jsonConverter;
     }
 
     /**
@@ -536,40 +409,6 @@ final class ApiService {
                         }
                     } else {
                         System.out.printf("%s Transaction request failed, body: %s\n\n\n\n", PREFIX, body);
-                        JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
-                        callbackBuilder.build().reply(response.toJSONString());
-                    }
-                });
-    }
-
-    /**
-     * Logs a user into the system and sends the user an authToken to authorize himself.
-     * @param params Parameters of the request (username, password).
-     * @param callbackBuilder Used to send the result of the request back to the request source.
-     * @param id Id of the request.
-     */
-    private void getAuthToken(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
-                              final Object id) {
-        Authentication authentication = JSONParser.createJsonAuthenticationLogin((String) params.get("username"),
-                (String) params.get("password"));
-        Gson gson = new Gson();
-        System.out.printf("%s Logging in.\n", PREFIX);
-        uiClient.putFormAsyncWith1Param("/services/ui/login", "authData", gson.toJson(authentication),
-                (code, contentType, body) -> {
-                    if (code == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
-                        if (!messageWrapper.isError()) {
-                            Authentication authenticationReply = (Authentication) messageWrapper.getData();
-                            System.out.printf("%s Successful login, set the following cookie: %s\n\n\n\n",
-                                    PREFIX, authenticationReply.getCookie());
-                            Map<String, Object> result = new HashMap<>();
-                            result.put("authToken", authenticationReply.getCookie());
-                            callbackBuilder.build().reply(new JSONRPC2Response(result, id).toJSONString());
-                        } else {
-                            sendErrorReply(callbackBuilder, messageWrapper, id);
-                        }
-                    } else {
-                        System.out.printf("%s Login failed, body: %s\n\n\n\n", PREFIX, body);
                         JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
                         callbackBuilder.build().reply(response.toJSONString());
                     }
@@ -853,15 +692,5 @@ final class ApiService {
                         callbackBuilder.build().reply(response.toJSONString());
                     }
                 });
-    }
-
-    private void sendErrorReply(CallbackBuilder callbackBuilder, MessageWrapper reply, final Object id) {
-        JSONRPC2Response response;
-        if (reply.getData() == null) {
-            response = new JSONRPC2Response(new JSONRPC2Error(reply.getCode(), reply.getMessage()), id);
-        } else {
-            response = new JSONRPC2Response(new JSONRPC2Error(reply.getCode(), reply.getMessage(), reply.getData()), id);
-        }
-        callbackBuilder.build().reply(response.toJSONString());
     }
 }

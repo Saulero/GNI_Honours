@@ -7,7 +7,6 @@ import pin.PinServiceMain;
 import systeminformation.SystemInformationServiceMain;
 import transactionin.TransactionReceiveServiceMain;
 import transactionout.TransactionDispatchServiceMain;
-import api.UIServiceMain;
 import users.UsersServiceMain;
 
 /**
@@ -26,7 +25,6 @@ public class BootSystem {
         SystemInformationServiceMain.main();
         LedgerServiceMain.main();
         UsersServiceMain.main();
-        UIServiceMain.main();
         AuthenticationServiceMain.main();
         PinServiceMain.main();
         TransactionDispatchServiceMain.main();
