@@ -1,4 +1,4 @@
-package ui;
+package api;
 
 import io.advantageous.qbit.admin.ManagedServiceBuilder;
 

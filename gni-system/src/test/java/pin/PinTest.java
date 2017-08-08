@@ -10,7 +10,6 @@ import databeans.Transaction;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import ui.IncorrectInputException;
 import util.JSONParser;
 
 import java.sql.PreparedStatement;

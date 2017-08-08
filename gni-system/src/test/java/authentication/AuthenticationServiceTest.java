@@ -1,13 +1,10 @@
 package authentication;
 
-import com.google.gson.Gson;
 import database.*;
-import databeans.Authentication;
 import databeans.Customer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import ui.IncorrectInputException;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
