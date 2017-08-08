@@ -70,7 +70,7 @@ public class RevokeAccess {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = api.getJsonConverter().fromJson(JSONParser.removeEscapeCharacters(accountLinkReplyJson), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
-                            sendAccountLinkRemovalCallback((AccountLink) messageWrapper.getData(), api);
+                            sendAccountLinkRemovalCallback((String) messageWrapper.getData(), api);
                         } else {
                             sendErrorReply(messageWrapper, api);
                         }
@@ -82,11 +82,10 @@ public class RevokeAccess {
 
     /**
      * Forwards the result of an account link removal to the service that sent the request.
-     * @param accountLink The result of an account link removal.
+     * @param customerId The result of an account link removal.
      */
-    private static void sendAccountLinkRemovalCallback(final AccountLink accountLink, final ApiBean api) {
-        System.out.printf("%s Account link removal successful for AccountNumber: %s\n\n\n\n",
-                PREFIX, accountLink.getAccountNumber());
+    private static void sendAccountLinkRemovalCallback(final String customerId, final ApiBean api) {
+        System.out.printf("%s Account link removal successful for CustomerId: %s\n\n\n\n", PREFIX, customerId);
         sendRevokeAccessCallback(api);
     }
 
