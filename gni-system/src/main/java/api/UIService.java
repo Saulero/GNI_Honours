@@ -442,54 +442,6 @@ final class UIService {
         callbackBuilder.build().reply(accountLinkReplyJson);
     }
 
-
-    /**
-     * Creates a callback builder for the account creation request and then forwards the request to the Authentication
-     * Service.
-     * @param callback Used to send the result of the request back to the source of the request.
-     * @param cookie Cookie of the User that sent the request.
-     */
-    @RequestMapping(value = "/account/new", method = RequestMethod.PUT)
-    public void processNewAccountRequest(final Callback<String> callback,
-                                         @RequestParam("cookie") final String cookie) {
-        System.out.printf("%s Forwarding account creation request.\n", PREFIX);
-        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        doNewAccountRequest(cookie, callbackBuilder);
-    }
-
-    /**
-     * Forwards the cookie containing the customerId of the owner of the new account to the Authentication Service
-     * and sends the result back to the request source, or rejects the request if the forwarding fails.
-     * @param cookie Cookie of the User that sent the request.
-     * @param callbackBuilder Used to send the result of the request back to the source of the request.
-     */
-    private void doNewAccountRequest(final String cookie, final CallbackBuilder callbackBuilder) {
-        authenticationClient.putFormAsyncWith1Param("/services/authentication/account/new", "cookie",
-                cookie, (httpStatusCode, httpContentType, newAccountReplyJson) -> {
-                    if (httpStatusCode == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(newAccountReplyJson), MessageWrapper.class);
-                        if (!messageWrapper.isError()) {
-                            sendNewAccountRequestCallback(newAccountReplyJson, callbackBuilder);
-                        } else {
-                            callbackBuilder.build().reply(newAccountReplyJson);
-                        }
-                    } else {
-                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
-                    }
-                });
-    }
-
-    /**
-     * Sends the result of an account creation request to the request source.
-     * @param newAccountReplyJson Json String representing a customer with a linked account that was newly created.
-     * @param callbackBuilder Used to send the result of the request back to the source of the request.
-     */
-    private void sendNewAccountRequestCallback(final String newAccountReplyJson,
-                                               final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Successful account creation request, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(newAccountReplyJson);
-    }
-
     /**
      * Processes an account removal request by creating a callback builder and then calling the exception handler for
      * the request.

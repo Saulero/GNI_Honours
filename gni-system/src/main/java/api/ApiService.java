@@ -1,6 +1,7 @@
 package api;
 
-import api.methods.OpenAccountMethod;
+import api.methods.GetAuthToken;
+import api.methods.OpenAccount;
 import com.google.gson.Gson;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Error;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2ParseException;
@@ -80,7 +81,7 @@ public class ApiService {
             CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
             ApiBean api = new ApiBean(this, callbackBuilder, id);
             switch (method) {
-                case "openAccount":             OpenAccountMethod.openAccount(params, api);
+                case "openAccount":             OpenAccount.openAccount(params, api);
                     break;
                 case "openAdditionalAccount":   openAdditionalAccount(params, callbackBuilder, id);
                     break;
@@ -96,7 +97,7 @@ public class ApiService {
                     break;
                 case "transferMoney":           transferMoney(params, callbackBuilder, id);
                     break;
-                case "getAuthToken":            getAuthToken(params, callbackBuilder, id);
+                case "getAuthToken":            GetAuthToken.getAuthToken(params, api);
                     break;
                 case "getBalance":              getBalance(params, callbackBuilder, id);
                     break;
@@ -137,36 +138,6 @@ public class ApiService {
 
     public Gson getJsonConverter() {
         return jsonConverter;
-    }
-
-    /**
-     * Opens an additional account for a customer.
-     * @param params Map containing all the request parameters(authToken).
-     * @param callbackBuilder Used to send the result of the request back to the request source.
-     * @param id Id of the request.
-     */
-    private void openAdditionalAccount(final Map<String, Object> params, final CallbackBuilder callbackBuilder,
-                                       final Object id) {
-        String cookie = (String) params.get("authToken");
-        uiClient.putFormAsyncWith1Param("/services/ui/account/new", "cookie", cookie,
-                                        (code, contentType, body) -> {
-            if (code == HTTP_OK) {
-                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
-                if (!messageWrapper.isError()) {
-                    Customer reply = (Customer) messageWrapper.getData();
-                    String accountNumber = reply.getAccount().getAccountNumber();
-                    System.out.printf("%s New Account creation successful, Account Holder: %s,"
-                                    + " AccountNumber: %s\n\n\n\n", PREFIX, reply.getCustomerId(), accountNumber);
-                    doNewPinCardRequest(accountNumber, "", cookie, callbackBuilder, id, true);
-                } else {
-                    sendErrorReply(callbackBuilder, messageWrapper, id);
-                }
-            } else {
-                System.out.printf("%s Account creation failed. body: %s\n\n\n\n", PREFIX, body);
-                JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), id);
-                callbackBuilder.build().reply(response.toJSONString());
-            }
-        });
     }
 
     /**
