@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 import static api.ApiService.PREFIX;
-import static api.ApiService.accountNumberLength;
+import static api.ApiService.ACCOUNT_NUMBER_LENGTH;
 import static api.methods.SharedUtilityMethods.sendErrorReply;
 import static java.net.HttpURLConnection.HTTP_OK;
 
@@ -32,6 +32,8 @@ public class ProcessDataRequest {
      * if the input for the request is incorrect.
      * @param dataRequest The data request that was received.
      * @param cookie Cookie of the user that sent the data request.
+     * @param nrOfTransactions The number of transactions (in case of a transactionHistoryRequest)
+     * @param api DataBean containing everything in the ApiService
      */
     public static void handleDataRequestExceptions(
             final DataRequest dataRequest, final String cookie, final long nrOfTransactions, final ApiBean api) {
@@ -64,7 +66,8 @@ public class ProcessDataRequest {
             throw new IncorrectInputException("RequestType not correctly specified.");
         } else if (accountNumber == null && dataRequest.getType() != RequestType.CUSTOMERACCESSLIST) {
             throw new IncorrectInputException("AccountNumber specified is null.");
-        } else if (accountNumber != null && accountNumber.length() != accountNumberLength && dataRequest.getType() != RequestType.CUSTOMERACCESSLIST) {
+        } else if (accountNumber != null && accountNumber.length()
+                != ACCOUNT_NUMBER_LENGTH && dataRequest.getType() != RequestType.CUSTOMERACCESSLIST) {
             throw new IncorrectInputException("AccountNumber specified is of an incorrect length.");
         }
     }
@@ -73,21 +76,28 @@ public class ProcessDataRequest {
      * Forwards the data request to the Authentication service and sends the reply off to processing,
      * or rejects the request if the forward fails.
      * @param dataRequest A dataRequest that should be sent to the Authentication Service.
+     * @param cookie Cookie of the user that sent the data request.
+     * @param nrOfTransactions The number of transactions (in case of a transactionHistoryRequest)
+     * @param api DataBean containing everything in the ApiService
      */
-    private static void doDataRequest(final DataRequest dataRequest, final String cookie, final long nrOfTransactions, final ApiBean api) {
+    private static void doDataRequest(
+            final DataRequest dataRequest, final String cookie, final long nrOfTransactions, final ApiBean api) {
         System.out.printf("%s Forwarding data request.\n", PREFIX);
         api.getAuthenticationClient().getAsyncWith2Params("/services/authentication/data",
                 "request", api.getJsonConverter().toJson(dataRequest), "cookie", cookie,
                 (httpStatusCode, httpContentType, dataReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        MessageWrapper messageWrapper = api.getJsonConverter().fromJson(JSONParser.removeEscapeCharacters(dataReplyJson), MessageWrapper.class);
+                        MessageWrapper messageWrapper = api.getJsonConverter().fromJson(
+                                JSONParser.removeEscapeCharacters(dataReplyJson), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
                             processDataReply((DataReply) messageWrapper.getData(), dataRequest, nrOfTransactions, api);
                         } else {
                             sendErrorReply(messageWrapper, api);
                         }
                     } else {
-                        sendErrorReply(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), api);
+                        sendErrorReply(JSONParser.createMessageWrapper(true, 500,
+                                "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests"), api);
                     }
                 });
     }
@@ -96,6 +106,8 @@ public class ProcessDataRequest {
      * Checks if a data request was successful and sends the reply back to the source of the request.
      * @param dataReply {@link DataReply}
      * @param dataRequest The {@link DataRequest} that was forwarded.
+     * @param nrOfTransactions The number of transactions (in case of a transactionHistoryRequest)
+     * @param api DataBean containing everything in the ApiService
      */
     private static void processDataReply(
             final DataReply dataReply, final DataRequest dataRequest, final long nrOfTransactions, final ApiBean api) {
@@ -153,6 +165,11 @@ public class ProcessDataRequest {
         }
     }
 
+    /**
+     * Takes an object an constructs a protocol complient response to send back the the original source.
+     * @param result The Object to send.
+     * @param api DataBean containing everything in the ApiService
+     */
     private static void sendDataRequestResponse(final Object result, final ApiBean api) {
         JSONRPC2Response response = new JSONRPC2Response(result, api.getId());
         api.getCallbackBuilder().build().reply(response.toJSONString());

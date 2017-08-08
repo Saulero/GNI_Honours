@@ -4,7 +4,6 @@ import api.ApiBean;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Error;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 import databeans.MessageWrapper;
-import io.advantageous.qbit.reactive.CallbackBuilder;
 import util.JSONParser;
 
 import java.time.LocalDate;
@@ -22,6 +21,7 @@ public class Reset {
 
     /**
      * Resets the system's Database and system time.
+     * @param api DataBean containing everything in the ApiService
      */
     public static void reset(final ApiBean api) {
         System.out.printf("%s Sending Reset request.\n", PREFIX);

@@ -18,6 +18,7 @@ public class GetUserAccess {
     /**
      * Fetches a list of all the accounts that a user has access to.
      * @param params Parameters of the request (authToken).
+     * @param api DataBean containing everything in the ApiService
      */
     public static void getUserAccess(final Map<String, Object> params, final ApiBean api) {
         DataRequest request = JSONParser.createJsonDataRequest(null, RequestType.CUSTOMERACCESSLIST, 0L);

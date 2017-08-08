@@ -29,7 +29,7 @@ public class PinTest {
     private PinService pin;
     private Gson jsonConverter;
     private ConnectionPool databaseConnectionPool;
-    private static int accountNumberLength = 18;
+    private static int ACCOUNT_NUMBER_LENGTH = 18;
 
     @Before
     public void setUp() throws Exception {

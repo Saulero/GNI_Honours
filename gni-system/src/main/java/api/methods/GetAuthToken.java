@@ -26,6 +26,7 @@ public class GetAuthToken {
     /**
      * Logs a user into the system and sends the user an authToken to authorize himself.
      * @param params Parameters of the request (username, password).
+     * @param api DataBean containing everything in the ApiService
      */
     public static void getAuthToken(final Map<String, Object> params, final ApiBean api) {
         System.out.printf("%s Logging in.\n", PREFIX);
@@ -38,6 +39,7 @@ public class GetAuthToken {
      * new pin card request.
      * @param authentication Username & Password DataBean to login with.
      * @param accountNumber AccountNumber the new pin card should be requested for.
+     * @param api DataBean containing everything in the ApiService
      */
     public static void getAuthTokenForPinCard(final Authentication authentication,
             final String accountNumber, final ApiBean api) {
@@ -49,17 +51,22 @@ public class GetAuthToken {
      * Tries to verify the input of the login request and then forwards the request to the Authentication Service,
      * rejects the request if an exception is thrown.
      * @param authData {@link Authentication} which contains the login information of a User.
+     * @param createPin null if no new Pin card needs to be created, otherwise an accountNumber
+     * @param api DataBean containing everything in the ApiService
      */
-    private static void handleLoginExceptions(final Authentication authData, final String createPin, final ApiBean api) {
+    private static void handleLoginExceptions(
+            final Authentication authData, final String createPin, final ApiBean api) {
         try {
             verifyLoginInput(authData);
             doLoginRequest(authData, createPin, api);
         } catch (IncorrectInputException e) {
             System.out.printf("%s %s", PREFIX, e.getMessage());
-            sendErrorReply(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value."), api);
+            sendErrorReply(JSONParser.createMessageWrapper(true, 418,
+                    "One of the parameters has an invalid value."), api);
         } catch (JsonSyntaxException e) {
             System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
-            sendErrorReply(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value."), api);
+            sendErrorReply(JSONParser.createMessageWrapper(true, 418,
+                    "One of the parameters has an invalid value."), api);
         }
     }
 
@@ -69,7 +76,8 @@ public class GetAuthToken {
      * @throws IncorrectInputException Thrown when a value is not correctly specified.
      * @throws JsonSyntaxException Thrown when the json string is incorrect and cant be parsed.
      */
-    private static void verifyLoginInput(final Authentication authentication) throws IncorrectInputException, JsonSyntaxException {
+    private static void verifyLoginInput(final Authentication authentication)
+            throws IncorrectInputException, JsonSyntaxException {
         final String username = authentication.getUsername();
         final String password = authentication.getPassword();
         final AuthenticationType authenticationType = authentication.getType();
@@ -86,19 +94,24 @@ public class GetAuthToken {
      * Forwards the Login request to the Authentication Service and sends a callback if the request is successful, or
      * sends a rejection if the request fails.
      * @param authData {@link Authentication} information of a user trying to login.
+     * @param createPin null if no new Pin card needs to be created, otherwise an accountNumber
+     * @param api DataBean containing everything in the ApiService
      */
     private static void doLoginRequest(final Authentication authData, final String createPin, final ApiBean api) {
-        api.getAuthenticationClient().putFormAsyncWith1Param("/services/authentication/login", "authData",
-                api.getJsonConverter().toJson(authData), (code, contentType, body) -> {
+        api.getAuthenticationClient().putFormAsyncWith1Param("/services/authentication/login",
+                "authData", api.getJsonConverter().toJson(authData), (code, contentType, body) -> {
                     if (code == HTTP_OK) {
-                        MessageWrapper messageWrapper = api.getJsonConverter().fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        MessageWrapper messageWrapper = api.getJsonConverter().fromJson(
+                                JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
                             sendLoginRequestCallback((Authentication) messageWrapper.getData(), createPin, api);
                         } else {
                             sendErrorReply(messageWrapper, api);
                         }
                     } else {
-                        sendErrorReply(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), api);
+                        sendErrorReply(JSONParser.createMessageWrapper(true, 500,
+                                "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests"), api);
                     }
                 });
     }
@@ -106,11 +119,13 @@ public class GetAuthToken {
     /**
      * Sends the result of a successful login request, containing a cookie that the user should use to authenticate
      * him/herself to the request source.
-     * @param loginReply{@link Authentication} object containing the cookie the customer should use
+     * @param loginReply {@link Authentication} object containing the cookie the customer should use
      * to authenticate himself in future requests.
+     * @param createPin null if no new Pin card needs to be created, otherwise an accountNumber
+     * @param api DataBean containing everything in the ApiService
      */
-    private static void sendLoginRequestCallback(final Authentication loginReply,
-            final String createPin, final ApiBean api) {
+    private static void sendLoginRequestCallback(
+            final Authentication loginReply, final String createPin, final ApiBean api) {
         System.out.printf("%s Successful login, set the following cookie: %s\n\n\n\n",
                 PREFIX, loginReply.getCookie());
         if (createPin != null) {

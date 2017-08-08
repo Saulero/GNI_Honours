@@ -3,7 +3,6 @@ package api.methods;
 import api.ApiBean;
 import api.IncorrectInputException;
 import com.google.gson.JsonSyntaxException;
-import databeans.Account;
 import databeans.Authentication;
 import databeans.Customer;
 import databeans.MessageWrapper;
@@ -27,6 +26,7 @@ public class OpenAccount {
      * getAuthTokenForPinCard information for a customer, put the customer's information into the system and create
      * a new bank account for the customer.
      * @param params all parameters for the method call, if a parameter is not in this map the request will be rejected.
+     * @param api DataBean containing everything in the ApiService
      */
     public static void openAccount(final Map<String, Object> params, final ApiBean api) {
         Customer customer = new Customer((String) params.get("initials"), (String) params.get("name"),
@@ -40,20 +40,23 @@ public class OpenAccount {
      * Tries to verify the input of a new customer request and then forward the request, sends a rejection if an
      * exception occurs.
      * @param newCustomer {@link Customer} that is to be created in the system.
+     * @param api DataBean containing everything in the ApiService
      */
-    private static void handleNewCustomerExceptions(final Customer newCustomer, ApiBean api) {
+    private static void handleNewCustomerExceptions(final Customer newCustomer, final ApiBean api) {
         try {
             verifyNewCustomerInput(newCustomer);
             doNewCustomerRequest(newCustomer, api);
         } catch (IncorrectInputException e) {
             System.out.printf("%s One of the parameters has an invalid value, sending error.", PREFIX);
-            sendErrorReply(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value."), api);
+            sendErrorReply(JSONParser.createMessageWrapper(true, 418,
+                    "One of the parameters has an invalid value."), api);
         } catch (JsonSyntaxException e) {
             System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
             sendErrorReply(JSONParser.createMessageWrapper(true, 418, "Syntax error when parsing json."), api);
         } catch (NumberFormatException e) {
-            System.out.printf("%s The ssn, spendinglimit or balance was incorrectly specified, sending rejection.\n", PREFIX);
-            sendErrorReply(JSONParser.createMessageWrapper(true, 418, "One of the following variables was incorrectly specified: ssn, spendingLimit, balance."), api);
+            System.out.printf("%s The ssn, spendinglimit or balance was incorrectly specified.\n", PREFIX);
+            sendErrorReply(JSONParser.createMessageWrapper(true, 418,
+                    "One of the following variables was incorrectly specified: ssn, spendingLimit, balance."), api);
         }
     }
 
@@ -109,6 +112,7 @@ public class OpenAccount {
      * Sends the customer request to the Authentication service and then processes the reply, or sends a rejection to
      * the source of the request if the request fails..
      * @param customer {@link Customer} that should be created.
+     * @param api DataBean containing everything in the ApiService
      */
     private static void doNewCustomerRequest(final Customer customer, final ApiBean api) {
         System.out.printf("%s Forwarding customer creation request.\n", PREFIX);
@@ -116,7 +120,8 @@ public class OpenAccount {
                 "customer", api.getJsonConverter().toJson(customer),
                 (httpStatusCode, httpContentType, newCustomerReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        MessageWrapper messageWrapper = api.getJsonConverter().fromJson(JSONParser.removeEscapeCharacters(newCustomerReplyJson), MessageWrapper.class);
+                        MessageWrapper messageWrapper = api.getJsonConverter().fromJson(
+                                JSONParser.removeEscapeCharacters(newCustomerReplyJson), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
                             Customer customerReply = (Customer) messageWrapper.getData();
                             getAuthTokenForPinCard(new Authentication(
@@ -126,7 +131,9 @@ public class OpenAccount {
                             sendErrorReply(messageWrapper, api);
                         }
                     } else {
-                        sendErrorReply(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), api);
+                        sendErrorReply(JSONParser.createMessageWrapper(true, 500,
+                                "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests"), api);
                     }
                 });
     }

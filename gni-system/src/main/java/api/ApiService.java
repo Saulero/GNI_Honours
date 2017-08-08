@@ -1,28 +1,35 @@
 package api;
 
-import api.methods.*;
+import api.methods.CloseAccount;
+import api.methods.DepositIntoAccount;
+import api.methods.GetAuthToken;
+import api.methods.GetBalance;
+import api.methods.GetBankAccountAccess;
+import api.methods.GetDate;
+import api.methods.GetTransactionsOverview;
+import api.methods.GetUserAccess;
+import api.methods.OpenAccount;
+import api.methods.OpenAdditionalAccount;
+import api.methods.PayFromAccount;
+import api.methods.ProvideAccess;
+import api.methods.Reset;
+import api.methods.RevokeAccess;
+import api.methods.SimulateTime;
+import api.methods.TransferMoney;
+import api.methods.UnblockCard;
 import com.google.gson.Gson;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Error;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2ParseException;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Request;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
-import databeans.*;
 import io.advantageous.qbit.annotation.RequestMapping;
 import io.advantageous.qbit.annotation.RequestMethod;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
-import databeans.MessageWrapper;
-import util.JSONParser;
-
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
-import static java.net.HttpURLConnection.HTTP_OK;
 
 /**
  * @author Saul & Noel
@@ -40,23 +47,26 @@ public class ApiService {
     private Gson jsonConverter;
     /** Prefix used when printing to indicate the message is coming from the Api Service. */
     public static final String PREFIX = "[API]                 :";
-    /** Number of the ATM system for internal use*/
+    /** Number of the ATM system for internal use. */
     public static final String ATMNUMBER = "NL52GNIB3676451168";
     /** Used to check if accountNumber are of the correct length. */
-    public static final int accountNumberLength = 18;
+    public static final int ACCOUNT_NUMBER_LENGTH = 18;
     /** Character limit used to check if a fields value is too long. */
-    public static final int characterLimit = 50;
+    public static final int CHARACTER_LIMIT = 50;
     /** Character limit used to check if a transaction description is too long. */
-    public static final int descriptionLimit = 200;
+    public static final int DESCRIPTION_LIMIT = 200;
 
     /**
-     * Constructor
+     * Constructor.
      * @param authenticationPort Port the ui service is located on.
      * @param authenticationHost Host the ui service is located on.
      * @param pinPort Port the pin service is located on.
      * @param pinHost Host the pin service is located on.
+     * @param sysInfoPort Port the systen information service is located on.
+     * @param sysInfoHost Host the systen information service is located on.
      */
-    public ApiService(final int authenticationPort, final String authenticationHost, final int pinPort, final String pinHost,
+    public ApiService(final int authenticationPort, final String authenticationHost,
+                      final int pinPort, final String pinHost,
                       final int sysInfoPort, final String sysInfoHost) {
         pinClient = httpClientBuilder().setHost(pinHost).setPort(pinPort).buildAndStart();
         systemInformationClient = httpClientBuilder().setHost(sysInfoHost).setPort(sysInfoPort).buildAndStart();
@@ -123,18 +133,34 @@ public class ApiService {
         }
     }
 
+    /**
+     * Returns the connection to the Pin Service.
+     * @return The connection
+     */
     public HttpClient getPinClient() {
         return pinClient;
     }
 
+    /**
+     * Returns the connection to the System Information Service.
+     * @return The connection
+     */
     public HttpClient getSystemInformationClient() {
         return systemInformationClient;
     }
 
+    /**
+     * Returns the connection to the Authentication Service.
+     * @return The connection
+     */
     public HttpClient getAuthenticationClient() {
         return authenticationClient;
     }
 
+    /**
+     * Returns jsonConverter.
+     * @return The jsonConverter
+     */
     public Gson getJsonConverter() {
         return jsonConverter;
     }

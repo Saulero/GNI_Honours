@@ -24,6 +24,7 @@ public class DepositIntoAccount {
     /**
      * Makes a deposit into an account using a pincard.
      * @param params Parameters of the request (iBAN, pinCard, pinCode, amount).
+     * @param api DataBean containing everything in the ApiService
      */
     public static void depositIntoAccount(final Map<String, Object> params, final ApiBean api) {
         System.out.printf("%s Sending deposit transaction.\n", PREFIX);
@@ -36,7 +37,8 @@ public class DepositIntoAccount {
         api.getPinClient().putFormAsyncWith1Param("/services/pin/transaction",
                 "request", api.getJsonConverter().toJson(pin), (code, contentType, body) -> {
                     if (code == HTTP_OK) {
-                        MessageWrapper messageWrapper = api.getJsonConverter().fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        MessageWrapper messageWrapper = api.getJsonConverter().fromJson(
+                                JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
                             Transaction reply = (Transaction) messageWrapper.getData();
                             if (reply.isSuccessful() && reply.isProcessed()) {
@@ -46,14 +48,17 @@ public class DepositIntoAccount {
                                 api.getCallbackBuilder().build().reply(response.toJSONString());
                             } else {
                                 System.out.printf("%s ATM transaction was not successful.\n\n\n", PREFIX);
-                                sendErrorReply(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred."), api);
+                                sendErrorReply(JSONParser.createMessageWrapper(true, 500,
+                                        "Unknown error occurred."), api);
                             }
                         } else {
                             sendErrorReply(messageWrapper, api);
                         }
                     } else {
                         System.out.printf("%s ATM transaction request failed, body: %s\n\n\n\n", PREFIX, body);
-                        JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), api.getId());
+                        JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500,
+                                "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests"), api.getId());
                         api.getCallbackBuilder().build().reply(response.toJSONString());
                     }
                 });

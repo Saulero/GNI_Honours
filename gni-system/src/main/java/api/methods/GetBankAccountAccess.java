@@ -18,6 +18,7 @@ public class GetBankAccountAccess {
     /**
      * Fetches a list of all users that have access to a specific bankAccount.
      * @param params Parameters of the request (authToken, iBAN).
+     * @param api DataBean containing everything in the ApiService
      */
     public static void getBankAccountAccess(final Map<String, Object> params, final ApiBean api) {
         DataRequest request = JSONParser.createJsonDataRequest((String) params.get("iBAN"),

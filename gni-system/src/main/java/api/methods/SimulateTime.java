@@ -21,6 +21,7 @@ public class SimulateTime {
     /**
      * Process passing of time withint the system.
      * @param params Parameters of the request(nrOfDays).
+     * @param api DataBean containing everything in the ApiService
      */
     public static void simulateTime(final Map<String, Object> params, final ApiBean api) {
         Long nrOfDays = (Long) params.get("nrOfDays");
@@ -28,9 +29,11 @@ public class SimulateTime {
         api.getSystemInformationClient().putFormAsyncWith1Param("/services/systemInfo/date/increment",
                 "days", api.getJsonConverter().toJson(nrOfDays), (code, contentType, body) -> {
                     if (code == HTTP_OK) {
-                        MessageWrapper messageWrapper = api.getJsonConverter().fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        MessageWrapper messageWrapper = api.getJsonConverter().fromJson(
+                                JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
-                            System.out.printf("%s %s days have now passed on the system.\n\n\n\n", PREFIX, "" + nrOfDays);
+                            System.out.printf("%s %s days have now passed on the system.\n\n\n\n",
+                                    PREFIX, "" + nrOfDays);
                             Map<String, Object> result = new HashMap<>();
                             JSONRPC2Response response = new JSONRPC2Response(result, api.getId());
                             api.getCallbackBuilder().build().reply(response.toJSONString());
@@ -40,7 +43,9 @@ public class SimulateTime {
                         }
                     } else {
                         System.out.printf("%s Simulate time request unsuccessful.\n\n\n\n", PREFIX);
-                        JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), api.getId());
+                        JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500,
+                                "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests"), api.getId());
                         api.getCallbackBuilder().build().reply(response.toJSONString());
                     }
                 });

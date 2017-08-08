@@ -24,6 +24,7 @@ public class RevokeAccess {
     /**
      * Removes a users access to an account based on the username specified.
      * @param params Parameters of the request (authToken, iBAN, username).
+     * @param api DataBean containing everything in the ApiService
      */
     public static void revokeAccess(final Map<String, Object> params, final ApiBean api) {
         // performs an account Link removal and then removes the pincard(s) of said customer.
@@ -41,6 +42,7 @@ public class RevokeAccess {
      * the authenticationService.
      * @param accountLink {@link AccountLink} that should be removed from the system.
      * @param cookie Cookie of the User that sent the request.
+     * @param api DataBean containing everything in the ApiService
      */
     private static void handleAccountLinkRemovalExceptions(
             final AccountLink accountLink, final String cookie, final ApiBean api) {
@@ -49,7 +51,8 @@ public class RevokeAccess {
             doAccountLinkRemoval(accountLink, cookie, api);
         } catch (IncorrectInputException e) {
             System.out.printf("%s %s", PREFIX, e.getMessage());
-            sendErrorReply(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", e.getMessage()), api);
+            sendErrorReply(JSONParser.createMessageWrapper(true, 418,
+                    "One of the parameters has an invalid value.", e.getMessage()), api);
         } catch (JsonSyntaxException e) {
             System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
             sendErrorReply(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred."), api);
@@ -61,6 +64,7 @@ public class RevokeAccess {
      * Service, and processes the reply if it is successful or sends a rejection to the requesting source if it fails.
      * @param accountLink {@link AccountLink} that should be removed from the system.
      * @param cookie Cookie of the User that sent the request.
+     * @param api DataBean containing everything in the ApiService
      */
     private static void doAccountLinkRemoval(
             final AccountLink accountLink, final String cookie, final ApiBean api) {
@@ -68,14 +72,17 @@ public class RevokeAccess {
                 "request", api.getJsonConverter().toJson(accountLink), "cookie", cookie,
                 ((httpStatusCode, httpContentType, accountLinkReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        MessageWrapper messageWrapper = api.getJsonConverter().fromJson(JSONParser.removeEscapeCharacters(accountLinkReplyJson), MessageWrapper.class);
+                        MessageWrapper messageWrapper = api.getJsonConverter().fromJson(
+                                JSONParser.removeEscapeCharacters(accountLinkReplyJson), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
                             sendAccountLinkRemovalCallback((String) messageWrapper.getData(), api);
                         } else {
                             sendErrorReply(messageWrapper, api);
                         }
                     } else {
-                        sendErrorReply(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), api);
+                        sendErrorReply(JSONParser.createMessageWrapper(true, 500,
+                                "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests"), api);
                     }
                 }));
     }
@@ -83,6 +90,7 @@ public class RevokeAccess {
     /**
      * Forwards the result of an account link removal to the service that sent the request.
      * @param customerId The result of an account link removal.
+     * @param api DataBean containing everything in the ApiService
      */
     private static void sendAccountLinkRemovalCallback(final String customerId, final ApiBean api) {
         System.out.printf("%s Account link removal successful for CustomerId: %s\n\n\n\n", PREFIX, customerId);
@@ -91,6 +99,7 @@ public class RevokeAccess {
 
     /**
      * Sends te result of the revokeAccess request back to the request source using a JSONRPC object.
+     * @param api DataBean containing everything in the ApiService
      */
     private static void sendRevokeAccessCallback(final ApiBean api) {
         Map<String, Object> result = new HashMap<>();

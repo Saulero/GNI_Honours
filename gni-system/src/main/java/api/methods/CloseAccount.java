@@ -11,7 +11,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static api.ApiService.PREFIX;
-import static api.ApiService.accountNumberLength;
+import static api.ApiService.ACCOUNT_NUMBER_LENGTH;
 import static api.methods.SharedUtilityMethods.sendErrorReply;
 import static java.net.HttpURLConnection.HTTP_OK;
 
@@ -23,6 +23,7 @@ public class CloseAccount {
     /**
      * Removes an account from the system.
      * @param params Map containing the parameters of the request (authToken, IBAN).
+     * @param api DataBean containing everything in the ApiService
      */
     public static void closeAccount(final Map<String, Object> params, final ApiBean api) {
         System.out.printf("%s Sending close account request.\n", PREFIX);
@@ -34,6 +35,7 @@ public class CloseAccount {
      * exception occurs.
      * @param accountNumber AccountNumber of the account that is to be removed from the system.
      * @param cookie Cookie of the User that sent the request.
+     * @param api DataBean containing everything in the ApiService
      */
     private static void handleAccountRemovalExceptions(
             final String accountNumber, final String cookie, final ApiBean api) {
@@ -42,7 +44,8 @@ public class CloseAccount {
             doAccountRemovalRequest(accountNumber, cookie, api);
         } catch (IncorrectInputException e) {
             e.printStackTrace();
-            sendErrorReply(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value."), api);
+            sendErrorReply(JSONParser.createMessageWrapper(true, 418,
+                    "One of the parameters has an invalid value."), api);
         }
     }
 
@@ -52,7 +55,7 @@ public class CloseAccount {
      * @throws IncorrectInputException Thrown when a value is not correctly specified.
      */
     private static void verifyAccountRemovalInput(final String accountNumber) throws IncorrectInputException {
-        if (accountNumber == null || accountNumber.length() != accountNumberLength) {
+        if (accountNumber == null || accountNumber.length() != ACCOUNT_NUMBER_LENGTH) {
             throw new IncorrectInputException("The following variable was incorrectly specified: accountNumber.");
         }
     }
@@ -62,6 +65,7 @@ public class CloseAccount {
      * successful, or sends a rejection if the request fails.
      * @param accountNumber AccountNumber of the account that is to be removed from the system.
      * @param cookie Cookie of the User that sent the request.
+     * @param api DataBean containing everything in the ApiService
      */
     private static void doAccountRemovalRequest(
             final String accountNumber, final String cookie, final ApiBean api) {
@@ -70,14 +74,17 @@ public class CloseAccount {
                 "accountNumber", accountNumber, "cookie", cookie,
                 (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        MessageWrapper messageWrapper = api.getJsonConverter().fromJson(JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
+                        MessageWrapper messageWrapper = api.getJsonConverter().fromJson(
+                                JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
                             sendCloseAccountCallback((AccountLink) messageWrapper.getData(), api);
                         } else {
                             sendErrorReply(messageWrapper, api);
                         }
                     } else {
-                        sendErrorReply(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), api);
+                        sendErrorReply(JSONParser.createMessageWrapper(true, 500,
+                                "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests"), api);
                     }
                 });
     }
@@ -85,6 +92,7 @@ public class CloseAccount {
     /**
      * Sends te result of the closeAccountRequest back to the request source using a JSONRPC object.
      * @param reply Used to show which accountNumber is closed.
+     * @param api DataBean containing everything in the ApiService
      */
     private static void sendCloseAccountCallback(final AccountLink reply, final ApiBean api) {
         System.out.printf("%s Successfully closed account %s\n\n\n\n", PREFIX, reply.getAccountNumber());

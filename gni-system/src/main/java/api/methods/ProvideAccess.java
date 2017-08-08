@@ -24,6 +24,7 @@ public class ProvideAccess {
      * Links an account to the user with the username specified in params. Then creates a new pin card for the user
      * and returns the pincard and pincode.
      * @param params Parameters of the request(authToken, iBAN, username).
+     * @param api DataBean containing everything in the ApiService
      */
     public static void provideAccess(final Map<String, Object> params, final ApiBean api) {
         // does an account Link to a username(so we need a conversion for this internally)
@@ -41,6 +42,7 @@ public class ProvideAccess {
      * exception is thrown.
      * @param accountLink {@link AccountLink} that should be created in the system.
      * @param cookie Cookie of the User that sent the request.
+     * @param api DataBean containing everything in the ApiService
      */
     private static void handleAccountLinkExceptions(
             final AccountLink accountLink, final String cookie, final ApiBean api) {
@@ -49,7 +51,8 @@ public class ProvideAccess {
             doAccountLinkRequest(accountLink, cookie, api);
         } catch (IncorrectInputException e) {
             System.out.printf("%s %s", PREFIX, e.getMessage());
-            sendErrorReply(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", e.getMessage()), api);
+            sendErrorReply(JSONParser.createMessageWrapper(true, 418,
+                    "One of the parameters has an invalid value.", e.getMessage()), api);
         } catch (JsonSyntaxException e) {
             System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
             sendErrorReply(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred."), api);
@@ -61,20 +64,24 @@ public class ProvideAccess {
      * successful or sends a rejection to the requesting source if it fails.
      * @param accountLink {@link AccountLink} that should be executed.
      * @param cookie Cookie of the User that sent the request.
+     * @param api DataBean containing everything in the ApiService
      */
     private static void doAccountLinkRequest(final AccountLink accountLink, final String cookie, final ApiBean api) {
         api.getAuthenticationClient().putFormAsyncWith2Params("/services/authentication/accountLink",
                 "request", api.getJsonConverter().toJson(accountLink), "cookie", cookie,
                 ((httpStatusCode, httpContentType, accountLinkReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        MessageWrapper messageWrapper = api.getJsonConverter().fromJson(JSONParser.removeEscapeCharacters(accountLinkReplyJson), MessageWrapper.class);
+                        MessageWrapper messageWrapper = api.getJsonConverter().fromJson(
+                                JSONParser.removeEscapeCharacters(accountLinkReplyJson), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
                             sendAccountLinkRequestCallback((AccountLink) messageWrapper.getData(), cookie, api);
                         } else {
                             sendErrorReply(messageWrapper, api);
                         }
                     } else {
-                        sendErrorReply(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), api);
+                        sendErrorReply(JSONParser.createMessageWrapper(true, 500,
+                                "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests"), api);
                     }
                 }));
     }
@@ -82,6 +89,8 @@ public class ProvideAccess {
     /**
      * Forwards the result of an account link request to the service that sent the request.
      * @param accountLink The result of an account link request.
+     * @param cookie Cookie of the user that sent the data request.
+     * @param api DataBean containing everything in the ApiService
      */
     private static void sendAccountLinkRequestCallback(
             final AccountLink accountLink, final String cookie, final ApiBean api) {
