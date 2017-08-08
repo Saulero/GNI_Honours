@@ -1,6 +1,8 @@
 package ledger;
 
 import com.google.gson.Gson;
+import com.thetransactioncompany.jsonrpc2.JSONRPC2Error;
+import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 import database.ConnectionPool;
 import database.SQLConnection;
 import database.SQLStatements;
@@ -8,6 +10,7 @@ import databeans.*;
 import io.advantageous.qbit.annotation.RequestMapping;
 import io.advantageous.qbit.annotation.RequestMethod;
 import io.advantageous.qbit.annotation.RequestParam;
+import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import databeans.DataReply;
 import databeans.DataRequest;
@@ -17,13 +20,19 @@ import util.JSONParser;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import static database.SQLStatements.*;
+import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
+import static java.net.HttpURLConnection.HTTP_OK;
 
 /**
  * @author Saul
@@ -34,6 +43,8 @@ class LedgerService {
 
     /** Database connection pool containing persistent database connections. */
     private ConnectionPool db;
+    /** Connection to the System Information Service.*/
+    private HttpClient systemInformationClient;
     /** Used for json conversions. */
     private Gson jsonConverter;
     /** Prefix used when printing to indicate the message is coming from the Ledger Service. */
@@ -42,8 +53,10 @@ class LedgerService {
     /**
      * Constructor.
      */
-    LedgerService() {
+    LedgerService(final int systemInformationPort, final String systemInformationHost) {
         db = new ConnectionPool();
+        systemInformationClient = httpClientBuilder().setHost(systemInformationHost)
+                .setPort(systemInformationPort).buildAndStart();
         jsonConverter = new Gson();
     }
 
@@ -267,6 +280,7 @@ class LedgerService {
         }
     }
 
+    // TODO THIS SERVICE IS NOT ALLOWED TO USE OTHER SERVICE'S THEIR DATABASES
     /**
      * Adds a transaction to either the incoming transaction log, or the outgoing transaction log,
      * depending on the incoming flag.
@@ -284,7 +298,7 @@ class LedgerService {
             }
 
             ps.setLong(1, transaction.getTransactionID());
-            ps.setLong(2, transaction.getTimestamp());
+            ps.setDate(2, java.sql.Date.valueOf(transaction.getDate()));
             ps.setString(3, transaction.getDestinationAccountNumber());
             ps.setString(4, transaction.getDestinationAccountHolderName());
             ps.setString(5, transaction.getSourceAccountNumber());
@@ -320,50 +334,65 @@ class LedgerService {
     @RequestMapping(value = "/transaction/in", method = RequestMethod.PUT)
     public void incomingTransactionListener(final Callback<String> callback,
                                             final @RequestParam("request") String body) {
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         System.out.printf("%s Received an incoming transaction request.\n", PREFIX);
         Gson gson = new Gson();
         Transaction transaction = gson.fromJson(body, Transaction.class);
-
-        // Method call
-        transaction = processIncomingTransaction(transaction);
-
-        if (transaction.isSuccessful()) {
-            System.out.printf("%s Successfully processed incoming transaction, sending callback.\n", PREFIX);
-            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", transaction)));
-        } else {
-            System.out.printf("%s Incoming transaction was not successful, sending callback.\n", PREFIX);
-            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.")));
-        }
+        processIncomingTransaction(transaction, callbackBuilder);
     }
 
     /**
      * Processes an incoming transaction.
      * Checks if the account exists and then processes the transaction if it does.
      * @param transaction Object representing a Transaction
-     * @return The processed transaction
      */
-    Transaction processIncomingTransaction(final Transaction transaction) {
-        Account account = getAccountInfo(transaction.getDestinationAccountNumber());
+    void processIncomingTransaction(final Transaction transaction, final CallbackBuilder callbackBuilder) {
+        systemInformationClient.getAsync("/services/systemInfo/date", (code, contentType, body) -> {
+            if (code == HTTP_OK) {
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
 
-        if (account != null) {
-            // Update the object
-            account.processDeposit(transaction);
+                    LocalDate date = (LocalDate) messageWrapper.getData();
+                    Account account = getAccountInfo(transaction.getDestinationAccountNumber());
+                    if (account != null) {
+                        // Update the object
+                        account.processDeposit(transaction);
 
-            // Update the database
-            updateBalance(account);
+                        // Update the database
+                        updateBalance(account);
 
-            // Update Transaction log
-            transaction.setTransactionID(getHighestTransactionID());
-            transaction.generateTimestamp();
-            addTransaction(transaction, true);
+                        // Update Transaction log
+                        transaction.setTransactionID(getHighestTransactionID());
+                        transaction.setDate(date);
+                        addTransaction(transaction, true);
 
-            transaction.setProcessed(true);
-            transaction.setSuccessful(true);
+                        transaction.setProcessed(true);
+                        transaction.setSuccessful(true);
+                    } else {
+                        transaction.setProcessed(true);
+                        transaction.setSuccessful(false);
+                    }
+                    sendIncomingTransactionCallback(transaction, callbackBuilder);
+                } else {
+                    callbackBuilder.build().reply(body);
+                }
+            } else {
+                System.out.printf("%s Processing Incoming transaction failed, body: %s\n\n\n\n", PREFIX, body);
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true,
+                        500, "An unknown error occurred.",
+                        "There was a problem with one of the HTTP requests")));
+            }
+        });
+    }
+
+    private void sendIncomingTransactionCallback(final Transaction transaction, final CallbackBuilder callbackBuilder) {
+        if (transaction.isSuccessful()) {
+            System.out.printf("%s Successfully processed incoming transaction, sending callback.\n", PREFIX);
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", transaction)));
         } else {
-            transaction.setProcessed(true);
-            transaction.setSuccessful(false);
+            System.out.printf("%s Incoming transaction was not successful, sending callback.\n", PREFIX);
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.")));
         }
-        return transaction;
     }
 
     /**
@@ -376,27 +405,12 @@ class LedgerService {
     public void outgoingTransactionListener(final Callback<String> callback,
                                             @RequestParam("request") final String requestJson,
                                             @RequestParam("customerId") final String customerId) {
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         System.out.printf("%s Received outgoing transaction request for customer %s.\n", PREFIX, customerId);
         Gson gson = new Gson();
         Transaction transaction = gson.fromJson(requestJson, Transaction.class);
         boolean customerIsAuthorized = getCustomerAuthorization(transaction.getSourceAccountNumber(), customerId);
-
-        // Method call
-        transaction = processOutgoingTransaction(transaction, customerIsAuthorized);
-
-        if (transaction.isSuccessful()) {
-            System.out.printf("%s Successfully processed outgoing transaction, sending callback.\n", PREFIX);
-            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", transaction)));
-        } else {
-            if (!customerIsAuthorized) {
-                System.out.printf("%s Customer with id %s is not authorized to make transactions from this account."
-                        + " Sending callback.\n", PREFIX, customerId);
-                callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "Customer is not authorized to make transactions from this account")));
-            } else {
-                System.out.printf("%s Outgoing transaction was not successful, sending callback.\n", PREFIX);
-                callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "There is probably not enough balance in the account.")));
-            }
-        }
+        processOutgoingTransaction(transaction, customerIsAuthorized, callbackBuilder);
     }
 
     /**
@@ -406,27 +420,59 @@ class LedgerService {
      * @param customerIsAuthorized boolean to signify if the outgoing transaction is allowed
      * @return The processed transaction
      */
-    Transaction processOutgoingTransaction(final Transaction transaction, final boolean customerIsAuthorized) {
-        Account account = getAccountInfo(transaction.getSourceAccountNumber());
-        if (account != null && account.withdrawTransactionIsAllowed(transaction) && customerIsAuthorized) {
-            // Update the object
-            account.processWithdraw(transaction);
+    void processOutgoingTransaction(final Transaction transaction, final boolean customerIsAuthorized, final CallbackBuilder callbackBuilder) {
+        systemInformationClient.getAsync("/services/systemInfo/date", (code, contentType, body) -> {
+            if (code == HTTP_OK) {
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
 
-            // Update the database
-            updateBalance(account);
+                    LocalDate date = (LocalDate) messageWrapper.getData();
+                    Account account = getAccountInfo(transaction.getSourceAccountNumber());
+                    if (account != null && account.withdrawTransactionIsAllowed(transaction) && customerIsAuthorized) {
+                        // Update the object
+                        account.processWithdraw(transaction);
 
-            /// Update Transaction log
-            transaction.setTransactionID(getHighestTransactionID());
-            transaction.generateTimestamp();
-            addTransaction(transaction, false);
+                        // Update the database
+                        updateBalance(account);
 
-            transaction.setProcessed(true);
-            transaction.setSuccessful(true);
+                        /// Update Transaction log
+                        transaction.setTransactionID(getHighestTransactionID());
+                        transaction.setDate(date);
+                        addTransaction(transaction, false);
+
+                        transaction.setProcessed(true);
+                        transaction.setSuccessful(true);
+                    } else {
+                        transaction.setProcessed(true);
+                        transaction.setSuccessful(false);
+                    }
+                    sendOutgoingTransactionCallback(transaction, customerIsAuthorized, callbackBuilder);
+                } else {
+                    callbackBuilder.build().reply(body);
+                }
+            } else {
+                System.out.printf("%s Processing Outgoing transaction failed, body: %s\n\n\n\n", PREFIX, body);
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true,
+                        500, "An unknown error occurred.",
+                        "There was a problem with one of the HTTP requests")));
+            }
+        });
+    }
+
+
+    private void sendOutgoingTransactionCallback(final Transaction transaction, final boolean customerIsAuthorized, final CallbackBuilder callbackBuilder) {
+        if (transaction.isSuccessful()) {
+            System.out.printf("%s Successfully processed outgoing transaction, sending callback.\n", PREFIX);
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", transaction)));
         } else {
-            transaction.setProcessed(true);
-            transaction.setSuccessful(false);
+            if (!customerIsAuthorized) {
+                System.out.printf("%s Customer is not authorized to make transactions from this account.\n", PREFIX);
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "Customer is not authorized to make transactions from this account")));
+            } else {
+                System.out.printf("%s Outgoing transaction was not successful, sending callback.\n", PREFIX);
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "There is probably not enough balance in the account.")));
+            }
         }
-        return transaction;
     }
 
     /**
@@ -608,14 +654,14 @@ class LedgerService {
     private void fillTransactionList(final List<Transaction> list, final ResultSet rs) throws SQLException {
         while (rs.next()) {
             long id = rs.getLong("id");
-            long timestamp = rs.getLong("timestamp");
+            LocalDate date = rs.getDate("date").toLocalDate();
             String sourceAccount = rs.getString("account_from");
             String destinationAccount = rs.getString("account_to");
             String destinationAccountHolderName = rs.getString("account_to_name");
             String description = rs.getString("description");
             double amount = rs.getDouble("amount");
 
-            list.add(new Transaction(id, timestamp, sourceAccount, destinationAccount, destinationAccountHolderName,
+            list.add(new Transaction(id, date, sourceAccount, destinationAccount, destinationAccountHolderName,
                     description, amount));
         }
     }

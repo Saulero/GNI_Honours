@@ -60,6 +60,55 @@ public class BasicHappyFlowTestSuite {
             JSONRPC2Response response;
             Map<String, Object> parsedResponse;
 
+            // SimulateTime, Reset and getDate method
+            System.out.println("-- SimulateTime & Reset & GetDate method --");
+
+            // getDate
+            System.out.println("--> getDate");
+            request = GetDateMethod.createRequest();
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                GetDateMethod.parseResponse(parsedResponse);
+            }
+
+            // simulateTime
+            System.out.println("--> simulateTime with 1000 days");
+            request = SimulateTimeMethod.createRequest(1000L);
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                SimulateTimeMethod.parseResponse(parsedResponse);
+            }
+
+            // getDate
+            System.out.println("--> getDate");
+            request = GetDateMethod.createRequest();
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                GetDateMethod.parseResponse(parsedResponse);
+            }
+
+            // reset
+            System.out.println("--> reset");
+            request = ResetMethod.createRequest();
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                ResetMethod.parseResponse(parsedResponse);
+            }
+
+            // getDate
+            System.out.println("--> getDate");
+            request = GetDateMethod.createRequest();
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                GetDateMethod.parseResponse(parsedResponse);
+            }
+
+
             // Method 1. OpenAccount.
             System.out.println("-- OpenAccountMethod. Donald opens an account --");
 

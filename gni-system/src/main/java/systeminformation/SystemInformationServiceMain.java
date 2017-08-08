@@ -1,34 +1,32 @@
-package pin;
+package systeminformation;
 
 import io.advantageous.qbit.admin.ManagedServiceBuilder;
 
 /**
- * Utility class that contains a main method to start up the PinService.
+ * Utility class that contains a main method to start up the System Information Service.
  * @author Noel
  * @version 1
  */
-public final class PinServiceMain {
+public class SystemInformationServiceMain {
 
     /**
      * Private constructor for utility class.
      */
-    private PinServiceMain() {
+    private SystemInformationServiceMain() {
         //Not called
     }
 
     /**
-     * Starts a Pin service on localhost:9995.
+     * Starts a System Information service on localhost:9998.
      */
     public static void main() {
         final ManagedServiceBuilder managedServiceBuilder =
                 ManagedServiceBuilder.managedServiceBuilder()
                         .setRootURI("/services") //Defaults to services
-                        .setPort(9995);
-        managedServiceBuilder.addEndpointService(new PinService(9993,
-                "localhost", 9994, "localhost",
-                9998, "localhost"))
+                        .setPort(9998);
+        managedServiceBuilder.addEndpointService(new SystemInformationService())
                 .getEndpointServerBuilder()
                 .build().startServer();
-        System.out.println("Pin service started");
+        System.out.println("System Information service started");
     }
 }

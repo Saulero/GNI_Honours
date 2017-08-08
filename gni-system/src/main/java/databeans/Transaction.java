@@ -1,6 +1,7 @@
 package databeans;
 
 import java.io.Serializable;
+import java.time.LocalDate;
 
 /**
  * @author Saul
@@ -8,7 +9,7 @@ import java.io.Serializable;
 public class Transaction implements Serializable {
 
     private long transactionID;
-    private long timestamp;
+    private LocalDate date;
     private String sourceAccountNumber;
     private String destinationAccountNumber;
     private String destinationAccountHolderName;
@@ -21,7 +22,7 @@ public class Transaction implements Serializable {
                        final String newDestinationAccountNumber, final String newDestinationAccountHolderName,
                        final String newDescription, final double newTransactionAmount) {
         this.transactionID = newTransactionID;
-        this.timestamp = -1;
+        this.date = null;
         this.sourceAccountNumber = newSourceAccountNumber;
         this.destinationAccountNumber = newDestinationAccountNumber;
         this.destinationAccountHolderName = newDestinationAccountHolderName;
@@ -31,11 +32,11 @@ public class Transaction implements Serializable {
         this.successful = false;
     }
 
-    public Transaction(final long newTransactionID, final long newTimestamp, final String newSourceAccountNumber,
+    public Transaction(final long newTransactionID, final LocalDate newDate, final String newSourceAccountNumber,
                        final String newDestinationAccountNumber, final String newDestinationAccountHolderName,
                        final String newDescription, final double newTransactionAmount) {
         this.transactionID = newTransactionID;
-        this.timestamp = newTimestamp;
+        this.date = newDate;
         this.sourceAccountNumber = newSourceAccountNumber;
         this.destinationAccountNumber = newDestinationAccountNumber;
         this.destinationAccountHolderName = newDestinationAccountHolderName;
@@ -55,18 +56,6 @@ public class Transaction implements Serializable {
         this.transactionID = newTransactionID;
     }
 
-    public long getTimestamp() {
-        return this.timestamp;
-    }
-
-    public void setTimestamp(final long newTimestamp) {
-        this.timestamp = newTimestamp;
-    }
-
-    public void generateTimestamp() {
-        this.timestamp = System.currentTimeMillis();
-    }
-
     public String getSourceAccountNumber() {
         return this.sourceAccountNumber;
     }
@@ -81,6 +70,14 @@ public class Transaction implements Serializable {
 
     public void setDestinationAccountNumber(final String newDestinationAccountNumber) {
         this.destinationAccountNumber = newDestinationAccountNumber;
+    }
+
+    public LocalDate getDate() {
+        return date;
+    }
+
+    public void setDate(LocalDate date) {
+        this.date = date;
     }
 
     public String getDestinationAccountHolderName() {
@@ -143,62 +140,12 @@ public class Transaction implements Serializable {
         Transaction that = (Transaction) o;
 
         if (getTransactionID() != that.getTransactionID()) return false;
-        if (getTimestamp() != that.getTimestamp()) return false;
+        if (!getDate().equals(that.getDate())) return false;
         if (Double.compare(that.getTransactionAmount(), getTransactionAmount()) != 0) return false;
         if (getSourceAccountNumber() != null ? !getSourceAccountNumber().equals(that.getSourceAccountNumber()) : that.getSourceAccountNumber() != null)
             return false;
         if (getDestinationAccountNumber() != null ? !getDestinationAccountNumber().equals(that.getDestinationAccountNumber()) : that.getDestinationAccountNumber() != null)
             return false;
         return true;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Transaction)) return false;
-
-        Transaction that = (Transaction) o;
-
-        if (getTransactionID() != that.getTransactionID()) return false;
-        if (getTimestamp() != that.getTimestamp()) return false;
-        if (Double.compare(that.getTransactionAmount(), getTransactionAmount()) != 0) return false;
-        if (isProcessed() != that.isProcessed()) return false;
-        if (isSuccessful() != that.isSuccessful()) return false;
-        if (getSourceAccountNumber() != null ? !getSourceAccountNumber().equals(that.getSourceAccountNumber()) : that.getSourceAccountNumber() != null)
-            return false;
-        if (getDestinationAccountNumber() != null ? !getDestinationAccountNumber().equals(that.getDestinationAccountNumber()) : that.getDestinationAccountNumber() != null)
-            return false;
-        return getDestinationAccountHolderName() != null ? getDestinationAccountHolderName().equals(that.getDestinationAccountHolderName()) : that.getDestinationAccountHolderName() == null;
-    }
-
-    @Override
-    public int hashCode() {
-        int result;
-        long temp;
-        result = (int) (getTransactionID() ^ (getTransactionID() >>> 32));
-        result = 31 * result + (int) (getTimestamp() ^ (getTimestamp() >>> 32));
-        result = 31 * result + (getSourceAccountNumber() != null ? getSourceAccountNumber().hashCode() : 0);
-        result = 31 * result + (getDestinationAccountNumber() != null ? getDestinationAccountNumber().hashCode() : 0);
-        result = 31 * result + (getDestinationAccountHolderName() != null ? getDestinationAccountHolderName().hashCode() : 0);
-        temp = Double.doubleToLongBits(getTransactionAmount());
-        result = 31 * result + (int) (temp ^ (temp >>> 32));
-        result = 31 * result + (isProcessed() ? 1 : 0);
-        result = 31 * result + (isSuccessful() ? 1 : 0);
-        return result;
-    }
-
-    @Override
-    public String toString() {
-        return "Transaction{" +
-                "transactionID=" + transactionID +
-                ", timestamp=" + timestamp +
-                ", sourceAccountNumber='" + sourceAccountNumber + '\'' +
-                ", destinationAccountNumber='" + destinationAccountNumber + '\'' +
-                ", destinationAccountHolderName='" + destinationAccountHolderName + '\'' +
-                ", description='" + description + '\'' +
-                ", transactionAmount=" + transactionAmount +
-                ", processed=" + processed +
-                ", successful=" + successful +
-                '}';
     }
 }

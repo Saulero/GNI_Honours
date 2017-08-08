@@ -2,6 +2,7 @@ package util;
 
 import databeans.*;
 
+import java.time.LocalDate;
 import java.util.Date;
 import java.util.LinkedList;
 
@@ -114,7 +115,7 @@ public final class JSONParser {
                                                     final boolean successful) {
         Transaction transaction = new Transaction();
         transaction.setTransactionID(transactionID);
-        transaction.setTimestamp(-1);
+        transaction.setDate(null);
         transaction.setSourceAccountNumber(sourceAccountNumber);
         transaction.setDestinationAccountNumber(destinationAccountNumber);
         transaction.setDestinationAccountHolderName(destinationAccountHolderName);
@@ -142,7 +143,7 @@ public final class JSONParser {
                                                     final double transactionAmount) {
         Transaction transaction = new Transaction();
         transaction.setTransactionID(transactionID);
-        transaction.setTimestamp(-1);
+        transaction.setDate(null);
         transaction.setSourceAccountNumber(sourceAccountNumber);
         transaction.setDestinationAccountNumber(destinationAccountNumber);
         transaction.setDestinationAccountHolderName(destinationAccountHolderName);
@@ -288,7 +289,7 @@ public final class JSONParser {
     }
 
     public static PinCard createJsonPinCard(final String accountNumber, final Long cardNumber, final String pinCode,
-                                            final Long customerId, final Date expirationDate) {
+                                            final Long customerId, final LocalDate expirationDate) {
         PinCard pinCard = new PinCard();
         pinCard.setAccountNumber(accountNumber);
         pinCard.setCardNumber(cardNumber);
