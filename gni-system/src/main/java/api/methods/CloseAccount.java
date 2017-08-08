@@ -2,11 +2,9 @@ package api.methods;
 
 import api.ApiBean;
 import api.IncorrectInputException;
-import com.thetransactioncompany.jsonrpc2.JSONRPC2Error;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 import databeans.AccountLink;
 import databeans.MessageWrapper;
-import io.advantageous.qbit.reactive.CallbackBuilder;
 import util.JSONParser;
 
 import java.util.HashMap;
@@ -14,6 +12,7 @@ import java.util.Map;
 
 import static api.ApiService.PREFIX;
 import static api.ApiService.accountNumberLength;
+import static api.methods.SharedUtilityMethods.sendErrorReply;
 import static java.net.HttpURLConnection.HTTP_OK;
 
 /**
@@ -43,7 +42,7 @@ public class CloseAccount {
             doAccountRemovalRequest(accountNumber, cookie, api);
         } catch (IncorrectInputException e) {
             e.printStackTrace();
-            api.getCallbackBuilder().build().reply(api.getJsonConverter().toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.")));
+            sendErrorReply(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value."), api);
         }
     }
 
@@ -75,10 +74,10 @@ public class CloseAccount {
                         if (!messageWrapper.isError()) {
                             sendCloseAccountCallback((AccountLink) messageWrapper.getData(), api);
                         } else {
-                            api.getCallbackBuilder().build().reply(replyJson);
+                            sendErrorReply(messageWrapper, api);
                         }
                     } else {
-                        api.getCallbackBuilder().build().reply(api.getJsonConverter().toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                        sendErrorReply(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), api);
                     }
                 });
     }

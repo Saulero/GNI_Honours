@@ -1,5 +1,6 @@
 package api;
 
+import api.methods.CloseAccount;
 import api.methods.GetAuthToken;
 import api.methods.OpenAccount;
 import api.methods.OpenAdditionalAccount;
@@ -86,7 +87,7 @@ public class ApiService {
                     break;
                 case "openAdditionalAccount":   OpenAdditionalAccount.openAdditionalAccount(params, api);
                     break;
-                case "closeAccount":            closeAccount(params, callbackBuilder, id);
+                case "closeAccount":            CloseAccount.closeAccount(params, api);
                     break;
                 case "provideAccess":           provideAccess(params, callbackBuilder, id);
                     break;

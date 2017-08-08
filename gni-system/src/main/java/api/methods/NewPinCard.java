@@ -13,6 +13,7 @@ import java.util.Map;
 
 import static api.ApiService.PREFIX;
 import static api.ApiService.accountNumberLength;
+import static api.methods.SharedUtilityMethods.sendErrorReply;
 import static java.net.HttpURLConnection.HTTP_OK;
 
 /**
@@ -46,7 +47,7 @@ public class NewPinCard {
             doNewPinCardRequest(accountNumber, cookie, username, accountNrInResult, api);
         } catch (IncorrectInputException e) {
             System.out.printf("%s %s", PREFIX, e.getMessage());
-            api.getCallbackBuilder().build().reply(api.getJsonConverter().toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.")));
+            sendErrorReply(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value."), api);
         }
     }
 
@@ -74,10 +75,10 @@ public class NewPinCard {
                             sendNewPinCardCallback((PinCard) messageWrapper.getData(),
                                     accountNumber, accountNrInResult, api);
                         } else {
-                            api.getCallbackBuilder().build().reply(body);
+                            sendErrorReply(messageWrapper, api);
                         }
                     } else {
-                        api.getCallbackBuilder().build().reply(api.getJsonConverter().toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                        sendErrorReply(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), api);
                     }
                 });
     }

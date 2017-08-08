@@ -1,9 +1,9 @@
 package api.methods;
 
+import api.ApiBean;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Error;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 import databeans.MessageWrapper;
-import io.advantageous.qbit.reactive.CallbackBuilder;
 import static api.ApiService.characterLimit;
 
 /**
@@ -23,13 +23,15 @@ public class SharedUtilityMethods {
 
     //------------------------------------------------------------------------------------------------------------------
 
-    public static void sendErrorReply(CallbackBuilder callbackBuilder, MessageWrapper reply, final Object id) {
+    public static void sendErrorReply(MessageWrapper reply, final ApiBean api) {
         JSONRPC2Response response;
         if (reply.getData() == null) {
-            response = new JSONRPC2Response(new JSONRPC2Error(reply.getCode(), reply.getMessage()), id);
+            response = new JSONRPC2Response(new JSONRPC2Error(
+                    reply.getCode(), reply.getMessage()), api.getId());
         } else {
-            response = new JSONRPC2Response(new JSONRPC2Error(reply.getCode(), reply.getMessage(), reply.getData()), id);
+            response = new JSONRPC2Response(new JSONRPC2Error(
+                    reply.getCode(), reply.getMessage(), reply.getData()), api.getId());
         }
-        callbackBuilder.build().reply(response.toJSONString());
+        api.getCallbackBuilder().build().reply(response.toJSONString());
     }
 }

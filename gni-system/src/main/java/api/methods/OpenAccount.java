@@ -12,6 +12,7 @@ import java.util.Map;
 
 import static api.ApiService.PREFIX;
 import static api.methods.GetAuthToken.getAuthTokenForPinCard;
+import static api.methods.SharedUtilityMethods.sendErrorReply;
 import static api.methods.SharedUtilityMethods.valueHasCorrectLength;
 import static java.net.HttpURLConnection.HTTP_OK;
 
@@ -46,13 +47,13 @@ public class OpenAccount {
             doNewCustomerRequest(newCustomer, api);
         } catch (IncorrectInputException e) {
             System.out.printf("%s One of the parameters has an invalid value, sending error.", PREFIX);
-            api.getCallbackBuilder().build().reply(api.getJsonConverter().toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.")));
+            sendErrorReply(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value."), api);
         } catch (JsonSyntaxException e) {
             System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
-            api.getCallbackBuilder().build().reply(api.getJsonConverter().toJson(JSONParser.createMessageWrapper(true, 418, "Syntax error when parsing json.")));
+            sendErrorReply(JSONParser.createMessageWrapper(true, 418, "Syntax error when parsing json."), api);
         } catch (NumberFormatException e) {
             System.out.printf("%s The ssn, spendinglimit or balance was incorrectly specified, sending rejection.\n", PREFIX);
-            api.getCallbackBuilder().build().reply(api.getJsonConverter().toJson(JSONParser.createMessageWrapper(true, 418, "One of the following variables was incorrectly specified: ssn, spendingLimit, balance.")));
+            sendErrorReply(JSONParser.createMessageWrapper(true, 418, "One of the following variables was incorrectly specified: ssn, spendingLimit, balance."), api);
         }
     }
 
@@ -107,7 +108,7 @@ public class OpenAccount {
     /**
      * Sends the customer request to the Authentication service and then processes the reply, or sends a rejection to
      * the source of the request if the request fails..
-     * @param newCustomer {@link Customer} that should be created.
+     * @param customer {@link Customer} that should be created.
      */
     private static void doNewCustomerRequest(final Customer customer, final ApiBean api) {
         System.out.printf("%s Forwarding customer creation request.\n", PREFIX);
@@ -120,10 +121,10 @@ public class OpenAccount {
                             getAuthTokenForPinCard(new Authentication(customer.getUsername(), customer.getPassword()),
                                     customer.getAccount().getAccountNumber(), api);
                         } else {
-                            api.getCallbackBuilder().build().reply(newCustomerReplyJson);
+                            sendErrorReply(messageWrapper, api);
                         }
                     } else {
-                        api.getCallbackBuilder().build().reply(api.getJsonConverter().toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                        sendErrorReply(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), api);
                     }
                 });
     }

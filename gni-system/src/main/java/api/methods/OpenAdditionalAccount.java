@@ -9,6 +9,7 @@ import java.util.Map;
 
 import static api.ApiService.PREFIX;
 import static api.methods.NewPinCard.doNewPinCardRequest;
+import static api.methods.SharedUtilityMethods.sendErrorReply;
 import static java.net.HttpURLConnection.HTTP_OK;
 
 /**
@@ -37,10 +38,10 @@ public class OpenAdditionalAccount {
                         if (!messageWrapper.isError()) {
                             sendNewAccountRequestCallback((Customer) messageWrapper.getData(), cookie, api);
                         } else {
-                            api.getCallbackBuilder().build().reply(newAccountReplyJson);
+                            sendErrorReply(messageWrapper, api);
                         }
                     } else {
-                        api.getCallbackBuilder().build().reply(api.getJsonConverter().toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                        sendErrorReply(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests"), api);
                     }
                 });
     }
