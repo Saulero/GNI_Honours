@@ -638,7 +638,7 @@ final class ApiService {
                                 transactionMap.put("sourceIBAN", transaction.getSourceAccountNumber());
                                 transactionMap.put("targetIBAN", transaction.getDestinationAccountNumber());
                                 transactionMap.put("targetName", transaction.getDestinationAccountHolderName());
-                                transactionMap.put("date", transaction.getDate());
+                                transactionMap.put("date", transaction.getDate().toString());
                                 transactionMap.put("amount", transaction.getTransactionAmount());
                                 transactionMap.put("description", transaction.getDescription());
                                 transactionList.add(transactionMap);
