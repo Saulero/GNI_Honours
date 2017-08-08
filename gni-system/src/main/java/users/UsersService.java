@@ -95,9 +95,6 @@ class UsersService {
     private void handleInternalDataRequest(final DataRequest dataRequest, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Received customer data request, fetching data.\n", PREFIX);
         switch (dataRequest.getType()) {
-            case CUSTOMERDATA:
-                handleCustomerDataRequestExceptions(dataRequest.getCustomerId(), callbackBuilder);
-                break;
             case ACCOUNTACCESSLIST:
                 handleAccountAccessListRequestExceptions(dataRequest.getAccountNumber(), dataRequest.getCustomerId(),
                         callbackBuilder);
@@ -134,34 +131,6 @@ class UsersService {
         getAccountsFromDb.close();
         databaseConnectionPool.returnConnection(databaseConnection);
         return  linkedAccounts;
-    }
-
-    /**
-     * Sends a reject to the service that sent the data request if the SQL query in getCustomerData fails or the
-     * customer does not exist.
-     * @param customerId Id of the customer to request data for.
-     * @param callbackBuilder Used to send a reply back to the service that sent the request.
-     */
-    private void handleCustomerDataRequestExceptions(final long customerId, final CallbackBuilder callbackBuilder) {
-        try {
-            sendCustomerDataRequestCallback(getCustomerData(customerId), callbackBuilder);
-        } catch (SQLException e) {
-            e.printStackTrace();
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to Users database.")));
-        } catch (CustomerDoesNotExistException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "The provided customer does not seem to exist.")));
-        }
-    }
-
-    /**
-     * Sends a {@link Customer} containing the customer data of a certain customer to the service that requested it.
-     * Logs this is system.out.
-     * @param customerData Customer information belonging to a certain customer
-     * @param callbackBuilder Used to send a reply back to the service that sent the request.
-     */
-    private void sendCustomerDataRequestCallback(final Customer customerData, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Sending customer data request callback.\n", PREFIX);
-        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", customerData)));
     }
 
     /**

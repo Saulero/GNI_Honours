@@ -15,9 +15,6 @@ public enum RequestType implements Serializable {
     /** Used to retrieve the balance of an account number from the ledger. */
     BALANCE,
 
-    /** Used to retrieve data about a certain customer from the Users service.*/
-    CUSTOMERDATA,
-
     /** Used to check if an account exists. */
     ACCOUNTEXISTS,
 

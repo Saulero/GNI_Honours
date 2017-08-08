@@ -42,12 +42,12 @@ public class Customer implements Serializable {
      * @param newAddress address of the customer.
      * @param newDob date of birth of the customer.
      * @param newSsn social security number of the customer.
-     * @param newSpendingLimit spending limit of the customer.
-     * @param newBalance balance of the customers new account.
+     * @param newUsername Username of the customer.
+     * @param newPassword Password of the customers new account.
      * */
     public Customer(final String newInitials, final String newName, final String newSurname, final String newEmail,
                     final String newTelephoneNumber, final String newAddress, final String newDob, final long newSsn,
-                    final double newSpendingLimit, final double newBalance) {
+                    final String newUsername, final String newPassword) {
         this.initials = newInitials;
         this.name = newName;
         this.surname = newSurname;
@@ -56,7 +56,9 @@ public class Customer implements Serializable {
         this.address = newAddress;
         this.dob = newDob;
         this.ssn = newSsn;
-        this.account = new Account(newInitials + newSurname, newSpendingLimit, newBalance);
+        this.username = newUsername;
+        this.password = newPassword;
+        this.account = new Account(newInitials + newSurname, 0, 0);
     }
 
     /** Initializes customer object and assigns its variables.

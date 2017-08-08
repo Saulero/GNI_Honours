@@ -110,6 +110,7 @@ public class BasicHappyFlowTestSuite {
 
 
             // Method 1. OpenAccount.
+
             System.out.println("-- OpenAccountMethod. Donald opens an account --");
 
             request = OpenAccountMethod.createRequest(customer1);
