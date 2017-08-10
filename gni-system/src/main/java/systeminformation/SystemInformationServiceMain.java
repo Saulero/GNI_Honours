@@ -24,7 +24,7 @@ public class SystemInformationServiceMain {
                 ManagedServiceBuilder.managedServiceBuilder()
                         .setRootURI("/services") //Defaults to services
                         .setPort(9998);
-        managedServiceBuilder.addEndpointService(new SystemInformationService())
+        managedServiceBuilder.addEndpointService(new SystemInformationService(9992, "localhost"))
                 .getEndpointServerBuilder()
                 .build().startServer();
         System.out.println("System Information service started");

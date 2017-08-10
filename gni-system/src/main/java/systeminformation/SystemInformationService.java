@@ -1,16 +1,22 @@
 package systeminformation;
 
 import com.google.gson.Gson;
+import databeans.MessageWrapper;
 import io.advantageous.qbit.annotation.RequestMapping;
 import io.advantageous.qbit.annotation.RequestMethod;
 import io.advantageous.qbit.annotation.RequestParam;
+import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
+import io.advantageous.qbit.reactive.CallbackBuilder;
 import util.JSONParser;
 import util.TableCreator;
 
 import java.time.LocalDate;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
+
+import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
+import static java.net.HttpURLConnection.HTTP_OK;
 
 /**
  * @author Noel
@@ -24,6 +30,8 @@ class SystemInformationService {
     private Calendar myCal;
     /** LocalDat with current date */
     private LocalDate systemDate;
+    /** Connection to the Ledger service.*/
+    private HttpClient ledgerClient;
     /** Used for json conversions. */
     private Gson jsonConverter;
     /** Prefix used when printing to indicate the message is coming from the SystemInformation Service. */
@@ -31,10 +39,13 @@ class SystemInformationService {
 
     /**
      * Constructor to start the service. This will set the systemDate to the date of the day the method is ran.
+     * @param ledgerPort Port the LedgerService service can be found on.
+     * @param ledgerHost Host the LedgerService service can be found on.
      */
-    SystemInformationService() {
+    SystemInformationService(final int ledgerPort, final String ledgerHost) {
         systemDate = LocalDate.now();
         syncCalendar();
+        ledgerClient = httpClientBuilder().setHost(ledgerHost).setPort(ledgerPort).buildAndStart();
         this.jsonConverter = new Gson();
         System.out.printf("%s Set date to %s\n", PREFIX, systemDate.toString());
     }
@@ -46,25 +57,53 @@ class SystemInformationService {
      */
     @RequestMapping(value = "/date/increment", method = RequestMethod.PUT)
     void incrementDate(final Callback<String> callback, final @RequestParam("days") long days) {
-        processPassingTime(days);
-        System.out.printf("%s Added %d days to system date, new date is %s\n", PREFIX, days,
-                this.systemDate.toString());
-        callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply")));
+        if (days >= 0) {
+            processPassingTime(days, CallbackBuilder.newCallbackBuilder().withStringCallback(callback));
+        } else {
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 418, "One of the parameters has an invalid value.",
+                    "Requested amount of days is negative.")));
+        }
     }
 
-    private void processPassingTime(final long days) {
+    private void processPassingTime(final long days, final CallbackBuilder callbackBuilder) {
         System.out.println(systemDate.toString());
         int daysInMonth = myCal.getActualMaximum(Calendar.DAY_OF_MONTH);
         int dayOfTheMonth = systemDate.getDayOfMonth();
         this.systemDate = this.systemDate.plusDays(((daysInMonth - dayOfTheMonth) + 1));
         syncCalendar();
         if (days >= ((daysInMonth - dayOfTheMonth) + 1)) {
-            // call to ledger
+            doInterestProcessingRequest(days, callbackBuilder);
             System.out.println("processed " + ((daysInMonth - dayOfTheMonth) + 1) + " days");
-            processPassingTime(days - ((daysInMonth - dayOfTheMonth) + 1));
-        } else {
-            System.out.println(days + " leftover");
+            processPassingTime(days - ((daysInMonth - dayOfTheMonth) + 1), callbackBuilder);
         }
+    }
+
+    private void doInterestProcessingRequest(final long days, final CallbackBuilder callbackBuilder) {
+        ledgerClient.getAsyncWith1Param("/services/ledger/interest", "request",
+                jsonConverter.toJson(systemDate), (httpStatusCode, httpContentType, body) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendIncrementDaysCallback(days, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(body);
+                        }
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(
+                                JSONParser.createMessageWrapper(true, 500,
+                                "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests")));
+                    }
+                });
+    }
+
+    private void sendIncrementDaysCallback(final long days, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Added %d days to system date, new date is %s\n", PREFIX, days,
+                this.systemDate.toString());
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                false, 200, "Normal Reply")));
     }
 
     private void syncCalendar() {
