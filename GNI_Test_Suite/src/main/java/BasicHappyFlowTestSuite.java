@@ -273,11 +273,31 @@ public class BasicHappyFlowTestSuite {
             // GetBankAccountAccessMethod
             System.out.println("-- Donald wants to get bank account access list --");
 
-            request = GetBankAccountAccessMethod.createRequest(customer1, bankAccount1);
+            request = GetOverdraftLimitMethod.createRequest(customer1, bankAccount1);
             response = client.processRequest(request);
 
             if ((namedArrayResults = checkArrayResponse(response)) != null) {
                 GetBankAccountAccessMethod.parseResponse(namedArrayResults);
+            }
+
+            // SetOverdraftLimitMethod
+            System.out.println("-- Donald wants to get an overdraft limit --");
+
+            request = SetOverdraftLimitMethod.createRequest(customer1, bankAccount1, 2500);
+            response = client.processRequest(request);
+
+            if ((namedArrayResults = checkArrayResponse(response)) != null) {
+                SetOverdraftLimitMethod.parseResponse(namedArrayResults);
+            }
+
+            // GetOverdraftLimitMethod
+            System.out.println("-- Donald wants to get an overdraft limit --");
+
+            request = GetOverdraftLimitMethod.createRequest(customer1, bankAccount1);
+            response = client.processRequest(request);
+
+            if ((namedArrayResults = checkArrayResponse(response)) != null) {
+                GetOverdraftLimitMethod.parseResponse(namedArrayResults);
             }
 
             ///------ TEAR DOWN TESTS.
