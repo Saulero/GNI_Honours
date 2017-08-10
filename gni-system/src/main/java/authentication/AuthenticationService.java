@@ -987,44 +987,29 @@ class AuthenticationService {
         callbackBuilder.build().reply(replyJson);
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     /**
-     * Creates a callbackbuilder so that the result of the request can be forwarded to the request source and then
-     * calls the exception handler to further process the request. removes an account from a customer.
+     * Creates a callbackBuilder so that the result of the request can be forwarded to the request source and then
+     * calls the exception handler to further process the request. Sets a new overdraft limit for an account.
      * @param callback Used to send a reply/rejection to the request source.
-     * @param accountNumber AccountNumber that should be removed from the system.
+     * @param accountNumber AccountNumber of which the limit should be queried.
      * @param cookie Cookie of the user that sent the request, should be a user that is linked to the accountNumber.
+     * @param overdraftLimit New overdraft limit
      */
     @RequestMapping(value = "/overdraft/set", method = RequestMethod.PUT)
     public void processSetOverdraftLimit(final Callback<String> callback,
             @RequestParam("accountNumber") final String accountNumber,
             @RequestParam("cookie") final String cookie,
             @RequestParam("overdraftLimit") final String overdraftLimit) {
-        System.out.printf("%s Forwarding account removal request.\n", PREFIX);
+        System.out.printf("%s Processing SetOverdraftLimit request.\n", PREFIX);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         handleSetOverdraftLimitExceptions(accountNumber, cookie, overdraftLimit, callbackBuilder);
     }
 
     /**
-     * Authenticates the request and then forwards the removal request with the customerId of the user that sent the
-     * request to the Users Service. Checking if the accountNumber belongs to the user is done in the Users Service.
-     * @param accountNumber AccountNumber that should be removed from the system.
+     * Authenticates the request and then forwards the request with the accountNumber to ledger.
+     * @param accountNumber AccountNumber of which the limit should be queried.
      * @param cookie Cookie of the user that sent the request.
+     * @param overdraftLimit New overdraft limit
      * @param callbackBuilder Used to send the result of the request to the request source.
      */
     private void handleSetOverdraftLimitExceptions(final String accountNumber, final String cookie,
@@ -1042,10 +1027,10 @@ class AuthenticationService {
     }
 
     /**
-     * Forwards an account removal request to the Users service and sends a callback if the request is successful, or
-     * a rejection if the request fails.
-     * @param accountNumber AccountNumber that should be removed from the system.
-     * @param overdraftLimit CustomerId of the User that sent the request.
+     * Forwards a setOverdraftLimit request to Ledger service and sends a callback if the request is successful, or
+     * an error if the request fails.
+     * @param accountNumber AccountNumber of which the limit should be queried.
+     * @param overdraftLimit New overdraft limit
      * @param callbackBuilder Used to forward the result of the request to the request source.
      */
     private void doSetOverdraftLimitRequest(final String accountNumber, final String overdraftLimit,
@@ -1068,23 +1053,86 @@ class AuthenticationService {
                 });
         }
 
+    /**
+     * Send a callback to the original source.
+     * @param replyJson JSON String representing the reply
+     * @param callbackBuilder Used to forward the result of the request to the request source.
+     */
     private void sendSetOverdraftLimitCallback(final String replyJson, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s New overdraft limit set successfully, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(replyJson);
     }
 
+    /**
+     * Creates a callbackBuilder so that the result of the request can be forwarded to the request source and then
+     * calls the exception handler to further process the request. Gets the current overdraft limit for an account.
+     * @param callback Used to send a reply/rejection to the request source.
+     * @param accountNumber AccountNumber of which the limit should be queried.
+     * @param cookie Cookie of the user that sent the request, should be a user that is linked to the accountNumber.
+     */
+    @RequestMapping(value = "/overdraft/get", method = RequestMethod.PUT)
+    public void processGetOverdraftLimit(final Callback<String> callback,
+                                         @RequestParam("accountNumber") final String accountNumber,
+                                         @RequestParam("cookie") final String cookie) {
+        System.out.printf("%s Processing getOverdraftLimit request.\n", PREFIX);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleGetOverdraftLimitExceptions(accountNumber, cookie, callbackBuilder);
+    }
 
+    /**
+     * Authenticates the request and then forwards the request with the accountNumber to ledger.
+     * @param accountNumber AccountNumber of which the limit should be queried.
+     * @param cookie Cookie of the user that sent the request.
+     * @param callbackBuilder Used to send the result of the request to the request source.
+     */
+    private void handleGetOverdraftLimitExceptions(
+            final String accountNumber, final String cookie, final CallbackBuilder callbackBuilder) {
+        try {
+            authenticateRequest(cookie);
+            doGetOverdraftLimitRequest(accountNumber, callbackBuilder);
+        } catch (SQLException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to the authentication database.")));
+        } catch (UserNotAuthorizedException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
+                    "The user is not authorized to perform this action.")));
+        }
+    }
 
+    /**
+     * Forwards a getOverdraftLimit request to Ledger service and sends a callback if the request is successful, or
+     * an error if the request fails.
+     * @param accountNumber AccountNumber of which the limit should be queried.
+     * @param callbackBuilder Used to forward the result of the request to the request source.
+     */
+    private void doGetOverdraftLimitRequest(final String accountNumber, final CallbackBuilder callbackBuilder) {
+        usersClient.putFormAsyncWith1Param("/services/ledger/overdraft/get",
+                "accountNumber", accountNumber,
+                (httpStatusCode, httpContentType, replyJson) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendGetOverdraftLimitCallback(replyJson, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(replyJson);
+                        }
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                                "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                    }
+                });
+    }
 
-
-
-
-
-
-
-
-
-
+    /**
+     * Send a callback to the original source.
+     * @param replyJson JSON String representing the reply
+     * @param callbackBuilder Used to forward the result of the request to the request source.
+     */
+    private void sendGetOverdraftLimitCallback(final String replyJson, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Get overdraft limit request successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(replyJson);
+    }
 
     /**
      * Safely shuts down the AuthenticationService.
