@@ -283,7 +283,7 @@ public class BasicHappyFlowTestSuite {
             // SetOverdraftLimitMethod
             System.out.println("-- Donald wants to get an overdraft limit --");
 
-            request = SetOverdraftLimitMethod.createRequest(customer1, bankAccount1, 2500);
+            request = SetOverdraftLimitMethod.createRequest(customer1, bankAccount1, "2500");
             response = client.processRequest(request);
 
             if ((namedArrayResults = checkArrayResponse(response)) != null) {
@@ -299,6 +299,36 @@ public class BasicHappyFlowTestSuite {
             if ((namedArrayResults = checkArrayResponse(response)) != null) {
                 GetOverdraftLimitMethod.parseResponse(namedArrayResults);
             }
+
+            // TransferMoney
+            System.out.println("-- TransferMoney. Donald transfers to Daisy and goes overdraft --");
+
+            request = TransferMoneyMethod.createRequest(bankAccount1, bankAccount3, customer1, 2000, "Moniez");
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                TransferMoneyMethod.parseResponse(parsedResponse);
+            }
+
+            // simulateTime
+            System.out.println("-- 90 days pass. --");
+            request = SimulateTimeMethod.createRequest(90L);
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                SimulateTimeMethod.parseResponse(parsedResponse);
+            }
+
+            // getTransactionOverview
+            System.out.println("-- Donald wants to get transaction overview --");
+
+            request = GetTransactionsMethod.createRequest(customer1, bankAccount1, 2);
+            response = client.processRequest(request);
+
+            if ((namedArrayResults = checkArrayResponse(response)) != null) {
+                GetTransactionsMethod.parseResponse(namedArrayResults);
+            }
+
 
             ///------ TEAR DOWN TESTS.
             // RevokeAccessMethod

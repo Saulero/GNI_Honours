@@ -58,6 +58,7 @@ class SystemInformationService {
     @RequestMapping(value = "/date/increment", method = RequestMethod.PUT)
     void incrementDate(final Callback<String> callback, final @RequestParam("days") long days) {
         if (days >= 0) {
+            System.out.println("received");
             processPassingTime(days, CallbackBuilder.newCallbackBuilder().withStringCallback(callback));
         } else {
             callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
@@ -74,6 +75,8 @@ class SystemInformationService {
         if (days >= ((daysInMonth - dayOfTheMonth) + 1)) {
             doInterestProcessingRequest(days, callbackBuilder);
             processPassingTime(days - ((daysInMonth - dayOfTheMonth) + 1), callbackBuilder);
+        } else {
+            sendIncrementDaysCallback(days, callbackBuilder);
         }
     }
 
@@ -83,9 +86,7 @@ class SystemInformationService {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = jsonConverter.fromJson(
                                 JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
-                        if (!messageWrapper.isError()) {
-                            sendIncrementDaysCallback(days, callbackBuilder);
-                        } else {
+                        if (messageWrapper.isError()) {
                             callbackBuilder.build().reply(body);
                         }
                     } else {

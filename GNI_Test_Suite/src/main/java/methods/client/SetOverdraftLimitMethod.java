@@ -11,7 +11,7 @@ import java.util.Map;
 public class SetOverdraftLimitMethod {
 
     public static JSONRPC2Request createRequest(CustomerAccount customerAccount, BankAccount bankAccount,
-                                                int overdraftLimit){
+                                                String overdraftLimit){
         // The remote method to call
         String method = "setOverdraftLimit";
 

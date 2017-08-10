@@ -5,6 +5,7 @@ import models.BankAccount;
 import models.CustomerAccount;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class GetOverdraftLimitMethod {
@@ -30,7 +31,7 @@ public class GetOverdraftLimitMethod {
         return reqOut;
     }
 
-    public static void parseResponse(Map<String, Object> namedResults){
+    public static void parseResponse(List<Map<String, Object>> namedResults){
 
 
         // Assume everything went right.
