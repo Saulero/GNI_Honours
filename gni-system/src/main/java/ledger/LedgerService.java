@@ -714,12 +714,12 @@ class LedgerService {
 
     /**
      * Receives a request to process a new overdraft limit.
-     * @param accountNumber AccountNumber of which the limit should be queried.
+     * @param accountNumber AccountNumber of which the limit should be set.
      * @param overdraftLimit New overdraft limit
      * @param callback Used to send a reply to the request source.
      */
     @RequestMapping(value = "/overdraft/set", method = RequestMethod.POST)
-    public void incomingInterestRequestListener(final Callback<String> callback,
+    public void incomingSetOverdraftLimitRequestListener(final Callback<String> callback,
                                                 final @RequestParam("accountNumber") String accountNumber,
                                                 final @RequestParam("overdraftLimit") String overdraftLimit) {
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
@@ -758,6 +758,51 @@ class LedgerService {
         System.out.printf("%s Successfully processed setOverdraftLimit request, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
                 false, 200, "Normal Reply")));
+    }
+
+    /**
+     * Receives a request to query an overdraft limit.
+     * @param accountNumber AccountNumber of which the limit should be queried.
+     * @param callback Used to send a reply to the request source.
+     */
+    @RequestMapping(value = "/overdraft/get", method = RequestMethod.POST)
+    public void incomingGetOverdraftLimitRequestListener(final Callback<String> callback,
+                                                final @RequestParam("accountNumber") String accountNumber) {
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        System.out.printf("%s Received a getOverdraftLimit request for accountNumber: %s\n", PREFIX, accountNumber);
+        handleGetOverdraftLimitExceptions(accountNumber, callbackBuilder);
+    }
+
+    /**
+     * Authenticates the request and then forwards the request with the accountNumber to ledger.
+     * @param accountNumber AccountNumber of which the limit should be queried.
+     * @param callbackBuilder Used to send the result of the request to the request source.
+     */
+    private void handleGetOverdraftLimitExceptions(
+            final String accountNumber, final CallbackBuilder callbackBuilder) {
+        try {
+            Account account = getAccountInfo(accountNumber);
+            if (account != null) {
+                Integer overdraftLimit = (int) account.getOverdraftLimit();
+                sendGetOverdraftLimitCallback(overdraftLimit, callbackBuilder);
+            } else {
+                throw new SQLException();
+            }
+        } catch (SQLException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to the ledger database.")));
+        }
+    }
+
+    /**
+     * Sends a callback back to the source of the request.
+     * @param overdraftLimit The queried overdraftLimit
+     * @param callbackBuilder Used to send a reply to the request source.
+     */
+    private void sendGetOverdraftLimitCallback(final Integer overdraftLimit, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Successfully processed getOverdraftLimit request, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                false, 200, "Normal Reply", overdraftLimit)));
     }
 
     /**
