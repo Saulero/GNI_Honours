@@ -22,9 +22,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static database.SQLStatements.*;
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
@@ -45,6 +43,8 @@ class LedgerService {
     private Gson jsonConverter;
     /** Prefix used when printing to indicate the message is coming from the Ledger Service. */
     private static final String PREFIX = "[Ledger]              :";
+
+    private static final double monthlyInterestRate = 0.00797;
 
     /**
      * Constructor.
@@ -741,19 +741,97 @@ class LedgerService {
         getOverdraftAccounts.setDate(4, java.sql.Date.valueOf(lastProcessDay));
         ResultSet overdraftAccountSet = getOverdraftAccounts.executeQuery();
         List<String> overdraftAccounts = new LinkedList<>();
-        if (overdraftAccountSet.next()) {
+        while (overdraftAccountSet.next()) {
             overdraftAccounts.add(overdraftAccountSet.getString(1));
-            while (overdraftAccountSet.next()) {
-                overdraftAccounts.add(overdraftAccountSet.getString(1));
-            }
         }
+        getOverdraftAccounts.close();
+        db.returnConnection(connection);
         return overdraftAccounts;
     }
 
     private Map<String, Double> calculateInterest(final List<String> overdraftAccounts, final LocalDate firstProcessDay,
-                                                  final LocalDate lastProcessDay) {
-        //todo fill
+                                                  final LocalDate lastProcessDay) throws SQLException {
+        double dailyInterestRate = monthlyInterestRate / firstProcessDay.getMonth()
+                                                                            .length(firstProcessDay.isLeapYear());
+        Map<String, Double> interestMap = new HashMap<>();
+        for (String accountNumber : overdraftAccounts) {
+            List<Transaction> overdraftTransactions = findOverdraftTransactions(accountNumber, firstProcessDay,
+                                                                         lastProcessDay);
+            if (overdraftTransactions.isEmpty()) {
+                Account accountInfo = getAccountInfo(accountNumber);
+                Double balance = accountInfo.getBalance();
+                if (balance < 0) {
+                    Double interest = monthlyInterestRate * (-1 * balance);
+                    interestMap.put(accountNumber, interest);
+                }
+            } else {
+                Double interest = 0.0;
+                LocalDate currentProcessDay = firstProcessDay;
+                Double currentBalance;
+                // sort transactions from earliest to latest.
+                overdraftTransactions.sort(Comparator.comparing(Transaction::getDate));
+                Transaction firstTransactionOfMonth = overdraftTransactions.get(0);
+                if (firstTransactionOfMonth.getSourceAccountNumber().equals(accountNumber)) {
+                    currentBalance = firstTransactionOfMonth.getNewBalance()
+                                        + firstTransactionOfMonth.getTransactionAmount();
+                } else {
+                    currentBalance = firstTransactionOfMonth.getNewBalance()
+                                        - firstTransactionOfMonth.getTransactionAmount();
+                }
+                while (currentProcessDay.isBefore(lastProcessDay) || currentProcessDay.isEqual(lastProcessDay)) {
+                    // process transactions of this day and find the lowest balance.
+                    Double lowestBalance = currentBalance;
+                    while (overdraftTransactions.get(0).getDate().equals(currentProcessDay)) {
+                        Transaction transactionToProcess = overdraftTransactions.remove(0);
+                        currentBalance = transactionToProcess.getNewBalance();
+                        if (currentBalance < lowestBalance) {
+                            lowestBalance = currentBalance;
+                        }
+                    }
+                    if (lowestBalance < 0) {
+                        interest += monthlyInterestRate / dailyInterestRate * (lowestBalance * -1);
+                    }
+                    currentProcessDay = currentProcessDay.plusDays(1);
+                }
+                interestMap.put(accountNumber, interest);
+            }
+        }
+        return interestMap;
     }
+
+    private List<Transaction> findOverdraftTransactions(final String accountNumber,
+                                                             final LocalDate firstProcessDay,
+                                                             final LocalDate lastProcessDay) throws SQLException {
+        SQLConnection connection = db.getConnection();
+        PreparedStatement getOverdraftTransactions = connection.getConnection()
+                                                      .prepareStatement(SQLStatements.getAccountOverdraftTransactions);
+        getOverdraftTransactions.setString(1, accountNumber);
+        getOverdraftTransactions.setDate(2, java.sql.Date.valueOf(firstProcessDay));
+        getOverdraftTransactions.setDate(3, java.sql.Date.valueOf(lastProcessDay));
+        getOverdraftTransactions.setString(4, accountNumber);
+        getOverdraftTransactions.setDate(5, java.sql.Date.valueOf(firstProcessDay));
+        getOverdraftTransactions.setDate(6, java.sql.Date.valueOf(lastProcessDay));
+        ResultSet overdraftTransactionSet = getOverdraftTransactions.executeQuery();
+        List<Transaction> overdraftTransactions = new LinkedList<>();
+        while (overdraftTransactionSet.next()) {
+            Long transactionId = overdraftTransactionSet.getLong("id");
+            LocalDate transactionDate = overdraftTransactionSet.getDate("date").toLocalDate();
+            String accountTo = overdraftTransactionSet.getString("account_to");
+            String accountToName = overdraftTransactionSet.getString("account_to_name");
+            String accountFrom = overdraftTransactionSet.getString("account_from");
+            Double amount = overdraftTransactionSet.getDouble("amount");
+            Double newBalance = overdraftTransactionSet.getDouble("new_balance");
+            String description = overdraftTransactionSet.getString("description");
+            Transaction transaction = new Transaction(transactionId, transactionDate, accountFrom, accountTo,
+                                                      accountToName, description, amount, newBalance);
+            overdraftTransactions.add(transaction);
+        }
+        getOverdraftTransactions.close();
+        db.returnConnection(connection);
+        return overdraftTransactions;
+    }
+
+
 
     private void withdrawInterest(final Map<String, Double> interestMap, final int month) {
         //todo fill
