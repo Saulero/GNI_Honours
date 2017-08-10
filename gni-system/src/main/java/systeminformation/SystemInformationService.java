@@ -9,6 +9,8 @@ import util.JSONParser;
 import util.TableCreator;
 
 import java.time.LocalDate;
+import java.util.Calendar;
+import java.util.GregorianCalendar;
 
 /**
  * @author Noel
@@ -18,7 +20,9 @@ import java.time.LocalDate;
  */
 @RequestMapping("/systemInfo")
 class SystemInformationService {
-    /** Current date of the system, used for tracking transactions and validating pin cards. */
+    /** Calendar of the system, used for tracking transactions and validating pin cards. */
+    private Calendar myCal;
+    /** LocalDat with current date */
     private LocalDate systemDate;
     /** Used for json conversions. */
     private Gson jsonConverter;
@@ -29,9 +33,10 @@ class SystemInformationService {
      * Constructor to start the service. This will set the systemDate to the date of the day the method is ran.
      */
     SystemInformationService() {
-        this.systemDate = LocalDate.now();
+        systemDate = LocalDate.now();
+        syncCalendar();
         this.jsonConverter = new Gson();
-        System.out.printf("%s Set date to %s\n", PREFIX, this.systemDate.toString());
+        System.out.printf("%s Set date to %s\n", PREFIX, systemDate.toString());
     }
 
     /**
@@ -40,11 +45,33 @@ class SystemInformationService {
      * @param days Amount of days to increment the systemDate with.
      */
     @RequestMapping(value = "/date/increment", method = RequestMethod.PUT)
-    void incrementDate(final Callback<String> callback, final @RequestParam("days") Long days) {
-        this.systemDate = this.systemDate.plusDays(days);
+    void incrementDate(final Callback<String> callback, final @RequestParam("days") long days) {
+        processPassingTime(days);
         System.out.printf("%s Added %d days to system date, new date is %s\n", PREFIX, days,
                 this.systemDate.toString());
         callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply")));
+    }
+
+    private void processPassingTime(final long days) {
+        System.out.println(systemDate.toString());
+        int daysInMonth = myCal.getActualMaximum(Calendar.DAY_OF_MONTH);
+        int dayOfTheMonth = systemDate.getDayOfMonth();
+        this.systemDate = this.systemDate.plusDays(((daysInMonth - dayOfTheMonth) + 1));
+        syncCalendar();
+        if (days >= ((daysInMonth - dayOfTheMonth) + 1)) {
+            // call to ledger
+            System.out.println("processed " + ((daysInMonth - dayOfTheMonth) + 1) + " days");
+            processPassingTime(days - ((daysInMonth - dayOfTheMonth) + 1));
+        } else {
+            System.out.println(days + " leftover");
+        }
+    }
+
+    private void syncCalendar() {
+        myCal = new GregorianCalendar(
+                systemDate.getYear(),
+                systemDate.getMonth().getValue() - 1,
+                systemDate.getDayOfMonth());
     }
 
     /**
