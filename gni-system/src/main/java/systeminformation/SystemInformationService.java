@@ -58,7 +58,6 @@ class SystemInformationService {
     @RequestMapping(value = "/date/increment", method = RequestMethod.PUT)
     void incrementDate(final Callback<String> callback, final @RequestParam("days") long days) {
         if (days >= 0) {
-            System.out.println("received");
             processPassingTime(days, CallbackBuilder.newCallbackBuilder().withStringCallback(callback));
         } else {
             callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
@@ -70,23 +69,36 @@ class SystemInformationService {
     private void processPassingTime(final long days, final CallbackBuilder callbackBuilder) {
         int daysInMonth = myCal.getActualMaximum(Calendar.DAY_OF_MONTH);
         int dayOfTheMonth = systemDate.getDayOfMonth();
-        this.systemDate = this.systemDate.plusDays(((daysInMonth - dayOfTheMonth) + 1));
         syncCalendar();
         if (days >= ((daysInMonth - dayOfTheMonth) + 1)) {
             doInterestProcessingRequest(days, callbackBuilder);
-            processPassingTime(days - ((daysInMonth - dayOfTheMonth) + 1), callbackBuilder);
         } else {
-            sendIncrementDaysCallback(days, callbackBuilder);
+            this.systemDate = this.systemDate.plusDays(days);
+            sendIncrementDaysCallback(callbackBuilder);
         }
     }
 
     private void doInterestProcessingRequest(final long days, final CallbackBuilder callbackBuilder) {
-        ledgerClient.getAsyncWith1Param("/services/ledger/interest", "request",
+        syncCalendar();
+        int daysInMonth = myCal.getActualMaximum(Calendar.DAY_OF_MONTH);
+        int dayOfTheMonth = systemDate.getDayOfMonth();
+        int firstDayNextMonth = (daysInMonth - dayOfTheMonth) + 1;
+        this.systemDate = this.systemDate.plusDays(firstDayNextMonth);
+        Long daysLeft = days - firstDayNextMonth;
+        ledgerClient.postFormAsyncWith1Param("/services/ledger/interest", "request",
                 jsonConverter.toJson(systemDate), (httpStatusCode, httpContentType, body) -> {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = jsonConverter.fromJson(
-                                JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
-                        if (messageWrapper.isError()) {
+                                                    JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            int newDaysInMonth = myCal.getActualMaximum(Calendar.DAY_OF_MONTH);
+                            int newDayOfTheMonth = systemDate.getDayOfMonth();
+                            if (daysLeft >= ((newDaysInMonth - newDayOfTheMonth) + 1)) {
+                                doInterestProcessingRequest(daysLeft, callbackBuilder);
+                            } else {
+                                sendIncrementDaysCallback(callbackBuilder);
+                            }
+                        } else {
                             callbackBuilder.build().reply(body);
                         }
                     } else {
@@ -98,11 +110,10 @@ class SystemInformationService {
                 });
     }
 
-    private void sendIncrementDaysCallback(final long days, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Added %d days to system date, new date is %s\n", PREFIX, days,
-                this.systemDate.toString());
+    private void sendIncrementDaysCallback(final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s The new system date is %s\n", PREFIX, this.systemDate.toString());
         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
-                false, 200, "Normal Reply")));
+                                      false, 200, "Normal Reply")));
     }
 
     private void syncCalendar() {

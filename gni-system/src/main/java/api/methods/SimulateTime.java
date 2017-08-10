@@ -38,10 +38,14 @@ public class SimulateTime {
                             JSONRPC2Response response = new JSONRPC2Response(result, api.getId());
                             api.getCallbackBuilder().build().reply(response.toJSONString());
                         } else {
+                            System.out.println(body);
+                            System.out.println("1");
                             System.out.printf("%s Simulate time request unsuccessful.\n\n\n\n", PREFIX);
                             sendErrorReply(messageWrapper, api);
                         }
                     } else {
+                        System.out.println(body);
+                        System.out.println("2");
                         System.out.printf("%s Simulate time request unsuccessful.\n\n\n\n", PREFIX);
                         JSONRPC2Response response = new JSONRPC2Response(new JSONRPC2Error(500,
                                 "An unknown error occurred.",
