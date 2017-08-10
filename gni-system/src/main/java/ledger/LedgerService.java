@@ -751,8 +751,6 @@ class LedgerService {
 
     private Map<String, Double> calculateInterest(final List<String> overdraftAccounts, final LocalDate firstProcessDay,
                                                   final LocalDate lastProcessDay) throws SQLException {
-        double dailyInterestRate = monthlyInterestRate / firstProcessDay.getMonth()
-                                                                            .length(firstProcessDay.isLeapYear());
         Map<String, Double> interestMap = new HashMap<>();
         for (String accountNumber : overdraftAccounts) {
             List<Transaction> overdraftTransactions = findOverdraftTransactions(accountNumber, firstProcessDay,
@@ -765,38 +763,46 @@ class LedgerService {
                     interestMap.put(accountNumber, interest);
                 }
             } else {
-                Double interest = 0.0;
-                LocalDate currentProcessDay = firstProcessDay;
-                Double currentBalance;
-                // sort transactions from earliest to latest.
-                overdraftTransactions.sort(Comparator.comparing(Transaction::getDate));
-                Transaction firstTransactionOfMonth = overdraftTransactions.get(0);
-                if (firstTransactionOfMonth.getSourceAccountNumber().equals(accountNumber)) {
-                    currentBalance = firstTransactionOfMonth.getNewBalance()
-                                        + firstTransactionOfMonth.getTransactionAmount();
-                } else {
-                    currentBalance = firstTransactionOfMonth.getNewBalance()
-                                        - firstTransactionOfMonth.getTransactionAmount();
-                }
-                while (currentProcessDay.isBefore(lastProcessDay) || currentProcessDay.isEqual(lastProcessDay)) {
-                    // process transactions of this day and find the lowest balance.
-                    Double lowestBalance = currentBalance;
-                    while (overdraftTransactions.get(0).getDate().equals(currentProcessDay)) {
-                        Transaction transactionToProcess = overdraftTransactions.remove(0);
-                        currentBalance = transactionToProcess.getNewBalance();
-                        if (currentBalance < lowestBalance) {
-                            lowestBalance = currentBalance;
-                        }
-                    }
-                    if (lowestBalance < 0) {
-                        interest += monthlyInterestRate / dailyInterestRate * (lowestBalance * -1);
-                    }
-                    currentProcessDay = currentProcessDay.plusDays(1);
-                }
-                interestMap.put(accountNumber, interest);
+                interestMap.put(accountNumber, doDailyInterestCalculation(accountNumber, overdraftTransactions,
+                                                                          firstProcessDay, lastProcessDay));
             }
         }
         return interestMap;
+    }
+
+    private Double doDailyInterestCalculation(final String accountNumber, final List<Transaction> overdraftTransactions,
+                                              final LocalDate firstProcessDay, final LocalDate lastProcessDay) {
+        double dailyInterestRate = monthlyInterestRate / firstProcessDay.getMonth()
+                                                                        .length(firstProcessDay.isLeapYear());
+        Double interest = 0.0;
+        LocalDate currentProcessDay = firstProcessDay;
+        Double currentBalance;
+        // sort transactions from earliest to latest.
+        overdraftTransactions.sort(Comparator.comparing(Transaction::getDate));
+        Transaction firstTransactionOfMonth = overdraftTransactions.get(0);
+        if (firstTransactionOfMonth.getSourceAccountNumber().equals(accountNumber)) {
+            currentBalance = firstTransactionOfMonth.getNewBalance()
+                    + firstTransactionOfMonth.getTransactionAmount();
+        } else {
+            currentBalance = firstTransactionOfMonth.getNewBalance()
+                    - firstTransactionOfMonth.getTransactionAmount();
+        }
+        while (currentProcessDay.isBefore(lastProcessDay) || currentProcessDay.isEqual(lastProcessDay)) {
+            // process transactions of this day and find the lowest balance.
+            Double lowestBalance = currentBalance;
+            while (overdraftTransactions.get(0).getDate().equals(currentProcessDay)) {
+                Transaction transactionToProcess = overdraftTransactions.remove(0);
+                currentBalance = transactionToProcess.getNewBalance();
+                if (currentBalance < lowestBalance) {
+                    lowestBalance = currentBalance;
+                }
+            }
+            if (lowestBalance < 0) {
+                interest += monthlyInterestRate / dailyInterestRate * (lowestBalance * -1);
+            }
+            currentProcessDay = currentProcessDay.plusDays(1);
+        }
+        return interest;
     }
 
     private List<Transaction> findOverdraftTransactions(final String accountNumber,
