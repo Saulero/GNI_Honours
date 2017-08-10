@@ -24,6 +24,7 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import static database.SQLStatements.*;
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
@@ -712,10 +713,50 @@ class LedgerService {
      * @param callbackBuilder Used to send a reply to the request source.
      */
     private void processInterestRequest(final LocalDate localDate, final CallbackBuilder callbackBuilder) {
+        //date is the first day of the new month, so process the previous month.
+        try {
+            LocalDate firstProcessDay = localDate.minusMonths(1);
+            LocalDate lastProcessDay = localDate.minusDays(1);
+            List<String> overdraftAccounts = findOverdraftAccounts(firstProcessDay, lastProcessDay);
+            Map<String, Double> interestMap = calculateInterest(overdraftAccounts, firstProcessDay, lastProcessDay);
+            withdrawInterest(interestMap, firstProcessDay.getMonthValue());
+        } catch (SQLException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to the Ledger database.")));
+        }
         // TODO Calculate interest for every account in the ledger
         // TODO Calculate the month BEFORE the given LocalDate
         // TODO Withdraw the interest from the respective accounts
         sendInterestCallback(localDate, callbackBuilder);
+    }
+
+    private List<String> findOverdraftAccounts(final LocalDate firstProcessDay, final LocalDate lastProcessDay)
+            throws SQLException {
+        SQLConnection connection = db.getConnection();
+        PreparedStatement getOverdraftAccounts = connection.getConnection()
+                .prepareStatement(SQLStatements.getOverdraftAccounts);
+        getOverdraftAccounts.setDate(1, java.sql.Date.valueOf(firstProcessDay));
+        getOverdraftAccounts.setDate(2, java.sql.Date.valueOf(lastProcessDay));
+        getOverdraftAccounts.setDate(3, java.sql.Date.valueOf(firstProcessDay));
+        getOverdraftAccounts.setDate(4, java.sql.Date.valueOf(lastProcessDay));
+        ResultSet overdraftAccountSet = getOverdraftAccounts.executeQuery();
+        List<String> overdraftAccounts = new LinkedList<>();
+        if (overdraftAccountSet.next()) {
+            overdraftAccounts.add(overdraftAccountSet.getString(1));
+            while (overdraftAccountSet.next()) {
+                overdraftAccounts.add(overdraftAccountSet.getString(1));
+            }
+        }
+        return overdraftAccounts;
+    }
+
+    private Map<String, Double> calculateInterest(final List<String> overdraftAccounts, final LocalDate firstProcessDay,
+                                                  final LocalDate lastProcessDay) {
+        //todo fill
+    }
+
+    private void withdrawInterest(final Map<String, Double> interestMap, final int month) {
+        //todo fill
     }
 
     /**
