@@ -110,6 +110,8 @@ public class ApiService {
                     break;
                 case "setOverdraftLimit":       SetOverdraftLimit.setOverdraftLimit(params, api);
                     break;
+                case "getOverdraftLimit":       GetOverdraftLimit.getOverdraftLimit(params, api);
+                    break;
                 default:                        callback.reply(new JSONRPC2Response(JSONRPC2Error.METHOD_NOT_FOUND,
                         request.getID()).toJSONString());
                     break;
