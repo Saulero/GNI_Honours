@@ -28,7 +28,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 class SystemInformationService {
     /** Calendar of the system, used for tracking transactions and validating pin cards. */
     private Calendar myCal;
-    /** LocalDat with current date */
+    /** LocalDate with current date. */
     private LocalDate systemDate;
     /** Connection to the Ledger service.*/
     private HttpClient ledgerClient;
@@ -67,14 +67,12 @@ class SystemInformationService {
     }
 
     private void processPassingTime(final long days, final CallbackBuilder callbackBuilder) {
-        System.out.println(systemDate.toString());
         int daysInMonth = myCal.getActualMaximum(Calendar.DAY_OF_MONTH);
         int dayOfTheMonth = systemDate.getDayOfMonth();
         this.systemDate = this.systemDate.plusDays(((daysInMonth - dayOfTheMonth) + 1));
         syncCalendar();
         if (days >= ((daysInMonth - dayOfTheMonth) + 1)) {
             doInterestProcessingRequest(days, callbackBuilder);
-            System.out.println("processed " + ((daysInMonth - dayOfTheMonth) + 1) + " days");
             processPassingTime(days - ((daysInMonth - dayOfTheMonth) + 1), callbackBuilder);
         }
     }

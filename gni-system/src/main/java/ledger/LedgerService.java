@@ -325,7 +325,8 @@ class LedgerService {
             ps.setString(4, transaction.getDestinationAccountHolderName());
             ps.setString(5, transaction.getSourceAccountNumber());
             ps.setDouble(6, transaction.getTransactionAmount());
-            ps.setString(7, transaction.getDescription());
+            ps.setDouble(7, transaction.getNewBalance());
+            ps.setString(8, transaction.getDescription());
             ps.executeUpdate();
 
             ps.close();
@@ -382,6 +383,7 @@ class LedgerService {
 
                         // Update the database
                         updateBalance(account);
+                        transaction.setNewBalance(account.getBalance());
 
                         // Update Transaction log
                         transaction.setTransactionID(getHighestTransactionID());
@@ -456,6 +458,7 @@ class LedgerService {
 
                         // Update the database
                         updateBalance(account);
+                        transaction.setNewBalance(account.getBalance());
 
                         /// Update Transaction log
                         transaction.setTransactionID(getHighestTransactionID());
@@ -682,9 +685,10 @@ class LedgerService {
             String destinationAccountHolderName = rs.getString("account_to_name");
             String description = rs.getString("description");
             double amount = rs.getDouble("amount");
+            double newBalance = rs.getDouble("new_balance");
 
             list.add(new Transaction(id, date, sourceAccount, destinationAccount, destinationAccountHolderName,
-                    description, amount));
+                    description, amount, newBalance));
         }
     }
 
@@ -695,7 +699,7 @@ class LedgerService {
      */
     @RequestMapping(value = "/interest", method = RequestMethod.POST)
     public void incomingInterestRequestListener(final Callback<String> callback,
-                                            final @RequestParam("request") String body) {
+            final @RequestParam("request") String body) {
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         LocalDate localDate = jsonConverter.fromJson(body, LocalDate.class);
         System.out.printf("%s Received an interest processing request for date: %s\n", PREFIX, localDate.toString());
@@ -708,7 +712,9 @@ class LedgerService {
      * @param callbackBuilder Used to send a reply to the request source.
      */
     private void processInterestRequest(final LocalDate localDate, final CallbackBuilder callbackBuilder) {
-        // TODO calculate interest & process interest in DB
+        // TODO Calculate interest for every account in the ledger
+        // TODO Calculate the month BEFORE the given LocalDate
+        // TODO Withdraw the interest from the respective accounts
         sendInterestCallback(localDate, callbackBuilder);
     }
 
