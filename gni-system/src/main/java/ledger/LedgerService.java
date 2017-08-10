@@ -667,6 +667,43 @@ class LedgerService {
     }
 
     /**
+     * Receives a request to process a month of interest.
+     * @param callback Used to send a reply to the request source.
+     * @param body JSON String representing a LocalDate
+     */
+    @RequestMapping(value = "/interest", method = RequestMethod.POST)
+    public void incomingInterestRequestListener(final Callback<String> callback,
+                                            final @RequestParam("request") String body) {
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        LocalDate localDate = jsonConverter.fromJson(body, LocalDate.class);
+        System.out.printf("%s Received an interest processing request for date: %s\n", PREFIX, localDate.toString());
+        processInterestRequest(localDate, callbackBuilder);
+    }
+
+    /**
+     * Processes an interest request.
+     * Checks if the account exists and then processes the transaction if it does.
+     * @param localDate Object representing a LocalDate
+     * @param callbackBuilder Used to send a reply to the request source.
+     */
+    private void processInterestRequest(final LocalDate localDate, final CallbackBuilder callbackBuilder) {
+        // calculate interest & process interest in DB
+        sendInterestCallback(localDate, callbackBuilder);
+    }
+
+    /**
+     * Sends a callback back to the source of the request.
+     * @param localDate Object representing a LocalDate
+     * @param callbackBuilder Used to send a reply to the request source.
+     */
+    private void sendInterestCallback(final LocalDate localDate, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Successfully processed interest for date : %s, sending callback.\n",
+                PREFIX, localDate.toString());
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                false, 200, "Normal Reply")));
+    }
+
+    /**
      * Safely shuts down the LedgerService.
      */
     void shutdown() {
