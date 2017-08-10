@@ -43,8 +43,10 @@ class LedgerService {
     private Gson jsonConverter;
     /** Prefix used when printing to indicate the message is coming from the Ledger Service. */
     private static final String PREFIX = "[Ledger]              :";
-
-    private static final double monthlyInterestRate = 0.00797;
+    /** Interest rate that the bank charges every month to customers that are overdraft. */
+    private static final double MONTHLY_INTEREST_RATE = 0.00797;
+    /** Account number where overdraft fees are transferred to. */
+    private static final String OVERDRAFT_ACCOUNT = "NL52GNIB3676451168";
 
     /**
      * Constructor.
@@ -719,14 +721,12 @@ class LedgerService {
             LocalDate lastProcessDay = localDate.minusDays(1);
             List<String> overdraftAccounts = findOverdraftAccounts(firstProcessDay, lastProcessDay);
             Map<String, Double> interestMap = calculateInterest(overdraftAccounts, firstProcessDay, lastProcessDay);
-            withdrawInterest(interestMap, firstProcessDay.getMonthValue());
+            withdrawInterest(interestMap, localDate);
         } catch (SQLException e) {
             e.printStackTrace();
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to the Ledger database.")));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                                                                "Error connecting to the Ledger database.")));
         }
-        // TODO Calculate interest for every account in the ledger
-        // TODO Calculate the month BEFORE the given LocalDate
-        // TODO Withdraw the interest from the respective accounts
         sendInterestCallback(localDate, callbackBuilder);
     }
 
@@ -759,7 +759,7 @@ class LedgerService {
                 Account accountInfo = getAccountInfo(accountNumber);
                 Double balance = accountInfo.getBalance();
                 if (balance < 0) {
-                    Double interest = monthlyInterestRate * (-1 * balance);
+                    Double interest = MONTHLY_INTEREST_RATE * (-1 * balance);
                     interestMap.put(accountNumber, interest);
                 }
             } else {
@@ -772,7 +772,7 @@ class LedgerService {
 
     private Double doDailyInterestCalculation(final String accountNumber, final List<Transaction> overdraftTransactions,
                                               final LocalDate firstProcessDay, final LocalDate lastProcessDay) {
-        double dailyInterestRate = monthlyInterestRate / firstProcessDay.getMonth()
+        double dailyInterestRate = MONTHLY_INTEREST_RATE / firstProcessDay.getMonth()
                                                                         .length(firstProcessDay.isLeapYear());
         Double interest = 0.0;
         LocalDate currentProcessDay = firstProcessDay;
@@ -798,7 +798,7 @@ class LedgerService {
                 }
             }
             if (lowestBalance < 0) {
-                interest += monthlyInterestRate / dailyInterestRate * (lowestBalance * -1);
+                interest += MONTHLY_INTEREST_RATE / dailyInterestRate * (lowestBalance * -1);
             }
             currentProcessDay = currentProcessDay.plusDays(1);
         }
@@ -838,9 +838,30 @@ class LedgerService {
     }
 
 
+    private void withdrawInterest(final Map<String, Double> interestMap, final LocalDate currentDate) {
+        final String firstDayOfInterest = currentDate.minusMonths(1).toString();
+        final String lastDayOfInterest = currentDate.minusDays(1).toString();
+        for (String accountNumber : interestMap.keySet()) {
+            Transaction transaction = new Transaction();
+            transaction.setSourceAccountNumber(accountNumber);
+            transaction.setTransactionAmount(interestMap.get(accountNumber));
+            transaction.setDestinationAccountNumber(OVERDRAFT_ACCOUNT);
+            transaction.setDestinationAccountHolderName("GNI Bank");
+            transaction.setDescription(String.format("Overdraft interest %s until %s", firstDayOfInterest,
+                                                    lastDayOfInterest));
+            Account account = getAccountInfo(accountNumber);
+            // Update the object
+            account.processWithdraw(transaction);
 
-    private void withdrawInterest(final Map<String, Double> interestMap, final int month) {
-        //todo fill
+            // Update the database
+            updateBalance(account);
+            transaction.setNewBalance(account.getBalance());
+
+            /// Update Transaction log
+            transaction.setTransactionID(getHighestTransactionID());
+            transaction.setDate(currentDate);
+            addTransaction(transaction, false);
+        }
     }
 
     /**
