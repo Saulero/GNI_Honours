@@ -60,7 +60,7 @@ public class BasicHappyFlowTestSuite {
             JSONRPC2Response response;
             Map<String, Object> parsedResponse;
 
-            // SimulateTime, Reset and getDate method
+            /*// SimulateTime, Reset and getDate method
             System.out.println("-- SimulateTime & Reset & GetDate method --");
 
             // getDate
@@ -107,7 +107,7 @@ public class BasicHappyFlowTestSuite {
             if ((parsedResponse = checkResponse(response)) != null) {
                 GetDateMethod.parseResponse(parsedResponse);
             }
-
+*/
 
             // Method 1. OpenAccount.
 
@@ -196,7 +196,7 @@ public class BasicHappyFlowTestSuite {
                 PayFromAccountMethod.parseResponse(parsedResponse);
             }
 
-            // UnblockCard
+            /*// UnblockCard
             System.out.println("-- UnblockCard. Donald uses the wrong pin code and then unblocks his card --");
 
             card1.setPinCode("" + (Integer.parseInt(card1.getPinCode()) + 1));
@@ -351,7 +351,7 @@ public class BasicHappyFlowTestSuite {
                 if ((parsedResponse = checkResponse(response)) != null) {
                     CloseAccountMethod.parseResponse(parsedResponse);
                 }
-            }
+            }*/
         }
 
     public static Map<String, Object> checkResponse(JSONRPC2Response respIn){
