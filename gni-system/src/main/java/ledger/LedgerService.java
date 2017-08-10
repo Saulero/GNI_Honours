@@ -730,6 +730,13 @@ class LedgerService {
         sendInterestCallback(localDate, callbackBuilder);
     }
 
+    /**
+     * Finds a list of all accountNumbers that went overdraft in a given time period.
+     * @param firstProcessDay First day of the time period.
+     * @param lastProcessDay Last day of the time period.
+     * @return List of all account numbers that went overdraft.
+     * @throws SQLException Thrown when something goes wrong with the database connection.
+     */
     private List<String> findOverdraftAccounts(final LocalDate firstProcessDay, final LocalDate lastProcessDay)
             throws SQLException {
         SQLConnection connection = db.getConnection();
@@ -749,9 +756,20 @@ class LedgerService {
         return overdraftAccounts;
     }
 
+    /**
+     * Calculates the interest for a list of accounts that went overdraft, for a given time period.
+     * Time period MUST be smaller than one year.
+     * @param overdraftAccounts List of accounts that went overdraft in the given time period
+     * @param firstProcessDay First day of time period.
+     * @param lastProcessDay Last day of time period.
+     * @return Map containing accountNumbers as keys, and their respective interest as values.
+     * @throws SQLException Thrown when something goes wrong when connecting to the database.
+     */
     private Map<String, Double> calculateInterest(final List<String> overdraftAccounts, final LocalDate firstProcessDay,
                                                   final LocalDate lastProcessDay) throws SQLException {
         Map<String, Double> interestMap = new HashMap<>();
+        double dailyInterestRate = MONTHLY_INTEREST_RATE / firstProcessDay.getMonth()
+                                                                            .length(firstProcessDay.isLeapYear());
         for (String accountNumber : overdraftAccounts) {
             List<Transaction> overdraftTransactions = findOverdraftTransactions(accountNumber, firstProcessDay,
                                                                          lastProcessDay);
@@ -759,21 +777,33 @@ class LedgerService {
                 Account accountInfo = getAccountInfo(accountNumber);
                 Double balance = accountInfo.getBalance();
                 if (balance < 0) {
-                    Double interest = MONTHLY_INTEREST_RATE * (-1 * balance);
+                    int amountOfDays = lastProcessDay.getDayOfYear() - firstProcessDay.getDayOfYear();
+                    Double interest = amountOfDays * dailyInterestRate * (-1 * balance);
                     interestMap.put(accountNumber, interest);
                 }
             } else {
                 interestMap.put(accountNumber, doDailyInterestCalculation(accountNumber, overdraftTransactions,
-                                                                          firstProcessDay, lastProcessDay));
+                                                                          firstProcessDay, lastProcessDay,
+                                                                          dailyInterestRate));
             }
         }
         return interestMap;
     }
 
+    /**
+     * Calculates the interest for an account separately for each day based on the lowest balance of that day.
+     * Returns the interest owed for the given time period.
+     * @param accountNumber AccountNumber to calculate the interest for.
+     * @param overdraftTransactions List of transactions that affected the overdraft of the account during the
+     *                              time period.
+     * @param firstProcessDay First day of the time period.
+     * @param lastProcessDay Last day of the time period.
+     * @param dailyInterestRate Interest rate for a single day.
+     * @return The interest this account owes for the given time period.
+     */
     private Double doDailyInterestCalculation(final String accountNumber, final List<Transaction> overdraftTransactions,
-                                              final LocalDate firstProcessDay, final LocalDate lastProcessDay) {
-        double dailyInterestRate = MONTHLY_INTEREST_RATE / firstProcessDay.getMonth()
-                                                                        .length(firstProcessDay.isLeapYear());
+                                              final LocalDate firstProcessDay, final LocalDate lastProcessDay,
+                                              final Double dailyInterestRate) {
         Double interest = 0.0;
         LocalDate currentProcessDay = firstProcessDay;
         Double currentBalance;
@@ -805,6 +835,15 @@ class LedgerService {
         return interest;
     }
 
+    /**
+     * Find transactions that caused an account to go overdraft or changed the overdraft balance of an account during
+     * a given time period.
+     * @param accountNumber AccountNumber to find transactions for.
+     * @param firstProcessDay First day of the time period.
+     * @param lastProcessDay Last day of the time period.
+     * @return List of transactions that affected the overdraft of an account.
+     * @throws SQLException Thrown when something goes wrong connecting to the database.
+     */
     private List<Transaction> findOverdraftTransactions(final String accountNumber,
                                                              final LocalDate firstProcessDay,
                                                              final LocalDate lastProcessDay) throws SQLException {
@@ -837,7 +876,11 @@ class LedgerService {
         return overdraftTransactions;
     }
 
-
+    /**
+     * Processes interest withdrawals in the system.
+     * @param interestMap Map containing accountNumbers as keys, and their owed interest as values.
+     * @param currentDate Date during the interest withdrawal.
+     */
     private void withdrawInterest(final Map<String, Double> interestMap, final LocalDate currentDate) {
         final String firstDayOfInterest = currentDate.minusMonths(1).toString();
         final String lastDayOfInterest = currentDate.minusDays(1).toString();
