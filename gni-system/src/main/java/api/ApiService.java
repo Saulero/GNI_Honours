@@ -1,22 +1,6 @@
 package api;
 
-import api.methods.CloseAccount;
-import api.methods.DepositIntoAccount;
-import api.methods.GetAuthToken;
-import api.methods.GetBalance;
-import api.methods.GetBankAccountAccess;
-import api.methods.GetDate;
-import api.methods.GetTransactionsOverview;
-import api.methods.GetUserAccess;
-import api.methods.OpenAccount;
-import api.methods.OpenAdditionalAccount;
-import api.methods.PayFromAccount;
-import api.methods.ProvideAccess;
-import api.methods.Reset;
-import api.methods.RevokeAccess;
-import api.methods.SimulateTime;
-import api.methods.TransferMoney;
-import api.methods.UnblockCard;
+import api.methods.*;
 import com.google.gson.Gson;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Error;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2ParseException;
@@ -123,6 +107,8 @@ public class ApiService {
                 case "reset":                   Reset.reset(api);
                     break;
                 case "getDate":                 GetDate.getDate(api);
+                    break;
+                case "setOverdraftLimit":       SetOverdraftLimit.setOverdraftLimit(params, api);
                     break;
                 default:                        callback.reply(new JSONRPC2Response(JSONRPC2Error.METHOD_NOT_FOUND,
                         request.getID()).toJSONString());
