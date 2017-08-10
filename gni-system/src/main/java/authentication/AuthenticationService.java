@@ -991,7 +991,7 @@ class AuthenticationService {
      * Creates a callbackBuilder so that the result of the request can be forwarded to the request source and then
      * calls the exception handler to further process the request. Sets a new overdraft limit for an account.
      * @param callback Used to send a reply/rejection to the request source.
-     * @param accountNumber AccountNumber of which the limit should be queried.
+     * @param accountNumber AccountNumber of which the limit should be set.
      * @param cookie Cookie of the user that sent the request, should be a user that is linked to the accountNumber.
      * @param overdraftLimit New overdraft limit
      */
@@ -1007,7 +1007,7 @@ class AuthenticationService {
 
     /**
      * Authenticates the request and then forwards the request with the accountNumber to ledger.
-     * @param accountNumber AccountNumber of which the limit should be queried.
+     * @param accountNumber AccountNumber of which the limit should be set.
      * @param cookie Cookie of the user that sent the request.
      * @param overdraftLimit New overdraft limit
      * @param callbackBuilder Used to send the result of the request to the request source.
@@ -1029,7 +1029,7 @@ class AuthenticationService {
     /**
      * Forwards a setOverdraftLimit request to Ledger service and sends a callback if the request is successful, or
      * an error if the request fails.
-     * @param accountNumber AccountNumber of which the limit should be queried.
+     * @param accountNumber AccountNumber of which the limit should be set.
      * @param overdraftLimit New overdraft limit
      * @param callbackBuilder Used to forward the result of the request to the request source.
      */

@@ -8,7 +8,8 @@ public final class SQLStatements {
     public static final String createNewAccount = "INSERT INTO ledger (id, account_number, name, overdraft_limit, balance) VALUES (?, ?, ?, ?, ?)";
     public static final String removeAccount = "DELETE FROM ledger WHERE id = ? AND account_number = ?";
     public static final String getAccountInformation = "SELECT * FROM ledger WHERE account_number = ?";
-    public static final String updateBalance = "UPDATE ledger SET overdraft_limit = ?, balance = ? WHERE account_number = ?";
+    public static final String updateBalance = "UPDATE ledger SET balance = ? WHERE account_number = ?";
+    public static final String updateOverdraftLimit = "UPDATE ledger SET overdraft_limit = ?, WHERE account_number = ?";
     public static final String getIncomingTransactionHistory = "SELECT * FROM transactions_in WHERE account_to = ?";
     public static final String getOutgoingTransactionHistory = "SELECT * FROM transactions_out WHERE account_from = ?";
     public static final String addIncomingTransaction = "INSERT INTO transactions_in (id, date, account_to, account_to_name, account_from, amount, description) VALUES (?, ?, ?, ?, ?, ?, ?)";

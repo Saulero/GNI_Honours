@@ -263,9 +263,8 @@ class LedgerService {
         try {
             SQLConnection connection = db.getConnection();
             PreparedStatement ps = connection.getConnection().prepareStatement(updateBalance);
-            ps.setDouble(1, account.getOverdraftLimit());    // overdraft_limit
-            ps.setDouble(2, account.getBalance());          // balance
-            ps.setString(3, account.getAccountNumber());    // account_number
+            ps.setDouble(1, account.getBalance());
+            ps.setString(2, account.getAccountNumber());
             ps.executeUpdate();
 
             ps.close();
@@ -273,6 +272,22 @@ class LedgerService {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * Overwrites account information with a new overdraft limit.
+     * @param account The account to overwrite, containing the new data
+     * @throws SQLException SQLException
+     */
+    void updateOverdraftLimit(final Account account) throws SQLException {
+        SQLConnection connection = db.getConnection();
+        PreparedStatement ps = connection.getConnection().prepareStatement(updateOverdraftLimit);
+        ps.setDouble(1, account.getOverdraftLimit());
+        ps.setString(2, account.getAccountNumber());
+        ps.executeUpdate();
+
+        ps.close();
+        db.returnConnection(connection);
     }
 
     // TODO THIS SERVICE IS NOT ALLOWED TO USE OTHER SERVICE'S THEIR DATABASES
@@ -677,12 +692,11 @@ class LedgerService {
 
     /**
      * Processes an interest request.
-     * Checks if the account exists and then processes the transaction if it does.
      * @param localDate Object representing a LocalDate
      * @param callbackBuilder Used to send a reply to the request source.
      */
     private void processInterestRequest(final LocalDate localDate, final CallbackBuilder callbackBuilder) {
-        // calculate interest & process interest in DB
+        // TODO calculate interest & process interest in DB
         sendInterestCallback(localDate, callbackBuilder);
     }
 
@@ -692,8 +706,56 @@ class LedgerService {
      * @param callbackBuilder Used to send a reply to the request source.
      */
     private void sendInterestCallback(final LocalDate localDate, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Successfully processed interest for date : %s, sending callback.\n",
+        System.out.printf("%s Successfully processed interest for date: %s, sending callback.\n",
                 PREFIX, localDate.toString());
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                false, 200, "Normal Reply")));
+    }
+
+    /**
+     * Receives a request to process a new overdraft limit.
+     * @param accountNumber AccountNumber of which the limit should be queried.
+     * @param overdraftLimit New overdraft limit
+     * @param callback Used to send a reply to the request source.
+     */
+    @RequestMapping(value = "/overdraft/set", method = RequestMethod.POST)
+    public void incomingInterestRequestListener(final Callback<String> callback,
+                                                final @RequestParam("accountNumber") String accountNumber,
+                                                final @RequestParam("overdraftLimit") String overdraftLimit) {
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        System.out.printf("%s Received a setOverdraftLimit request for accountNumber: %s\n", PREFIX, accountNumber);
+        handleSetOverdraftLimitExceptions(accountNumber, overdraftLimit, callbackBuilder);
+    }
+
+    /**
+     * Authenticates the request and then forwards the request with the accountNumber to ledger.
+     * @param accountNumber AccountNumber of which the limit should be set.
+     * @param overdraftLimit New overdraft limit
+     * @param callbackBuilder Used to send the result of the request to the request source.
+     */
+    private void handleSetOverdraftLimitExceptions(
+            final String accountNumber, final String overdraftLimit, final CallbackBuilder callbackBuilder) {
+        try {
+            Account account = getAccountInfo(accountNumber);
+            if (account != null) {
+                account.setOverdraftLimit(Integer.parseInt(overdraftLimit));
+                updateOverdraftLimit(account);
+                sendSetOverdraftLimitCallback(callbackBuilder);
+            } else {
+                throw new SQLException();
+            }
+        } catch (SQLException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to the ledger database.")));
+        }
+    }
+
+    /**
+     * Sends a callback back to the source of the request.
+     * @param callbackBuilder Used to send a reply to the request source.
+     */
+    private void sendSetOverdraftLimitCallback(final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Successfully processed setOverdraftLimit request, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
                 false, 200, "Normal Reply")));
     }
