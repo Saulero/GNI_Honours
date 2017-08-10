@@ -79,7 +79,7 @@ public class LedgerServiceTest {
         assertEquals(testAccount1, testAccount2);
 
         testAccount1.setBalance(2000);
-        testAccount1.setSpendingLimit(2000);
+        testAccount1.setOverdraft(2000);
         ledger.updateBalance(testAccount1);
         Account testAccount3 = ledger.getAccountInfo(testAccount1.getAccountNumber());
 

@@ -9,12 +9,12 @@ public class Account implements Serializable {
 
     private String accountNumber;
     private String accountHolderName;
-    private double spendingLimit;
+    private double overdraftLimit;
     private double balance;
 
-    public Account(final String newAccountHolderName, final double newSpendingLimit, final double newBalance) {
+    public Account(final String newAccountHolderName, final double newOverdraftLimit, final double newBalance) {
         this.accountHolderName = newAccountHolderName;
-        this.spendingLimit = newSpendingLimit;
+        this.overdraftLimit = newOverdraftLimit;
         this.balance = newBalance;
     }
 
@@ -24,16 +24,14 @@ public class Account implements Serializable {
     }
 
     public boolean withdrawTransactionIsAllowed(final Transaction transaction) {
-        return transaction.getTransactionAmount() <= spendingLimit;
+        return transaction.getTransactionAmount() <= (balance + overdraftLimit);
     }
 
     public void processWithdraw(final Transaction transaction) {
-        this.spendingLimit -= transaction.getTransactionAmount();
         this.balance -= transaction.getTransactionAmount();
     }
 
     public void processDeposit(final Transaction transaction) {
-        this.spendingLimit += transaction.getTransactionAmount();
         this.balance += transaction.getTransactionAmount();
     }
 
@@ -53,12 +51,12 @@ public class Account implements Serializable {
         this.accountHolderName = newAccountHolderName;
     }
 
-    public double getSpendingLimit() {
-        return spendingLimit;
+    public double getOverdraftLimit() {
+        return overdraftLimit;
     }
 
-    public void setSpendingLimit(final double newSpendingLimit) {
-        this.spendingLimit = newSpendingLimit;
+    public void setOverdraftLimit(final double newOverdraftLimit) {
+        this.overdraftLimit = newOverdraftLimit;
     }
 
     public double getBalance() {
@@ -76,7 +74,7 @@ public class Account implements Serializable {
 
         Account account = (Account) o;
 
-        if (Double.compare(account.getSpendingLimit(), getSpendingLimit()) != 0) return false;
+        if (Double.compare(account.getOverdraftLimit(), getOverdraftLimit()) != 0) return false;
         if (Double.compare(account.getBalance(), getBalance()) != 0) return false;
         if (getAccountNumber() != null ? !getAccountNumber().equals(account.getAccountNumber()) : account.getAccountNumber() != null)
             return false;
@@ -89,7 +87,7 @@ public class Account implements Serializable {
         long temp;
         result = getAccountNumber() != null ? getAccountNumber().hashCode() : 0;
         result = 31 * result + (getAccountHolderName() != null ? getAccountHolderName().hashCode() : 0);
-        temp = Double.doubleToLongBits(getSpendingLimit());
+        temp = Double.doubleToLongBits(getOverdraftLimit());
         result = 31 * result + (int) (temp ^ (temp >>> 32));
         temp = Double.doubleToLongBits(getBalance());
         result = 31 * result + (int) (temp ^ (temp >>> 32));
@@ -101,7 +99,7 @@ public class Account implements Serializable {
         return "Account{" +
                 "accountNumber='" + accountNumber + '\'' +
                 ", accountHolderName='" + accountHolderName + '\'' +
-                ", spendingLimit=" + spendingLimit +
+                ", overdraftLimit=" + overdraftLimit +
                 ", balance=" + balance +
                 '}';
     }

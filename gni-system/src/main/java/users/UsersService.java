@@ -458,7 +458,7 @@ class UsersService {
      * an account number it sends that off for processing, if the ledger call fails it sends a rejection to the
      * service that sent the request to this service.
      * @param accountOwner Customer object representing the owner of the account to be created, should also contain an
-     *                     account object with a specified accountHolderName, balance and spendingLimit.
+     *                     account object with a specified accountHolderName, balance and overdraft limit.
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
     private void doNewAccountRequest(final Customer accountOwner, final CallbackBuilder callbackBuilder) {

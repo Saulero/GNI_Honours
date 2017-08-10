@@ -219,7 +219,7 @@ public class UIServiceTest {
         try {
             Account account = new Account();
             account.setBalance(0);
-            account.setSpendingLimit(0);
+            account.setOverdraftLimit(0);
             customer.setAccount(account);
             ui.verifyNewCustomerInput(jsonConverter.toJson(customer));
         } catch (IncorrectInputException e) {

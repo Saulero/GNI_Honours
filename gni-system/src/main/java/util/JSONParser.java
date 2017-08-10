@@ -162,14 +162,14 @@ public final class JSONParser {
      * @param newAddress Address of the customer.
      * @param newDob Date of birth of the customer.
      * @param newSsn Social security number of the customer.
-     * @param newSpendingLimit Spending limit of the customers account(used for creating a new account).
+     * @param newOverdraftLimit Overdraft limit of the customers account(used for creating a new account).
      * @param newBalance Balance of the customers account(used for creating a new account).
      * @return A Customer object that can be converted to a Json String.
      */
     public static Customer createJsonCustomer(final String newInitials, final String newName, final String newSurname,
                                               final String newEmail, final String newTelephoneNumber,
                                               final String newAddress, final String newDob, final Long newSsn,
-                                              final double newSpendingLimit, final double newBalance) {
+                                              final double newOverdraftLimit, final double newBalance) {
         Customer customer = new Customer();
         customer.setInitials(newInitials);
         customer.setName(newName);
@@ -179,7 +179,7 @@ public final class JSONParser {
         customer.setAddress(newAddress);
         customer.setDob(newDob);
         customer.setSsn(newSsn);
-        customer.setAccount(new Account(newInitials + newSurname, newSpendingLimit, newBalance));
+        customer.setAccount(new Account(newInitials + newSurname, newOverdraftLimit, newBalance));
         return customer;
     }
 
@@ -193,14 +193,14 @@ public final class JSONParser {
      * @param newAddress Address of the customer.
      * @param newDob Date of birth of the customer.
      * @param newSsn Social security number of the customer.
-     * @param newSpendingLimit Spending limit of the customers account(used for creating a new account).
+     * @param newOverdraftLimit Overdraft limit of the customers account(used for creating a new account).
      * @param newBalance Balance of the customers account(used for creating a new account).
      * @return A Customer object that can be converted to a Json String.
      */
     public static Customer createJsonCustomer(final String newInitials, final String newName, final String newSurname,
                                               final String newEmail, final String newTelephoneNumber,
                                               final String newAddress, final String newDob, final Long newSsn,
-                                              final double newSpendingLimit, final double newBalance,
+                                              final double newOverdraftLimit, final double newBalance,
                                               final Long newCustomerId, final String newUsername,
                                               final String newPassword) {
         Customer customer = new Customer();
@@ -215,7 +215,7 @@ public final class JSONParser {
         customer.setCustomerId(newCustomerId);
         customer.setUsername(newUsername);
         customer.setPassword(newPassword);
-        customer.setAccount(new Account(newInitials + newSurname, newSpendingLimit, newBalance));
+        customer.setAccount(new Account(newInitials + newSurname, newOverdraftLimit, newBalance));
         return customer;
     }
 

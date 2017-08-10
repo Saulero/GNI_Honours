@@ -1,8 +1,6 @@
 package ledger;
 
 import com.google.gson.Gson;
-import com.thetransactioncompany.jsonrpc2.JSONRPC2Error;
-import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 import database.ConnectionPool;
 import database.SQLConnection;
 import database.SQLStatements;
@@ -20,15 +18,12 @@ import util.JSONParser;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 
 import static database.SQLStatements.*;
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
@@ -100,7 +95,7 @@ class LedgerService {
             ps.setLong(1, newID);                               // id
             ps.setString(2, newAccount.getAccountNumber());     // account_number
             ps.setString(3, newAccount.getAccountHolderName()); // name
-            ps.setDouble(4, newAccount.getSpendingLimit());     // spending_limit
+            ps.setDouble(4, newAccount.getOverdraftLimit());     // overdraft_limit
             ps.setDouble(5, newAccount.getBalance());           // balance
 
             ps.executeUpdate();
@@ -182,9 +177,9 @@ class LedgerService {
 
             if (rs.next()) {
                 String name = rs.getString("name");
-                double spendingLimit = rs.getDouble("spending_limit");
+                double overdraftLimit = rs.getDouble("overdraft_limit");
                 double balance = rs.getDouble("balance");
-                Account account = new Account(name, spendingLimit, balance);
+                Account account = new Account(name, overdraftLimit, balance);
                 account.setAccountNumber(accountNumber);
 
                 rs.close();
@@ -268,7 +263,7 @@ class LedgerService {
         try {
             SQLConnection connection = db.getConnection();
             PreparedStatement ps = connection.getConnection().prepareStatement(updateBalance);
-            ps.setDouble(1, account.getSpendingLimit());    // spending_limit
+            ps.setDouble(1, account.getOverdraftLimit());    // overdraft_limit
             ps.setDouble(2, account.getBalance());          // balance
             ps.setString(3, account.getAccountNumber());    // account_number
             ps.executeUpdate();
@@ -415,7 +410,7 @@ class LedgerService {
 
     /**
      * Processes an outgoing transaction.
-     * Checks if the account making the transaction is allowed to do this. (has a high enough spending limit)
+     * Checks if the account making the transaction is allowed to do this. (has a high enough overdraft limit)
      * @param transaction Object representing a Transaction request.
      * @param customerIsAuthorized boolean to signify if the outgoing transaction is allowed
      * @return The processed transaction
@@ -576,9 +571,9 @@ class LedgerService {
         if (rs.next()) {
             String accountNumber = dataRequest.getAccountNumber();
             String name = rs.getString("name");
-            double spendingLimit = rs.getDouble("spending_limit");
+            double overdraftLimit = rs.getDouble("overdraft_limit");
             double balance = rs.getDouble("balance");
-            Account account = new Account(name, spendingLimit, balance);
+            Account account = new Account(name, overdraftLimit, balance);
             account.setAccountNumber(accountNumber);
             dataReply = JSONParser.createJsonDataReply(dataRequest.getAccountNumber(), dataRequest.getType(), account);
         }
