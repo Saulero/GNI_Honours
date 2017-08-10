@@ -224,11 +224,23 @@ class LedgerService {
     private void handleAccountRemovalExceptions(final String accountNumber, final String customerId,
                                                 final CallbackBuilder callbackBuilder) {
         try {
+            Account account = getAccountInfo(accountNumber);
+            if (account != null) {
+                if (account.getBalance() < 0) {
+                    throw new IllegalArgumentException("Account can't be closed, since it has a negative balance.");
+                }
+            } else {
+                throw new SQLException();
+            }
             doAccountRemoval(accountNumber, customerId);
             sendAccountRemovalCallback(accountNumber, callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to Ledger database.")));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to Ledger database.")));
+        } catch (IllegalArgumentException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Unknown error occurred.", e.getMessage())));
         }
     }
 
