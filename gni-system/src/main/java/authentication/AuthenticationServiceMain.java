@@ -3,25 +3,34 @@ package authentication;
 import io.advantageous.qbit.admin.ManagedServiceBuilder;
 
 /**
- * @author Noel
+ * Utility class that contains a main method to start up the AuthenticationService.
+ * @author Noel & Saul
  * @version 1
  */
-public class AuthenticationServiceMain {
+public final class AuthenticationServiceMain {
 
-    public static void main() {
-                /* Create the ManagedServiceBuilder which manages a clean shutdown, health, stats, etc. */
+    /**
+     * Private constructor for utility class.
+     */
+    private AuthenticationServiceMain() {
+        //Not called
+    }
+
+    /**
+     * Starts an instance of the Authentication service on localhost:9996.
+     * @param args Obligatory arguments
+     */
+    public static void main(final String[] args) {
         final ManagedServiceBuilder managedServiceBuilder =
                 ManagedServiceBuilder.managedServiceBuilder()
-                        .setRootURI("/services") //Defaults to services
-                        .setPort(9996); //Defaults to 8080 or environment variable PORT
+                        .setRootURI("/services")
+                        .setPort(9996);
 
-        /* Start the service. */
-        managedServiceBuilder.addEndpointService(new AuthenticationService(9991, "localhost",
-                                                9995, "localhost")) //Register TodoService
-                .getEndpointServerBuilder()
-                .build().startServer();
+        managedServiceBuilder.addEndpointService(new AuthenticationService(
+                9991, "localhost",
+                9995, "localhost"))
+                .getEndpointServerBuilder().build().startServer();
 
         System.out.println("AuthenticationService service started");
-
     }
 }

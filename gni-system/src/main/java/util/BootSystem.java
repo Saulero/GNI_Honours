@@ -22,14 +22,14 @@ public class BootSystem {
 
     public static void startServices() {
         TableCreator.truncateTables();
-        SystemInformationServiceMain.main();
-        LedgerServiceMain.main();
-        UsersServiceMain.main();
-        AuthenticationServiceMain.main();
-        PinServiceMain.main();
-        TransactionDispatchServiceMain.main();
-        TransactionReceiveServiceMain.main();
-        ApiServiceMain.main();
+        SystemInformationServiceMain.main(null);
+        LedgerServiceMain.main(null);
+        UsersServiceMain.main(null);
+        AuthenticationServiceMain.main(null);
+        PinServiceMain.main(null);
+        TransactionDispatchServiceMain.main(null);
+        TransactionReceiveServiceMain.main(null);
+        ApiServiceMain.main(null);
         System.out.println("\n\n\n");
     }
 }
