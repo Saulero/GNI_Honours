@@ -109,7 +109,7 @@ public class ApiService {
      * @param callback Callback to the source of the request.
      * @param requestJson Json string containing the request that was made.
      */
-    @RequestMapping(value = "/request", method = RequestMethod.PUT)
+    @RequestMapping(value = "/request", method = RequestMethod.POST)
     public void handleApiRequest(final Callback<String> callback, final String requestJson) {
         try {
             JSONRPC2Request request = JSONRPC2Request.parse(requestJson);
