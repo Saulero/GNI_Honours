@@ -54,7 +54,7 @@ class AuthenticationService {
      */
     AuthenticationService(final int servicePort, final String serviceHost,
                           final int sysInfoPort, final String sysInfoHost) {
-        systemInformationClient = httpClientBuilder().setHost(sysInfoHost).setPort(sysInfoPort).buildAndStart();
+        this.systemInformationClient = httpClientBuilder().setHost(sysInfoHost).setPort(sysInfoPort).buildAndStart();
         this.databaseConnectionPool = new ConnectionPool();
         this.secureRandomNumberGenerator = new SecureRandom();
         this.jsonConverter = new Gson();
@@ -81,7 +81,7 @@ class AuthenticationService {
     }
 
     /**
-     * Method that initializes all connections to other servers once it knows their addresses.
+     * Method that initializes all connections to other services once it knows their addresses.
      * @param callback Callback to the source of the request.
      * @param body Json string containing the request that was made.
      */

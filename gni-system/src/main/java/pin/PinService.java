@@ -45,33 +45,66 @@ class PinService {
     private Gson jsonConverter;
     /** Prefix used when printing to indicate the message is coming from the PIN Service. */
     private static final String PREFIX = "[PIN]                 :";
-    /** Used to set how long a pin card is valid */
+    /** Used to set how long a pin card is valid. */
     private static final int VALID_CARD_DURATION = 5;
-    /** Used to check if a transaction without a pincode is authorized */
+    /** Used to check if a transaction without a pincode is authorized. */
     private static final int CONTACTLESS_TRANSACTION_LIMIT = 25;
     /** Used to check if accountNumber are of the correct length. */
     private static int accountNumberLength = 18;
 
     /**
-     * Service that handles all PIN and ATM related requests.
-     * @param transactionDispatchPort Port the Transaction Dispatch Service can be found on.
-     * @param transactionDispatchHost Host the Transaction Dispatch Service can be found on.
-     * @param transactionReceivePort Port the Transaction Receive Service can be found on.
-     * @param transactionReceiveHost Host the Transaction Receive Service can be found on.
-     * @param systemInformationPort Port the System Information Service can be found on.
-     * @param systemInformationHost Host the System Information Service can be found on.
+     * Constructor.
+     * @param servicePort Port that this service is running on.
+     * @param serviceHost Host that this service is running on.
+     * @param sysInfoPort Port the System Information Service can be found on.
+     * @param sysInfoHost Host the System Information Service can be found on.
      */
-    PinService(final int transactionDispatchPort, final String transactionDispatchHost,
-               final int transactionReceivePort, final String transactionReceiveHost,
-               final int systemInformationPort, final String systemInformationHost) {
-        transactionDispatchClient = httpClientBuilder().setHost(transactionDispatchHost)
-                .setPort(transactionDispatchPort).buildAndStart();
-        transactionReceiveClient = httpClientBuilder().setHost(transactionReceiveHost)
-                .setPort(transactionReceivePort).buildAndStart();
-        systemInformationClient = httpClientBuilder().setHost(systemInformationHost)
-                .setPort(systemInformationPort).buildAndStart();
-        databaseConnectionPool = new ConnectionPool();
+    PinService(final int servicePort, final String serviceHost,
+                      final int sysInfoPort, final String sysInfoHost) {
+        this.systemInformationClient = httpClientBuilder().setHost(sysInfoHost).setPort(sysInfoPort).buildAndStart();
+        this.databaseConnectionPool = new ConnectionPool();
         this.jsonConverter = new Gson();
+        sendServiceInformation(servicePort, serviceHost);
+    }
+
+    /**
+     * Method that sends the service information of this service to the SystemInformationService.
+     * @param servicePort Port that this service is running on.
+     * @param serviceHost Host that this service is running on.
+     */
+    private void sendServiceInformation(final int servicePort, final String serviceHost) {
+        ServiceInformation serviceInfo = new ServiceInformation(servicePort, serviceHost, ServiceType.PIN_SERVICE);
+        System.out.printf("%s Sending ServiceInformation to the SystemInformationService.\n", PREFIX);
+        systemInformationClient.putFormAsyncWith1Param("/services/systemInfo/newServiceInfo",
+                "serviceInfo", serviceInfo, (httpStatusCode, httpContentType, replyJson) -> {
+                    if (httpStatusCode != HTTP_OK) {
+                        System.err.println("Problem with connection to the SystemInformationService.");
+                        System.err.println("Shutting down the Pin service.");
+                        System.exit(1);
+                    }
+                });
+    }
+
+    /**
+     * Method that initializes all connections to other services once it knows their addresses.
+     * @param callback Callback to the source of the request.
+     * @param body Json string containing the request that was made.
+     */
+    @RequestMapping(value = "/start", method = RequestMethod.POST)
+    public void startService(final Callback<String> callback, final String body) {
+        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+
+        SystemInformation sysInfo = (SystemInformation) messageWrapper.getData();
+        ServiceInformation transactionIn = sysInfo.getPinServiceInformation();
+        ServiceInformation transactionOut = sysInfo.getAuthenticationServiceInformation();
+
+        this.transactionReceiveClient = httpClientBuilder().setHost(transactionIn.getServiceHost())
+                .setPort(transactionIn.getServicePort()).buildAndStart();
+        this.transactionDispatchClient = httpClientBuilder().setHost(transactionOut.getServiceHost())
+                .setPort(transactionOut.getServicePort()).buildAndStart();
+
+        callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply")));
     }
 
     /**

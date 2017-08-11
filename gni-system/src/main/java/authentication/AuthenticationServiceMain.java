@@ -25,7 +25,6 @@ public final class AuthenticationServiceMain {
         if (args == null || args.length != 2) {
             System.err.println("Please specify the correct arguments: [sysInfoPort, sysInfoHost]");
             System.err.println("Shutting down the Authentication service.");
-            System.exit(1);
         } else {
             int servicePort = PortScanner.getAvailablePort();
 

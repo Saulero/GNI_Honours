@@ -1,12 +1,9 @@
 package client;
 
-import client.IClient;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
-import jdk.nashorn.internal.parser.JSONParser;
 import org.apache.hc.client5.http.impl.sync.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.sync.HttpClients;
 import org.apache.hc.client5.http.methods.HttpPost;
@@ -19,7 +16,7 @@ import com.thetransactioncompany.jsonrpc2.JSONRPC2Request;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 
 public class TestHttpClient implements IClient {
-	// TODO: Replace below with the location of your web application/service
+
 	public static final String SERVICE_URL = "http://localhost:9997/services/api/request";
 
 	CloseableHttpClient httpclient = HttpClients.createDefault();

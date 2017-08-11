@@ -55,11 +55,11 @@ class LedgerService {
      * @param sysInfoPort Port the System Information Service can be found on.
      * @param sysInfoHost Host the System Information Service can be found on.
      */
-    public LedgerService(final int servicePort, final String serviceHost,
+    LedgerService(final int servicePort, final String serviceHost,
                       final int sysInfoPort, final String sysInfoHost) {
-        systemInformationClient = httpClientBuilder().setHost(sysInfoHost).setPort(sysInfoPort).buildAndStart();
-        db = new ConnectionPool();
-        jsonConverter = new Gson();
+        this.systemInformationClient = httpClientBuilder().setHost(sysInfoHost).setPort(sysInfoPort).buildAndStart();
+        this.db = new ConnectionPool();
+        this.jsonConverter = new Gson();
         sendServiceInformation(servicePort, serviceHost);
     }
 
@@ -69,7 +69,7 @@ class LedgerService {
      * @param serviceHost Host that this service is running on.
      */
     private void sendServiceInformation(final int servicePort, final String serviceHost) {
-        ServiceInformation serviceInfo = new ServiceInformation(servicePort, serviceHost, ServiceType.API_SERVICE);
+        ServiceInformation serviceInfo = new ServiceInformation(servicePort, serviceHost, ServiceType.LEDGER_SERVICE);
         System.out.printf("%s Sending ServiceInformation to the SystemInformationService.\n", PREFIX);
         systemInformationClient.putFormAsyncWith1Param("/services/systemInfo/newServiceInfo",
                 "serviceInfo", serviceInfo, (httpStatusCode, httpContentType, replyJson) -> {
@@ -82,15 +82,15 @@ class LedgerService {
     }
 
     /**
-     * Method that initializes all connections to other servers once it knows their addresses.
+     * Method that initializes all connections to other services once it knows their addresses.
      * @param callback Callback to the source of the request.
      * @param body Json string containing the request that was made.
      */
     @RequestMapping(value = "/start", method = RequestMethod.POST)
     public void startService(final Callback<String> callback, final String body) {
-        MessageWrapper messageWrapper = jsonConverter.fromJson(
+/*        MessageWrapper messageWrapper = jsonConverter.fromJson(
                 JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
-/*
+
         SystemInformation sysInfo = (SystemInformation) messageWrapper.getData();
         ServiceInformation users = sysInfo.getUsersServiceInformation();
         ServiceInformation transactionIn = sysInfo.getPinServiceInformation();

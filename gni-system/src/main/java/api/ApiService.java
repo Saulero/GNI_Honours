@@ -54,10 +54,10 @@ public class ApiService {
      * @param sysInfoPort Port the System Information Service can be found on.
      * @param sysInfoHost Host the System Information Service can be found on.
      */
-    public ApiService(final int servicePort, final String serviceHost,
+    ApiService(final int servicePort, final String serviceHost,
                       final int sysInfoPort, final String sysInfoHost) {
-        systemInformationClient = httpClientBuilder().setHost(sysInfoHost).setPort(sysInfoPort).buildAndStart();
-        jsonConverter = new Gson();
+        this.systemInformationClient = httpClientBuilder().setHost(sysInfoHost).setPort(sysInfoPort).buildAndStart();
+        this.jsonConverter = new Gson();
         sendServiceInformation(servicePort, serviceHost);
     }
 
@@ -80,7 +80,7 @@ public class ApiService {
     }
 
     /**
-     * Method that initializes all connections to other servers once it knows their addresses.
+     * Method that initializes all connections to other services once it knows their addresses.
      * @param callback Callback to the source of the request.
      * @param body Json string containing the request that was made.
      */

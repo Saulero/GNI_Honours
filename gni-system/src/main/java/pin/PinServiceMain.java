@@ -1,6 +1,7 @@
 package pin;
 
 import io.advantageous.qbit.admin.ManagedServiceBuilder;
+import util.PortScanner;
 
 /**
  * Utility class that contains a main method to start up the PinService.
@@ -17,21 +18,27 @@ public final class PinServiceMain {
     }
 
     /**
-     * Starts an instance of the Pin service on localhost:9995.
-     * @param args Obligatory arguments
+     * Starts an instance of the Pin service.
+     * @param args sysInfoPort & sysInfoHost
      */
     public static void main(final String[] args) {
-        final ManagedServiceBuilder managedServiceBuilder =
-                ManagedServiceBuilder.managedServiceBuilder()
-                        .setRootURI("/services")
-                        .setPort(9995);
+        if (args == null || args.length != 2) {
+            System.err.println("Please specify the correct arguments: [sysInfoPort, sysInfoHost]");
+            System.err.println("Shutting down the Pin service.");
+        } else {
+            int servicePort = PortScanner.getAvailablePort();
 
-        managedServiceBuilder.addEndpointService(new PinService(
-                9993, "localhost",
-                9994, "localhost",
-                9998, "localhost"))
-                .getEndpointServerBuilder().build().startServer();
+            final ManagedServiceBuilder managedServiceBuilder =
+                    ManagedServiceBuilder.managedServiceBuilder()
+                            .setRootURI("/services")
+                            .setPort(servicePort);
 
-        System.out.println("Pin service started");
+            managedServiceBuilder.addEndpointService(new PinService(
+                    servicePort, "localhost",
+                    Integer.parseInt(args[0]), args[1]))
+                    .getEndpointServerBuilder().build().startServer();
+
+            System.out.println("Pin service started");
+        }
     }
 }
