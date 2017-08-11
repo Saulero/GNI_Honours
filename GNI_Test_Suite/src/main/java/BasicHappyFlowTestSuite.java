@@ -303,7 +303,7 @@ public class BasicHappyFlowTestSuite {
             // TransferMoney
             System.out.println("-- TransferMoney. Donald transfers to Daisy and goes overdraft --");
 
-            request = TransferMoneyMethod.createRequest(bankAccount1, bankAccount3, customer1, 2000, "Moniez");
+            request = TransferMoneyMethod.createRequest(bankAccount1, bankAccount3, customer1, 1299.7, "Moniez");
             response = client.processRequest(request);
 
             if ((parsedResponse = checkResponse(response)) != null) {
@@ -311,8 +311,8 @@ public class BasicHappyFlowTestSuite {
             }
 
             // simulateTime
-            System.out.println("-- 90 days pass. --");
-            request = SimulateTimeMethod.createRequest(90L);
+            System.out.println("-- 365 days pass. --");
+            request = SimulateTimeMethod.createRequest(365L);
             response = client.processRequest(request);
 
             if ((parsedResponse = checkResponse(response)) != null) {
@@ -327,6 +327,16 @@ public class BasicHappyFlowTestSuite {
 
             if ((namedArrayResults = checkArrayResponse(response)) != null) {
                 GetTransactionsMethod.parseResponse(namedArrayResults);
+            }
+
+            // ObtainBalance
+            System.out.println("-- Donald wants to obtain his balance --");
+
+            request = GetBalanceMethod.createRequest(customer1, bankAccount1);
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                GetBalanceMethod.parseResponse(parsedResponse);
             }
 
 

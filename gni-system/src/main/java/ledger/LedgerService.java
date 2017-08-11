@@ -829,7 +829,7 @@ class LedgerService {
                 }
             }
             if (lowestBalance < 0) {
-                interest += MONTHLY_INTEREST_RATE / dailyInterestRate * (lowestBalance * -1);
+                interest += dailyInterestRate * (lowestBalance * -1);
             }
             currentProcessDay = currentProcessDay.plusDays(1);
         }
