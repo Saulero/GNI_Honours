@@ -750,7 +750,7 @@ class LedgerService {
      * @param callback Used to send a reply to the request source.
      * @param body JSON String representing a LocalDate
      */
-    @RequestMapping(value = "/interest", method = RequestMethod.PUT)
+    @RequestMapping(value = "/interest", method = RequestMethod.POST)
     public void incomingInterestRequestListener(final Callback<String> callback,
             final @RequestParam("request") String body) {
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
