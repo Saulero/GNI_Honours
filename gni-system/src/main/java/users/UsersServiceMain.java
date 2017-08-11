@@ -37,8 +37,6 @@ public final class UsersServiceMain {
                     servicePort, "localhost",
                     Integer.parseInt(args[0]), args[1]))
                     .getEndpointServerBuilder().build().startServer();
-
-            System.out.println("Users service started");
         }
     }
 }

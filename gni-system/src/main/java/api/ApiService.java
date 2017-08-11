@@ -12,6 +12,7 @@ import databeans.ServiceType;
 import databeans.SystemInformation;
 import io.advantageous.qbit.annotation.RequestMapping;
 import io.advantageous.qbit.annotation.RequestMethod;
+import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
@@ -56,6 +57,7 @@ public class ApiService {
      */
     ApiService(final int servicePort, final String serviceHost,
                       final int sysInfoPort, final String sysInfoHost) {
+        System.out.printf("%s Service started on the following location: %s:%d.\n", PREFIX, serviceHost, servicePort);
         this.systemInformationClient = httpClientBuilder().setHost(sysInfoHost).setPort(sysInfoPort).buildAndStart();
         this.jsonConverter = new Gson();
         sendServiceInformation(servicePort, serviceHost);
@@ -70,7 +72,7 @@ public class ApiService {
         ServiceInformation serviceInfo = new ServiceInformation(servicePort, serviceHost, ServiceType.API_SERVICE);
         System.out.printf("%s Sending ServiceInformation to the SystemInformationService.\n", PREFIX);
         systemInformationClient.putFormAsyncWith1Param("/services/systemInfo/newServiceInfo",
-                "serviceInfo", serviceInfo, (httpStatusCode, httpContentType, replyJson) -> {
+                "serviceInfo", jsonConverter.toJson(serviceInfo), (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode != HTTP_OK) {
                         System.err.println("Problem with connection to the SystemInformationService.");
                         System.err.println("Shutting down the Api service.");
@@ -82,12 +84,12 @@ public class ApiService {
     /**
      * Method that initializes all connections to other services once it knows their addresses.
      * @param callback Callback to the source of the request.
-     * @param body Json string containing the request that was made.
+     * @param systemInfo Json string containing all System Information.
      */
-    @RequestMapping(value = "/start", method = RequestMethod.POST)
-    public void startService(final Callback<String> callback, final String body) {
+    @RequestMapping(value = "/start", method = RequestMethod.PUT)
+    public void startService(final Callback<String> callback, @RequestParam("sysInfo") final String systemInfo) {
         MessageWrapper messageWrapper = jsonConverter.fromJson(
-                JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                JSONParser.removeEscapeCharacters(systemInfo), MessageWrapper.class);
 
         SystemInformation sysInfo = (SystemInformation) messageWrapper.getData();
         ServiceInformation pin = sysInfo.getPinServiceInformation();
@@ -98,6 +100,7 @@ public class ApiService {
         this.authenticationClient = httpClientBuilder().setHost(authentication.getServiceHost())
                 .setPort(authentication.getServicePort()).buildAndStart();
 
+        System.out.printf("%s Initialization of Api service connections complete.\n", PREFIX);
         callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply")));
     }
 
@@ -106,7 +109,7 @@ public class ApiService {
      * @param callback Callback to the source of the request.
      * @param requestJson Json string containing the request that was made.
      */
-    @RequestMapping(value = "/request", method = RequestMethod.POST)
+    @RequestMapping(value = "/request", method = RequestMethod.PUT)
     public void handleApiRequest(final Callback<String> callback, final String requestJson) {
         try {
             JSONRPC2Request request = JSONRPC2Request.parse(requestJson);

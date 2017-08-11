@@ -15,7 +15,7 @@ public class SystemInformation implements Serializable {
     private ServiceInformation transactionDispatchServiceInformation;
     private ServiceInformation usersServiceInformation;
 
-    public void setNewServiceInformation(final ServiceInformation serviceInformation) {
+    public void addNewServiceInformation(final ServiceInformation serviceInformation) {
         switch (serviceInformation.getServiceType()) {
             case API_SERVICE:
                 apiServiceInformation = serviceInformation;

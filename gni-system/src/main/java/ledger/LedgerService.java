@@ -57,6 +57,7 @@ class LedgerService {
      */
     LedgerService(final int servicePort, final String serviceHost,
                       final int sysInfoPort, final String sysInfoHost) {
+        System.out.printf("%s Service started on the following location: %s:%d.\n", PREFIX, serviceHost, servicePort);
         this.systemInformationClient = httpClientBuilder().setHost(sysInfoHost).setPort(sysInfoPort).buildAndStart();
         this.db = new ConnectionPool();
         this.jsonConverter = new Gson();
@@ -72,7 +73,7 @@ class LedgerService {
         ServiceInformation serviceInfo = new ServiceInformation(servicePort, serviceHost, ServiceType.LEDGER_SERVICE);
         System.out.printf("%s Sending ServiceInformation to the SystemInformationService.\n", PREFIX);
         systemInformationClient.putFormAsyncWith1Param("/services/systemInfo/newServiceInfo",
-                "serviceInfo", serviceInfo, (httpStatusCode, httpContentType, replyJson) -> {
+                "serviceInfo", jsonConverter.toJson(serviceInfo), (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode != HTTP_OK) {
                         System.err.println("Problem with connection to the SystemInformationService.");
                         System.err.println("Shutting down the Ledger service.");
@@ -84,12 +85,12 @@ class LedgerService {
     /**
      * Method that initializes all connections to other services once it knows their addresses.
      * @param callback Callback to the source of the request.
-     * @param body Json string containing the request that was made.
+     * @param systemInfo Json string containing all System Information.
      */
-    @RequestMapping(value = "/start", method = RequestMethod.POST)
-    public void startService(final Callback<String> callback, final String body) {
+    @RequestMapping(value = "/start", method = RequestMethod.PUT)
+    public void startService(final Callback<String> callback, @RequestParam("sysInfo") final String systemInfo) {
 /*        MessageWrapper messageWrapper = jsonConverter.fromJson(
-                JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                JSONParser.removeEscapeCharacters(systemInfo), MessageWrapper.class);
 
         SystemInformation sysInfo = (SystemInformation) messageWrapper.getData();
         ServiceInformation users = sysInfo.getUsersServiceInformation();
@@ -103,6 +104,7 @@ class LedgerService {
         this.transActionOutClient = httpClientBuilder().setHost(transactionOut.getServiceHost())
                 .setPort(transactionOut.getServicePort()).buildAndStart();
 */
+        System.out.printf("%s Initialization of Ledger service connections complete.\n", PREFIX);
         callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply")));
     }
 
@@ -748,7 +750,7 @@ class LedgerService {
      * @param callback Used to send a reply to the request source.
      * @param body JSON String representing a LocalDate
      */
-    @RequestMapping(value = "/interest", method = RequestMethod.POST)
+    @RequestMapping(value = "/interest", method = RequestMethod.PUT)
     public void incomingInterestRequestListener(final Callback<String> callback,
             final @RequestParam("request") String body) {
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);

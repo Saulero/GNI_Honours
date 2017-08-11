@@ -41,6 +41,7 @@ class TransactionDispatchService {
      */
     TransactionDispatchService(final int servicePort, final String serviceHost,
                final int sysInfoPort, final String sysInfoHost) {
+        System.out.printf("%s Service started on the following location: %s:%d.\n", PREFIX, serviceHost, servicePort);
         this.systemInformationClient = httpClientBuilder().setHost(sysInfoHost).setPort(sysInfoPort).buildAndStart();
         this.jsonConverter = new Gson();
         sendServiceInformation(servicePort, serviceHost);
@@ -56,7 +57,7 @@ class TransactionDispatchService {
                 servicePort, serviceHost, ServiceType.TRANSACTION_DISPATCH_SERVICE);
         System.out.printf("%s Sending ServiceInformation to the SystemInformationService.\n", PREFIX);
         systemInformationClient.putFormAsyncWith1Param("/services/systemInfo/newServiceInfo",
-                "serviceInfo", serviceInfo, (httpStatusCode, httpContentType, replyJson) -> {
+                "serviceInfo", jsonConverter.toJson(serviceInfo), (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode != HTTP_OK) {
                         System.err.println("Problem with connection to the SystemInformationService.");
                         System.err.println("Shutting down the Transaction Dispatch service.");
@@ -68,12 +69,12 @@ class TransactionDispatchService {
     /**
      * Method that initializes all connections to other services once it knows their addresses.
      * @param callback Callback to the source of the request.
-     * @param body Json string containing the request that was made.
+     * @param systemInfo Json string containing all System Information.
      */
-    @RequestMapping(value = "/start", method = RequestMethod.POST)
-    public void startService(final Callback<String> callback, final String body) {
+    @RequestMapping(value = "/start", method = RequestMethod.PUT)
+    public void startService(final Callback<String> callback, @RequestParam("sysInfo") final String systemInfo) {
         MessageWrapper messageWrapper = jsonConverter.fromJson(
-                JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                JSONParser.removeEscapeCharacters(systemInfo), MessageWrapper.class);
 
         SystemInformation sysInfo = (SystemInformation) messageWrapper.getData();
         ServiceInformation ledger = sysInfo.getLedgerServiceInformation();
@@ -81,6 +82,7 @@ class TransactionDispatchService {
         this.ledgerClient = httpClientBuilder().setHost(ledger.getServiceHost())
                 .setPort(ledger.getServicePort()).buildAndStart();
 
+        System.out.printf("%s Initialization of Transaction Dispatch service connections complete.\n", PREFIX);
         callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply")));
     }
 

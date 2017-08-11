@@ -37,8 +37,6 @@ public final class ApiServiceMain {
                     servicePort, "localhost",
                     Integer.parseInt(args[0]), args[1]))
                     .getEndpointServerBuilder().build().startServer();
-
-            System.out.println("Api service started");
         }
     }
 }

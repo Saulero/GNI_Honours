@@ -60,7 +60,7 @@ public class BasicHappyFlowTestSuite {
             JSONRPC2Response response;
             Map<String, Object> parsedResponse;
 
-            /*// SimulateTime, Reset and getDate method
+            // SimulateTime, Reset and getDate method
             System.out.println("-- SimulateTime & Reset & GetDate method --");
 
             // getDate
@@ -107,10 +107,9 @@ public class BasicHappyFlowTestSuite {
             if ((parsedResponse = checkResponse(response)) != null) {
                 GetDateMethod.parseResponse(parsedResponse);
             }
-*/
+
 
             // Method 1. OpenAccount.
-
             System.out.println("-- OpenAccountMethod. Donald opens an account --");
 
             request = OpenAccountMethod.createRequest(customer1);

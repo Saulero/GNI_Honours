@@ -37,8 +37,6 @@ public final class PinServiceMain {
                     servicePort, "localhost",
                     Integer.parseInt(args[0]), args[1]))
                     .getEndpointServerBuilder().build().startServer();
-
-            System.out.println("Pin service started");
         }
     }
 }
