@@ -17,19 +17,21 @@ public final class SystemInformationServiceMain {
     }
 
     /**
-     * Starts an instance of the System Information service on localhost:9998.
-     * @param args Obligatory arguments
+     * Starts an instance of the System Information service.
+     * @param args sysInfoPort & sysInfoHost
      */
     public static void main(final String[] args) {
-        final ManagedServiceBuilder managedServiceBuilder =
-                ManagedServiceBuilder.managedServiceBuilder()
-                        .setRootURI("/services")
-                        .setPort(9998);
+        if (args == null || args.length != 2) {
+            System.err.println("Please specify the correct arguments: [sysInfoPort, sysInfoHost]");
+            System.err.println("Shutting down the System Information service.");
+        } else {
+            final ManagedServiceBuilder managedServiceBuilder =
+                    ManagedServiceBuilder.managedServiceBuilder()
+                            .setRootURI("/services")
+                            .setPort(Integer.parseInt(args[0]));
 
-        managedServiceBuilder.addEndpointService(new SystemInformationService(
-                9992, "localhost"))
-                .getEndpointServerBuilder().build().startServer();
-
-        System.out.println("System Information service started");
+            managedServiceBuilder.addEndpointService(new SystemInformationService(Integer.parseInt(args[0]), args[1]))
+                    .getEndpointServerBuilder().build().startServer();
+        }
     }
 }
