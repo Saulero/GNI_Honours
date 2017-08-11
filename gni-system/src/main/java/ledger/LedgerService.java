@@ -50,12 +50,60 @@ class LedgerService {
 
     /**
      * Constructor.
+     * @param servicePort Port that this service is running on.
+     * @param serviceHost Host that this service is running on.
+     * @param sysInfoPort Port the System Information Service can be found on.
+     * @param sysInfoHost Host the System Information Service can be found on.
      */
-    LedgerService(final int systemInformationPort, final String systemInformationHost) {
+    public LedgerService(final int servicePort, final String serviceHost,
+                      final int sysInfoPort, final String sysInfoHost) {
+        systemInformationClient = httpClientBuilder().setHost(sysInfoHost).setPort(sysInfoPort).buildAndStart();
         db = new ConnectionPool();
-        systemInformationClient = httpClientBuilder().setHost(systemInformationHost)
-                .setPort(systemInformationPort).buildAndStart();
         jsonConverter = new Gson();
+        sendServiceInformation(servicePort, serviceHost);
+    }
+
+    /**
+     * Method that sends the service information of this service to the SystemInformationService.
+     * @param servicePort Port that this service is running on.
+     * @param serviceHost Host that this service is running on.
+     */
+    private void sendServiceInformation(final int servicePort, final String serviceHost) {
+        ServiceInformation serviceInfo = new ServiceInformation(servicePort, serviceHost, ServiceType.API_SERVICE);
+        System.out.printf("%s Sending ServiceInformation to the SystemInformationService.\n", PREFIX);
+        systemInformationClient.putFormAsyncWith1Param("/services/systemInfo/newServiceInfo",
+                "serviceInfo", serviceInfo, (httpStatusCode, httpContentType, replyJson) -> {
+                    if (httpStatusCode != HTTP_OK) {
+                        System.err.println("Problem with connection to the SystemInformationService.");
+                        System.err.println("Shutting down the Ledger service.");
+                        System.exit(1);
+                    }
+                });
+    }
+
+    /**
+     * Method that initializes all connections to other servers once it knows their addresses.
+     * @param callback Callback to the source of the request.
+     * @param body Json string containing the request that was made.
+     */
+    @RequestMapping(value = "/start", method = RequestMethod.POST)
+    public void startService(final Callback<String> callback, final String body) {
+        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+/*
+        SystemInformation sysInfo = (SystemInformation) messageWrapper.getData();
+        ServiceInformation users = sysInfo.getUsersServiceInformation();
+        ServiceInformation transactionIn = sysInfo.getPinServiceInformation();
+        ServiceInformation transactionOut = sysInfo.getAuthenticationServiceInformation();
+
+        this.usersClient = httpClientBuilder().setHost(users.getServiceHost())
+                .setPort(users.getServicePort()).buildAndStart();
+        this.transactionInClient = httpClientBuilder().setHost(transactionIn.getServiceHost())
+                .setPort(transactionIn.getServicePort()).buildAndStart();
+        this.transActionOutClient = httpClientBuilder().setHost(transactionOut.getServiceHost())
+                .setPort(transactionOut.getServicePort()).buildAndStart();
+*/
+        callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply")));
     }
 
     /**
