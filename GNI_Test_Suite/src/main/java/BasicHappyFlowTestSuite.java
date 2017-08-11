@@ -196,7 +196,7 @@ public class BasicHappyFlowTestSuite {
                 PayFromAccountMethod.parseResponse(parsedResponse);
             }
 
-            /*// UnblockCard
+            // UnblockCard
             System.out.println("-- UnblockCard. Donald uses the wrong pin code and then unblocks his card --");
 
             card1.setPinCode("" + (Integer.parseInt(card1.getPinCode()) + 1));
@@ -271,33 +271,33 @@ public class BasicHappyFlowTestSuite {
 
 
             // GetBankAccountAccessMethod
-            System.out.println("-- Donald wants to get bank account access list --");
+            System.out.println("-- Donald wants to fetch his current overdraft limit --");
 
             request = GetOverdraftLimitMethod.createRequest(customer1, bankAccount1);
             response = client.processRequest(request);
 
-            if ((namedArrayResults = checkArrayResponse(response)) != null) {
-                GetBankAccountAccessMethod.parseResponse(namedArrayResults);
+            if ((parsedResponse = checkResponse(response)) != null) {
+                GetOverdraftLimitMethod.parseResponse(parsedResponse);
             }
 
             // SetOverdraftLimitMethod
-            System.out.println("-- Donald wants to get an overdraft limit --");
+            System.out.println("-- Donald wants to set his overdraft limit --");
 
             request = SetOverdraftLimitMethod.createRequest(customer1, bankAccount1, "2500");
             response = client.processRequest(request);
 
-            if ((namedArrayResults = checkArrayResponse(response)) != null) {
-                SetOverdraftLimitMethod.parseResponse(namedArrayResults);
+            if ((parsedResponse = checkResponse(response)) != null) {
+                SetOverdraftLimitMethod.parseResponse(parsedResponse);
             }
 
             // GetOverdraftLimitMethod
-            System.out.println("-- Donald wants to get an overdraft limit --");
+            System.out.println("-- Donald wants to fetch his current overdraft limit --");
 
             request = GetOverdraftLimitMethod.createRequest(customer1, bankAccount1);
             response = client.processRequest(request);
 
-            if ((namedArrayResults = checkArrayResponse(response)) != null) {
-                GetOverdraftLimitMethod.parseResponse(namedArrayResults);
+            if ((parsedResponse = checkResponse(response)) != null) {
+                GetOverdraftLimitMethod.parseResponse(parsedResponse);
             }
 
             // TransferMoney
@@ -351,7 +351,7 @@ public class BasicHappyFlowTestSuite {
                 if ((parsedResponse = checkResponse(response)) != null) {
                     CloseAccountMethod.parseResponse(parsedResponse);
                 }
-            }*/
+            }
         }
 
     public static Map<String, Object> checkResponse(JSONRPC2Response respIn){
@@ -405,8 +405,7 @@ public class BasicHappyFlowTestSuite {
             System.out.println("\tresult : " + respIn.getResult());
             System.out.println("\tid     : " + respIn.getID());
 
-             namedArrayResults
-                    = (List<Map<String, Object>>) respIn.getResult();
+             namedArrayResults = (List<Map<String, Object>>) respIn.getResult();
 
 
         }

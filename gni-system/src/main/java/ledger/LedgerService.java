@@ -925,7 +925,7 @@ class LedgerService {
      * @param overdraftLimit New overdraft limit
      * @param callback Used to send a reply to the request source.
      */
-    @RequestMapping(value = "/overdraft/set", method = RequestMethod.POST)
+    @RequestMapping(value = "/overdraft/set", method = RequestMethod.PUT)
     public void incomingSetOverdraftLimitRequestListener(final Callback<String> callback,
                                                 final @RequestParam("accountNumber") String accountNumber,
                                                 final @RequestParam("overdraftLimit") String overdraftLimit) {
@@ -949,9 +949,10 @@ class LedgerService {
                 updateOverdraftLimit(account);
                 sendSetOverdraftLimitCallback(callbackBuilder);
             } else {
-                throw new SQLException();
+                throw new SQLException("Account does not exist.");
             }
         } catch (SQLException e) {
+            e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
                     "Error connecting to the ledger database.")));
         }
@@ -972,7 +973,7 @@ class LedgerService {
      * @param accountNumber AccountNumber of which the limit should be queried.
      * @param callback Used to send a reply to the request source.
      */
-    @RequestMapping(value = "/overdraft/get", method = RequestMethod.POST)
+    @RequestMapping(value = "/overdraft/get", method = RequestMethod.PUT)
     public void incomingGetOverdraftLimitRequestListener(final Callback<String> callback,
                                                 final @RequestParam("accountNumber") String accountNumber) {
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);

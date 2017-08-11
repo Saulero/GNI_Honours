@@ -27,7 +27,6 @@ public class TestHttpClient implements IClient {
 	public JSONRPC2Response stringToJSON(String jResponse) {
 		// If using a different JSON-RPC library, replace the return type and below code as needed
 		try {
-			System.out.println(removeEscapeCharacters(jResponse));
 			return JSONRPC2Response.parse(removeEscapeCharacters(jResponse));
 		} catch (JSONRPC2ParseException e) {
 			e.printStackTrace();

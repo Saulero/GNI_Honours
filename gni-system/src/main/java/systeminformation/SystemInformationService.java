@@ -102,6 +102,8 @@ class SystemInformationService {
                             callbackBuilder.build().reply(body);
                         }
                     } else {
+                        System.out.println(httpStatusCode);
+                        System.out.println(body);
                         callbackBuilder.build().reply(jsonConverter.toJson(
                                 JSONParser.createMessageWrapper(true, 500,
                                 "An unknown error occurred.",

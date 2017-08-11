@@ -31,7 +31,7 @@ public class GetOverdraftLimitMethod {
         return reqOut;
     }
 
-    public static void parseResponse(List<Map<String, Object>> namedResults){
+    public static void parseResponse(Map<String, Object> namedResults){
 
 
         // Assume everything went right.

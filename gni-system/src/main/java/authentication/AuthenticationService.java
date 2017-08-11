@@ -1018,9 +1018,11 @@ class AuthenticationService {
             authenticateRequest(cookie);
             doSetOverdraftLimitRequest(accountNumber, overdraftLimit, callbackBuilder);
         } catch (SQLException e) {
+            e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
                     "Error connecting to the authentication database.")));
         } catch (UserNotAuthorizedException e) {
+            e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
                     "The user is not authorized to perform this action.")));
         }
@@ -1035,7 +1037,7 @@ class AuthenticationService {
      */
     private void doSetOverdraftLimitRequest(final String accountNumber, final String overdraftLimit,
                                          final CallbackBuilder callbackBuilder) {
-        usersClient.putFormAsyncWith2Params("/services/ledger/overdraft/set",
+        usersClient.putFormAsyncWith2Params("/services/users/overdraft/set",
                 "accountNumber", accountNumber, "overdraftLimit", overdraftLimit,
                 (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
@@ -1106,7 +1108,7 @@ class AuthenticationService {
      * @param callbackBuilder Used to forward the result of the request to the request source.
      */
     private void doGetOverdraftLimitRequest(final String accountNumber, final CallbackBuilder callbackBuilder) {
-        usersClient.putFormAsyncWith1Param("/services/ledger/overdraft/get",
+        usersClient.putFormAsyncWith1Param("/services/users/overdraft/get",
                 "accountNumber", accountNumber,
                 (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
