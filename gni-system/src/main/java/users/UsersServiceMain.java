@@ -1,6 +1,7 @@
 package users;
 
 import io.advantageous.qbit.admin.ManagedServiceBuilder;
+import util.PortScanner;
 
 /**
  * Utility class that contains a main method to start up the UsersService.
@@ -17,20 +18,27 @@ public final class UsersServiceMain {
     }
 
     /**
-     * Starts an instance of the Users service on localhost:9991.
-     * @param args Obligatory arguments
+     * Starts an instance of the Users service.
+     * @param args sysInfoPort & sysInfoHost
      */
     public static void main(final String[] args) {
-        final ManagedServiceBuilder managedServiceBuilder =
-                ManagedServiceBuilder.managedServiceBuilder()
-                        .setRootURI("/services")
-                        .setPort(9991);
+        if (args == null || args.length != 2) {
+            System.err.println("Please specify the correct arguments: [sysInfoPort, sysInfoHost]");
+            System.err.println("Shutting down the Users service.");
+        } else {
+            int servicePort = PortScanner.getAvailablePort();
 
-        managedServiceBuilder.addEndpointService(new UsersService(
-                9992, "localhost",
-                9993, "localhost"))
-                .getEndpointServerBuilder().build().startServer();
+            final ManagedServiceBuilder managedServiceBuilder =
+                    ManagedServiceBuilder.managedServiceBuilder()
+                            .setRootURI("/services")
+                            .setPort(servicePort);
 
-        System.out.println("User service started");
+            managedServiceBuilder.addEndpointService(new UsersService(
+                    servicePort, "localhost",
+                    Integer.parseInt(args[0]), args[1]))
+                    .getEndpointServerBuilder().build().startServer();
+
+            System.out.println("Users service started");
+        }
     }
 }

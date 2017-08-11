@@ -34,6 +34,8 @@ class UsersService {
     private HttpClient ledgerClient;
     /** Connection to the Transaction Dispatch service.*/
     private HttpClient transactionDispatchClient;
+    /** Connection to the SystemInformation service. */
+    private HttpClient systemInformationClient;
     /** Connection pool with database connections for the User Service. */
     private ConnectionPool databaseConnectionPool;
     /** Gson object used to convert objects to/from json. */
@@ -43,18 +45,57 @@ class UsersService {
 
     /**
      * Constructor.
-     * @param ledgerPort Port the LedgerService service can be found on.
-     * @param ledgerHost Host the LedgerService service can be found on.
-     * @param transactionDispatchPort Port the TransactionDispatch service can be found on.
-     * @param transactionDispatchHost Host the TransactionDispatch service can be found on.
+     * @param servicePort Port that this service is running on.
+     * @param serviceHost Host that this service is running on.
+     * @param sysInfoPort Port the System Information Service can be found on.
+     * @param sysInfoHost Host the System Information Service can be found on.
      */
-    UsersService(final int ledgerPort, final String ledgerHost, final int transactionDispatchPort,
-                 final String transactionDispatchHost) {
-        ledgerClient = httpClientBuilder().setHost(ledgerHost).setPort(ledgerPort).buildAndStart();
-        transactionDispatchClient = httpClientBuilder().setHost(transactionDispatchHost)
-                                                       .setPort(transactionDispatchPort).buildAndStart();
+    UsersService(final int servicePort, final String serviceHost,
+               final int sysInfoPort, final String sysInfoHost) {
+        this.systemInformationClient = httpClientBuilder().setHost(sysInfoHost).setPort(sysInfoPort).buildAndStart();
         this.databaseConnectionPool = new ConnectionPool();
-        jsonConverter = new Gson();
+        this.jsonConverter = new Gson();
+        sendServiceInformation(servicePort, serviceHost);
+    }
+
+    /**
+     * Method that sends the service information of this service to the SystemInformationService.
+     * @param servicePort Port that this service is running on.
+     * @param serviceHost Host that this service is running on.
+     */
+    private void sendServiceInformation(final int servicePort, final String serviceHost) {
+        ServiceInformation serviceInfo = new ServiceInformation(servicePort, serviceHost, ServiceType.USERS_SERVICE);
+        System.out.printf("%s Sending ServiceInformation to the SystemInformationService.\n", PREFIX);
+        systemInformationClient.putFormAsyncWith1Param("/services/systemInfo/newServiceInfo",
+                "serviceInfo", serviceInfo, (httpStatusCode, httpContentType, replyJson) -> {
+                    if (httpStatusCode != HTTP_OK) {
+                        System.err.println("Problem with connection to the SystemInformationService.");
+                        System.err.println("Shutting down the Users service.");
+                        System.exit(1);
+                    }
+                });
+    }
+
+    /**
+     * Method that initializes all connections to other services once it knows their addresses.
+     * @param callback Callback to the source of the request.
+     * @param body Json string containing the request that was made.
+     */
+    @RequestMapping(value = "/start", method = RequestMethod.POST)
+    public void startService(final Callback<String> callback, final String body) {
+        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+
+        SystemInformation sysInfo = (SystemInformation) messageWrapper.getData();
+        ServiceInformation ledger = sysInfo.getLedgerServiceInformation();
+        ServiceInformation transactionDispatch = sysInfo.getTransactionDispatchServiceInformation();
+
+        this.ledgerClient = httpClientBuilder().setHost(ledger.getServiceHost())
+                .setPort(ledger.getServicePort()).buildAndStart();
+        this.transactionDispatchClient = httpClientBuilder().setHost(transactionDispatch.getServiceHost())
+                .setPort(transactionDispatch.getServicePort()).buildAndStart();
+
+        callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply")));
     }
 
     /**
