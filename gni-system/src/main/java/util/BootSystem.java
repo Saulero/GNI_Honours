@@ -12,7 +12,7 @@ import users.UsersServiceMain;
 /**
  * Boots the entire system, i.e. starts all individual services.
  * @author Saul
- * @version 1
+ * @version 2
  */
 public class BootSystem {
 
@@ -20,16 +20,19 @@ public class BootSystem {
         startServices();
     }
 
-    public static void startServices() {
+    private static void startServices() {
         TableCreator.truncateTables();
-        SystemInformationServiceMain.main();
-        LedgerServiceMain.main();
-        UsersServiceMain.main();
-        AuthenticationServiceMain.main();
-        PinServiceMain.main();
-        TransactionDispatchServiceMain.main();
-        TransactionReceiveServiceMain.main();
-        ApiServiceMain.main();
-        System.out.println("\n\n\n");
+        String systemInformationServicePort = "" + PortScanner.getAvailablePort();
+        String systemInformationServiceHost = "localhost";
+        String[] sysInfoLocation = {systemInformationServicePort, systemInformationServiceHost};
+
+        SystemInformationServiceMain.main(sysInfoLocation);
+        LedgerServiceMain.main(sysInfoLocation);
+        UsersServiceMain.main(sysInfoLocation);
+        AuthenticationServiceMain.main(sysInfoLocation);
+        PinServiceMain.main(sysInfoLocation);
+        TransactionDispatchServiceMain.main(sysInfoLocation);
+        TransactionReceiveServiceMain.main(sysInfoLocation);
+        ApiServiceMain.main(sysInfoLocation);
     }
 }

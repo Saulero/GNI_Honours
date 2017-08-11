@@ -2,6 +2,8 @@ package systeminformation;
 
 import com.google.gson.Gson;
 import databeans.MessageWrapper;
+import databeans.ServiceInformation;
+import databeans.SystemInformation;
 import io.advantageous.qbit.annotation.RequestMapping;
 import io.advantageous.qbit.annotation.RequestMethod;
 import io.advantageous.qbit.annotation.RequestParam;
@@ -30,8 +32,22 @@ class SystemInformationService {
     private Calendar myCal;
     /** LocalDate with current date. */
     private LocalDate systemDate;
+    /** SystemInformation containing knwon data about the other services. */
+    private SystemInformation systemInformation;
+    /** Connection to the Ledger service.*/
+    private HttpClient apiClient;
+    /** Connection to the Ledger service.*/
+    private HttpClient authenticationClient;
     /** Connection to the Ledger service.*/
     private HttpClient ledgerClient;
+    /** Connection to the Ledger service.*/
+    private HttpClient pinClient;
+    /** Connection to the Ledger service.*/
+    private HttpClient transactionInClient;
+    /** Connection to the Ledger service.*/
+    private HttpClient transactionOutClient;
+    /** Connection to the Ledger service.*/
+    private HttpClient usersClient;
     /** Used for json conversions. */
     private Gson jsonConverter;
     /** Prefix used when printing to indicate the message is coming from the SystemInformation Service. */
@@ -39,15 +55,105 @@ class SystemInformationService {
 
     /**
      * Constructor to start the service. This will set the systemDate to the date of the day the method is ran.
-     * @param ledgerPort Port the LedgerService service can be found on.
-     * @param ledgerHost Host the LedgerService service can be found on.
+     * @param servicePort Port that this service is running on.
+     * @param serviceHost Host that this service is running on.
      */
-    SystemInformationService(final int ledgerPort, final String ledgerHost) {
-        systemDate = LocalDate.now();
+    SystemInformationService(final int servicePort, final String serviceHost) {
+        System.out.printf("%s Service started on the following location: %s:%d.\n", PREFIX, serviceHost, servicePort);
+        this.systemDate = LocalDate.now();
         syncCalendar();
-        ledgerClient = httpClientBuilder().setHost(ledgerHost).setPort(ledgerPort).buildAndStart();
-        this.jsonConverter = new Gson();
         System.out.printf("%s Set date to %s\n", PREFIX, systemDate.toString());
+        this.systemInformation = new SystemInformation();
+        this.jsonConverter = new Gson();
+    }
+
+    @RequestMapping(value = "/newServiceInfo", method = RequestMethod.PUT)
+    void processNewSystemInformation(final Callback<String> callback, final @RequestParam("serviceInfo") String body) {
+        ServiceInformation serviceInformation = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(body), ServiceInformation.class);
+        System.out.printf("%s Received new service information with type: %s\n",
+                PREFIX, serviceInformation.getServiceType().toString());
+        callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply")));
+
+        systemInformation.addNewServiceInformation(serviceInformation);
+        if (systemInformation.isComplete()) {
+            startAllServices();
+        }
+    }
+
+    private void startAllServices() {
+        System.out.printf("%s System Information now complete, sending start messages to all services\n", PREFIX);
+
+        // SystemInformationService
+        startService();
+
+        // ApiService
+        startSingleService(apiClient, "api");
+
+        // AuthenticationService
+        startSingleService(authenticationClient, "authentication");
+
+        // LedgerService
+        startSingleService(ledgerClient, "ledger");
+
+        // PinService
+        startSingleService(pinClient, "pin");
+
+        // TransactionReceiveService
+        startSingleService(transactionInClient, "transactionReceive");
+
+        // TransactionDispatchService
+        startSingleService(transactionOutClient, "transactionDispatch");
+
+        // UsersService
+        startSingleService(usersClient, "users");
+
+        System.out.printf("%s Started all services.\n", PREFIX);
+    }
+
+    /**
+     * Method that initializes all connections to other servers once it knows their addresses.
+     */
+    private void startService() {
+        ServiceInformation api = systemInformation.getApiServiceInformation();
+        ServiceInformation authentication = systemInformation.getAuthenticationServiceInformation();
+        ServiceInformation ledger = systemInformation.getLedgerServiceInformation();
+        ServiceInformation pin = systemInformation.getPinServiceInformation();
+        ServiceInformation transactionIn = systemInformation.getTransactionReceiveServiceInformation();
+        ServiceInformation transactionOut = systemInformation.getTransactionDispatchServiceInformation();
+        ServiceInformation users = systemInformation.getUsersServiceInformation();
+
+        apiClient = httpClientBuilder().setHost(api.getServiceHost())
+                .setPort(api.getServicePort()).buildAndStart();
+        authenticationClient = httpClientBuilder().setHost(authentication.getServiceHost())
+                .setPort(authentication.getServicePort()).buildAndStart();
+        ledgerClient = httpClientBuilder().setHost(ledger.getServiceHost())
+                .setPort(ledger.getServicePort()).buildAndStart();
+        pinClient = httpClientBuilder().setHost(pin.getServiceHost())
+                .setPort(pin.getServicePort()).buildAndStart();
+        transactionInClient = httpClientBuilder().setHost(transactionIn.getServiceHost())
+                .setPort(transactionIn.getServicePort()).buildAndStart();
+        transactionOutClient = httpClientBuilder().setHost(transactionOut.getServiceHost())
+                .setPort(transactionOut.getServicePort()).buildAndStart();
+        usersClient = httpClientBuilder().setHost(users.getServiceHost())
+                .setPort(users.getServicePort()).buildAndStart();
+
+        System.out.printf("%s Initialization of System Information service connections complete.\n", PREFIX);
+    }
+
+    private void startSingleService(final HttpClient client, final String serviceName) {
+        String sysInfo = jsonConverter.toJson(JSONParser.createMessageWrapper(false, 0, "Request", systemInformation));
+        System.out.printf("%s Sending ServiceInformation to the " + serviceName + " service.\n", PREFIX);
+        client.putFormAsyncWith1Param("/services/" + serviceName + "/start",
+                "sysInfo", sysInfo, (httpStatusCode, httpContentType, replyJson) -> {
+                    if (httpStatusCode != HTTP_OK) {
+                        // This should never happen, since services already sent their info, so they must be running
+                        System.err.println("Problem with connection to the " + serviceName + " Service.");
+                        System.err.println("Please make sure the " + serviceName + " service is still running");
+                        System.err.println("Shutting down.");
+                        System.exit(1);
+                    }
+                });
     }
 
     /**

@@ -1,26 +1,42 @@
 package ledger;
 
 import io.advantageous.qbit.admin.ManagedServiceBuilder;
+import util.PortScanner;
 
 /**
- * @author Noel
+ * Utility class that contains a main method to start up the LedgerService.
+ * @author Noel & Saul
  * @version 1
  */
-public class LedgerServiceMain {
+public final class LedgerServiceMain {
 
-    public static void main() {
-                /* Create the ManagedServiceBuilder which manages a clean shutdown, health, stats, etc. */
-        final ManagedServiceBuilder managedServiceBuilder =
-                ManagedServiceBuilder.managedServiceBuilder()
-                        .setRootURI("/services") //Defaults to services
-                        .setPort(9992); //Defaults to 8080 or environment variable PORT
+    /**
+     * Private constructor for utility class.
+     */
+    private LedgerServiceMain() {
+        //Not called
+    }
 
-        /* Start the service. */
-        managedServiceBuilder.addEndpointService(new LedgerService(9998, "localhost")) //Register TodoService
-                .getEndpointServerBuilder()
-                .build().startServer();
+    /**
+     * Starts an instance of the Ledger service.
+     * @param args sysInfoPort & sysInfoHost
+     */
+    public static void main(final String[] args) {
+        if (args == null || args.length != 2) {
+            System.err.println("Please specify the correct arguments: [sysInfoPort, sysInfoHost]");
+            System.err.println("Shutting down the Ledger service.");
+        } else {
+            int servicePort = PortScanner.getAvailablePort();
 
-        System.out.println("LedgerService service started");
+            final ManagedServiceBuilder managedServiceBuilder =
+                    ManagedServiceBuilder.managedServiceBuilder()
+                            .setRootURI("/services")
+                            .setPort(servicePort);
 
+            managedServiceBuilder.addEndpointService(new LedgerService(
+                    servicePort, "localhost",
+                    Integer.parseInt(args[0]), args[1]))
+                    .getEndpointServerBuilder().build().startServer();
+        }
     }
 }

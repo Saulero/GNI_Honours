@@ -1,10 +1,11 @@
 package transactionin;
 
 import io.advantageous.qbit.admin.ManagedServiceBuilder;
+import util.PortScanner;
 
 /**
  * Utility class that contains a main method to start up the TransactionReceiveService.
- * @author Noel
+ * @author Noel & Saul
  * @version 1
  */
 public final class TransactionReceiveServiceMain {
@@ -17,17 +18,25 @@ public final class TransactionReceiveServiceMain {
     }
 
     /**
-     * Starts a Transaction Receive service on localhost:9994.
+     * Starts an instance of the Transaction Receive service.
+     * @param args sysInfoPort & sysInfoHost
      */
-    public static void main() {
-        final ManagedServiceBuilder managedServiceBuilder =
-                ManagedServiceBuilder.managedServiceBuilder()
-                        .setRootURI("/services") //Defaults to services
-                        .setPort(9994);
-        managedServiceBuilder.addEndpointService(new TransactionReceiveService(9992,
-                                                                                "localhost"))
-                .getEndpointServerBuilder()
-                .build().startServer();
-        System.out.println("TransactionReceive service started");
+    public static void main(final String[] args) {
+        if (args == null || args.length != 2) {
+            System.err.println("Please specify the correct arguments: [sysInfoPort, sysInfoHost]");
+            System.err.println("Shutting down the Transaction Receive service.");
+        } else {
+            int servicePort = PortScanner.getAvailablePort();
+
+            final ManagedServiceBuilder managedServiceBuilder =
+                    ManagedServiceBuilder.managedServiceBuilder()
+                            .setRootURI("/services")
+                            .setPort(servicePort);
+
+            managedServiceBuilder.addEndpointService(new TransactionReceiveService(
+                    servicePort, "localhost",
+                    Integer.parseInt(args[0]), args[1]))
+                    .getEndpointServerBuilder().build().startServer();
+        }
     }
 }

@@ -6,14 +6,22 @@ import com.thetransactioncompany.jsonrpc2.JSONRPC2Error;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2ParseException;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Request;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
+import databeans.MessageWrapper;
+import databeans.ServiceInformation;
+import databeans.ServiceType;
+import databeans.SystemInformation;
 import io.advantageous.qbit.annotation.RequestMapping;
 import io.advantageous.qbit.annotation.RequestMethod;
+import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
+import util.JSONParser;
+
 import java.util.Map;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
+import static java.net.HttpURLConnection.HTTP_OK;
 
 /**
  * @author Saul & Noel
@@ -42,21 +50,58 @@ public class ApiService {
 
     /**
      * Constructor.
-     * @param authenticationPort Port the ui service is located on.
-     * @param authenticationHost Host the ui service is located on.
-     * @param pinPort Port the pin service is located on.
-     * @param pinHost Host the pin service is located on.
-     * @param sysInfoPort Port the systen information service is located on.
-     * @param sysInfoHost Host the systen information service is located on.
+     * @param servicePort Port that this service is running on.
+     * @param serviceHost Host that this service is running on.
+     * @param sysInfoPort Port the System Information Service can be found on.
+     * @param sysInfoHost Host the System Information Service can be found on.
      */
-    public ApiService(final int authenticationPort, final String authenticationHost,
-                      final int pinPort, final String pinHost,
+    ApiService(final int servicePort, final String serviceHost,
                       final int sysInfoPort, final String sysInfoHost) {
-        pinClient = httpClientBuilder().setHost(pinHost).setPort(pinPort).buildAndStart();
-        systemInformationClient = httpClientBuilder().setHost(sysInfoHost).setPort(sysInfoPort).buildAndStart();
-        authenticationClient = httpClientBuilder().setHost(authenticationHost).setPort(authenticationPort)
-                .buildAndStart();
-        jsonConverter = new Gson();
+        System.out.printf("%s Service started on the following location: %s:%d.\n", PREFIX, serviceHost, servicePort);
+        this.systemInformationClient = httpClientBuilder().setHost(sysInfoHost).setPort(sysInfoPort).buildAndStart();
+        this.jsonConverter = new Gson();
+        sendServiceInformation(servicePort, serviceHost);
+    }
+
+    /**
+     * Method that sends the service information of this service to the SystemInformationService.
+     * @param servicePort Port that this service is running on.
+     * @param serviceHost Host that this service is running on.
+     */
+    private void sendServiceInformation(final int servicePort, final String serviceHost) {
+        ServiceInformation serviceInfo = new ServiceInformation(servicePort, serviceHost, ServiceType.API_SERVICE);
+        System.out.printf("%s Sending ServiceInformation to the SystemInformationService.\n", PREFIX);
+        systemInformationClient.putFormAsyncWith1Param("/services/systemInfo/newServiceInfo",
+                "serviceInfo", jsonConverter.toJson(serviceInfo), (httpStatusCode, httpContentType, replyJson) -> {
+                    if (httpStatusCode != HTTP_OK) {
+                        System.err.println("Problem with connection to the SystemInformationService.");
+                        System.err.println("Shutting down the Api service.");
+                        System.exit(1);
+                    }
+        });
+    }
+
+    /**
+     * Method that initializes all connections to other services once it knows their addresses.
+     * @param callback Callback to the source of the request.
+     * @param systemInfo Json string containing all System Information.
+     */
+    @RequestMapping(value = "/start", method = RequestMethod.PUT)
+    public void startService(final Callback<String> callback, @RequestParam("sysInfo") final String systemInfo) {
+        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(systemInfo), MessageWrapper.class);
+
+        SystemInformation sysInfo = (SystemInformation) messageWrapper.getData();
+        ServiceInformation pin = sysInfo.getPinServiceInformation();
+        ServiceInformation authentication = sysInfo.getAuthenticationServiceInformation();
+
+        this.pinClient = httpClientBuilder().setHost(pin.getServiceHost())
+                .setPort(pin.getServicePort()).buildAndStart();
+        this.authenticationClient = httpClientBuilder().setHost(authentication.getServiceHost())
+                .setPort(authentication.getServicePort()).buildAndStart();
+
+        System.out.printf("%s Initialization of Api service connections complete.\n", PREFIX);
+        callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply")));
     }
 
     /**
