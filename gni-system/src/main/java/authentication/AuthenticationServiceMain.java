@@ -1,6 +1,7 @@
 package authentication;
 
 import io.advantageous.qbit.admin.ManagedServiceBuilder;
+import util.PortScanner;
 
 /**
  * Utility class that contains a main method to start up the AuthenticationService.
@@ -17,20 +18,28 @@ public final class AuthenticationServiceMain {
     }
 
     /**
-     * Starts an instance of the Authentication service on localhost:9996.
-     * @param args Obligatory arguments
+     * Starts an instance of the Authentication service.
+     * @param args sysInfoPort & sysInfoHost
      */
     public static void main(final String[] args) {
-        final ManagedServiceBuilder managedServiceBuilder =
-                ManagedServiceBuilder.managedServiceBuilder()
-                        .setRootURI("/services")
-                        .setPort(9996);
+        if (args == null || args.length != 2) {
+            System.err.println("Please specify the correct arguments: [sysInfoPort, sysInfoHost]");
+            System.err.println("Shutting down the Authentication service.");
+            System.exit(1);
+        } else {
+            int servicePort = PortScanner.getAvailablePort();
 
-        managedServiceBuilder.addEndpointService(new AuthenticationService(
-                9991, "localhost",
-                9995, "localhost"))
-                .getEndpointServerBuilder().build().startServer();
+            final ManagedServiceBuilder managedServiceBuilder =
+                    ManagedServiceBuilder.managedServiceBuilder()
+                            .setRootURI("/services")
+                            .setPort(servicePort);
 
-        System.out.println("AuthenticationService service started");
+            managedServiceBuilder.addEndpointService(new AuthenticationService(
+                    servicePort, "localhost",
+                    Integer.parseInt(args[0]), args[1]))
+                    .getEndpointServerBuilder().build().startServer();
+
+            System.out.println("Authentication service started");
+        }
     }
 }
