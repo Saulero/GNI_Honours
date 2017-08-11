@@ -70,13 +70,13 @@ public class Customer implements Serializable {
      * @param newAddress address of the customer.
      * @param newDob date of birth of the customer.
      * @param newSsn social security number of the customer.
-     * @param newSpendingLimit spending limit of the customer.
+     * @param newOverdraftLimit overdraft limit of the customer.
      * @param newBalance balance of the customers new account.
      * @param newId customerID
      * */
     public Customer(final String newInitials, final String newName, final String newSurname, final String newEmail,
                     final String newTelephoneNumber, final String newAddress, final String newDob, final long newSsn,
-                    final double newSpendingLimit, final double newBalance, final long newId) {
+                    final double newOverdraftLimit, final double newBalance, final long newId) {
         this.initials = newInitials;
         this.name = newName;
         this.surname = newSurname;
@@ -85,7 +85,7 @@ public class Customer implements Serializable {
         this.address = newAddress;
         this.dob = newDob;
         this.ssn = newSsn;
-        this.account = new Account(newSurname, newSpendingLimit, newBalance);
+        this.account = new Account(newSurname, newOverdraftLimit, newBalance);
         this.customerId = newId;
     }
 

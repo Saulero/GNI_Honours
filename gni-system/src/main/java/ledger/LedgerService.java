@@ -1,8 +1,6 @@
 package ledger;
 
 import com.google.gson.Gson;
-import com.thetransactioncompany.jsonrpc2.JSONRPC2Error;
-import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 import database.ConnectionPool;
 import database.SQLConnection;
 import database.SQLStatements;
@@ -20,15 +18,11 @@ import util.JSONParser;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static database.SQLStatements.*;
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
@@ -49,6 +43,10 @@ class LedgerService {
     private Gson jsonConverter;
     /** Prefix used when printing to indicate the message is coming from the Ledger Service. */
     private static final String PREFIX = "[Ledger]              :";
+    /** Interest rate that the bank charges every month to customers that are overdraft. */
+    private static final double MONTHLY_INTEREST_RATE = 0.00797;
+    /** Account number where overdraft fees are transferred to. */
+    private static final String OVERDRAFT_ACCOUNT = "NL52GNIB3676451168";
 
     /**
      * Constructor.
@@ -100,7 +98,7 @@ class LedgerService {
             ps.setLong(1, newID);                               // id
             ps.setString(2, newAccount.getAccountNumber());     // account_number
             ps.setString(3, newAccount.getAccountHolderName()); // name
-            ps.setDouble(4, newAccount.getSpendingLimit());     // spending_limit
+            ps.setDouble(4, newAccount.getOverdraftLimit());     // overdraft_limit
             ps.setDouble(5, newAccount.getBalance());           // balance
 
             ps.executeUpdate();
@@ -182,9 +180,9 @@ class LedgerService {
 
             if (rs.next()) {
                 String name = rs.getString("name");
-                double spendingLimit = rs.getDouble("spending_limit");
+                double overdraftLimit = rs.getDouble("overdraft_limit");
                 double balance = rs.getDouble("balance");
-                Account account = new Account(name, spendingLimit, balance);
+                Account account = new Account(name, overdraftLimit, balance);
                 account.setAccountNumber(accountNumber);
 
                 rs.close();
@@ -229,11 +227,23 @@ class LedgerService {
     private void handleAccountRemovalExceptions(final String accountNumber, final String customerId,
                                                 final CallbackBuilder callbackBuilder) {
         try {
+            Account account = getAccountInfo(accountNumber);
+            if (account != null) {
+                if (account.getBalance() < 0) {
+                    throw new IllegalArgumentException("Account can't be closed, since it has a negative balance.");
+                }
+            } else {
+                throw new SQLException();
+            }
             doAccountRemoval(accountNumber, customerId);
             sendAccountRemovalCallback(accountNumber, callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to Ledger database.")));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to Ledger database.")));
+        } catch (IllegalArgumentException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Unknown error occurred.", e.getMessage())));
         }
     }
 
@@ -268,9 +278,8 @@ class LedgerService {
         try {
             SQLConnection connection = db.getConnection();
             PreparedStatement ps = connection.getConnection().prepareStatement(updateBalance);
-            ps.setDouble(1, account.getSpendingLimit());    // spending_limit
-            ps.setDouble(2, account.getBalance());          // balance
-            ps.setString(3, account.getAccountNumber());    // account_number
+            ps.setDouble(1, account.getBalance());
+            ps.setString(2, account.getAccountNumber());
             ps.executeUpdate();
 
             ps.close();
@@ -278,6 +287,22 @@ class LedgerService {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * Overwrites account information with a new overdraft limit.
+     * @param account The account to overwrite, containing the new data
+     * @throws SQLException SQLException
+     */
+    void updateOverdraftLimit(final Account account) throws SQLException {
+        SQLConnection connection = db.getConnection();
+        PreparedStatement ps = connection.getConnection().prepareStatement(updateOverdraftLimit);
+        ps.setDouble(1, account.getOverdraftLimit());
+        ps.setString(2, account.getAccountNumber());
+        ps.executeUpdate();
+
+        ps.close();
+        db.returnConnection(connection);
     }
 
     // TODO THIS SERVICE IS NOT ALLOWED TO USE OTHER SERVICE'S THEIR DATABASES
@@ -303,7 +328,8 @@ class LedgerService {
             ps.setString(4, transaction.getDestinationAccountHolderName());
             ps.setString(5, transaction.getSourceAccountNumber());
             ps.setDouble(6, transaction.getTransactionAmount());
-            ps.setString(7, transaction.getDescription());
+            ps.setDouble(7, transaction.getNewBalance());
+            ps.setString(8, transaction.getDescription());
             ps.executeUpdate();
 
             ps.close();
@@ -360,6 +386,7 @@ class LedgerService {
 
                         // Update the database
                         updateBalance(account);
+                        transaction.setNewBalance(account.getBalance());
 
                         // Update Transaction log
                         transaction.setTransactionID(getHighestTransactionID());
@@ -415,7 +442,7 @@ class LedgerService {
 
     /**
      * Processes an outgoing transaction.
-     * Checks if the account making the transaction is allowed to do this. (has a high enough spending limit)
+     * Checks if the account making the transaction is allowed to do this. (has a high enough overdraft limit)
      * @param transaction Object representing a Transaction request.
      * @param customerIsAuthorized boolean to signify if the outgoing transaction is allowed
      * @return The processed transaction
@@ -434,6 +461,7 @@ class LedgerService {
 
                         // Update the database
                         updateBalance(account);
+                        transaction.setNewBalance(account.getBalance());
 
                         /// Update Transaction log
                         transaction.setTransactionID(getHighestTransactionID());
@@ -576,9 +604,9 @@ class LedgerService {
         if (rs.next()) {
             String accountNumber = dataRequest.getAccountNumber();
             String name = rs.getString("name");
-            double spendingLimit = rs.getDouble("spending_limit");
+            double overdraftLimit = rs.getDouble("overdraft_limit");
             double balance = rs.getDouble("balance");
-            Account account = new Account(name, spendingLimit, balance);
+            Account account = new Account(name, overdraftLimit, balance);
             account.setAccountNumber(accountNumber);
             dataReply = JSONParser.createJsonDataReply(dataRequest.getAccountNumber(), dataRequest.getType(), account);
         }
@@ -660,10 +688,330 @@ class LedgerService {
             String destinationAccountHolderName = rs.getString("account_to_name");
             String description = rs.getString("description");
             double amount = rs.getDouble("amount");
+            double newBalance = rs.getDouble("new_balance");
 
             list.add(new Transaction(id, date, sourceAccount, destinationAccount, destinationAccountHolderName,
-                    description, amount));
+                    description, amount, newBalance));
         }
+    }
+
+    /**
+     * Receives a request to process a month of interest.
+     * @param callback Used to send a reply to the request source.
+     * @param body JSON String representing a LocalDate
+     */
+    @RequestMapping(value = "/interest", method = RequestMethod.POST)
+    public void incomingInterestRequestListener(final Callback<String> callback,
+            final @RequestParam("request") String body) {
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        LocalDate localDate = jsonConverter.fromJson(body, LocalDate.class);
+        System.out.printf("%s Received an interest processing request for date: %s\n", PREFIX, localDate.toString());
+        processInterestRequest(localDate, callbackBuilder);
+    }
+
+    /**
+     * Processes an interest request.
+     * @param localDate Object representing a LocalDate
+     * @param callbackBuilder Used to send a reply to the request source.
+     */
+    private void processInterestRequest(final LocalDate localDate, final CallbackBuilder callbackBuilder) {
+        //date is the first day of the new month, so process the previous month.
+        try {
+            LocalDate firstProcessDay = localDate.minusMonths(1);
+            LocalDate lastProcessDay = localDate.minusDays(1);
+            List<String> overdraftAccounts = findOverdraftAccounts(firstProcessDay, lastProcessDay);
+            Map<String, Double> interestMap = calculateInterest(overdraftAccounts, firstProcessDay, lastProcessDay);
+            withdrawInterest(interestMap, localDate);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                                                                "Error connecting to the Ledger database.")));
+        }
+        sendInterestCallback(localDate, callbackBuilder);
+    }
+
+    /**
+     * Finds a list of all accountNumbers that went overdraft in a given time period.
+     * @param firstProcessDay First day of the time period.
+     * @param lastProcessDay Last day of the time period.
+     * @return List of all account numbers that went overdraft.
+     * @throws SQLException Thrown when something goes wrong with the database connection.
+     */
+    private List<String> findOverdraftAccounts(final LocalDate firstProcessDay, final LocalDate lastProcessDay)
+            throws SQLException {
+        SQLConnection connection = db.getConnection();
+        PreparedStatement getOverdraftAccounts = connection.getConnection()
+                .prepareStatement(SQLStatements.getOverdraftAccounts);
+        getOverdraftAccounts.setDate(1, java.sql.Date.valueOf(firstProcessDay));
+        getOverdraftAccounts.setDate(2, java.sql.Date.valueOf(lastProcessDay));
+        getOverdraftAccounts.setDate(3, java.sql.Date.valueOf(firstProcessDay));
+        getOverdraftAccounts.setDate(4, java.sql.Date.valueOf(lastProcessDay));
+        ResultSet overdraftAccountSet = getOverdraftAccounts.executeQuery();
+        List<String> overdraftAccounts = new LinkedList<>();
+        while (overdraftAccountSet.next()) {
+            overdraftAccounts.add(overdraftAccountSet.getString(1));
+        }
+        getOverdraftAccounts.close();
+        db.returnConnection(connection);
+        return overdraftAccounts;
+    }
+
+    /**
+     * Calculates the interest for a list of accounts that went overdraft, for a given time period.
+     * Time period MUST be smaller than one year.
+     * @param overdraftAccounts List of accounts that went overdraft in the given time period
+     * @param firstProcessDay First day of time period.
+     * @param lastProcessDay Last day of time period.
+     * @return Map containing accountNumbers as keys, and their respective interest as values.
+     * @throws SQLException Thrown when something goes wrong when connecting to the database.
+     */
+    private Map<String, Double> calculateInterest(final List<String> overdraftAccounts, final LocalDate firstProcessDay,
+                                                  final LocalDate lastProcessDay) throws SQLException {
+        Map<String, Double> interestMap = new HashMap<>();
+        double dailyInterestRate = MONTHLY_INTEREST_RATE / firstProcessDay.getMonth()
+                                                                            .length(firstProcessDay.isLeapYear());
+        for (String accountNumber : overdraftAccounts) {
+            List<Transaction> overdraftTransactions = findOverdraftTransactions(accountNumber, firstProcessDay,
+                                                                         lastProcessDay);
+            if (overdraftTransactions.isEmpty()) {
+                Account accountInfo = getAccountInfo(accountNumber);
+                Double balance = accountInfo.getBalance();
+                if (balance < 0) {
+                    int amountOfDays = lastProcessDay.getDayOfYear() - firstProcessDay.getDayOfYear();
+                    Double interest = amountOfDays * dailyInterestRate * (-1 * balance);
+                    interestMap.put(accountNumber, interest);
+                }
+            } else {
+                interestMap.put(accountNumber, doDailyInterestCalculation(accountNumber, overdraftTransactions,
+                                                                          firstProcessDay, lastProcessDay,
+                                                                          dailyInterestRate));
+            }
+        }
+        return interestMap;
+    }
+
+    /**
+     * Calculates the interest for an account separately for each day based on the lowest balance of that day.
+     * Returns the interest owed for the given time period.
+     * @param accountNumber AccountNumber to calculate the interest for.
+     * @param overdraftTransactions List of transactions that affected the overdraft of the account during the
+     *                              time period.
+     * @param firstProcessDay First day of the time period.
+     * @param lastProcessDay Last day of the time period.
+     * @param dailyInterestRate Interest rate for a single day.
+     * @return The interest this account owes for the given time period.
+     */
+    private Double doDailyInterestCalculation(final String accountNumber, final List<Transaction> overdraftTransactions,
+                                              final LocalDate firstProcessDay, final LocalDate lastProcessDay,
+                                              final Double dailyInterestRate) {
+        Double interest = 0.0;
+        LocalDate currentProcessDay = firstProcessDay;
+        Double currentBalance;
+        // sort transactions from earliest to latest.
+        overdraftTransactions.sort(Comparator.comparing(Transaction::getDate));
+        Transaction firstTransactionOfMonth = overdraftTransactions.get(0);
+        if (firstTransactionOfMonth.getSourceAccountNumber().equals(accountNumber)) {
+            currentBalance = firstTransactionOfMonth.getNewBalance()
+                    + firstTransactionOfMonth.getTransactionAmount();
+        } else {
+            currentBalance = firstTransactionOfMonth.getNewBalance()
+                    - firstTransactionOfMonth.getTransactionAmount();
+        }
+        while (currentProcessDay.isBefore(lastProcessDay) || currentProcessDay.isEqual(lastProcessDay)) {
+            // process transactions of this day and find the lowest balance.
+            Double lowestBalance = currentBalance;
+            while (!overdraftTransactions.isEmpty()
+                        && overdraftTransactions.get(0).getDate().equals(currentProcessDay)) {
+                Transaction transactionToProcess = overdraftTransactions.remove(0);
+                currentBalance = transactionToProcess.getNewBalance();
+                if (currentBalance < lowestBalance) {
+                    lowestBalance = currentBalance;
+                }
+            }
+            if (lowestBalance < 0) {
+                interest += dailyInterestRate * (lowestBalance * -1);
+            }
+            currentProcessDay = currentProcessDay.plusDays(1);
+        }
+        return interest;
+    }
+
+    /**
+     * Find transactions that caused an account to go overdraft or changed the overdraft balance of an account during
+     * a given time period.
+     * @param accountNumber AccountNumber to find transactions for.
+     * @param firstProcessDay First day of the time period.
+     * @param lastProcessDay Last day of the time period.
+     * @return List of transactions that affected the overdraft of an account.
+     * @throws SQLException Thrown when something goes wrong connecting to the database.
+     */
+    private List<Transaction> findOverdraftTransactions(final String accountNumber,
+                                                             final LocalDate firstProcessDay,
+                                                             final LocalDate lastProcessDay) throws SQLException {
+        SQLConnection connection = db.getConnection();
+        PreparedStatement getOverdraftTransactions = connection.getConnection()
+                                                      .prepareStatement(SQLStatements.getAccountOverdraftTransactions);
+        getOverdraftTransactions.setString(1, accountNumber);
+        getOverdraftTransactions.setDate(2, java.sql.Date.valueOf(firstProcessDay));
+        getOverdraftTransactions.setDate(3, java.sql.Date.valueOf(lastProcessDay));
+        getOverdraftTransactions.setString(4, accountNumber);
+        getOverdraftTransactions.setDate(5, java.sql.Date.valueOf(firstProcessDay));
+        getOverdraftTransactions.setDate(6, java.sql.Date.valueOf(lastProcessDay));
+        ResultSet overdraftTransactionSet = getOverdraftTransactions.executeQuery();
+        List<Transaction> overdraftTransactions = new LinkedList<>();
+        while (overdraftTransactionSet.next()) {
+            Long transactionId = overdraftTransactionSet.getLong("id");
+            LocalDate transactionDate = overdraftTransactionSet.getDate("date").toLocalDate();
+            String accountTo = overdraftTransactionSet.getString("account_to");
+            String accountToName = overdraftTransactionSet.getString("account_to_name");
+            String accountFrom = overdraftTransactionSet.getString("account_from");
+            Double amount = overdraftTransactionSet.getDouble("amount");
+            Double newBalance = overdraftTransactionSet.getDouble("new_balance");
+            String description = overdraftTransactionSet.getString("description");
+            Transaction transaction = new Transaction(transactionId, transactionDate, accountFrom, accountTo,
+                                                      accountToName, description, amount, newBalance);
+            overdraftTransactions.add(transaction);
+        }
+        getOverdraftTransactions.close();
+        db.returnConnection(connection);
+        return overdraftTransactions;
+    }
+
+    /**
+     * Processes interest withdrawals in the system.
+     * @param interestMap Map containing accountNumbers as keys, and their owed interest as values.
+     * @param currentDate Date during the interest withdrawal.
+     */
+    private void withdrawInterest(final Map<String, Double> interestMap, final LocalDate currentDate) {
+        final String firstDayOfInterest = currentDate.minusMonths(1).toString();
+        final String lastDayOfInterest = currentDate.minusDays(1).toString();
+        for (String accountNumber : interestMap.keySet()) {
+            Transaction transaction = new Transaction();
+            transaction.setSourceAccountNumber(accountNumber);
+            transaction.setTransactionAmount(interestMap.get(accountNumber));
+            transaction.setDestinationAccountNumber(OVERDRAFT_ACCOUNT);
+            transaction.setDestinationAccountHolderName("GNI Bank");
+            transaction.setDescription(String.format("Overdraft interest %s until %s", firstDayOfInterest,
+                                                    lastDayOfInterest));
+            Account account = getAccountInfo(accountNumber);
+            // Update the object
+            account.processWithdraw(transaction);
+
+            // Update the database
+            updateBalance(account);
+            transaction.setNewBalance(account.getBalance());
+
+            /// Update Transaction log
+            transaction.setTransactionID(getHighestTransactionID());
+            transaction.setDate(currentDate);
+            addTransaction(transaction, false);
+        }
+    }
+
+    /**
+     * Sends a callback back to the source of the request.
+     * @param localDate Object representing a LocalDate
+     * @param callbackBuilder Used to send a reply to the request source.
+     */
+    private void sendInterestCallback(final LocalDate localDate, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Successfully processed interest for date: %s, sending callback.\n",
+                PREFIX, localDate.toString());
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                false, 200, "Normal Reply")));
+    }
+
+    /**
+     * Receives a request to process a new overdraft limit.
+     * @param accountNumber AccountNumber of which the limit should be set.
+     * @param overdraftLimit New overdraft limit
+     * @param callback Used to send a reply to the request source.
+     */
+    @RequestMapping(value = "/overdraft/set", method = RequestMethod.PUT)
+    public void incomingSetOverdraftLimitRequestListener(final Callback<String> callback,
+                                                final @RequestParam("accountNumber") String accountNumber,
+                                                final @RequestParam("overdraftLimit") String overdraftLimit) {
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        System.out.printf("%s Received a setOverdraftLimit request for accountNumber: %s\n", PREFIX, accountNumber);
+        handleSetOverdraftLimitExceptions(accountNumber, overdraftLimit, callbackBuilder);
+    }
+
+    /**
+     * Authenticates the request and then forwards the request with the accountNumber to ledger.
+     * @param accountNumber AccountNumber of which the limit should be set.
+     * @param overdraftLimit New overdraft limit
+     * @param callbackBuilder Used to send the result of the request to the request source.
+     */
+    private void handleSetOverdraftLimitExceptions(
+            final String accountNumber, final String overdraftLimit, final CallbackBuilder callbackBuilder) {
+        try {
+            Account account = getAccountInfo(accountNumber);
+            if (account != null) {
+                account.setOverdraftLimit(Integer.parseInt(overdraftLimit));
+                updateOverdraftLimit(account);
+                sendSetOverdraftLimitCallback(callbackBuilder);
+            } else {
+                throw new SQLException("Account does not exist.");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to the ledger database.")));
+        }
+    }
+
+    /**
+     * Sends a callback back to the source of the request.
+     * @param callbackBuilder Used to send a reply to the request source.
+     */
+    private void sendSetOverdraftLimitCallback(final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Successfully processed setOverdraftLimit request, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                false, 200, "Normal Reply")));
+    }
+
+    /**
+     * Receives a request to query an overdraft limit.
+     * @param accountNumber AccountNumber of which the limit should be queried.
+     * @param callback Used to send a reply to the request source.
+     */
+    @RequestMapping(value = "/overdraft/get", method = RequestMethod.PUT)
+    public void incomingGetOverdraftLimitRequestListener(final Callback<String> callback,
+                                                final @RequestParam("accountNumber") String accountNumber) {
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        System.out.printf("%s Received a getOverdraftLimit request for accountNumber: %s\n", PREFIX, accountNumber);
+        handleGetOverdraftLimitExceptions(accountNumber, callbackBuilder);
+    }
+
+    /**
+     * Authenticates the request and then forwards the request with the accountNumber to ledger.
+     * @param accountNumber AccountNumber of which the limit should be queried.
+     * @param callbackBuilder Used to send the result of the request to the request source.
+     */
+    private void handleGetOverdraftLimitExceptions(
+            final String accountNumber, final CallbackBuilder callbackBuilder) {
+        try {
+            Account account = getAccountInfo(accountNumber);
+            if (account != null) {
+                Integer overdraftLimit = (int) account.getOverdraftLimit();
+                sendGetOverdraftLimitCallback(overdraftLimit, callbackBuilder);
+            } else {
+                throw new SQLException();
+            }
+        } catch (SQLException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to the ledger database.")));
+        }
+    }
+
+    /**
+     * Sends a callback back to the source of the request.
+     * @param overdraftLimit The queried overdraftLimit
+     * @param callbackBuilder Used to send a reply to the request source.
+     */
+    private void sendGetOverdraftLimitCallback(final Integer overdraftLimit, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Successfully processed getOverdraftLimit request, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                false, 200, "Normal Reply", overdraftLimit)));
     }
 
     /**

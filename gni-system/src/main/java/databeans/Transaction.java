@@ -15,6 +15,7 @@ public class Transaction implements Serializable {
     private String destinationAccountHolderName;
     private String description;
     private double transactionAmount;
+    private double newBalance;
     private boolean processed;
     private boolean successful;
 
@@ -34,7 +35,7 @@ public class Transaction implements Serializable {
 
     public Transaction(final long newTransactionID, final LocalDate newDate, final String newSourceAccountNumber,
                        final String newDestinationAccountNumber, final String newDestinationAccountHolderName,
-                       final String newDescription, final double newTransactionAmount) {
+                       final String newDescription, final double newTransactionAmount, final double newNewBalance) {
         this.transactionID = newTransactionID;
         this.date = newDate;
         this.sourceAccountNumber = newSourceAccountNumber;
@@ -42,6 +43,7 @@ public class Transaction implements Serializable {
         this.destinationAccountHolderName = newDestinationAccountHolderName;
         this.description = newDescription;
         this.transactionAmount = newTransactionAmount;
+        this.newBalance = newNewBalance;
         this.processed = false;
         this.successful = false;
     }
@@ -96,6 +98,14 @@ public class Transaction implements Serializable {
         this.transactionAmount = newTransactionAmount;
     }
 
+    public double getNewBalance() {
+        return newBalance;
+    }
+
+    public void setNewBalance(final double newNewBalance) {
+        this.newBalance = newNewBalance;
+    }
+
     public boolean isProcessed() {
         return this.processed;
     }
@@ -130,7 +140,8 @@ public class Transaction implements Serializable {
                 && this.getDestinationAccountNumber().equals(transaction.getDestinationAccountNumber())
                 && this.getDestinationAccountHolderName().equals(transaction.getDestinationAccountHolderName())
                 && this.getDescription().equals(transaction.getDescription())
-                && this.getTransactionAmount() == transaction.getTransactionAmount();
+                && this.getTransactionAmount() == transaction.getTransactionAmount()
+                && this.getNewBalance() == transaction.getNewBalance();
     }
 
     public boolean minimalEquals(Object o) {
@@ -142,6 +153,7 @@ public class Transaction implements Serializable {
         if (getTransactionID() != that.getTransactionID()) return false;
         if (!getDate().equals(that.getDate())) return false;
         if (Double.compare(that.getTransactionAmount(), getTransactionAmount()) != 0) return false;
+        if (Double.compare(that.getNewBalance(), getNewBalance()) != 0) return false;
         if (getSourceAccountNumber() != null ? !getSourceAccountNumber().equals(that.getSourceAccountNumber()) : that.getSourceAccountNumber() != null)
             return false;
         if (getDestinationAccountNumber() != null ? !getDestinationAccountNumber().equals(that.getDestinationAccountNumber()) : that.getDestinationAccountNumber() != null)

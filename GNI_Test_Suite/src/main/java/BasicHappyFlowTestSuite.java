@@ -60,7 +60,7 @@ public class BasicHappyFlowTestSuite {
             JSONRPC2Response response;
             Map<String, Object> parsedResponse;
 
-            // SimulateTime, Reset and getDate method
+            /*// SimulateTime, Reset and getDate method
             System.out.println("-- SimulateTime & Reset & GetDate method --");
 
             // getDate
@@ -107,7 +107,7 @@ public class BasicHappyFlowTestSuite {
             if ((parsedResponse = checkResponse(response)) != null) {
                 GetDateMethod.parseResponse(parsedResponse);
             }
-
+*/
 
             // Method 1. OpenAccount.
 
@@ -271,14 +271,74 @@ public class BasicHappyFlowTestSuite {
 
 
             // GetBankAccountAccessMethod
-            System.out.println("-- Donald wants to get bank account access list --");
+            System.out.println("-- Donald wants to fetch his current overdraft limit --");
 
-            request = GetBankAccountAccessMethod.createRequest(customer1, bankAccount1);
+            request = GetOverdraftLimitMethod.createRequest(customer1, bankAccount1);
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                GetOverdraftLimitMethod.parseResponse(parsedResponse);
+            }
+
+            // SetOverdraftLimitMethod
+            System.out.println("-- Donald wants to set his overdraft limit --");
+
+            request = SetOverdraftLimitMethod.createRequest(customer1, bankAccount1, "2500");
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                SetOverdraftLimitMethod.parseResponse(parsedResponse);
+            }
+
+            // GetOverdraftLimitMethod
+            System.out.println("-- Donald wants to fetch his current overdraft limit --");
+
+            request = GetOverdraftLimitMethod.createRequest(customer1, bankAccount1);
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                GetOverdraftLimitMethod.parseResponse(parsedResponse);
+            }
+
+            // TransferMoney
+            System.out.println("-- TransferMoney. Donald transfers to Daisy and goes overdraft --");
+
+            request = TransferMoneyMethod.createRequest(bankAccount1, bankAccount3, customer1, 1299.7, "Moniez");
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                TransferMoneyMethod.parseResponse(parsedResponse);
+            }
+
+            // simulateTime
+            System.out.println("-- 365 days pass. --");
+            request = SimulateTimeMethod.createRequest(365L);
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                SimulateTimeMethod.parseResponse(parsedResponse);
+            }
+
+            // getTransactionOverview
+            System.out.println("-- Donald wants to get transaction overview --");
+
+            request = GetTransactionsMethod.createRequest(customer1, bankAccount1, 25);
             response = client.processRequest(request);
 
             if ((namedArrayResults = checkArrayResponse(response)) != null) {
-                GetBankAccountAccessMethod.parseResponse(namedArrayResults);
+                GetTransactionsMethod.parseResponse(namedArrayResults);
             }
+
+            // ObtainBalance
+            System.out.println("-- Donald wants to obtain his balance --");
+
+            request = GetBalanceMethod.createRequest(customer1, bankAccount1);
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                GetBalanceMethod.parseResponse(parsedResponse);
+            }
+
 
             ///------ TEAR DOWN TESTS.
             // RevokeAccessMethod
@@ -355,8 +415,7 @@ public class BasicHappyFlowTestSuite {
             System.out.println("\tresult : " + respIn.getResult());
             System.out.println("\tid     : " + respIn.getID());
 
-             namedArrayResults
-                    = (List<Map<String, Object>>) respIn.getResult();
+             namedArrayResults = (List<Map<String, Object>>) respIn.getResult();
 
 
         }

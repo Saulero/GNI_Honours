@@ -105,7 +105,7 @@ public class NewPinCard {
      */
     private static void sendNewPinCardCallback(final PinCard newPinCard, final String accountNumber,
             final boolean accountNrInResult, final ApiBean api) {
-        System.out.printf("%s New pin card request successful.\n", PREFIX);
+        System.out.printf("%s New pin card request successful.\n\n\n\n", PREFIX);
         if (accountNrInResult) {
             sendOpenAccountCallback(api.getCallbackBuilder(), accountNumber, newPinCard.getCardNumber(),
                     newPinCard.getPinCode(), api.getId());

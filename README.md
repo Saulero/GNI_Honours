@@ -14,7 +14,6 @@ The system can easily be started by running the util/BootSystem.java main method
 When communicating according to the API protocol, the address is by default http://[IP or localhost]:9997/services/api/request
 
 # How to test/demo the system
-Several Junit tests have been provided in the test packages.
-A modified version of the test suite is also present in the repository, when running this project on the same machine as the system, it works out of the box.
+A modified version of the test suite is present in the repository, when running this project on the same machine as the system, it works out of the box.
 
-A more detailed overview of the system can be found in the [wiki](https://github.com/Saulero/GNI_Honours/wiki/System-overview).
+A more detailed overview of the system can be found in the [wiki](https://github.com/Saulero/GNI_Honours/wiki).

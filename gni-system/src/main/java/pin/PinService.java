@@ -83,7 +83,7 @@ class PinService {
     @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
     public void processPinTransaction(final Callback<String> callback,
                                       final @RequestParam("request") String pinTransactionRequestJson) {
-        System.out.printf("%s Received new Pin request from a customer.\n", PREFIX);
+        System.out.printf("%s Received new Pin transaction from a customer.\n", PREFIX);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         handlePinExceptions(pinTransactionRequestJson, callbackBuilder);
 
@@ -453,6 +453,8 @@ class PinService {
                     callbackBuilder.build().reply(replyBody);
                 }
             } else {
+                System.out.println(code);
+                System.out.println(replyBody);
                 System.out.printf("%s Transaction request failed, sending rejection.\n", PREFIX);
                 callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
@@ -493,15 +495,13 @@ class PinService {
      */
     private void processTransactionReply(final Transaction reply, final Transaction request, final String replyJson,
                                          final CallbackBuilder callbackBuilder) {
-        if (reply.equalsRequest(request)) {
-            if (reply.isSuccessful()) {
-                System.out.printf("%s Pin transaction was successful, sending callback.\n", PREFIX);
-                callbackBuilder.build().reply(replyJson);
-            }
+        if (reply.isSuccessful()) {
+            System.out.printf("%s Pin transaction was successful, sending callback.\n", PREFIX);
+            callbackBuilder.build().reply(replyJson);
         } else {
             System.out.printf("%s Pin transaction was unsuccessful, sending rejection.\n", PREFIX);
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
-                                                                "Unknown error occurred.")));
+                    "Unknown error occurred.")));
         }
     }
 

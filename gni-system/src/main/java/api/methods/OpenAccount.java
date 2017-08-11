@@ -54,9 +54,9 @@ public class OpenAccount {
             System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
             sendErrorReply(JSONParser.createMessageWrapper(true, 418, "Syntax error when parsing json."), api);
         } catch (NumberFormatException e) {
-            System.out.printf("%s The ssn, spendinglimit or balance was incorrectly specified.\n", PREFIX);
+            System.out.printf("%s The ssn, overdraft limit or balance was incorrectly specified.\n", PREFIX);
             sendErrorReply(JSONParser.createMessageWrapper(true, 418,
-                    "One of the following variables was incorrectly specified: ssn, spendingLimit, balance."), api);
+                    "One of the following variables was incorrectly specified: ssn, overdraft limit, balance."), api);
         }
     }
 
@@ -96,8 +96,8 @@ public class OpenAccount {
             throw new IncorrectInputException("The following variable was incorrectly specified: dob.");
         } else if (ssn < 0) {
             throw new IncorrectInputException("The following variable was incorrectly specified: ssn.");
-        } else if (newCustomer.getAccount() == null && newCustomer.getAccount().getSpendingLimit() < 0) {
-            throw new IncorrectInputException("The following variable was incorrectly specified: spendingLimit.");
+        } else if (newCustomer.getAccount() == null && newCustomer.getAccount().getOverdraftLimit() < 0) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: overdraft limit.");
         } else if (newCustomer.getAccount() == null && newCustomer.getAccount().getBalance() < 0) {
             throw new IncorrectInputException("The following variable was incorrectly specified: balance.");
         } else if (username == null || !valueHasCorrectLength(username)) {
