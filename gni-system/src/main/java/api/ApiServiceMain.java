@@ -26,7 +26,7 @@ public final class ApiServiceMain {
             System.err.println("Please specify the correct arguments: [sysInfoPort, sysInfoHost]");
             System.err.println("Shutting down the Api service.");
         } else {
-            int servicePort = PortScanner.getAvailablePort();
+            int servicePort = 9997; //PortScanner.getAvailablePort();
 
             final ManagedServiceBuilder managedServiceBuilder =
                     ManagedServiceBuilder.managedServiceBuilder()
