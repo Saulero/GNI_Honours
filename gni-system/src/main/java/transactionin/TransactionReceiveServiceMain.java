@@ -1,6 +1,7 @@
 package transactionin;
 
 import io.advantageous.qbit.admin.ManagedServiceBuilder;
+import util.PortScanner;
 
 /**
  * Utility class that contains a main method to start up the TransactionReceiveService.
@@ -17,19 +18,27 @@ public final class TransactionReceiveServiceMain {
     }
 
     /**
-     * Starts an instance of the Transaction Receive service on localhost:9994.
-     * @param args Obligatory arguments
+     * Starts an instance of the Transaction Receive service.
+     * @param args sysInfoPort & sysInfoHost
      */
     public static void main(final String[] args) {
-        final ManagedServiceBuilder managedServiceBuilder =
-                ManagedServiceBuilder.managedServiceBuilder()
-                        .setRootURI("/services")
-                        .setPort(9994);
+        if (args == null || args.length != 2) {
+            System.err.println("Please specify the correct arguments: [sysInfoPort, sysInfoHost]");
+            System.err.println("Shutting down the Transaction Receive service.");
+        } else {
+            int servicePort = PortScanner.getAvailablePort();
 
-        managedServiceBuilder.addEndpointService(new TransactionReceiveService(
-                9992, "localhost"))
-                .getEndpointServerBuilder().build().startServer();
+            final ManagedServiceBuilder managedServiceBuilder =
+                    ManagedServiceBuilder.managedServiceBuilder()
+                            .setRootURI("/services")
+                            .setPort(servicePort);
 
-        System.out.println("TransactionReceive service started");
+            managedServiceBuilder.addEndpointService(new TransactionReceiveService(
+                    servicePort, "localhost",
+                    Integer.parseInt(args[0]), args[1]))
+                    .getEndpointServerBuilder().build().startServer();
+
+            System.out.println("Transaction Receive service started");
+        }
     }
 }
