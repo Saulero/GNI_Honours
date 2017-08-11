@@ -45,9 +45,23 @@ class SystemInformationService {
     SystemInformationService(final int ledgerPort, final String ledgerHost) {
         systemDate = LocalDate.now();
         syncCalendar();
-        ledgerClient = httpClientBuilder().setHost(ledgerHost).setPort(ledgerPort).buildAndStart();
+
         this.jsonConverter = new Gson();
         System.out.printf("%s Set date to %s\n", PREFIX, systemDate.toString());
+    }
+
+    @RequestMapping(value = "/newServiceInfo", method = RequestMethod.POST)
+    void processNewSystemInformation(final Callback<String> callback, final @RequestParam("serviceInfo") String body) {
+
+    }
+
+    /**
+     * Method that initializes all connections to other servers once it knows their addresses.
+     * @param ledgerPort Port the ledger service is located on.
+     * @param ledgerHost Host the ledger service is located on.
+     */
+    public void startService(final int ledgerPort, final String ledgerHost) {
+        ledgerClient = httpClientBuilder().setHost(ledgerHost).setPort(ledgerPort).buildAndStart();
     }
 
     /**
