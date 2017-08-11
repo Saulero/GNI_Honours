@@ -246,7 +246,7 @@ class SystemInformationService {
      * Reset method for the systemDate & Database.
      * @param callback Used to send the result of the request back to the requester.
      */
-    @RequestMapping(value = "/reset", method = RequestMethod.PUT)
+    @RequestMapping(value = "/reset", method = RequestMethod.POST)
     void reset(final Callback<String> callback) {
         TableCreator.truncateTables();
         this.systemDate = LocalDate.now();
