@@ -94,8 +94,8 @@ class LedgerService {
 
         SystemInformation sysInfo = (SystemInformation) messageWrapper.getData();
         ServiceInformation users = sysInfo.getUsersServiceInformation();
-        ServiceInformation transactionIn = sysInfo.getPinServiceInformation();
-        ServiceInformation transactionOut = sysInfo.getAuthenticationServiceInformation();
+        ServiceInformation transactionIn = sysInfo.getTransactionReceiveServiceInformation();
+        ServiceInformation transactionOut = sysInfo.getTransactionDispatchServiceInformation();
 
         this.usersClient = httpClientBuilder().setHost(users.getServiceHost())
                 .setPort(users.getServicePort()).buildAndStart();

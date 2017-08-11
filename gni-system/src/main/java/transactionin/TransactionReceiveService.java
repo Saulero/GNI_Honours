@@ -118,7 +118,7 @@ class TransactionReceiveService {
                         }
                     } else {
                         System.out.printf("%s Received a rejection from ledger, sending rejection.\n", PREFIX);
-                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests4")));
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 });
     }

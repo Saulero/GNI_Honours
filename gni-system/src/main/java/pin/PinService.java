@@ -97,8 +97,8 @@ class PinService {
                 JSONParser.removeEscapeCharacters(systemInfo), MessageWrapper.class);
 
         SystemInformation sysInfo = (SystemInformation) messageWrapper.getData();
-        ServiceInformation transactionIn = sysInfo.getPinServiceInformation();
-        ServiceInformation transactionOut = sysInfo.getAuthenticationServiceInformation();
+        ServiceInformation transactionIn = sysInfo.getTransactionReceiveServiceInformation();
+        ServiceInformation transactionOut = sysInfo.getTransactionDispatchServiceInformation();
 
         this.transactionReceiveClient = httpClientBuilder().setHost(transactionIn.getServiceHost())
                 .setPort(transactionIn.getServicePort()).buildAndStart();
@@ -488,8 +488,6 @@ class PinService {
                     callbackBuilder.build().reply(replyBody);
                 }
             } else {
-                System.out.println(code);
-                System.out.println(replyBody);
                 System.out.printf("%s Transaction request failed, sending rejection.\n", PREFIX);
                 callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
