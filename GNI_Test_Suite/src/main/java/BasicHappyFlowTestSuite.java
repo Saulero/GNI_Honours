@@ -322,7 +322,7 @@ public class BasicHappyFlowTestSuite {
             // getTransactionOverview
             System.out.println("-- Donald wants to get transaction overview --");
 
-            request = GetTransactionsMethod.createRequest(customer1, bankAccount1, 2);
+            request = GetTransactionsMethod.createRequest(customer1, bankAccount1, 25);
             response = client.processRequest(request);
 
             if ((namedArrayResults = checkArrayResponse(response)) != null) {

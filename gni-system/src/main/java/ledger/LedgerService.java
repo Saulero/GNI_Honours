@@ -820,7 +820,8 @@ class LedgerService {
         while (currentProcessDay.isBefore(lastProcessDay) || currentProcessDay.isEqual(lastProcessDay)) {
             // process transactions of this day and find the lowest balance.
             Double lowestBalance = currentBalance;
-            while (overdraftTransactions.get(0).getDate().equals(currentProcessDay)) {
+            while (!overdraftTransactions.isEmpty()
+                        && overdraftTransactions.get(0).getDate().equals(currentProcessDay)) {
                 Transaction transactionToProcess = overdraftTransactions.remove(0);
                 currentBalance = transactionToProcess.getNewBalance();
                 if (currentBalance < lowestBalance) {

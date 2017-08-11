@@ -123,8 +123,11 @@ public class ProcessDataRequest {
             case TRANSACTIONHISTORY:
                 System.out.printf("%s TransactionOverview request successful.\n\n\n\n", PREFIX);
                 List<Map<String, Object>> transactionList = new ArrayList<>();
-                List<Transaction> transactions = dataReply.getTransactions().subList(0,
-                        Math.toIntExact(nrOfTransactions) - 1);
+                int amountOfTransactions = Math.toIntExact(nrOfTransactions);
+                List<Transaction> transactions = dataReply.getTransactions();
+                if (amountOfTransactions < transactions.size()) {
+                    transactions = transactions.subList(0, amountOfTransactions);
+                }
                 for (Transaction transaction : transactions) {
                     Map<String, Object> transactionMap = new HashMap<>();
                     transactionMap.put("sourceIBAN", transaction.getSourceAccountNumber());
