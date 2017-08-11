@@ -24,15 +24,15 @@ public class BootSystem {
         TableCreator.truncateTables();
         String systemInformationServicePort = "" + PortScanner.getAvailablePort();
         String systemInformationServiceHost = "localhost";
-        String[] args = {systemInformationServicePort, systemInformationServiceHost};
-        
-        SystemInformationServiceMain.main(args);
-        LedgerServiceMain.main(args);
-        UsersServiceMain.main(args);
-        AuthenticationServiceMain.main(args);
-        PinServiceMain.main(args);
-        TransactionDispatchServiceMain.main(args);
-        TransactionReceiveServiceMain.main(args);
-        ApiServiceMain.main(args);
+        String[] sysInfoLocation = {systemInformationServicePort, systemInformationServiceHost};
+
+        SystemInformationServiceMain.main(sysInfoLocation);
+        LedgerServiceMain.main(sysInfoLocation);
+        UsersServiceMain.main(sysInfoLocation);
+        AuthenticationServiceMain.main(sysInfoLocation);
+        PinServiceMain.main(sysInfoLocation);
+        TransactionDispatchServiceMain.main(sysInfoLocation);
+        TransactionReceiveServiceMain.main(sysInfoLocation);
+        ApiServiceMain.main(sysInfoLocation);
     }
 }
