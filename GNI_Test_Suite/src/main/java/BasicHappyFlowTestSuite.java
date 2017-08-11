@@ -198,7 +198,9 @@ public class BasicHappyFlowTestSuite {
             // UnblockCard
             System.out.println("-- UnblockCard. Donald uses the wrong pin code and then unblocks his card --");
 
-            card1.setPinCode("" + (Integer.parseInt(card1.getPinCode()) + 1));
+            String pinCode = card1.getPinCode();
+            card1.setPinCode("999999");
+
             for (int i = 0; i < 4; i++) {
                 System.out.println("--> Uses incorrect PIN");
                 request = PayFromAccountMethod.createRequest(bankAccount1, bankAccount3, card1, (1));
@@ -217,7 +219,7 @@ public class BasicHappyFlowTestSuite {
                 PayFromAccountMethod.parseResponse(parsedResponse);
             }
 
-            card1.setPinCode("" + (Integer.parseInt(card1.getPinCode()) - 1));
+            card1.setPinCode(pinCode);
 
             System.out.println("--> Uses correct PIN afterwards");
             request = PayFromAccountMethod.createRequest(bankAccount1, bankAccount3, card1, (1));
