@@ -25,6 +25,7 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
@@ -375,14 +376,14 @@ class SystemInformationService {
     /**
      * Fetches all system logs of a given time span.
      * @param callback Used to send the logs back to the request source.
-     * @param beginDateJson LocalDate that marks the beginning of the time span.
-     * @param endDateJson LocalDate that marks the end of the time span.
+     * @param beginDateString LocalDate that marks the beginning of the time span.
+     * @param endDateString LocalDate that marks the end of the time span.
      */
     @RequestMapping(value = "/log", method = RequestMethod.GET)
-    void retrieveLogs(final Callback<String> callback, final @RequestParam("beginDate") String beginDateJson,
-                      final @RequestParam("endDate") String endDateJson) {
-        LocalDate beginDate = jsonConverter.fromJson(beginDateJson, LocalDate.class);
-        LocalDate endDate = jsonConverter.fromJson(endDateJson, LocalDate.class);
+    void retrieveLogs(final Callback<String> callback, final @RequestParam("beginDate") String beginDateString,
+                      final @RequestParam("endDate") String endDateString) {
+        LocalDate beginDate = LocalDate.parse(beginDateString);
+        LocalDate endDate = LocalDate.parse(endDateString);
         try {
             List<Map<String, Object>> logs = fetchLogs(beginDate, endDate);
             callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200,

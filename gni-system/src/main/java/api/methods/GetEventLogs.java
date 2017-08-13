@@ -34,8 +34,10 @@ public class GetEventLogs {
                                                         JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
                 if (!messageWrapper.isError()) {
                     List<Map<String, Object>> logs = (List<Map<String, Object>>) messageWrapper.getData();
-                    System.out.printf("%s Current date successfully queried, the current date is: %s\n\n\n\n",
-                                      PREFIX, date.toString());
+                    for(Map<String, Object> log : logs) {
+                        System.out.println(log.toString());
+                    }
+                    System.out.printf("%s retrieved eventlog, forwarding.\n\n\n\n", PREFIX);
                     JSONRPC2Response response = new JSONRPC2Response(logs, api.getId());
                     api.getCallbackBuilder().build().reply(response.toJSONString());
                 } else {

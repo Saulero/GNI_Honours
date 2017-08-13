@@ -344,7 +344,7 @@ public class BasicHappyFlowTestSuite {
             //getEventLog for the past 400 days
             System.out.println("-- Donald wants to get an event overview --");
 
-            request = GetEventLogsMethod.createRequest(LocalDate.now(), LocalDate.now().plusYears(2));
+            request = GetEventLogsMethod.createRequest(LocalDate.now().minusDays(2), LocalDate.now().plusYears(2));
             response = client.processRequest(request);
 
             if ((namedArrayResults = checkArrayResponse(response)) != null) {

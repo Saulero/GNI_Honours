@@ -45,7 +45,6 @@ public class SharedUtilityMethods {
             response = new JSONRPC2Response(new JSONRPC2Error(
                     reply.getCode(), reply.getMessage(), reply.getData()), api.getId());
         }
-        System.out.println("Sending error log to sysinfo");
         api.getSystemInformationClient().putFormAsyncWith1Param("/services/systemInfo/log/error",
                 "request", response.toJSONString(),
                 (httpStatusCode, httpContentType, replyJson) -> {
