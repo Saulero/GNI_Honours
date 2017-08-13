@@ -17,19 +17,20 @@ public class TableCreator {
             SQLStatements.createLedgerTable, SQLStatements.createPinTable,
             SQLStatements.createTransactionsInTable,
             SQLStatements.createTransactionsOutTable, SQLStatements.createAuthTable,
-            SQLStatements.createUsersTable};
+            SQLStatements.createUsersTable, SQLStatements.createRequestLogTable, SQLStatements.createErrorLogTable};
 
     /** SQL statements to drop all necessary tables in the database. */
     private static final String[] DROP_TABLE_ARRAY = {SQLStatements.dropAccountsTable, SQLStatements.dropLedgerTable,
             SQLStatements.dropPinTable, SQLStatements.dropTransactionsInTable,
             SQLStatements.dropTransactionsOutTable, SQLStatements.dropAuthTable,
-            SQLStatements.dropUsersTable};
+            SQLStatements.dropUsersTable, SQLStatements.dropRequestLogTable, SQLStatements.dropErrorLogTable};
 
     /** SQL statements to truncate all tables in the database. */
     private static final String[] TRUNCATE_ARRAY = { SQLStatements.truncateAccountsTable,
             SQLStatements.truncateLedgerTable, SQLStatements.truncatePinTable,
             SQLStatements.truncateTransactionsInTable, SQLStatements.truncateTransactionsOutTable,
-            SQLStatements.truncateAuthTable, SQLStatements.truncateUsersTable };
+            SQLStatements.truncateAuthTable, SQLStatements.truncateUsersTable, SQLStatements.truncateRequestLogTable,
+            SQLStatements.truncateErrorLogTable };
 
     /** Drops all tables and creates new tables to use the system with.
      * @param args Arguments are not used, just there so we can run the main method. */

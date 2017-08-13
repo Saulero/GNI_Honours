@@ -45,7 +45,7 @@ public class SharedUtilityMethods {
                     reply.getCode(), reply.getMessage(), reply.getData()), api.getId());
         }
         api.getSystemInformationClient().putFormAsyncWith1Param("/services/systemInfo/log/error",
-                "serviceInfo", api.getJsonConverter().toJson(response),
+                "response", api.getJsonConverter().toJson(response),
                 (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         api.getCallbackBuilder().build().reply(response.toJSONString());

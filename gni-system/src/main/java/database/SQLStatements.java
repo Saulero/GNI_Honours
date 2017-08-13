@@ -68,6 +68,10 @@ public final class SQLStatements {
     public final static String dropAuthTable = "DROP TABLE IF EXISTS `authentication`;";
     public final static String createUsersTable = "CREATE TABLE IF NOT EXISTS `users`( `id` BIGINT(20) NOT NULL, `initials` TEXT NOT NULL, `firstname` TEXT NOT NULL, `lastname` TEXT NOT NULL, `email` TEXT NOT NULL, `telephone_number` TEXT NOT NULL, `address` TEXT NOT NULL, `date_of_birth` TEXT NOT NULL, `social_security_number` BIGINT(20) NOT NULL, PRIMARY KEY (id));";
     public final static String dropUsersTable = "DROP TABLE IF EXISTS `users`;";
+    public final static String createRequestLogTable = "CREATE TABLE IF NOT EXISTS `request_log`( `id` BIGINT(20) NOT NULL, `request` TEXT NOT NULL, `params` TEXT NOT NULL, `timestamp` TEXT NOT NULL, PRIMARY KEY (id));";
+    public final static String dropRequestLogTable = "DROP TABLE IF EXISTS `request_log`;";
+    public final static String createErrorLogTable = "CREATE TABLE IF NOT EXISTS `error_log`( `id` BIGINT(20) NOT NULL, `request_id` BIGINT(20) NOT NULL, `error_code` BIGINT(20) NOT NULL, `timestamp` TEXT NOT NULL, `message` TEXT NOT NULL, `data` TEXT NOT NULL, PRIMARY KEY (id));";
+    public final static String dropErrorLogTable = "DROP TABLE IF EXISTS `error_log`;";
     public final static String truncateAccountsTable = "TRUNCATE TABLE `accounts`";
     public final static String truncateLedgerTable = "TRUNCATE TABLE `ledger`";
     public final static String truncatePinTable = "TRUNCATE TABLE `pin`";
@@ -75,5 +79,7 @@ public final class SQLStatements {
     public final static String truncateTransactionsOutTable = "TRUNCATE TABLE `transactions_out`";
     public final static String truncateAuthTable = "TRUNCATE TABLE `authentication`";
     public final static String truncateUsersTable = "TRUNCATE TABLE `users`";
+    public final static String truncateRequestLogTable = "TRUNCATE TABLE `request_log`";
+    public final static String truncateErrorLogTable = "TRUNCATE TABLE `error_log`";
 
 }
