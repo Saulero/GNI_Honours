@@ -26,11 +26,11 @@ public class TableCreator {
             SQLStatements.dropUsersTable, SQLStatements.dropRequestLogTable, SQLStatements.dropErrorLogTable};
 
     /** SQL statements to truncate all tables in the database. */
-    private static final String[] TRUNCATE_ARRAY = { SQLStatements.truncateAccountsTable,
+    private static final String[] TRUNCATE_ARRAY = {SQLStatements.truncateAccountsTable,
             SQLStatements.truncateLedgerTable, SQLStatements.truncatePinTable,
             SQLStatements.truncateTransactionsInTable, SQLStatements.truncateTransactionsOutTable,
             SQLStatements.truncateAuthTable, SQLStatements.truncateUsersTable, SQLStatements.truncateRequestLogTable,
-            SQLStatements.truncateErrorLogTable };
+            SQLStatements.truncateErrorLogTable};
 
     /** Drops all tables and creates new tables to use the system with.
      * @param args Arguments are not used, just there so we can run the main method. */

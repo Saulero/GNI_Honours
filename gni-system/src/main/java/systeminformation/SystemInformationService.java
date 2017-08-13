@@ -1,8 +1,12 @@
 package systeminformation;
 
 import com.google.gson.Gson;
+import com.thetransactioncompany.jsonrpc2.JSONRPC2Error;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Request;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
+import database.ConnectionPool;
+import database.SQLConnection;
+import database.SQLStatements;
 import databeans.MessageWrapper;
 import databeans.ServiceInformation;
 import databeans.SystemInformation;
@@ -15,9 +19,12 @@ import io.advantageous.qbit.reactive.CallbackBuilder;
 import util.JSONParser;
 import util.TableCreator;
 
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
+import java.util.Map;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 import static java.net.HttpURLConnection.HTTP_OK;
@@ -52,6 +59,8 @@ class SystemInformationService {
     private HttpClient usersClient;
     /** Used for json conversions. */
     private Gson jsonConverter;
+    /** Database connection pool containing persistent database connections. */
+    private ConnectionPool databaseConnectionPool;
     /** Prefix used when printing to indicate the message is coming from the SystemInformation Service. */
     private static final String PREFIX = "[SYSINFO]             :";
 
@@ -67,6 +76,7 @@ class SystemInformationService {
         System.out.printf("%s Set date to %s\n", PREFIX, systemDate.toString());
         this.systemInformation = new SystemInformation();
         this.jsonConverter = new Gson();
+        this.databaseConnectionPool = new ConnectionPool();
     }
 
     @RequestMapping(value = "/newServiceInfo", method = RequestMethod.PUT)
@@ -261,18 +271,73 @@ class SystemInformationService {
     void logRequest(final Callback<String> callback, final @RequestParam("request") String requestJson) {
         JSONRPC2Request request = jsonConverter.fromJson(requestJson, JSONRPC2Request.class);
         System.out.printf("%s Logging new request.\n", PREFIX);
-        //todo log request to database
-        callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200,
-                "Normal Reply")));
+        try {
+            addRequestLogToDb(request);
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200,
+                    "Normal Reply")));
+        } catch (SQLException e) {
+            e.printStackTrace();
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                                                "Error connecting to the request log database.")));
+        }
+    }
+
+    private void addRequestLogToDb(final JSONRPC2Request request) throws SQLException {
+        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+        PreparedStatement addRequestLog = databaseConnection.getConnection()
+                .prepareStatement(SQLStatements.addRequestLog);
+        addRequestLog.setString(1, request.getID().toString());
+        addRequestLog.setString(2, request.getMethod());
+        StringBuilder paramString = new StringBuilder();
+        Map<String, Object> requestParams = request.getNamedParams();
+        if (requestParams.keySet().size() > 0) {
+            for (String paramName : requestParams.keySet()) {
+                paramString.append(paramName);
+                paramString.append(":");
+                paramString.append(requestParams.get(paramName).toString());
+                paramString.append(", ");
+            }
+            paramString.setLength(paramString.length() - 2);
+        }
+        addRequestLog.setString(3, paramString.toString());
+        String timestamp = "";
+        //todo add proper timestamp
+        addRequestLog.setString(4, timestamp);
+        addRequestLog.execute();
+        addRequestLog.close();
+        databaseConnectionPool.returnConnection(databaseConnection);
     }
 
     @RequestMapping(value = "/log/error", method = RequestMethod.PUT)
     void logError(final Callback<String> callback, final @RequestParam("response") String responseJson) {
         JSONRPC2Response response = jsonConverter.fromJson(responseJson, JSONRPC2Response.class);
         System.out.printf("%s Logging error response.\n", PREFIX);
-        //todo log response to database
-        callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200,
-                "Normal Reply")));
+        try {
+            addErrorLogToDb(response);
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200,
+                    "Normal Reply")));
+        } catch (SQLException e) {
+            e.printStackTrace();
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to the error log database.")));
+        }
+    }
+
+    private void addErrorLogToDb(final JSONRPC2Response response) throws SQLException {
+        JSONRPC2Error error = response.getError();
+        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+        PreparedStatement addErrorLog = databaseConnection.getConnection()
+                                                            .prepareStatement(SQLStatements.addErrorLog);
+        addErrorLog.setString(1, response.getID().toString());
+        addErrorLog.setLong(2, response.getError().getCode());
+        String timestamp = "";
+        //todo add proper timestamp
+        addErrorLog.setString(3, timestamp);
+        addErrorLog.setString(4, error.getMessage());
+        addErrorLog.setString(5, error.getData().toString());
+        addErrorLog.execute();
+        addErrorLog.close();
+        databaseConnectionPool.returnConnection(databaseConnection);
     }
 
 }
