@@ -144,7 +144,7 @@ class PinService {
                     .createMessageWrapper(true, 500, "Error connecting to the pin database.")));
         } catch (IncorrectInputException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
-                    .createMessageWrapper(true, 421, e.getMessage(),
+                                   .createMessageWrapper(true, 421, e.getMessage(),
                         "A field was incorrectly specified, or not specified at all, see message.")));
         } catch (CardBlockedException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser

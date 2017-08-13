@@ -25,6 +25,7 @@ import models.BankAccount;
 import models.CustomerAccount;
 import models.PinCard;
 
+import java.time.LocalDate;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -338,6 +339,16 @@ public class BasicHappyFlowTestSuite {
 
             if ((parsedResponse = checkResponse(response)) != null) {
                 GetBalanceMethod.parseResponse(parsedResponse);
+            }
+
+            //getEventLog for the past 400 days
+            System.out.println("-- Donald wants to get an event overview --");
+
+            request = GetEventLogsMethod.createRequest(LocalDate.now().minusDays(2), LocalDate.now().plusYears(2));
+            response = client.processRequest(request);
+
+            if ((namedArrayResults = checkArrayResponse(response)) != null) {
+                GetTransactionsMethod.parseResponse(namedArrayResults);
             }
 
 
