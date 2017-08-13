@@ -125,7 +125,7 @@ public class ApiService {
      * @param callback Used to send the result of the request back to the request source.
      */
     private void sendLogEvent(final JSONRPC2Request request, final Callback<String> callback) {
-        System.out.printf("%s Sending event log to SysInfo", PREFIX);
+        System.out.printf("%s Sending event log to SysInfo\n", PREFIX);
         systemInformationClient.putFormAsyncWith1Param("/services/systemInfo/log/request",
                 "request", jsonConverter.toJson(request), (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode == HTTP_OK) {

@@ -7,6 +7,7 @@ import com.thetransactioncompany.jsonrpc2.JSONRPC2Error;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 import databeans.AccountLink;
 import databeans.MessageWrapper;
+import io.advantageous.qbit.reactive.CallbackBuilder;
 import util.JSONParser;
 
 import static api.ApiService.ACCOUNT_NUMBER_LENGTH;
@@ -44,8 +45,9 @@ public class SharedUtilityMethods {
             response = new JSONRPC2Response(new JSONRPC2Error(
                     reply.getCode(), reply.getMessage(), reply.getData()), api.getId());
         }
+        System.out.println("Sending error log to sysinfo");
         api.getSystemInformationClient().putFormAsyncWith1Param("/services/systemInfo/log/error",
-                "response", api.getJsonConverter().toJson(response),
+                "request", response.toJSONString(),
                 (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         api.getCallbackBuilder().build().reply(response.toJSONString());

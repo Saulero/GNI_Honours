@@ -316,7 +316,7 @@ class SystemInformationService {
         }
         addRequestLog.setString(3, paramString.toString());
         addRequestLog.setDate(4, java.sql.Date.valueOf(systemDate));
-        addRequestLog.setTime(4, java.sql.Time.valueOf(systemTime));
+        addRequestLog.setTime(5, java.sql.Time.valueOf(systemTime));
         addRequestLog.execute();
         addRequestLog.close();
         databaseConnectionPool.returnConnection(databaseConnection);
@@ -325,18 +325,19 @@ class SystemInformationService {
     /**
      * Inserts an error into the error log.
      * @param callback Used to send the result of the request back to the request source.
-     * @param responseJson Error response to insert into the error log.
+     * @param requestJson Error response to insert into the error log.
      */
     @RequestMapping(value = "/log/error", method = RequestMethod.PUT)
-    void logError(final Callback<String> callback, final @RequestParam("response") String responseJson) {
-        JSONRPC2Response response = jsonConverter.fromJson(responseJson, JSONRPC2Response.class);
+    void errorThing(final Callback<String> callback, final @RequestParam("request") String requestJson) {
         System.out.printf("%s Logging error response.\n", PREFIX);
+        JSONRPC2Response response = jsonConverter.fromJson(requestJson, JSONRPC2Response.class);
         try {
             addErrorLogToDb(response);
             callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200,
                     "Normal Reply")));
         } catch (SQLException e) {
             e.printStackTrace();
+            System.out.println("SQLEXCEPTION");
             callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
                     "Error connecting to the error log database.")));
         }
@@ -356,8 +357,16 @@ class SystemInformationService {
         addErrorLog.setLong(2, response.getError().getCode());
         addErrorLog.setDate(3, java.sql.Date.valueOf(systemDate));
         addErrorLog.setTime(4, java.sql.Time.valueOf(systemTime));
-        addErrorLog.setString(5, error.getMessage());
-        addErrorLog.setString(6, error.getData().toString());
+        String errorMessage = error.getMessage();
+        if (errorMessage == null) {
+            errorMessage = "None";
+        }
+        addErrorLog.setString(5, errorMessage);
+        Object errorData = error.getData();
+        if (errorData == null) {
+            errorData = "None";
+        }
+        addErrorLog.setString(6, errorData.toString());
         addErrorLog.execute();
         addErrorLog.close();
         databaseConnectionPool.returnConnection(databaseConnection);
