@@ -188,7 +188,8 @@ public class ApiService {
                 break;
             case "getOverdraftLimit":       GetOverdraftLimit.getOverdraftLimit(params, api);
                 break;
-            case "getEventLogs":
+            case "getEventLogs":            GetEventLogs.getEventLogs(api);
+                break;
             default:                        callback.reply(new JSONRPC2Response(JSONRPC2Error.METHOD_NOT_FOUND,
                     request.getID()).toJSONString());
                 break;
