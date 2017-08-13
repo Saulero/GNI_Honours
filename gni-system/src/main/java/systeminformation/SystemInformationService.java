@@ -43,8 +43,6 @@ class SystemInformationService {
     private Calendar myCal;
     /** LocalDate with current date. */
     private LocalDate systemDate;
-    /** LocalTime with current time. */
-    private LocalTime systemTime;
     /** SystemInformation containing knwon data about the other services. */
     private SystemInformation systemInformation;
     /** Connection to the Ledger service.*/
@@ -76,10 +74,9 @@ class SystemInformationService {
     SystemInformationService(final int servicePort, final String serviceHost) {
         System.out.printf("%s Service started on the following location: %s:%d.\n", PREFIX, serviceHost, servicePort);
         this.systemDate = LocalDate.now();
-        this.systemTime = LocalTime.now(ZoneOffset.UTC);
         syncCalendar();
         System.out.printf("%s Set date to %s\n", PREFIX, systemDate.toString());
-        System.out.printf("%s Current system time %s\n", PREFIX, systemTime.toString());
+        System.out.printf("%s Current system time %s\n", PREFIX, LocalTime.now(ZoneOffset.UTC).toString());
         this.systemInformation = new SystemInformation();
         this.jsonConverter = new Gson();
         this.databaseConnectionPool = new ConnectionPool();
@@ -317,7 +314,7 @@ class SystemInformationService {
         }
         addRequestLog.setString(3, paramString.toString());
         addRequestLog.setDate(4, java.sql.Date.valueOf(systemDate));
-        addRequestLog.setTime(5, java.sql.Time.valueOf(systemTime));
+        addRequestLog.setString(5, LocalTime.now(ZoneOffset.UTC).toString());
         addRequestLog.execute();
         addRequestLog.close();
         databaseConnectionPool.returnConnection(databaseConnection);
@@ -357,7 +354,9 @@ class SystemInformationService {
         addErrorLog.setString(1, response.getID().toString());
         addErrorLog.setLong(2, response.getError().getCode());
         addErrorLog.setDate(3, java.sql.Date.valueOf(systemDate));
-        addErrorLog.setTime(4, java.sql.Time.valueOf(systemTime));
+        String time = LocalTime.now(ZoneOffset.UTC).toString();
+        System.out.println(time);
+        addErrorLog.setString(4, time);
         String errorMessage = error.getMessage();
         if (errorMessage == null) {
             errorMessage = "None";
@@ -414,7 +413,7 @@ class SystemInformationService {
         while (errorLogs.next()) {
             Map<String, Object> errorMap = new HashMap<>();
             LocalDate errorDate = errorLogs.getDate("date").toLocalDate();
-            LocalTime errorTime = errorLogs.getTime("time").toLocalTime();
+            String errorTime = errorLogs.getString("time");
             errorMap.put("timeStamp", createTimestamp(errorDate, errorTime));
             String eventLog = "[Error " + errorLogs.getLong("error_code") + "]: Request "
                     + errorLogs.getString("request_id")
@@ -433,7 +432,7 @@ class SystemInformationService {
         while (requestLogs.next()) {
             Map<String, Object> requestMap = new HashMap<>();
             LocalDate requestDate = requestLogs.getDate("date").toLocalDate();
-            LocalTime requestTime = requestLogs.getTime("time").toLocalTime();
+            String requestTime = requestLogs.getString("time");
             requestMap.put("timeStamp", createTimestamp(requestDate, requestTime));
             String eventLog = "[Request " + requestLogs.getString("request_id") + "]: "
                     + requestLogs.getString("method") + " request was made with the following parameters: "
@@ -450,8 +449,8 @@ class SystemInformationService {
      * @param time Time for the timestamp.
      * @return Timestamp for a date time combination.
      */
-    private String createTimestamp(final LocalDate date, final LocalTime time) {
-        return date.toString() + "T" + time.toString() + "Z";
+    private String createTimestamp(final LocalDate date, final String time) {
+        return date.toString() + "T" + time + "Z";
     }
 
 }
