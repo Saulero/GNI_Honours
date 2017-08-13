@@ -24,9 +24,11 @@ public class GetEventLogs {
      * Requests the current system date.
      * @param api DataBean containing everything in the ApiService
      */
-    public static void getEventLogs(final ApiBean api) {
-        System.out.printf("%s Sending current date request.\n", PREFIX);
-        api.getSystemInformationClient().getAsync("/services/systemInfo/log", (code, contentType, body) -> {
+    public static void getEventLogs(final Map<String, Object> params, final ApiBean api) {
+        System.out.printf("%s Sending event log request.\n", PREFIX);
+        api.getSystemInformationClient().getAsyncWith2Params("/services/systemInfo/log",
+                "beginDate", params.get("beginDate"), "endDate", params.get("endDate"),
+                (code, contentType, body) -> {
             if (code == HTTP_OK) {
                 MessageWrapper messageWrapper = api.getJsonConverter().fromJson(
                                                         JSONParser.removeEscapeCharacters(body), MessageWrapper.class);

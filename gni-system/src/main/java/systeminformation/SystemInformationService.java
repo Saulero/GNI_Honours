@@ -379,8 +379,8 @@ class SystemInformationService {
      * @param endDateJson LocalDate that marks the end of the time span.
      */
     @RequestMapping(value = "/log", method = RequestMethod.GET)
-    void logError(final Callback<String> callback, final @RequestParam("beginDate") String beginDateJson,
-                  final @RequestParam("endDate") String endDateJson) {
+    void retrieveLogs(final Callback<String> callback, final @RequestParam("beginDate") String beginDateJson,
+                      final @RequestParam("endDate") String endDateJson) {
         LocalDate beginDate = jsonConverter.fromJson(beginDateJson, LocalDate.class);
         LocalDate endDate = jsonConverter.fromJson(endDateJson, LocalDate.class);
         try {
