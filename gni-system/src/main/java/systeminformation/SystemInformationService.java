@@ -1,6 +1,8 @@
 package systeminformation;
 
 import com.google.gson.Gson;
+import com.thetransactioncompany.jsonrpc2.JSONRPC2Request;
+import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 import databeans.MessageWrapper;
 import databeans.ServiceInformation;
 import databeans.SystemInformation;
@@ -254,4 +256,23 @@ class SystemInformationService {
         callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200,
                 "Normal Reply", this.systemDate)));
     }
+
+    @RequestMapping(value = "/log/request", method = RequestMethod.PUT)
+    void logRequest(final Callback<String> callback, final @RequestParam("request") String requestJson) {
+        JSONRPC2Request request = jsonConverter.fromJson(requestJson, JSONRPC2Request.class);
+        System.out.printf("%s Logging new request.\n", PREFIX);
+        //todo log request to database
+        callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200,
+                "Normal Reply")));
+    }
+
+    @RequestMapping(value = "/log/error", method = RequestMethod.PUT)
+    void logError(final Callback<String> callback, final @RequestParam("response") String responseJson) {
+        JSONRPC2Response response = jsonConverter.fromJson(responseJson, JSONRPC2Response.class);
+        System.out.printf("%s Logging error response.\n", PREFIX);
+        //todo log response to database
+        callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200,
+                "Normal Reply")));
+    }
+
 }

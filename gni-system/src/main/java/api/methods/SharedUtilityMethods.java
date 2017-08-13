@@ -44,7 +44,7 @@ public class SharedUtilityMethods {
             response = new JSONRPC2Response(new JSONRPC2Error(
                     reply.getCode(), reply.getMessage(), reply.getData()), api.getId());
         }
-        api.getSystemInformationClient().putFormAsyncWith1Param("/services/systemInfo/log",
+        api.getSystemInformationClient().putFormAsyncWith1Param("/services/systemInfo/log/error",
                 "serviceInfo", api.getJsonConverter().toJson(response),
                 (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode == HTTP_OK) {

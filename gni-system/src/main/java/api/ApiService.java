@@ -126,8 +126,8 @@ public class ApiService {
      */
     private void sendLogEvent(final JSONRPC2Request request, final Callback<String> callback) {
         System.out.printf("%s Sending event log to SysInfo", PREFIX);
-        systemInformationClient.putFormAsyncWith1Param("/services/systemInfo/log",
-                "serviceInfo", jsonConverter.toJson(request), (httpStatusCode, httpContentType, replyJson) -> {
+        systemInformationClient.putFormAsyncWith1Param("/services/systemInfo/log/request",
+                "request", jsonConverter.toJson(request), (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         forwardApiRequest(request, callback);
                     } else {
