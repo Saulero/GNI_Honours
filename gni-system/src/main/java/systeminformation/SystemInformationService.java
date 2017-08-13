@@ -1,8 +1,6 @@
 package systeminformation;
 
 import com.google.gson.Gson;
-import com.sun.org.apache.bcel.internal.classfile.SourceFile;
-import com.sun.org.apache.xpath.internal.SourceTree;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Error;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Request;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
@@ -22,13 +20,12 @@ import util.JSONParser;
 import util.TableCreator;
 
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
-import java.util.Calendar;
-import java.util.GregorianCalendar;
-import java.util.Map;
+import java.util.*;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 import static java.net.HttpURLConnection.HTTP_OK;
@@ -258,7 +255,6 @@ class SystemInformationService {
     @RequestMapping(value = "/date", method = RequestMethod.GET)
     void getDate(final Callback<String> callback) {
         System.out.printf("%s received date request, sending callback.\n", PREFIX);
-        //todo rework to timestamp instead of date.
         callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200,
                 "Normal Reply", this.systemDate)));
     }
@@ -276,6 +272,11 @@ class SystemInformationService {
                 "Normal Reply", this.systemDate)));
     }
 
+    /**
+     * Inserts a request into the request log.
+     * @param callback Used to send the result back to the request source.
+     * @param requestJson Request to insert into the request log.
+     */
     @RequestMapping(value = "/log/request", method = RequestMethod.PUT)
     void logRequest(final Callback<String> callback, final @RequestParam("request") String requestJson) {
         JSONRPC2Request request = jsonConverter.fromJson(requestJson, JSONRPC2Request.class);
@@ -291,6 +292,11 @@ class SystemInformationService {
         }
     }
 
+    /**
+     * Inserts a request into the request log table.
+     * @param request Request to insert into the request log.
+     * @throws SQLException Thrown when a database error occurs, will cause the request to fail.
+     */
     private void addRequestLogToDb(final JSONRPC2Request request) throws SQLException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement addRequestLog = databaseConnection.getConnection()
@@ -309,13 +315,18 @@ class SystemInformationService {
             paramString.setLength(paramString.length() - 2);
         }
         addRequestLog.setString(3, paramString.toString());
-        String timestamp = getTimestamp();
-        addRequestLog.setString(4, timestamp);
+        addRequestLog.setDate(4, java.sql.Date.valueOf(systemDate));
+        addRequestLog.setTime(4, java.sql.Time.valueOf(systemTime));
         addRequestLog.execute();
         addRequestLog.close();
         databaseConnectionPool.returnConnection(databaseConnection);
     }
 
+    /**
+     * Inserts an error into the error log.
+     * @param callback Used to send the result of the request back to the request source.
+     * @param responseJson Error response to insert into the error log.
+     */
     @RequestMapping(value = "/log/error", method = RequestMethod.PUT)
     void logError(final Callback<String> callback, final @RequestParam("response") String responseJson) {
         JSONRPC2Response response = jsonConverter.fromJson(responseJson, JSONRPC2Response.class);
@@ -331,6 +342,11 @@ class SystemInformationService {
         }
     }
 
+    /**
+     * Adds a response containing an error into the error log table.
+     * @param response Response containing an error that should be logged in the error log.
+     * @throws SQLException Thrown when the connection with the database fails.
+     */
     private void addErrorLogToDb(final JSONRPC2Response response) throws SQLException {
         JSONRPC2Error error = response.getError();
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
@@ -338,17 +354,94 @@ class SystemInformationService {
                                                             .prepareStatement(SQLStatements.addErrorLog);
         addErrorLog.setString(1, response.getID().toString());
         addErrorLog.setLong(2, response.getError().getCode());
-        String timestamp = getTimestamp();
-        addErrorLog.setString(3, timestamp);
-        addErrorLog.setString(4, error.getMessage());
-        addErrorLog.setString(5, error.getData().toString());
+        addErrorLog.setDate(3, java.sql.Date.valueOf(systemDate));
+        addErrorLog.setTime(4, java.sql.Time.valueOf(systemTime));
+        addErrorLog.setString(5, error.getMessage());
+        addErrorLog.setString(6, error.getData().toString());
         addErrorLog.execute();
         addErrorLog.close();
         databaseConnectionPool.returnConnection(databaseConnection);
     }
 
-    private String getTimestamp() {
-        return systemDate.toString() + "T" + systemTime.toString();
+    /**
+     * Fetches all system logs of a given time span.
+     * @param callback Used to send the logs back to the request source.
+     * @param beginDateJson LocalDate that marks the beginning of the time span.
+     * @param endDateJson LocalDate that marks the end of the time span.
+     */
+    @RequestMapping(value = "/log", method = RequestMethod.GET)
+    void logError(final Callback<String> callback, final @RequestParam("beginDate") String beginDateJson,
+                  final @RequestParam("endDate") String endDateJson) {
+        LocalDate beginDate = jsonConverter.fromJson(beginDateJson, LocalDate.class);
+        LocalDate endDate = jsonConverter.fromJson(endDateJson, LocalDate.class);
+        try {
+            List<Map<String, Object>> logs = fetchLogs(beginDate, endDate);
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200,
+                    "Normal Reply", logs)));
+        } catch (SQLException e) {
+            e.printStackTrace();
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to the error log database.")));
+        }
+    }
+
+    /**
+     * Fetches all request and error logs from the database and returns them as a list.
+     * @param beginDate LocalDate that marks the beginning of the time span.
+     * @param endDate LocalDate that marks the end of the time span.
+     * @return List containing maps for every log in the request and error log tables.
+     * @throws SQLException Thrown when the database connection fails.
+     */
+    private List<Map<String, Object>> fetchLogs(final LocalDate beginDate, final LocalDate endDate)
+            throws SQLException {
+        List<Map<String, Object>> logs = new LinkedList<>();
+        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+        PreparedStatement getErrorLogs = databaseConnection.getConnection()
+                                                            .prepareStatement(SQLStatements.getErrorLogs);
+        getErrorLogs.setDate(1, java.sql.Date.valueOf(beginDate));
+        getErrorLogs.setDate(2, java.sql.Date.valueOf(endDate));
+        ResultSet errorLogs = getErrorLogs.executeQuery();
+        while (errorLogs.next()) {
+            Map<String, Object> errorMap = new HashMap<>();
+            LocalDate errorDate = errorLogs.getDate("date").toLocalDate();
+            LocalTime errorTime = errorLogs.getTime("time").toLocalTime();
+            errorMap.put("timeStamp", createTimestamp(errorDate, errorTime));
+            String eventLog = "[Error " + errorLogs.getLong("error_code") + "]: Request "
+                    + errorLogs.getString("request_id")
+                    + " caused an error error with the following error message: "
+                    + errorLogs.getString("message") + " and the following data: "
+                    + errorLogs.getString("data");
+            errorMap.put("eventLog", eventLog);
+            logs.add(errorMap);
+        }
+        getErrorLogs.close();
+        PreparedStatement getRequestLogs = databaseConnection.getConnection()
+                                                            .prepareStatement(SQLStatements.getRequestLogs);
+        getRequestLogs.setDate(1, java.sql.Date.valueOf(beginDate));
+        getRequestLogs.setDate(2, java.sql.Date.valueOf(endDate));
+        ResultSet requestLogs = getRequestLogs.executeQuery();
+        while (requestLogs.next()) {
+            Map<String, Object> requestMap = new HashMap<>();
+            LocalDate requestDate = requestLogs.getDate("date").toLocalDate();
+            LocalTime requestTime = requestLogs.getTime("time").toLocalTime();
+            requestMap.put("timeStamp", createTimestamp(requestDate, requestTime));
+            String eventLog = "[Request " + requestLogs.getString("request_id") + "]: "
+                    + requestLogs.getString("method") + " request was made with the following parameters: "
+                    + requestLogs.getString("params");
+            requestMap.put("eventLog", eventLog);
+            logs.add(requestMap);
+        }
+        return logs;
+    }
+
+    /**
+     * Creates a timestamp for a given date and time.
+     * @param date Date for the timestamp.
+     * @param time Time for the timestamp.
+     * @return Timestamp for a date time combination.
+     */
+    private String createTimestamp(final LocalDate date, final LocalTime time) {
+        return date.toString() + "T" + time.toString() + "Z";
     }
 
 }
