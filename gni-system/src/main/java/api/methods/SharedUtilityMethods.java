@@ -7,9 +7,11 @@ import com.thetransactioncompany.jsonrpc2.JSONRPC2Error;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 import databeans.AccountLink;
 import databeans.MessageWrapper;
+import util.JSONParser;
 
 import static api.ApiService.ACCOUNT_NUMBER_LENGTH;
 import static api.ApiService.CHARACTER_LIMIT;
+import static java.net.HttpURLConnection.HTTP_OK;
 
 /**
  * @author Saul
@@ -42,7 +44,18 @@ public class SharedUtilityMethods {
             response = new JSONRPC2Response(new JSONRPC2Error(
                     reply.getCode(), reply.getMessage(), reply.getData()), api.getId());
         }
-        api.getCallbackBuilder().build().reply(response.toJSONString());
+        api.getSystemInformationClient().putFormAsyncWith1Param("/services/systemInfo/log",
+                "serviceInfo", api.getJsonConverter().toJson(response),
+                (httpStatusCode, httpContentType, replyJson) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        api.getCallbackBuilder().build().reply(response.toJSONString());
+                    } else {
+                        api.getCallbackBuilder().build().reply(api.getJsonConverter()
+                                                                .toJson(JSONParser.createMessageWrapper(true,
+                                                                500, "An unknown error occurred.",
+                                                            "There was a problem with one of the HTTP requests")));
+                    }
+                });
     }
 
     //------------------------------------------------------------------------------------------------------------------
