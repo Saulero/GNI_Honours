@@ -105,7 +105,7 @@ public class ApiService {
     }
 
     /**
-     * Checks the type of the request that was received and calls the according method handler.
+     * Parses the request and then calls the logging method.
      * @param callback Callback to the source of the request.
      * @param requestJson Json string containing the request that was made.
      */
@@ -113,56 +113,84 @@ public class ApiService {
     public void handleApiRequest(final Callback<String> callback, final String requestJson) {
         try {
             JSONRPC2Request request = JSONRPC2Request.parse(requestJson);
-            String method = request.getMethod();
-            Object id = request.getID();
-            Map<String, Object> params = request.getNamedParams();
-            CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-            ApiBean api = new ApiBean(this, callbackBuilder, id);
-            switch (method) {
-                case "openAccount":             OpenAccount.openAccount(params, api);
-                    break;
-                case "openAdditionalAccount":   OpenAdditionalAccount.openAdditionalAccount(params, api);
-                    break;
-                case "closeAccount":            CloseAccount.closeAccount(params, api);
-                    break;
-                case "provideAccess":           ProvideAccess.provideAccess(params, api);
-                    break;
-                case "revokeAccess":            RevokeAccess.revokeAccess(params, api);
-                    break;
-                case "depositIntoAccount":      DepositIntoAccount.depositIntoAccount(params, api);
-                    break;
-                case "payFromAccount":          PayFromAccount.payFromAccount(params, api);
-                    break;
-                case "transferMoney":           TransferMoney.transferMoney(params, api);
-                    break;
-                case "getAuthToken":            GetAuthToken.getAuthToken(params, api);
-                    break;
-                case "getBalance":              GetBalance.getBalance(params, api);
-                    break;
-                case "getTransactionsOverview": GetTransactionsOverview.getTransactionsOverview(params, api);
-                    break;
-                case "getUserAccess":           GetUserAccess.getUserAccess(params, api);
-                    break;
-                case "getBankAccountAccess":    GetBankAccountAccess.getBankAccountAccess(params, api);
-                    break;
-                case "unblockCard":             UnblockCard.unblockCard(params, api);
-                    break;
-                case "simulateTime":            SimulateTime.simulateTime(params, api);
-                    break;
-                case "reset":                   Reset.reset(api);
-                    break;
-                case "getDate":                 GetDate.getDate(api);
-                    break;
-                case "setOverdraftLimit":       SetOverdraftLimit.setOverdraftLimit(params, api);
-                    break;
-                case "getOverdraftLimit":       GetOverdraftLimit.getOverdraftLimit(params, api);
-                    break;
-                default:                        callback.reply(new JSONRPC2Response(JSONRPC2Error.METHOD_NOT_FOUND,
-                        request.getID()).toJSONString());
-                    break;
-            }
+            sendLogEvent(request, callback);
         } catch (JSONRPC2ParseException e) {
             callback.reply(new JSONRPC2Response(JSONRPC2Error.PARSE_ERROR).toJSONString());
+        }
+    }
+
+    /**
+     * Logs a request in the systemInfo service and then forwards the request to the according request handler.
+     * @param request Request to log and forward.
+     * @param callback Used to send the result of the request back to the request source.
+     */
+    private void sendLogEvent(final JSONRPC2Request request, final Callback<String> callback) {
+        System.out.printf("%s Sending event log to SysInfo", PREFIX);
+        systemInformationClient.putFormAsyncWith1Param("/services/systemInfo/log",
+                "serviceInfo", jsonConverter.toJson(request), (httpStatusCode, httpContentType, replyJson) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        forwardApiRequest(request, callback);
+                    } else {
+                        callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true,
+                                500, "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests")));
+                    }
+                });
+    }
+
+    /**
+     * Forwards the request to the correct request handler.
+     * @param request Request to forward.
+     * @param callback Used to send the result of the request back to the request source.
+     */
+    private void forwardApiRequest(final JSONRPC2Request request, final Callback<String> callback) {
+        String method = request.getMethod();
+        Object id = request.getID();
+        Map<String, Object> params = request.getNamedParams();
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        ApiBean api = new ApiBean(this, callbackBuilder, id);
+        switch (method) {
+            case "openAccount":             OpenAccount.openAccount(params, api);
+                break;
+            case "openAdditionalAccount":   OpenAdditionalAccount.openAdditionalAccount(params, api);
+                break;
+            case "closeAccount":            CloseAccount.closeAccount(params, api);
+                break;
+            case "provideAccess":           ProvideAccess.provideAccess(params, api);
+                break;
+            case "revokeAccess":            RevokeAccess.revokeAccess(params, api);
+                break;
+            case "depositIntoAccount":      DepositIntoAccount.depositIntoAccount(params, api);
+                break;
+            case "payFromAccount":          PayFromAccount.payFromAccount(params, api);
+                break;
+            case "transferMoney":           TransferMoney.transferMoney(params, api);
+                break;
+            case "getAuthToken":            GetAuthToken.getAuthToken(params, api);
+                break;
+            case "getBalance":              GetBalance.getBalance(params, api);
+                break;
+            case "getTransactionsOverview": GetTransactionsOverview.getTransactionsOverview(params, api);
+                break;
+            case "getUserAccess":           GetUserAccess.getUserAccess(params, api);
+                break;
+            case "getBankAccountAccess":    GetBankAccountAccess.getBankAccountAccess(params, api);
+                break;
+            case "unblockCard":             UnblockCard.unblockCard(params, api);
+                break;
+            case "simulateTime":            SimulateTime.simulateTime(params, api);
+                break;
+            case "reset":                   Reset.reset(api);
+                break;
+            case "getDate":                 GetDate.getDate(api);
+                break;
+            case "setOverdraftLimit":       SetOverdraftLimit.setOverdraftLimit(params, api);
+                break;
+            case "getOverdraftLimit":       GetOverdraftLimit.getOverdraftLimit(params, api);
+                break;
+            default:                        callback.reply(new JSONRPC2Response(JSONRPC2Error.METHOD_NOT_FOUND,
+                    request.getID()).toJSONString());
+                break;
         }
     }
 
