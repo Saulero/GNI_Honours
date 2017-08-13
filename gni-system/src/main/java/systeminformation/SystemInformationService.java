@@ -1,6 +1,8 @@
 package systeminformation;
 
 import com.google.gson.Gson;
+import com.sun.org.apache.bcel.internal.classfile.SourceFile;
+import com.sun.org.apache.xpath.internal.SourceTree;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Error;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Request;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
@@ -22,6 +24,8 @@ import util.TableCreator;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.Map;
@@ -41,6 +45,8 @@ class SystemInformationService {
     private Calendar myCal;
     /** LocalDate with current date. */
     private LocalDate systemDate;
+    /** LocalTime with current time. */
+    private LocalTime systemTime;
     /** SystemInformation containing knwon data about the other services. */
     private SystemInformation systemInformation;
     /** Connection to the Ledger service.*/
@@ -72,8 +78,10 @@ class SystemInformationService {
     SystemInformationService(final int servicePort, final String serviceHost) {
         System.out.printf("%s Service started on the following location: %s:%d.\n", PREFIX, serviceHost, servicePort);
         this.systemDate = LocalDate.now();
+        this.systemTime = LocalTime.now(ZoneOffset.UTC);
         syncCalendar();
         System.out.printf("%s Set date to %s\n", PREFIX, systemDate.toString());
+        System.out.printf("%s Current system time %s\n", PREFIX, systemTime.toString());
         this.systemInformation = new SystemInformation();
         this.jsonConverter = new Gson();
         this.databaseConnectionPool = new ConnectionPool();
@@ -250,6 +258,7 @@ class SystemInformationService {
     @RequestMapping(value = "/date", method = RequestMethod.GET)
     void getDate(final Callback<String> callback) {
         System.out.printf("%s received date request, sending callback.\n", PREFIX);
+        //todo rework to timestamp instead of date.
         callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200,
                 "Normal Reply", this.systemDate)));
     }
@@ -300,8 +309,7 @@ class SystemInformationService {
             paramString.setLength(paramString.length() - 2);
         }
         addRequestLog.setString(3, paramString.toString());
-        String timestamp = "";
-        //todo add proper timestamp
+        String timestamp = getTimestamp();
         addRequestLog.setString(4, timestamp);
         addRequestLog.execute();
         addRequestLog.close();
@@ -330,14 +338,17 @@ class SystemInformationService {
                                                             .prepareStatement(SQLStatements.addErrorLog);
         addErrorLog.setString(1, response.getID().toString());
         addErrorLog.setLong(2, response.getError().getCode());
-        String timestamp = "";
-        //todo add proper timestamp
+        String timestamp = getTimestamp();
         addErrorLog.setString(3, timestamp);
         addErrorLog.setString(4, error.getMessage());
         addErrorLog.setString(5, error.getData().toString());
         addErrorLog.execute();
         addErrorLog.close();
         databaseConnectionPool.returnConnection(databaseConnection);
+    }
+
+    private String getTimestamp() {
+        return systemDate.toString() + "T" + systemTime.toString();
     }
 
 }
