@@ -192,6 +192,8 @@ public class ApiService {
                 break;
             case "openSavingsAccount":      OpenSavingsAccount.openSavingsAccount(params, api);
                 break;
+            case "closeSavingsAccount":     CloseSavingsAccount.closeSavingsAccount(params, api);
+                break;
             default:                        callback.reply(new JSONRPC2Response(JSONRPC2Error.METHOD_NOT_FOUND,
                     request.getID()).toJSONString());
                 break;
