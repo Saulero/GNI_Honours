@@ -34,10 +34,18 @@ public class Account implements Serializable {
 
     public void processWithdraw(final Transaction transaction) {
         this.balance -= transaction.getTransactionAmount();
+        if ((transaction.getDestinationAccountNumber()).equals(transaction.getSourceAccountNumber() + "S")) {
+            // deposit comes from savings account, update savings balance
+            this.savingsBalance += transaction.getTransactionAmount();
+        }
     }
 
     public void processDeposit(final Transaction transaction) {
         this.balance += transaction.getTransactionAmount();
+        if ((transaction.getSourceAccountNumber()).equals(transaction.getDestinationAccountNumber() + "S")) {
+            // deposit comes from savings account, update savings balance
+            this.savingsBalance -= transaction.getTransactionAmount();
+        }
     }
 
     public void processSavingsInterest(final Transaction transaction) {

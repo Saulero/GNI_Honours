@@ -452,6 +452,8 @@ class LedgerService {
                         // Update the database
                         updateBalance(account);
                         transaction.setNewBalance(account.getBalance());
+                        updateSavingsBalance(account);
+                        transaction.setNewSavingsBalance(account.getSavingsBalance());
 
                         // Update Transaction log
                         transaction.setTransactionID(getHighestTransactionID());
@@ -527,6 +529,8 @@ class LedgerService {
                         // Update the database
                         updateBalance(account);
                         transaction.setNewBalance(account.getBalance());
+                        updateSavingsBalance(account);
+                        transaction.setNewSavingsBalance(account.getSavingsBalance());
 
                         /// Update Transaction log
                         transaction.setTransactionID(getHighestTransactionID());
