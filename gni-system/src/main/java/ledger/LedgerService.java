@@ -149,8 +149,10 @@ class LedgerService {
             ps.setLong(1, newID);                               // id
             ps.setString(2, newAccount.getAccountNumber());     // account_number
             ps.setString(3, newAccount.getAccountHolderName()); // name
-            ps.setDouble(4, newAccount.getOverdraftLimit());     // overdraft_limit
+            ps.setDouble(4, newAccount.getOverdraftLimit());    // overdraft_limit
             ps.setDouble(5, newAccount.getBalance());           // balance
+            ps.setBoolean(6, false);                         // savings_active
+            ps.setDouble(7, 0.0);                            // savings balance
 
             ps.executeUpdate();
             ps.close();
