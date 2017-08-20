@@ -1070,6 +1070,11 @@ class LedgerService {
                 false, 200, "Normal Reply", overdraftLimit)));
     }
 
+    /**
+     * Activates the savings account linked to an already existing iBAN account.
+     * @param callback Used to send a reply to the request source.
+     * @param iBAN AccountNumber of the account to activate the savings account for.
+     */
     @RequestMapping(value = "/savingsAccount", method = RequestMethod.PUT)
     public void openSavingsAccount(final Callback<String> callback, @RequestParam("iBAN") final String iBAN) {
         System.out.printf("%s Received open savings account request.\n", PREFIX);
@@ -1078,6 +1083,11 @@ class LedgerService {
         sendOpenSavingsAccountCallback(callbackBuilder);
     }
 
+    /**
+     * Updates the status of a savings account.
+     * @param isActive Status to update it to.
+     * @param iBAN AccountNumber the savings account is linked to.
+     */
     void updateSavingsStatus(final boolean isActive, final String iBAN) {
         try {
             SQLConnection connection = db.getConnection();
@@ -1093,12 +1103,22 @@ class LedgerService {
         }
     }
 
+    /**
+     * Sends a callback for the open savings account request indicating the request was successfull.
+     * @param callbackBuilder Used to send the response to the request source.
+     */
     private void sendOpenSavingsAccountCallback(final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Open savings account request successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
                 false, 200, "Normal Reply")));
     }
 
+    /**
+     * Closes a savings account for a given account, if there were any funds left in the savings account these will be
+     * transferred to the normal account.
+     * @param callback Used to send a reply to the request source.
+     * @param iBAN AccountNumber of the savings account to close(same as the regular account).
+     */
     @RequestMapping(value = "/savingsAccount/close", method = RequestMethod.PUT)
     public void closeSavingsAccount(final Callback<String> callback, @RequestParam("iBAN") final String iBAN) {
         System.out.printf("%s Received close savings account request.\n", PREFIX);
@@ -1106,6 +1126,11 @@ class LedgerService {
         handleCloseSavingsAccountExceptions(iBAN, callbackBuilder);
     }
 
+    /**
+     * If an sql exception occurs this method will send a callback indicating that an error occurred.
+     * @param iBAN AccountNumber of the account for which the savings account should be closed.
+     * @param callbackBuilder Used to send a reply to the request source.
+     */
     private void handleCloseSavingsAccountExceptions(final String iBAN, final CallbackBuilder callbackBuilder) {
         try {
             deactivateSavingsAccount(iBAN, callbackBuilder);
@@ -1116,6 +1141,13 @@ class LedgerService {
         }
     }
 
+    /**
+     * Deactivates a savings account in the database. If there are any funds left in the savings account these will be
+     * transferred to the regular account.
+     * @param iBAN AccountNumber of the account that owns the savings account.
+     * @param callbackBuilder Used to send a reply to the request source.
+     * @throws SQLException Thrown when the database connection fails.
+     */
     private void deactivateSavingsAccount(final String iBAN, final CallbackBuilder callbackBuilder)
             throws SQLException {
         Account account = getAccountInfo(iBAN);
@@ -1187,6 +1219,10 @@ class LedgerService {
         }
     }
 
+    /**
+     * Sends a successfull callback for a close savings account request.
+     * @param callbackBuilder Used to send a reply to the request source.
+     */
     private void sendCloseSavingsAccountCallback(final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Close savings account request successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
