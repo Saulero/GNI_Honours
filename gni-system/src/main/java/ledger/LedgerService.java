@@ -1,6 +1,5 @@
 package ledger;
 
-import authentication.UserNotAuthorizedException;
 import com.google.gson.Gson;
 import database.ConnectionPool;
 import database.SQLConnection;
@@ -1075,22 +1074,23 @@ class LedgerService {
     public void openSavingsAccount(final Callback<String> callback, @RequestParam("iBAN") final String iBAN) {
         System.out.printf("%s Received open savings account request.\n", PREFIX);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handleOpenSavingsAccountExceptions(iBAN, callbackBuilder);
+        updateSavingsStatus(true, iBAN);
+        sendOpenSavingsAccountCallback(callbackBuilder);
     }
 
-    private void handleOpenSavingsAccountExceptions(final String iBAN, final CallbackBuilder callbackBuilder) {
+    void updateSavingsStatus(final boolean isActive, final String iBAN) {
         try {
-            addSavingsAccountToDb(iBAN);
-            sendOpenSavingsAccountCallback(callbackBuilder);
+            SQLConnection connection = db.getConnection();
+            PreparedStatement addSavingsAccountToDb = connection.getConnection()
+                    .prepareStatement(SQLStatements.updateSavingsStatus);
+            addSavingsAccountToDb.setBoolean(1, isActive);
+            addSavingsAccountToDb.setString(2, iBAN);
+            addSavingsAccountToDb.execute();
+            addSavingsAccountToDb.close();
+            db.returnConnection(connection);
         } catch (SQLException e) {
             e.printStackTrace();
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
-                    "Error connecting to the Ledger database.")));
         }
-    }
-
-    private void addSavingsAccountToDb(final String iBAN) throws SQLException {
-
     }
 
     private void sendOpenSavingsAccountCallback(final CallbackBuilder callbackBuilder) {
@@ -1108,8 +1108,7 @@ class LedgerService {
 
     private void handleCloseSavingsAccountExceptions(final String iBAN, final CallbackBuilder callbackBuilder) {
         try {
-            removeSavingsAccountFromDb(iBAN);
-            sendCloseSavingsAccountCallback(callbackBuilder);
+            deactivateSavingsAccount(iBAN, callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
@@ -1117,8 +1116,75 @@ class LedgerService {
         }
     }
 
-    private void removeSavingsAccountFromDb(final String iBAN) throws SQLException {
-        //todo fill
+    private void deactivateSavingsAccount(final String iBAN, final CallbackBuilder callbackBuilder)
+            throws SQLException {
+        Account account = getAccountInfo(iBAN);
+        if (account != null) {
+            Double savingsBalance = account.getSavingsBalance();
+            if (savingsBalance > 0) {
+                // Update the object before async call
+                account.transferSavingsToMain();
+                // fetch date
+                systemInformationClient.getAsync("/services/systemInfo/date", (code, contentType, body) -> {
+                    if (code == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
+                                MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            LocalDate date = (LocalDate) messageWrapper.getData();
+                            // Update the database
+                            updateBalance(account);
+                            updateSavingsBalance(account);
+                            updateSavingsStatus(false, account.getAccountNumber());
+                            // Create transaction for transaction history
+                            Transaction transaction = new Transaction(getHighestTransactionID(),
+                                    account.getAccountNumber() + "S", account.getAccountNumber(),
+                                    account.getAccountHolderName(),
+                                    "Transfer of savings account to main account.", savingsBalance);
+                            transaction.setNewBalance(account.getBalance());
+                            transaction.setNewSavingsBalance(account.getSavingsBalance());
+                            transaction.setDate(date);
+                            addTransaction(transaction, true);
+                            sendCloseSavingsAccountCallback(callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(body);
+                        }
+                    } else {
+                        System.out.printf("%s Processing removal of savings account failed, body: %s\n\n\n\n",
+                                PREFIX, body);
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true,
+                                500, "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests")));
+                    }
+                });
+            } else {
+                updateSavingsStatus(false, account.getAccountNumber());
+                sendCloseSavingsAccountCallback(callbackBuilder);
+            }
+        } else {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true,
+                    418, "One of the parameters has an invalid value.",
+                    "There is no account in the system with that iBAN.")));
+        }
+    }
+
+    /**
+     * Overwrites account information for a specific account,
+     * in case a transaction is successfully processed.
+     * @param account The account to overwrite, containing the new data
+     */
+    void updateSavingsBalance(final Account account) {
+        try {
+            SQLConnection connection = db.getConnection();
+            PreparedStatement ps = connection.getConnection().prepareStatement(updateSavingsBalance);
+            ps.setDouble(1, account.getSavingsBalance());
+            ps.setString(2, account.getAccountNumber());
+            ps.executeUpdate();
+
+            ps.close();
+            db.returnConnection(connection);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     private void sendCloseSavingsAccountCallback(final CallbackBuilder callbackBuilder) {

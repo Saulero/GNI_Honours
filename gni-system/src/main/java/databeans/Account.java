@@ -40,6 +40,11 @@ public class Account implements Serializable {
         this.balance += transaction.getTransactionAmount();
     }
 
+    public void transferSavingsToMain() {
+        this.balance += this.savingsBalance;
+        this.savingsBalance = 0;
+    }
+
     public String getAccountNumber() {
         return accountNumber;
     }

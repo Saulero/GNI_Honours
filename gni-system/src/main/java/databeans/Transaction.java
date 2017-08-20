@@ -16,6 +16,7 @@ public class Transaction implements Serializable {
     private String description;
     private double transactionAmount;
     private double newBalance;
+    private double newSavingsBalance;
     private boolean processed;
     private boolean successful;
 
@@ -128,6 +129,14 @@ public class Transaction implements Serializable {
 
     public void setDescription(final String newDescription) {
         this.description = newDescription;
+    }
+
+    public double getNewSavingsBalance() {
+        return newSavingsBalance;
+    }
+
+    public void setNewSavingsBalance(final double newNewSavingsBalance) {
+        newSavingsBalance = newNewSavingsBalance;
     }
 
     /**
