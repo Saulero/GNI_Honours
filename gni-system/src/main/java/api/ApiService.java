@@ -190,6 +190,8 @@ public class ApiService {
                 break;
             case "getEventLogs":            GetEventLogs.getEventLogs(params, api);
                 break;
+            case "openSavingsAccount":      OpenSavingsAccount.openSavingsAccount(params, api);
+                break;
             default:                        callback.reply(new JSONRPC2Response(JSONRPC2Error.METHOD_NOT_FOUND,
                     request.getID()).toJSONString());
                 break;

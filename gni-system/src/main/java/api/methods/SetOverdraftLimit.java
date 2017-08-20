@@ -23,7 +23,7 @@ public class SetOverdraftLimit {
      * @param api DataBean containing everything in the ApiService
      */
     public static void setOverdraftLimit(final Map<String, Object> params, final ApiBean api) {
-        System.out.printf("%s Sending close account request.\n", PREFIX);
+        System.out.printf("%s Sending set overdraft limit request.\n", PREFIX);
         verifyOverdraftInput((String) params.get("iBAN"),
                 (String) params.get("authToken"),
                 (String) params.get("overdraftLimit"), api);
