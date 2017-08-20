@@ -44,7 +44,17 @@ class LedgerService {
     /** Prefix used when printing to indicate the message is coming from the Ledger Service. */
     private static final String PREFIX = "[Ledger]              :";
     /** Interest rate that the bank charges every month to customers that are overdraft. */
-    private static final double MONTHLY_INTEREST_RATE = 0.00797;
+    private static final double MONTHLY_OVERDRAFT_RATE = 0.00797;
+    /** Interest rate for a savings balance of up to the tier 1 cap. */
+    private static final double TIER_1_INTEREST_RATE = 0.15;
+    /** Cap of the tier 1 interest rate. */
+    private static final int TIER_1_CAP = 25000;
+    /** Interest rate for a savings balance from tier 1 cap until tier 2 cap. */
+    private static final double TIER_2_INTEREST_RATE = 0.15;
+    /** Cap of the tier 2 interest rate. */
+    private static final int TIER_2_CAP = 75000;
+    /** Interest rate for a savings balance of more than tier 2 cap. */
+    private static final double TIER_3_INTEREST_RATE = 0.20;
     /** Account number where overdraft fees are transferred to. */
     private static final String OVERDRAFT_ACCOUNT = "NL52GNIB3676451168";
 
@@ -383,7 +393,8 @@ class LedgerService {
             ps.setString(5, transaction.getSourceAccountNumber());
             ps.setDouble(6, transaction.getTransactionAmount());
             ps.setDouble(7, transaction.getNewBalance());
-            ps.setString(8, transaction.getDescription());
+            ps.setDouble(8, transaction.getNewSavingsBalance());
+            ps.setString(9, transaction.getDescription());
             ps.executeUpdate();
 
             ps.close();
@@ -771,13 +782,23 @@ class LedgerService {
      * @param callbackBuilder Used to send a reply to the request source.
      */
     private void processInterestRequest(final LocalDate localDate, final CallbackBuilder callbackBuilder) {
-        //date is the first day of the new month, so process the previous month.
         try {
+            //date is the first day of the new month, so process the previous month.
             LocalDate firstProcessDay = localDate.minusMonths(1);
             LocalDate lastProcessDay = localDate.minusDays(1);
             List<String> overdraftAccounts = findOverdraftAccounts(firstProcessDay, lastProcessDay);
-            Map<String, Double> interestMap = calculateInterest(overdraftAccounts, firstProcessDay, lastProcessDay);
-            withdrawInterest(interestMap, localDate);
+            Map<String, Double> overdraftInterestMap = calculateOverdraftInterest(overdraftAccounts, firstProcessDay,
+                                                                        lastProcessDay);
+            withdrawOverdraftInterest(overdraftInterestMap, localDate);
+            // If jan 1 do savings interest processing for last year.
+            if (localDate.getDayOfYear() == 1) {
+                firstProcessDay = localDate.minusYears(1);
+                lastProcessDay = localDate.minusDays(1);
+                List<String> savingsAccounts = findSavingsAccounts(firstProcessDay, lastProcessDay);
+                Map<String, Double> savingsInterestMap = calculateSavingsInterest(savingsAccounts, firstProcessDay,
+                                                                                    lastProcessDay);
+                depositSavingsInterest(savingsInterestMap, localDate);
+            }
         } catch (SQLException e) {
             e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
@@ -812,6 +833,29 @@ class LedgerService {
         return overdraftAccounts;
     }
 
+    private List<String> findSavingsAccounts(final LocalDate firstProcessDay, final LocalDate lastProcessDay)
+            throws SQLException {
+        SQLConnection connection = db.getConnection();
+        PreparedStatement getSavingsAccounts = connection.getConnection()
+                .prepareStatement(SQLStatements.getSavingsAccounts);
+        getSavingsAccounts.setDate(1, java.sql.Date.valueOf(firstProcessDay));
+        getSavingsAccounts.setDate(2, java.sql.Date.valueOf(lastProcessDay));
+        getSavingsAccounts.setDate(3, java.sql.Date.valueOf(firstProcessDay));
+        getSavingsAccounts.setDate(4, java.sql.Date.valueOf(lastProcessDay));
+        ResultSet savingsAccountSet = getSavingsAccounts.executeQuery();
+        List<String> savingsAccounts = new LinkedList<>();
+        while (savingsAccountSet.next()) {
+            String account = savingsAccountSet.getString(1);
+            if (account.endsWith("S")) {
+                account = account.substring(0, account.length() - 1);
+            }
+            savingsAccounts.add(account);
+        }
+        getSavingsAccounts.close();
+        db.returnConnection(connection);
+        return savingsAccounts;
+    }
+
     /**
      * Calculates the interest for a list of accounts that went overdraft, for a given time period.
      * Time period MUST be smaller than one year.
@@ -821,10 +865,11 @@ class LedgerService {
      * @return Map containing accountNumbers as keys, and their respective interest as values.
      * @throws SQLException Thrown when something goes wrong when connecting to the database.
      */
-    private Map<String, Double> calculateInterest(final List<String> overdraftAccounts, final LocalDate firstProcessDay,
-                                                  final LocalDate lastProcessDay) throws SQLException {
+    private Map<String, Double> calculateOverdraftInterest(final List<String> overdraftAccounts,
+                                                           final LocalDate firstProcessDay,
+                                                           final LocalDate lastProcessDay) throws SQLException {
         Map<String, Double> interestMap = new HashMap<>();
-        double dailyInterestRate = MONTHLY_INTEREST_RATE / firstProcessDay.getMonth()
+        double dailyInterestRate = MONTHLY_OVERDRAFT_RATE / firstProcessDay.getMonth()
                                                                             .length(firstProcessDay.isLeapYear());
         for (String accountNumber : overdraftAccounts) {
             List<Transaction> overdraftTransactions = findOverdraftTransactions(accountNumber, firstProcessDay,
@@ -838,7 +883,7 @@ class LedgerService {
                     interestMap.put(accountNumber, interest);
                 }
             } else {
-                interestMap.put(accountNumber, doDailyInterestCalculation(accountNumber, overdraftTransactions,
+                interestMap.put(accountNumber, doDailyOverdraftInterestCalculation(accountNumber, overdraftTransactions,
                                                                           firstProcessDay, lastProcessDay,
                                                                           dailyInterestRate));
             }
@@ -846,9 +891,51 @@ class LedgerService {
         return interestMap;
     }
 
+    private Map<String, Double> calculateSavingsInterest(final List<String> savingsAccounts,
+                                                         final LocalDate firstProcessDay,
+                                                         final LocalDate lastProcessDay) throws SQLException {
+        Map<String, Double> interestMap = new HashMap<>();
+        int leapYearOffset = firstProcessDay.isLeapYear() ? 1 : 0;
+        double dailyTier1Rate = TIER_1_INTEREST_RATE / (365 + leapYearOffset);
+        double dailyTier2Rate = TIER_2_INTEREST_RATE / (365 + leapYearOffset);
+        double dailyTier3Rate = TIER_3_INTEREST_RATE / (365 + leapYearOffset);
+        for (String accountNumber : savingsAccounts) {
+            List<Transaction> savingsTransactions = findSavingsTransactions(accountNumber, firstProcessDay,
+                                                                            lastProcessDay);
+            if (savingsTransactions.isEmpty()) {
+                Account accountInfo = getAccountInfo(accountNumber);
+                Double savingsBalance = accountInfo.getSavingsBalance();
+                Double interest;
+                if (savingsBalance > 0) {
+                    interestMap.put(accountNumber, calculateSavingsInterest(savingsBalance));
+                }
+            } else {
+                interestMap.put(accountNumber, doDailySavingsInterestCalculation(accountNumber, savingsTransactions,
+                                                                                 firstProcessDay, lastProcessDay));
+            }
+        }
+        return  interestMap;
+    }
+
+    private Double calculateSavingsInterest(final Double averageBalance) {
+        Double interest;
+        if (averageBalance > TIER_1_CAP) {
+            interest = TIER_1_CAP * TIER_1_INTEREST_RATE;
+            if (averageBalance > TIER_2_CAP) {
+                interest += TIER_2_CAP - TIER_1_CAP * TIER_2_INTEREST_RATE;
+                interest += (averageBalance - TIER_2_CAP) * TIER_3_INTEREST_RATE;
+            } else {
+                interest += (averageBalance - TIER_1_CAP) * TIER_2_INTEREST_RATE;
+            }
+        } else {
+            interest = averageBalance * TIER_1_INTEREST_RATE;
+        }
+        return interest;
+    }
+
     /**
      * Calculates the interest for an account separately for each day based on the lowest balance of that day.
-     * Returns the interest owed for the given time period.
+     * Returns the interest owed for the given time period of an overdraft account.
      * @param accountNumber AccountNumber to calculate the interest for.
      * @param overdraftTransactions List of transactions that affected the overdraft of the account during the
      *                              time period.
@@ -857,9 +944,10 @@ class LedgerService {
      * @param dailyInterestRate Interest rate for a single day.
      * @return The interest this account owes for the given time period.
      */
-    private Double doDailyInterestCalculation(final String accountNumber, final List<Transaction> overdraftTransactions,
-                                              final LocalDate firstProcessDay, final LocalDate lastProcessDay,
-                                              final Double dailyInterestRate) {
+    private Double doDailyOverdraftInterestCalculation(final String accountNumber,
+                                                       final List<Transaction> overdraftTransactions,
+                                                       final LocalDate firstProcessDay, final LocalDate lastProcessDay,
+                                                       final Double dailyInterestRate) {
         Double interest = 0.0;
         LocalDate currentProcessDay = firstProcessDay;
         Double currentBalance;
@@ -890,6 +978,40 @@ class LedgerService {
             currentProcessDay = currentProcessDay.plusDays(1);
         }
         return interest;
+    }
+
+    private Double doDailySavingsInterestCalculation(final String accountNumber,
+                                                     final List<Transaction> savingsTransactions,
+                                                     final LocalDate firstProcessDay,
+                                                     final LocalDate lastProcessDay) {
+        Double averageBalance = 0.0;
+        LocalDate currentProcessDay = firstProcessDay;
+        Double currentBalance;
+        // sort transactions from earliest to latest.
+        savingsTransactions.sort(Comparator.comparing(Transaction::getDate));
+        Transaction firstTransaction = savingsTransactions.get(0);
+        if (firstTransaction.getSourceAccountNumber().equals(accountNumber)) {
+            currentBalance = firstTransaction.getNewBalance()
+                    + firstTransaction.getTransactionAmount();
+        } else {
+            currentBalance = firstTransaction.getNewBalance()
+                    - firstTransaction.getTransactionAmount();
+        }
+        while (currentProcessDay.isBefore(lastProcessDay) || currentProcessDay.isEqual(lastProcessDay)) {
+            // process transactions of this day and find the lowest balance.
+            Double lowestBalance = currentBalance;
+            while (!savingsTransactions.isEmpty()
+                    && savingsTransactions.get(0).getDate().equals(currentProcessDay)) {
+                Transaction transactionToProcess = savingsTransactions.remove(0);
+                currentBalance = transactionToProcess.getNewBalance();
+                if (currentBalance < lowestBalance) {
+                    lowestBalance = currentBalance;
+                }
+            }
+            averageBalance += (1 / (lastProcessDay.getDayOfYear() - firstProcessDay.getDayOfYear()) + 1) * (lowestBalance);
+            currentProcessDay = currentProcessDay.plusDays(1);
+        }
+        return calculateSavingsInterest(averageBalance);
     }
 
     /**
@@ -933,12 +1055,19 @@ class LedgerService {
         return overdraftTransactions;
     }
 
+    private List<Transaction> findSavingsTransactions(final String accountNumber,
+                                                      final LocalDate firstProcessDay,
+                                                      final LocalDate lastProcessDay) throws SQLException {
+        //todo fill
+        return null;
+    }
+
     /**
      * Processes interest withdrawals in the system.
      * @param interestMap Map containing accountNumbers as keys, and their owed interest as values.
      * @param currentDate Date during the interest withdrawal.
      */
-    private void withdrawInterest(final Map<String, Double> interestMap, final LocalDate currentDate) {
+    private void withdrawOverdraftInterest(final Map<String, Double> interestMap, final LocalDate currentDate) {
         final String firstDayOfInterest = currentDate.minusMonths(1).toString();
         final String lastDayOfInterest = currentDate.minusDays(1).toString();
         for (String accountNumber : interestMap.keySet()) {
@@ -962,6 +1091,10 @@ class LedgerService {
             transaction.setDate(currentDate);
             addTransaction(transaction, false);
         }
+    }
+
+    private void depositSavingsInterest(final Map<String, Double> interestMap, final LocalDate currentDate) {
+        //todo fill
     }
 
     /**
