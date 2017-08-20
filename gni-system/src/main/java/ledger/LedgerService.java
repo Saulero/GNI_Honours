@@ -799,6 +799,7 @@ class LedgerService {
                                                                                     lastProcessDay);
                 depositSavingsInterest(savingsInterestMap, localDate);
             }
+            sendInterestCallback(localDate, callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
@@ -1058,8 +1059,35 @@ class LedgerService {
     private List<Transaction> findSavingsTransactions(final String accountNumber,
                                                       final LocalDate firstProcessDay,
                                                       final LocalDate lastProcessDay) throws SQLException {
-        //todo fill
-        return null;
+        SQLConnection connection = db.getConnection();
+        PreparedStatement getSavingsTransactions = connection.getConnection()
+                                                        .prepareStatement(SQLStatements.getAccountSavingsTransactions);
+        getSavingsTransactions.setString(1, accountNumber);
+        getSavingsTransactions.setDate(2, java.sql.Date.valueOf(firstProcessDay));
+        getSavingsTransactions.setDate(3, java.sql.Date.valueOf(lastProcessDay));
+        getSavingsTransactions.setString(4, accountNumber);
+        getSavingsTransactions.setDate(5, java.sql.Date.valueOf(firstProcessDay));
+        getSavingsTransactions.setDate(6, java.sql.Date.valueOf(lastProcessDay));
+        ResultSet savingsTransactionSet = getSavingsTransactions.executeQuery();
+        List<Transaction> savingsTransactions = new LinkedList<>();
+        while (savingsTransactionSet.next()) {
+            Long transactionId = savingsTransactionSet.getLong("id");
+            LocalDate transactionDate = savingsTransactionSet.getDate("date").toLocalDate();
+            String accountTo = savingsTransactionSet.getString("account_to");
+            String accountToName = savingsTransactionSet.getString("account_to_name");
+            String accountFrom = savingsTransactionSet.getString("account_from");
+            Double amount = savingsTransactionSet.getDouble("amount");
+            Double newBalance = savingsTransactionSet.getDouble("new_balance");
+            String description = savingsTransactionSet.getString("description");
+            Transaction transaction = new Transaction(transactionId, transactionDate, accountFrom, accountTo,
+                    accountToName, description, amount, newBalance);
+            Double newSavingsBalance = savingsTransactionSet.getDouble("new_savings_balance");
+            transaction.setNewSavingsBalance(newSavingsBalance);
+            savingsTransactions.add(transaction);
+        }
+        getSavingsTransactions.close();
+        db.returnConnection(connection);
+        return savingsTransactions;
     }
 
     /**
@@ -1094,7 +1122,29 @@ class LedgerService {
     }
 
     private void depositSavingsInterest(final Map<String, Double> interestMap, final LocalDate currentDate) {
-        //todo fill
+        final String firstDayOfInterest = currentDate.minusMonths(1).toString();
+        final String lastDayOfInterest = currentDate.minusDays(1).toString();
+        for (String accountNumber : interestMap.keySet()) {
+            Transaction transaction = new Transaction();
+            transaction.setSourceAccountNumber(OVERDRAFT_ACCOUNT);
+            transaction.setTransactionAmount(interestMap.get(accountNumber));
+            transaction.setDestinationAccountNumber(accountNumber);
+            transaction.setDestinationAccountHolderName("GNI Bank");
+            transaction.setDescription(String.format("Savings interest %s until %s", firstDayOfInterest,
+                    lastDayOfInterest));
+            Account account = getAccountInfo(accountNumber);
+            // Update the object
+            account.processSavingsInterest(transaction);
+
+            // Update the database
+            updateSavingsBalance(account);
+            transaction.setNewSavingsBalance(account.getSavingsBalance());
+
+            /// Update Transaction log
+            transaction.setTransactionID(getHighestTransactionID());
+            transaction.setDate(currentDate);
+            addTransaction(transaction, true);
+        }
     }
 
     /**
