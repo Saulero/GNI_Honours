@@ -1193,7 +1193,98 @@ class AuthenticationService {
     public void openSavingsAccount(final Callback<String> callback,
                                    @RequestParam("authToken") final String authToken,
                                    @RequestParam("iBAN") final String iBAN) {
-        //todo fill
+        System.out.printf("%s Received open savings account request.\n", PREFIX);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleOpenSavingsAccountExceptions(authToken, iBAN, callbackBuilder);
+    }
+
+    private void handleOpenSavingsAccountExceptions(final String authToken, final String iBAN,
+                                                    final CallbackBuilder callbackBuilder) {
+        try {
+            authenticateRequest(authToken);
+            doOpenSavingsAccountRequest(authToken, iBAN, callbackBuilder);
+        } catch (UserNotAuthorizedException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
+                    "The user is not authorized to perform this action.")));
+        } catch (SQLException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to the authentication database.")));
+        }
+    }
+
+    private void doOpenSavingsAccountRequest(final String authToken, final String iBAN,
+                                             final CallbackBuilder callbackBuilder) {
+        ledgerClient.putFormAsyncWith2Params("/services/ledger/savingsAccount", "authToken", authToken,
+                "iBAN", iBAN,
+                (httpStatusCode, httpContentType, replyJson) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendOpenSavingsAccountCallback(replyJson, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(replyJson);
+                        }
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                                "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                    }
+                });
+    }
+
+    private void sendOpenSavingsAccountCallback(final String replyJson, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Open savings account request successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(replyJson);
+    }
+
+    @RequestMapping(value = "/savingsAccount/close", method = RequestMethod.PUT)
+    public void closeSavingsAccount(final Callback<String> callback,
+                                   @RequestParam("authToken") final String authToken,
+                                   @RequestParam("iBAN") final String iBAN) {
+        System.out.printf("%s Received close savings account request.\n", PREFIX);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleCloseSavingsAccountExceptions(authToken, iBAN, callbackBuilder);
+    }
+
+    private void handleCloseSavingsAccountExceptions(final String authToken, final String iBAN,
+                                                    final CallbackBuilder callbackBuilder) {
+        try {
+            authenticateRequest(authToken);
+            doCloseSavingsAccountRequest(authToken, iBAN, callbackBuilder);
+        } catch (UserNotAuthorizedException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
+                    "The user is not authorized to perform this action.")));
+        } catch (SQLException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to the authentication database.")));
+        }
+    }
+
+    private void doCloseSavingsAccountRequest(final String authToken, final String iBAN,
+                                             final CallbackBuilder callbackBuilder) {
+        ledgerClient.putFormAsyncWith2Params("/services/ledger/savingsAccount/close", "authToken",
+                authToken, "iBAN", iBAN,
+                (httpStatusCode, httpContentType, replyJson) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendCloseSavingsAccountCallback(replyJson, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(replyJson);
+                        }
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                                "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                    }
+                });
+    }
+
+    private void sendCloseSavingsAccountCallback(final String replyJson, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Close savings account request successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(replyJson);
     }
 
     /**
