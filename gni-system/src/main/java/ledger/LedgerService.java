@@ -235,7 +235,9 @@ class LedgerService {
                 String name = rs.getString("name");
                 double overdraftLimit = rs.getDouble("overdraft_limit");
                 double balance = rs.getDouble("balance");
-                Account account = new Account(name, overdraftLimit, balance);
+                boolean savingsActive = rs.getBoolean("savings_active");
+                double savingsBalance = rs.getDouble("savings_balance");
+                Account account = new Account(name, overdraftLimit, balance, savingsActive, savingsBalance);
                 account.setAccountNumber(accountNumber);
 
                 rs.close();
@@ -659,7 +661,9 @@ class LedgerService {
             String name = rs.getString("name");
             double overdraftLimit = rs.getDouble("overdraft_limit");
             double balance = rs.getDouble("balance");
-            Account account = new Account(name, overdraftLimit, balance);
+            boolean savingsActive = rs.getBoolean("savings_active");
+            double savingsBalance = rs.getDouble("savings_balance");
+            Account account = new Account(name, overdraftLimit, balance, savingsActive, savingsBalance);
             account.setAccountNumber(accountNumber);
             dataReply = JSONParser.createJsonDataReply(dataRequest.getAccountNumber(), dataRequest.getType(), account);
         }
@@ -1086,7 +1090,7 @@ class LedgerService {
     }
 
     private void addSavingsAccountToDb(final String iBAN) throws SQLException {
-        //todo fill
+
     }
 
     private void sendOpenSavingsAccountCallback(final CallbackBuilder callbackBuilder) {
