@@ -34,6 +34,8 @@ class AuthenticationService {
     private HttpClient usersClient;
     /** Connection to the pin service. */
     private HttpClient pinClient;
+    /** Connection to the ledger service. */
+    private HttpClient ledgerClient;
     /** Connection to the SystemInformation service. */
     private HttpClient systemInformationClient;
     /** Database connection pool containing persistent database connections. */
@@ -94,11 +96,14 @@ class AuthenticationService {
         SystemInformation sysInfo = (SystemInformation) messageWrapper.getData();
         ServiceInformation users = sysInfo.getUsersServiceInformation();
         ServiceInformation pin = sysInfo.getPinServiceInformation();
+        ServiceInformation ledger = sysInfo.getLedgerServiceInformation();
 
         this.usersClient = httpClientBuilder().setHost(users.getServiceHost())
                 .setPort(users.getServicePort()).buildAndStart();
         this.pinClient = httpClientBuilder().setHost(pin.getServiceHost())
                 .setPort(pin.getServicePort()).buildAndStart();
+        this.ledgerClient = httpClientBuilder().setHost(ledger.getServiceHost())
+                .setPort(ledger.getServicePort()).buildAndStart();
 
         System.out.printf("%s Initialization of Authentication service connections complete.\n", PREFIX);
         callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply")));
@@ -1085,7 +1090,7 @@ class AuthenticationService {
      */
     private void doSetOverdraftLimitRequest(final String accountNumber, final String overdraftLimit,
                                          final CallbackBuilder callbackBuilder) {
-        usersClient.putFormAsyncWith2Params("/services/users/overdraft/set",
+        ledgerClient.putFormAsyncWith2Params("/services/ledger/overdraft/set",
                 "accountNumber", accountNumber, "overdraftLimit", overdraftLimit,
                 (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
@@ -1156,7 +1161,7 @@ class AuthenticationService {
      * @param callbackBuilder Used to forward the result of the request to the request source.
      */
     private void doGetOverdraftLimitRequest(final String accountNumber, final CallbackBuilder callbackBuilder) {
-        usersClient.putFormAsyncWith1Param("/services/users/overdraft/get",
+        ledgerClient.putFormAsyncWith1Param("/services/ledger/overdraft/get",
                 "accountNumber", accountNumber,
                 (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
@@ -1182,6 +1187,13 @@ class AuthenticationService {
     private void sendGetOverdraftLimitCallback(final String replyJson, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Get overdraft limit request successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(replyJson);
+    }
+
+    @RequestMapping(value = "/savingsAccount", method = RequestMethod.PUT)
+    public void openSavingsAccount(final Callback<String> callback,
+                                   @RequestParam("authToken") final String authToken,
+                                   @RequestParam("iBAN") final String iBAN) {
+        //todo fill
     }
 
     /**
