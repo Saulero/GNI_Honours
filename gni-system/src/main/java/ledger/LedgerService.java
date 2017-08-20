@@ -1074,16 +1074,16 @@ class LedgerService {
 
     private void handleOpenSavingsAccountExceptions(final String iBAN, final CallbackBuilder callbackBuilder) {
         try {
-            openSavingsAccount(iBAN);
+            addSavingsAccountToDb(iBAN);
             sendOpenSavingsAccountCallback(callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
-                    "Error connecting to the authentication database.")));
+                    "Error connecting to the Ledger database.")));
         }
     }
 
-    private void openSavingsAccount(final String iBAN) throws SQLException {
+    private void addSavingsAccountToDb(final String iBAN) throws SQLException {
         //todo fill
     }
 
@@ -1093,7 +1093,33 @@ class LedgerService {
                 false, 200, "Normal Reply")));
     }
 
+    @RequestMapping(value = "/savingsAccount/close", method = RequestMethod.PUT)
+    public void closeSavingsAccount(final Callback<String> callback, @RequestParam("iBAN") final String iBAN) {
+        System.out.printf("%s Received close savings account request.\n", PREFIX);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleCloseSavingsAccountExceptions(iBAN, callbackBuilder);
+    }
 
+    private void handleCloseSavingsAccountExceptions(final String iBAN, final CallbackBuilder callbackBuilder) {
+        try {
+            removeSavingsAccountFromDb(iBAN);
+            sendCloseSavingsAccountCallback(callbackBuilder);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to the Ledger database.")));
+        }
+    }
+
+    private void removeSavingsAccountFromDb(final String iBAN) throws SQLException {
+        //todo fill
+    }
+
+    private void sendCloseSavingsAccountCallback(final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Close savings account request successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                false, 200, "Normal Reply")));
+    }
 
     /**
      * Safely shuts down the LedgerService.
