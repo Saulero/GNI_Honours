@@ -1202,7 +1202,7 @@ class AuthenticationService {
                                                     final CallbackBuilder callbackBuilder) {
         try {
             authenticateRequest(authToken);
-            doOpenSavingsAccountRequest(authToken, iBAN, callbackBuilder);
+            doOpenSavingsAccountRequest(iBAN, callbackBuilder);
         } catch (UserNotAuthorizedException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
                     "The user is not authorized to perform this action.")));
@@ -1213,10 +1213,8 @@ class AuthenticationService {
         }
     }
 
-    private void doOpenSavingsAccountRequest(final String authToken, final String iBAN,
-                                             final CallbackBuilder callbackBuilder) {
-        ledgerClient.putFormAsyncWith2Params("/services/ledger/savingsAccount", "authToken", authToken,
-                "iBAN", iBAN,
+    private void doOpenSavingsAccountRequest(final String iBAN, final CallbackBuilder callbackBuilder) {
+        ledgerClient.putFormAsyncWith1Param("/services/ledger/savingsAccount", "iBAN", iBAN,
                 (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = jsonConverter.fromJson(
@@ -1251,7 +1249,7 @@ class AuthenticationService {
                                                     final CallbackBuilder callbackBuilder) {
         try {
             authenticateRequest(authToken);
-            doCloseSavingsAccountRequest(authToken, iBAN, callbackBuilder);
+            doCloseSavingsAccountRequest(iBAN, callbackBuilder);
         } catch (UserNotAuthorizedException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
                     "The user is not authorized to perform this action.")));
@@ -1262,10 +1260,8 @@ class AuthenticationService {
         }
     }
 
-    private void doCloseSavingsAccountRequest(final String authToken, final String iBAN,
-                                             final CallbackBuilder callbackBuilder) {
-        ledgerClient.putFormAsyncWith2Params("/services/ledger/savingsAccount/close", "authToken",
-                authToken, "iBAN", iBAN,
+    private void doCloseSavingsAccountRequest(final String iBAN, final CallbackBuilder callbackBuilder) {
+        ledgerClient.putFormAsyncWith1Param("/services/ledger/savingsAccount/close", "iBAN", iBAN,
                 (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = jsonConverter.fromJson(

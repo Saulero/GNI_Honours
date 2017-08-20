@@ -1,5 +1,6 @@
 package ledger;
 
+import authentication.UserNotAuthorizedException;
 import com.google.gson.Gson;
 import database.ConnectionPool;
 import database.SQLConnection;
@@ -1063,6 +1064,36 @@ class LedgerService {
         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
                 false, 200, "Normal Reply", overdraftLimit)));
     }
+
+    @RequestMapping(value = "/savingsAccount", method = RequestMethod.PUT)
+    public void openSavingsAccount(final Callback<String> callback, @RequestParam("iBAN") final String iBAN) {
+        System.out.printf("%s Received open savings account request.\n", PREFIX);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleOpenSavingsAccountExceptions(iBAN, callbackBuilder);
+    }
+
+    private void handleOpenSavingsAccountExceptions(final String iBAN, final CallbackBuilder callbackBuilder) {
+        try {
+            openSavingsAccount(iBAN);
+            sendOpenSavingsAccountCallback(callbackBuilder);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to the authentication database.")));
+        }
+    }
+
+    private void openSavingsAccount(final String iBAN) throws SQLException {
+        //todo fill
+    }
+
+    private void sendOpenSavingsAccountCallback(final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Open savings account request successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                false, 200, "Normal Reply")));
+    }
+
+
 
     /**
      * Safely shuts down the LedgerService.
