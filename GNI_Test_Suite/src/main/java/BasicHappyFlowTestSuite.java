@@ -343,7 +343,7 @@ public class BasicHappyFlowTestSuite {
             }
 
             // TransferMoney from savings account
-            System.out.println("-- TransferMoney. Donald transfers some money to his savings account --");
+            System.out.println("-- TransferMoney. Donald transfers some money from his savings account --");
 
             request = TransferMoneyMethod.createRequest(savingsAccount, bankAccount1, customer1, 100, "Moniez");
             response = client.processRequest(request);

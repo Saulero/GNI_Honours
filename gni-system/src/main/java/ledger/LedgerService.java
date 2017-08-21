@@ -580,6 +580,12 @@ class LedgerService {
      */
     private boolean getCustomerAuthorization(final String accountNumber, final String customerId) {
         try {
+            String effectiveAccountNumber;
+            if (accountNumber.endsWith("S")) {
+                effectiveAccountNumber = accountNumber.substring(0, accountNumber.length() - 1);
+            } else {
+                effectiveAccountNumber = accountNumber;
+            }
             // TODO THIS SERVICE IS NOT ALLOWED TO USE THE TABLES FROM THE USERS SERVICE
             SQLConnection databaseConnection = db.getConnection();
             PreparedStatement getAccountNumbers = databaseConnection.getConnection()
@@ -588,7 +594,7 @@ class LedgerService {
             ResultSet accountRows = getAccountNumbers.executeQuery();
             boolean authorized = false;
             while (accountRows.next() && !authorized) {
-                if (accountRows.getString("account_number").equals(accountNumber)) {
+                if (accountRows.getString("account_number").equals(effectiveAccountNumber)) {
                     authorized = true;
                 }
             }
