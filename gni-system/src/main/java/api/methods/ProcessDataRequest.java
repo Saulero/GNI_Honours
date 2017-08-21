@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 import static api.ApiService.PREFIX;
-import static api.ApiService.ACCOUNT_NUMBER_LENGTH;
+import static api.ApiService.MAX_ACCOUNT_NUMBER_LENGTH;
 import static api.methods.SharedUtilityMethods.sendErrorReply;
 import static java.net.HttpURLConnection.HTTP_OK;
 
@@ -67,7 +67,7 @@ public class ProcessDataRequest {
         } else if (accountNumber == null && dataRequest.getType() != RequestType.CUSTOMERACCESSLIST) {
             throw new IncorrectInputException("AccountNumber specified is null.");
         } else if (accountNumber != null && accountNumber.length()
-                != ACCOUNT_NUMBER_LENGTH && dataRequest.getType() != RequestType.CUSTOMERACCESSLIST) {
+                > MAX_ACCOUNT_NUMBER_LENGTH && dataRequest.getType() != RequestType.CUSTOMERACCESSLIST) {
             throw new IncorrectInputException("AccountNumber specified is of an incorrect length.");
         }
     }
@@ -115,10 +115,12 @@ public class ProcessDataRequest {
         switch (requestType) {
             case BALANCE:
                 Double balance = dataReply.getAccountData().getBalance();
+                Double savingBalance = dataReply.getAccountData().getSavingsBalance();
                 System.out.printf("%s Request successful, balance: %f\n\n\n\n",
                         PREFIX, dataReply.getAccountData().getBalance());
                 Map<String, Object> balanceResult = new HashMap<>();
                 balanceResult.put("balance", balance.toString());
+                balanceResult.put("savingAccountBalance", savingBalance);
                 sendDataRequestResponse(balanceResult, api);
                 break;
             case TRANSACTIONHISTORY:

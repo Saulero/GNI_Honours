@@ -44,7 +44,17 @@ class LedgerService {
     /** Prefix used when printing to indicate the message is coming from the Ledger Service. */
     private static final String PREFIX = "[Ledger]              :";
     /** Interest rate that the bank charges every month to customers that are overdraft. */
-    private static final double MONTHLY_INTEREST_RATE = 0.00797;
+    private static final double MONTHLY_OVERDRAFT_RATE = 0.00797;
+    /** Interest rate for a savings balance of up to the tier 1 cap. */
+    private static final double TIER_1_INTEREST_RATE = 0.15;
+    /** Cap of the tier 1 interest rate. */
+    private static final int TIER_1_CAP = 25000;
+    /** Interest rate for a savings balance from tier 1 cap until tier 2 cap. */
+    private static final double TIER_2_INTEREST_RATE = 0.15;
+    /** Cap of the tier 2 interest rate. */
+    private static final int TIER_2_CAP = 75000;
+    /** Interest rate for a savings balance of more than tier 2 cap. */
+    private static final double TIER_3_INTEREST_RATE = 0.20;
     /** Account number where overdraft fees are transferred to. */
     private static final String OVERDRAFT_ACCOUNT = "NL52GNIB3676451168";
 
@@ -148,8 +158,10 @@ class LedgerService {
             ps.setLong(1, newID);                               // id
             ps.setString(2, newAccount.getAccountNumber());     // account_number
             ps.setString(3, newAccount.getAccountHolderName()); // name
-            ps.setDouble(4, newAccount.getOverdraftLimit());     // overdraft_limit
+            ps.setDouble(4, newAccount.getOverdraftLimit());    // overdraft_limit
             ps.setDouble(5, newAccount.getBalance());           // balance
+            ps.setBoolean(6, false);                         // savings_active
+            ps.setDouble(7, 0.0);                            // savings balance
 
             ps.executeUpdate();
             ps.close();
@@ -232,7 +244,9 @@ class LedgerService {
                 String name = rs.getString("name");
                 double overdraftLimit = rs.getDouble("overdraft_limit");
                 double balance = rs.getDouble("balance");
-                Account account = new Account(name, overdraftLimit, balance);
+                boolean savingsActive = rs.getBoolean("savings_active");
+                double savingsBalance = rs.getDouble("savings_balance");
+                Account account = new Account(name, overdraftLimit, balance, savingsActive, savingsBalance);
                 account.setAccountNumber(accountNumber);
 
                 rs.close();
@@ -379,7 +393,8 @@ class LedgerService {
             ps.setString(5, transaction.getSourceAccountNumber());
             ps.setDouble(6, transaction.getTransactionAmount());
             ps.setDouble(7, transaction.getNewBalance());
-            ps.setString(8, transaction.getDescription());
+            ps.setDouble(8, transaction.getNewSavingsBalance());
+            ps.setString(9, transaction.getDescription());
             ps.executeUpdate();
 
             ps.close();
@@ -437,6 +452,8 @@ class LedgerService {
                         // Update the database
                         updateBalance(account);
                         transaction.setNewBalance(account.getBalance());
+                        updateSavingsBalance(account);
+                        transaction.setNewSavingsBalance(account.getSavingsBalance());
 
                         // Update Transaction log
                         transaction.setTransactionID(getHighestTransactionID());
@@ -504,7 +521,13 @@ class LedgerService {
                 if (!messageWrapper.isError()) {
 
                     LocalDate date = (LocalDate) messageWrapper.getData();
-                    Account account = getAccountInfo(transaction.getSourceAccountNumber());
+                    Account account;
+                    String sourceAccountNumber = transaction.getSourceAccountNumber();
+                    if (sourceAccountNumber.endsWith("S")) {
+                        account = getAccountInfo(sourceAccountNumber.substring(0, sourceAccountNumber.length() - 1));
+                    } else {
+                        account = getAccountInfo(sourceAccountNumber);
+                    }
                     if (account != null && account.withdrawTransactionIsAllowed(transaction) && customerIsAuthorized) {
                         // Update the object
                         account.processWithdraw(transaction);
@@ -512,6 +535,8 @@ class LedgerService {
                         // Update the database
                         updateBalance(account);
                         transaction.setNewBalance(account.getBalance());
+                        updateSavingsBalance(account);
+                        transaction.setNewSavingsBalance(account.getSavingsBalance());
 
                         /// Update Transaction log
                         transaction.setTransactionID(getHighestTransactionID());
@@ -561,6 +586,12 @@ class LedgerService {
      */
     private boolean getCustomerAuthorization(final String accountNumber, final String customerId) {
         try {
+            String effectiveAccountNumber;
+            if (accountNumber.endsWith("S")) {
+                effectiveAccountNumber = accountNumber.substring(0, accountNumber.length() - 1);
+            } else {
+                effectiveAccountNumber = accountNumber;
+            }
             // TODO THIS SERVICE IS NOT ALLOWED TO USE THE TABLES FROM THE USERS SERVICE
             SQLConnection databaseConnection = db.getConnection();
             PreparedStatement getAccountNumbers = databaseConnection.getConnection()
@@ -569,7 +600,7 @@ class LedgerService {
             ResultSet accountRows = getAccountNumbers.executeQuery();
             boolean authorized = false;
             while (accountRows.next() && !authorized) {
-                if (accountRows.getString("account_number").equals(accountNumber)) {
+                if (accountRows.getString("account_number").equals(effectiveAccountNumber)) {
                     authorized = true;
                 }
             }
@@ -656,7 +687,9 @@ class LedgerService {
             String name = rs.getString("name");
             double overdraftLimit = rs.getDouble("overdraft_limit");
             double balance = rs.getDouble("balance");
-            Account account = new Account(name, overdraftLimit, balance);
+            boolean savingsActive = rs.getBoolean("savings_active");
+            double savingsBalance = rs.getDouble("savings_balance");
+            Account account = new Account(name, overdraftLimit, balance, savingsActive, savingsBalance);
             account.setAccountNumber(accountNumber);
             dataReply = JSONParser.createJsonDataReply(dataRequest.getAccountNumber(), dataRequest.getType(), account);
         }
@@ -765,13 +798,24 @@ class LedgerService {
      * @param callbackBuilder Used to send a reply to the request source.
      */
     private void processInterestRequest(final LocalDate localDate, final CallbackBuilder callbackBuilder) {
-        //date is the first day of the new month, so process the previous month.
         try {
+            //date is the first day of the new month, so process the previous month.
             LocalDate firstProcessDay = localDate.minusMonths(1);
             LocalDate lastProcessDay = localDate.minusDays(1);
             List<String> overdraftAccounts = findOverdraftAccounts(firstProcessDay, lastProcessDay);
-            Map<String, Double> interestMap = calculateInterest(overdraftAccounts, firstProcessDay, lastProcessDay);
-            withdrawInterest(interestMap, localDate);
+            Map<String, Double> overdraftInterestMap = calculateOverdraftInterest(overdraftAccounts, firstProcessDay,
+                                                                        lastProcessDay);
+            withdrawOverdraftInterest(overdraftInterestMap, localDate);
+            // If jan 1 do savings interest processing for last year.
+            if (localDate.getDayOfYear() == 1) {
+                firstProcessDay = localDate.minusYears(1);
+                lastProcessDay = localDate.minusDays(1);
+                List<String> savingsAccounts = findSavingsAccounts(firstProcessDay, lastProcessDay);
+                Map<String, Double> savingsInterestMap = calculateSavingsInterest(savingsAccounts, firstProcessDay,
+                                                                                    lastProcessDay);
+                depositSavingsInterest(savingsInterestMap, localDate);
+            }
+            sendInterestCallback(localDate, callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
@@ -806,6 +850,29 @@ class LedgerService {
         return overdraftAccounts;
     }
 
+    private List<String> findSavingsAccounts(final LocalDate firstProcessDay, final LocalDate lastProcessDay)
+            throws SQLException {
+        SQLConnection connection = db.getConnection();
+        PreparedStatement getSavingsAccounts = connection.getConnection()
+                .prepareStatement(SQLStatements.getSavingsAccounts);
+        getSavingsAccounts.setDate(1, java.sql.Date.valueOf(firstProcessDay));
+        getSavingsAccounts.setDate(2, java.sql.Date.valueOf(lastProcessDay));
+        getSavingsAccounts.setDate(3, java.sql.Date.valueOf(firstProcessDay));
+        getSavingsAccounts.setDate(4, java.sql.Date.valueOf(lastProcessDay));
+        ResultSet savingsAccountSet = getSavingsAccounts.executeQuery();
+        List<String> savingsAccounts = new LinkedList<>();
+        while (savingsAccountSet.next()) {
+            String account = savingsAccountSet.getString(1);
+            if (account.endsWith("S")) {
+                account = account.substring(0, account.length() - 1);
+            }
+            savingsAccounts.add(account);
+        }
+        getSavingsAccounts.close();
+        db.returnConnection(connection);
+        return savingsAccounts;
+    }
+
     /**
      * Calculates the interest for a list of accounts that went overdraft, for a given time period.
      * Time period MUST be smaller than one year.
@@ -815,10 +882,11 @@ class LedgerService {
      * @return Map containing accountNumbers as keys, and their respective interest as values.
      * @throws SQLException Thrown when something goes wrong when connecting to the database.
      */
-    private Map<String, Double> calculateInterest(final List<String> overdraftAccounts, final LocalDate firstProcessDay,
-                                                  final LocalDate lastProcessDay) throws SQLException {
+    private Map<String, Double> calculateOverdraftInterest(final List<String> overdraftAccounts,
+                                                           final LocalDate firstProcessDay,
+                                                           final LocalDate lastProcessDay) throws SQLException {
         Map<String, Double> interestMap = new HashMap<>();
-        double dailyInterestRate = MONTHLY_INTEREST_RATE / firstProcessDay.getMonth()
+        double dailyInterestRate = MONTHLY_OVERDRAFT_RATE / firstProcessDay.getMonth()
                                                                             .length(firstProcessDay.isLeapYear());
         for (String accountNumber : overdraftAccounts) {
             List<Transaction> overdraftTransactions = findOverdraftTransactions(accountNumber, firstProcessDay,
@@ -832,7 +900,7 @@ class LedgerService {
                     interestMap.put(accountNumber, interest);
                 }
             } else {
-                interestMap.put(accountNumber, doDailyInterestCalculation(accountNumber, overdraftTransactions,
+                interestMap.put(accountNumber, doDailyOverdraftInterestCalculation(accountNumber, overdraftTransactions,
                                                                           firstProcessDay, lastProcessDay,
                                                                           dailyInterestRate));
             }
@@ -840,9 +908,46 @@ class LedgerService {
         return interestMap;
     }
 
+    private Map<String, Double> calculateSavingsInterest(final List<String> savingsAccounts,
+                                                         final LocalDate firstProcessDay,
+                                                         final LocalDate lastProcessDay) throws SQLException {
+        Map<String, Double> interestMap = new HashMap<>();
+        for (String accountNumber : savingsAccounts) {
+            List<Transaction> savingsTransactions = findSavingsTransactions(accountNumber, firstProcessDay,
+                                                                            lastProcessDay);
+            if (savingsTransactions.isEmpty()) {
+                Account accountInfo = getAccountInfo(accountNumber);
+                Double savingsBalance = accountInfo.getSavingsBalance();
+                if (savingsBalance > 0) {
+                    interestMap.put(accountNumber, calculateSavingsInterest(savingsBalance));
+                }
+            } else {
+                interestMap.put(accountNumber, doDailySavingsInterestCalculation(accountNumber, savingsTransactions,
+                                                                                 firstProcessDay, lastProcessDay));
+            }
+        }
+        return  interestMap;
+    }
+
+    private Double calculateSavingsInterest(final Double averageBalance) {
+        Double interest;
+        if (averageBalance > TIER_1_CAP) {
+            interest = TIER_1_CAP * TIER_1_INTEREST_RATE;
+            if (averageBalance > TIER_2_CAP) {
+                interest += (TIER_2_CAP - TIER_1_CAP) * TIER_2_INTEREST_RATE;
+                interest += (averageBalance - TIER_2_CAP) * TIER_3_INTEREST_RATE;
+            } else {
+                interest += (averageBalance - TIER_1_CAP) * TIER_2_INTEREST_RATE;
+            }
+        } else {
+            interest = averageBalance * TIER_1_INTEREST_RATE;
+        }
+        return interest;
+    }
+
     /**
      * Calculates the interest for an account separately for each day based on the lowest balance of that day.
-     * Returns the interest owed for the given time period.
+     * Returns the interest owed for the given time period of an overdraft account.
      * @param accountNumber AccountNumber to calculate the interest for.
      * @param overdraftTransactions List of transactions that affected the overdraft of the account during the
      *                              time period.
@@ -851,9 +956,10 @@ class LedgerService {
      * @param dailyInterestRate Interest rate for a single day.
      * @return The interest this account owes for the given time period.
      */
-    private Double doDailyInterestCalculation(final String accountNumber, final List<Transaction> overdraftTransactions,
-                                              final LocalDate firstProcessDay, final LocalDate lastProcessDay,
-                                              final Double dailyInterestRate) {
+    private Double doDailyOverdraftInterestCalculation(final String accountNumber,
+                                                       final List<Transaction> overdraftTransactions,
+                                                       final LocalDate firstProcessDay, final LocalDate lastProcessDay,
+                                                       final Double dailyInterestRate) {
         Double interest = 0.0;
         LocalDate currentProcessDay = firstProcessDay;
         Double currentBalance;
@@ -884,6 +990,40 @@ class LedgerService {
             currentProcessDay = currentProcessDay.plusDays(1);
         }
         return interest;
+    }
+
+    private Double doDailySavingsInterestCalculation(final String accountNumber,
+                                                     final List<Transaction> savingsTransactions,
+                                                     final LocalDate firstProcessDay,
+                                                     final LocalDate lastProcessDay) {
+        Double averageBalance = 0.0;
+        LocalDate currentProcessDay = firstProcessDay;
+        Double currentBalance;
+        // sort transactions from earliest to latest.
+        savingsTransactions.sort(Comparator.comparing(Transaction::getDate));
+        Transaction firstTransaction = savingsTransactions.get(0);
+        if (firstTransaction.getSourceAccountNumber().equals(accountNumber + "S")) {
+            currentBalance = firstTransaction.getNewSavingsBalance()
+                    + firstTransaction.getTransactionAmount();
+        } else {
+            currentBalance = firstTransaction.getNewSavingsBalance()
+                    - firstTransaction.getTransactionAmount();
+        }
+        while (currentProcessDay.isBefore(lastProcessDay) || currentProcessDay.isEqual(lastProcessDay)) {
+            // process transactions of this day and find the lowest balance.
+            Double lowestBalance = currentBalance;
+            while (!savingsTransactions.isEmpty()
+                    && savingsTransactions.get(0).getDate().equals(currentProcessDay)) {
+                Transaction transactionToProcess = savingsTransactions.remove(0);
+                currentBalance = transactionToProcess.getNewSavingsBalance();
+                if (currentBalance < lowestBalance) {
+                    lowestBalance = currentBalance;
+                }
+            }
+            averageBalance += (1.00 / (lastProcessDay.getDayOfYear() - firstProcessDay.getDayOfYear() + 1)) * (lowestBalance);
+            currentProcessDay = currentProcessDay.plusDays(1);
+        }
+        return calculateSavingsInterest(averageBalance);
     }
 
     /**
@@ -927,12 +1067,46 @@ class LedgerService {
         return overdraftTransactions;
     }
 
+    private List<Transaction> findSavingsTransactions(final String accountNumber,
+                                                      final LocalDate firstProcessDay,
+                                                      final LocalDate lastProcessDay) throws SQLException {
+        SQLConnection connection = db.getConnection();
+        PreparedStatement getSavingsTransactions = connection.getConnection()
+                                                        .prepareStatement(SQLStatements.getAccountSavingsTransactions);
+        getSavingsTransactions.setString(1, accountNumber);
+        getSavingsTransactions.setDate(2, java.sql.Date.valueOf(firstProcessDay));
+        getSavingsTransactions.setDate(3, java.sql.Date.valueOf(lastProcessDay));
+        getSavingsTransactions.setString(4, accountNumber);
+        getSavingsTransactions.setDate(5, java.sql.Date.valueOf(firstProcessDay));
+        getSavingsTransactions.setDate(6, java.sql.Date.valueOf(lastProcessDay));
+        ResultSet savingsTransactionSet = getSavingsTransactions.executeQuery();
+        List<Transaction> savingsTransactions = new LinkedList<>();
+        while (savingsTransactionSet.next()) {
+            Long transactionId = savingsTransactionSet.getLong("id");
+            LocalDate transactionDate = savingsTransactionSet.getDate("date").toLocalDate();
+            String accountTo = savingsTransactionSet.getString("account_to");
+            String accountToName = savingsTransactionSet.getString("account_to_name");
+            String accountFrom = savingsTransactionSet.getString("account_from");
+            Double amount = savingsTransactionSet.getDouble("amount");
+            Double newBalance = savingsTransactionSet.getDouble("new_balance");
+            String description = savingsTransactionSet.getString("description");
+            Transaction transaction = new Transaction(transactionId, transactionDate, accountFrom, accountTo,
+                    accountToName, description, amount, newBalance);
+            Double newSavingsBalance = savingsTransactionSet.getDouble("new_savings_balance");
+            transaction.setNewSavingsBalance(newSavingsBalance);
+            savingsTransactions.add(transaction);
+        }
+        getSavingsTransactions.close();
+        db.returnConnection(connection);
+        return savingsTransactions;
+    }
+
     /**
      * Processes interest withdrawals in the system.
      * @param interestMap Map containing accountNumbers as keys, and their owed interest as values.
      * @param currentDate Date during the interest withdrawal.
      */
-    private void withdrawInterest(final Map<String, Double> interestMap, final LocalDate currentDate) {
+    private void withdrawOverdraftInterest(final Map<String, Double> interestMap, final LocalDate currentDate) {
         final String firstDayOfInterest = currentDate.minusMonths(1).toString();
         final String lastDayOfInterest = currentDate.minusDays(1).toString();
         for (String accountNumber : interestMap.keySet()) {
@@ -955,6 +1129,32 @@ class LedgerService {
             transaction.setTransactionID(getHighestTransactionID());
             transaction.setDate(currentDate);
             addTransaction(transaction, false);
+        }
+    }
+
+    private void depositSavingsInterest(final Map<String, Double> interestMap, final LocalDate currentDate) {
+        final String firstDayOfInterest = currentDate.minusMonths(1).toString();
+        final String lastDayOfInterest = currentDate.minusDays(1).toString();
+        for (String accountNumber : interestMap.keySet()) {
+            Transaction transaction = new Transaction();
+            transaction.setSourceAccountNumber(OVERDRAFT_ACCOUNT);
+            transaction.setTransactionAmount(interestMap.get(accountNumber));
+            transaction.setDestinationAccountNumber(accountNumber);
+            transaction.setDestinationAccountHolderName("GNI Bank");
+            transaction.setDescription(String.format("Savings interest %s until %s", firstDayOfInterest,
+                    lastDayOfInterest));
+            Account account = getAccountInfo(accountNumber);
+            // Update the object
+            account.processSavingsInterest(transaction);
+
+            // Update the database
+            updateSavingsBalance(account);
+            transaction.setNewSavingsBalance(account.getSavingsBalance());
+
+            /// Update Transaction log
+            transaction.setTransactionID(getHighestTransactionID());
+            transaction.setDate(currentDate);
+            addTransaction(transaction, true);
         }
     }
 
@@ -1062,6 +1262,165 @@ class LedgerService {
         System.out.printf("%s Successfully processed getOverdraftLimit request, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
                 false, 200, "Normal Reply", overdraftLimit)));
+    }
+
+    /**
+     * Activates the savings account linked to an already existing iBAN account.
+     * @param callback Used to send a reply to the request source.
+     * @param iBAN AccountNumber of the account to activate the savings account for.
+     */
+    @RequestMapping(value = "/savingsAccount", method = RequestMethod.PUT)
+    public void openSavingsAccount(final Callback<String> callback, @RequestParam("iBAN") final String iBAN) {
+        System.out.printf("%s Received open savings account request.\n", PREFIX);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        updateSavingsStatus(true, iBAN);
+        sendOpenSavingsAccountCallback(callbackBuilder);
+    }
+
+    /**
+     * Updates the status of a savings account.
+     * @param isActive Status to update it to.
+     * @param iBAN AccountNumber the savings account is linked to.
+     */
+    void updateSavingsStatus(final boolean isActive, final String iBAN) {
+        try {
+            SQLConnection connection = db.getConnection();
+            PreparedStatement addSavingsAccountToDb = connection.getConnection()
+                    .prepareStatement(SQLStatements.updateSavingsStatus);
+            addSavingsAccountToDb.setBoolean(1, isActive);
+            addSavingsAccountToDb.setString(2, iBAN);
+            addSavingsAccountToDb.execute();
+            addSavingsAccountToDb.close();
+            db.returnConnection(connection);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Sends a callback for the open savings account request indicating the request was successfull.
+     * @param callbackBuilder Used to send the response to the request source.
+     */
+    private void sendOpenSavingsAccountCallback(final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Open savings account request successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                false, 200, "Normal Reply")));
+    }
+
+    /**
+     * Closes a savings account for a given account, if there were any funds left in the savings account these will be
+     * transferred to the normal account.
+     * @param callback Used to send a reply to the request source.
+     * @param iBAN AccountNumber of the savings account to close(same as the regular account).
+     */
+    @RequestMapping(value = "/savingsAccount/close", method = RequestMethod.PUT)
+    public void closeSavingsAccount(final Callback<String> callback, @RequestParam("iBAN") final String iBAN) {
+        System.out.printf("%s Received close savings account request.\n", PREFIX);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleCloseSavingsAccountExceptions(iBAN, callbackBuilder);
+    }
+
+    /**
+     * If an sql exception occurs this method will send a callback indicating that an error occurred.
+     * @param iBAN AccountNumber of the account for which the savings account should be closed.
+     * @param callbackBuilder Used to send a reply to the request source.
+     */
+    private void handleCloseSavingsAccountExceptions(final String iBAN, final CallbackBuilder callbackBuilder) {
+        try {
+            deactivateSavingsAccount(iBAN, callbackBuilder);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to the Ledger database.")));
+        }
+    }
+
+    /**
+     * Deactivates a savings account in the database. If there are any funds left in the savings account these will be
+     * transferred to the regular account.
+     * @param iBAN AccountNumber of the account that owns the savings account.
+     * @param callbackBuilder Used to send a reply to the request source.
+     * @throws SQLException Thrown when the database connection fails.
+     */
+    private void deactivateSavingsAccount(final String iBAN, final CallbackBuilder callbackBuilder)
+            throws SQLException {
+        Account account = getAccountInfo(iBAN);
+        if (account != null) {
+            Double savingsBalance = account.getSavingsBalance();
+            if (savingsBalance > 0) {
+                // Update the object before async call
+                account.transferSavingsToMain();
+                // fetch date
+                systemInformationClient.getAsync("/services/systemInfo/date", (code, contentType, body) -> {
+                    if (code == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
+                                MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            LocalDate date = (LocalDate) messageWrapper.getData();
+                            // Update the database
+                            updateBalance(account);
+                            updateSavingsBalance(account);
+                            updateSavingsStatus(false, account.getAccountNumber());
+                            // Create transaction for transaction history
+                            Transaction transaction = new Transaction(getHighestTransactionID(),
+                                    account.getAccountNumber() + "S", account.getAccountNumber(),
+                                    account.getAccountHolderName(),
+                                    "Transfer of savings account to main account.", savingsBalance);
+                            transaction.setNewBalance(account.getBalance());
+                            transaction.setNewSavingsBalance(account.getSavingsBalance());
+                            transaction.setDate(date);
+                            addTransaction(transaction, true);
+                            sendCloseSavingsAccountCallback(callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(body);
+                        }
+                    } else {
+                        System.out.printf("%s Processing removal of savings account failed, body: %s\n\n\n\n",
+                                PREFIX, body);
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true,
+                                500, "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests")));
+                    }
+                });
+            } else {
+                updateSavingsStatus(false, account.getAccountNumber());
+                sendCloseSavingsAccountCallback(callbackBuilder);
+            }
+        } else {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true,
+                    418, "One of the parameters has an invalid value.",
+                    "There is no account in the system with that iBAN.")));
+        }
+    }
+
+    /**
+     * Overwrites account information for a specific account,
+     * in case a transaction is successfully processed.
+     * @param account The account to overwrite, containing the new data
+     */
+    void updateSavingsBalance(final Account account) {
+        try {
+            SQLConnection connection = db.getConnection();
+            PreparedStatement ps = connection.getConnection().prepareStatement(updateSavingsBalance);
+            ps.setDouble(1, account.getSavingsBalance());
+            ps.setString(2, account.getAccountNumber());
+            ps.executeUpdate();
+
+            ps.close();
+            db.returnConnection(connection);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Sends a successfull callback for a close savings account request.
+     * @param callbackBuilder Used to send a reply to the request source.
+     */
+    private void sendCloseSavingsAccountCallback(final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Close savings account request successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                false, 200, "Normal Reply")));
     }
 
     /**

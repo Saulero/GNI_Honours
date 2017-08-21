@@ -11,11 +11,16 @@ public class Account implements Serializable {
     private String accountHolderName;
     private double overdraftLimit;
     private double balance;
+    private boolean savingsActive;
+    private double savingsBalance;
 
-    public Account(final String newAccountHolderName, final double newOverdraftLimit, final double newBalance) {
+    public Account(final String newAccountHolderName, final double newOverdraftLimit, final double newBalance,
+                   final boolean savingsActive, final double savingsBalance) {
         this.accountHolderName = newAccountHolderName;
         this.overdraftLimit = newOverdraftLimit;
         this.balance = newBalance;
+        this.savingsActive = savingsActive;
+        this.savingsBalance = savingsBalance;
     }
 
     /** Used for Json conversions, only use if you manually fill the object afterwards. */
@@ -24,15 +29,46 @@ public class Account implements Serializable {
     }
 
     public boolean withdrawTransactionIsAllowed(final Transaction transaction) {
-        return transaction.getTransactionAmount() <= (balance + overdraftLimit);
+        if (transaction.getDestinationAccountNumber().equals(transaction.getSourceAccountNumber() + "S")) {
+            return savingsActive && transaction.getTransactionAmount() <= (balance + overdraftLimit);
+        } else if (transaction.getSourceAccountNumber().equals(transaction.getDestinationAccountNumber() + "S")) {
+            return savingsActive && transaction.getTransactionAmount() <= savingsBalance;
+        } else {
+            return transaction.getTransactionAmount() <= (balance + overdraftLimit);
+        }
     }
 
     public void processWithdraw(final Transaction transaction) {
-        this.balance -= transaction.getTransactionAmount();
+        if ((transaction.getSourceAccountNumber().equals(transaction.getDestinationAccountNumber() + "S"))) {
+            // transfer from savings to normal account
+            this.balance += transaction.getTransactionAmount();
+            this.savingsBalance -= transaction.getTransactionAmount();
+        } else if ((transaction.getDestinationAccountNumber()).equals(transaction.getSourceAccountNumber() + "S")) {
+            // deposit comes from savings account, update savings balance
+            this.savingsBalance += transaction.getTransactionAmount();
+            this.balance -= transaction.getTransactionAmount();
+        } else {
+            // normal withdraw
+            this.balance -= transaction.getTransactionAmount();
+        }
+
     }
 
     public void processDeposit(final Transaction transaction) {
         this.balance += transaction.getTransactionAmount();
+        if ((transaction.getSourceAccountNumber()).equals(transaction.getDestinationAccountNumber() + "S")) {
+            // deposit comes from savings account, update savings balance
+            this.savingsBalance -= transaction.getTransactionAmount();
+        }
+    }
+
+    public void processSavingsInterest(final Transaction transaction) {
+        this.savingsBalance += transaction.getTransactionAmount();
+    }
+
+    public void transferSavingsToMain() {
+        this.balance += this.savingsBalance;
+        this.savingsBalance = 0;
     }
 
     public String getAccountNumber() {
@@ -65,6 +101,23 @@ public class Account implements Serializable {
 
     public void setBalance(final double newBalance) {
         this.balance = newBalance;
+    }
+
+
+    public boolean isSavingsActive() {
+        return savingsActive;
+    }
+
+    public void setSavingsActive(final boolean newSavingsActive) {
+        savingsActive = newSavingsActive;
+    }
+
+    public double getSavingsBalance() {
+        return savingsBalance;
+    }
+
+    public void setSavingsBalance(final double newSavingsBalance) {
+        savingsBalance = newSavingsBalance;
     }
 
     @Override

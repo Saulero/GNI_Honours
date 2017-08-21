@@ -12,7 +12,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static api.ApiService.PREFIX;
-import static api.ApiService.ACCOUNT_NUMBER_LENGTH;
+import static api.ApiService.MAX_ACCOUNT_NUMBER_LENGTH;
 import static api.methods.SharedUtilityMethods.sendErrorReply;
 import static java.net.HttpURLConnection.HTTP_OK;
 
@@ -65,7 +65,7 @@ public class UnblockCard {
     private static void verifyPinCardInput(final PinCard pinCard)
             throws IncorrectInputException, JsonSyntaxException {
         final String accountNumber = pinCard.getAccountNumber();
-        if (accountNumber == null || accountNumber.length() != ACCOUNT_NUMBER_LENGTH) {
+        if (accountNumber == null || accountNumber.length() > MAX_ACCOUNT_NUMBER_LENGTH) {
             throw new IncorrectInputException("The following variable was incorrectly specified: accountNumber.");
         }
     }

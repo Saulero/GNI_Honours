@@ -355,7 +355,6 @@ class SystemInformationService {
         addErrorLog.setLong(2, response.getError().getCode());
         addErrorLog.setDate(3, java.sql.Date.valueOf(systemDate));
         String time = LocalTime.now(ZoneOffset.UTC).toString();
-        System.out.println(time);
         addErrorLog.setString(4, time);
         String errorMessage = error.getMessage();
         if (errorMessage == null) {

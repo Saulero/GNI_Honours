@@ -312,6 +312,46 @@ public class BasicHappyFlowTestSuite {
                 TransferMoneyMethod.parseResponse(parsedResponse);
             }
 
+            // ObtainBalance
+            System.out.println("-- Donald wants to obtain his balance --");
+
+            request = GetBalanceMethod.createRequest(customer1, bankAccount1);
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                GetBalanceMethod.parseResponse(parsedResponse);
+            }
+
+            // Open savings account
+            System.out.println("-- OpenSavingsAccount. Donald opens a savings account --");
+            request = OpenSavingsAccountMethod.createRequest(customer1, bankAccount1);
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                OpenSavingsAccountMethod.parseResponse(parsedResponse);
+            }
+
+            // TransferMoney to savings account
+            System.out.println("-- TransferMoney. Donald transfers some money to his savings account --");
+
+            BankAccount savingsAccount = new BankAccount(bankAccount1.getiBAN() + "S");
+            request = TransferMoneyMethod.createRequest(bankAccount1, savingsAccount, customer1, 100, "Moniez");
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                TransferMoneyMethod.parseResponse(parsedResponse);
+            }
+
+            // ObtainBalance
+            System.out.println("-- Donald wants to obtain his balance --");
+
+            request = GetBalanceMethod.createRequest(customer1, bankAccount1);
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                GetBalanceMethod.parseResponse(parsedResponse);
+            }
+
             // simulateTime
             System.out.println("-- 365 days pass. --");
             request = SimulateTimeMethod.createRequest(365L);
@@ -319,6 +359,16 @@ public class BasicHappyFlowTestSuite {
 
             if ((parsedResponse = checkResponse(response)) != null) {
                 SimulateTimeMethod.parseResponse(parsedResponse);
+            }
+
+            // TransferMoney from savings account
+            System.out.println("-- TransferMoney. Donald transfers some money from his savings account --");
+
+            request = TransferMoneyMethod.createRequest(savingsAccount, bankAccount1, customer1, 100, "Moniez");
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                TransferMoneyMethod.parseResponse(parsedResponse);
             }
 
             // getTransactionOverview
@@ -339,6 +389,15 @@ public class BasicHappyFlowTestSuite {
 
             if ((parsedResponse = checkResponse(response)) != null) {
                 GetBalanceMethod.parseResponse(parsedResponse);
+            }
+
+            // close savings account
+            System.out.println("-- CloseSavingsAccount. Donald closes his savings account --");
+            request = CloseSavingsAccountMethod.createRequest(customer1, bankAccount1);
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                CloseSavingsAccountMethod.parseResponse(parsedResponse);
             }
 
             //getEventLog for the past 400 days

@@ -7,10 +7,9 @@ import com.thetransactioncompany.jsonrpc2.JSONRPC2Error;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 import databeans.AccountLink;
 import databeans.MessageWrapper;
-import io.advantageous.qbit.reactive.CallbackBuilder;
 import util.JSONParser;
 
-import static api.ApiService.ACCOUNT_NUMBER_LENGTH;
+import static api.ApiService.MAX_ACCOUNT_NUMBER_LENGTH;
 import static api.ApiService.CHARACTER_LIMIT;
 import static java.net.HttpURLConnection.HTTP_OK;
 
@@ -70,7 +69,7 @@ public class SharedUtilityMethods {
     public static void verifyAccountLinkInput(final AccountLink accountLink)
             throws IncorrectInputException, JsonSyntaxException {
         final String accountNumber = accountLink.getAccountNumber();
-        if (accountNumber == null || accountNumber.length() != ACCOUNT_NUMBER_LENGTH) {
+        if (accountNumber == null || accountNumber.length() > MAX_ACCOUNT_NUMBER_LENGTH) {
             throw new IncorrectInputException("The following variable was incorrectly specified: accountNumber.");
         }
     }
