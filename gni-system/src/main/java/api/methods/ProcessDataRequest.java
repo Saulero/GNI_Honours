@@ -115,10 +115,12 @@ public class ProcessDataRequest {
         switch (requestType) {
             case BALANCE:
                 Double balance = dataReply.getAccountData().getBalance();
+                Double savingBalance = dataReply.getAccountData().getSavingsBalance();
                 System.out.printf("%s Request successful, balance: %f\n\n\n\n",
                         PREFIX, dataReply.getAccountData().getBalance());
                 Map<String, Object> balanceResult = new HashMap<>();
                 balanceResult.put("balance", balance.toString());
+                balanceResult.put("savingAccountBalance", savingBalance);
                 sendDataRequestResponse(balanceResult, api);
                 break;
             case TRANSACTIONHISTORY:

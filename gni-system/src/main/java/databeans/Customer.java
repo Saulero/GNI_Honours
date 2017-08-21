@@ -58,7 +58,7 @@ public class Customer implements Serializable {
         this.ssn = newSsn;
         this.username = newUsername;
         this.password = newPassword;
-        this.account = new Account(newInitials + newSurname, 0, 0);
+        this.account = new Account(newInitials + newSurname, 0, 0, false, 0.0);
     }
 
     /** Initializes customer object and assigns its variables.
@@ -85,7 +85,7 @@ public class Customer implements Serializable {
         this.address = newAddress;
         this.dob = newDob;
         this.ssn = newSsn;
-        this.account = new Account(newSurname, newOverdraftLimit, newBalance);
+        this.account = new Account(newSurname, newOverdraftLimit, newBalance, false, 0.0);
         this.customerId = newId;
     }
 

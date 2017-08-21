@@ -826,7 +826,7 @@ class UsersService {
             } else {
                 Customer accountOwner = getCustomerData(customerId);
                 accountOwner.setAccount(new Account(accountOwner.getInitials()
-                                                    + accountOwner.getSurname(), 0.0, 0.0));
+                                                    + accountOwner.getSurname(), 0.0, 0.0, false, 0.0));
                 doNewAccountRequest(accountOwner, callbackBuilder);
             }
         } catch (SQLException e) {

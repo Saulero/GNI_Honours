@@ -927,7 +927,7 @@ class LedgerService {
         if (averageBalance > TIER_1_CAP) {
             interest = TIER_1_CAP * TIER_1_INTEREST_RATE;
             if (averageBalance > TIER_2_CAP) {
-                interest += TIER_2_CAP - TIER_1_CAP * TIER_2_INTEREST_RATE;
+                interest += (TIER_2_CAP - TIER_1_CAP) * TIER_2_INTEREST_RATE;
                 interest += (averageBalance - TIER_2_CAP) * TIER_3_INTEREST_RATE;
             } else {
                 interest += (averageBalance - TIER_1_CAP) * TIER_2_INTEREST_RATE;
