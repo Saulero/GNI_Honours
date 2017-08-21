@@ -12,7 +12,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static api.ApiService.PREFIX;
-import static api.ApiService.ACCOUNT_NUMBER_LENGTH;
+import static api.ApiService.MAX_ACCOUNT_NUMBER_LENGTH;
 import static api.methods.SharedUtilityMethods.sendErrorReply;
 import static java.net.HttpURLConnection.HTTP_OK;
 
@@ -61,7 +61,7 @@ public class NewPinCard {
      * @throws IncorrectInputException Thrown if it did not conform to the specifics
      */
     private static void verifyNewPinCardInput(final String accountNumber) throws IncorrectInputException {
-        if (accountNumber == null || accountNumber.length() != ACCOUNT_NUMBER_LENGTH) {
+        if (accountNumber == null || accountNumber.length() > MAX_ACCOUNT_NUMBER_LENGTH) {
             throw new IncorrectInputException("The following variable was incorrectly specified: accountNumber.");
         }
     }

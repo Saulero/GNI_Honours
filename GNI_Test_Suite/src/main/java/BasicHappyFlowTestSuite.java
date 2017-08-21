@@ -313,8 +313,25 @@ public class BasicHappyFlowTestSuite {
             }
 
             // Open savings account
+            System.out.println("-- OpenSavingsAccount. Donald opens a savings account --");
+            request = OpenSavingsAccountMethod.createRequest(customer1, bankAccount1);
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                OpenSavingsAccountMethod.parseResponse(parsedResponse);
+            }
 
             // TransferMoney to savings account
+            System.out.println("-- TransferMoney. Donald transfers some money to his savings account --");
+
+            BankAccount savingsAccount = new BankAccount(bankAccount1.getiBAN() + "S");
+            request = TransferMoneyMethod.createRequest(bankAccount1, savingsAccount, customer1, 100, "Moniez");
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                TransferMoneyMethod.parseResponse(parsedResponse);
+            }
+
 
             // simulateTime
             System.out.println("-- 365 days pass. --");
@@ -326,6 +343,14 @@ public class BasicHappyFlowTestSuite {
             }
 
             // TransferMoney from savings account
+            System.out.println("-- TransferMoney. Donald transfers some money to his savings account --");
+
+            request = TransferMoneyMethod.createRequest(savingsAccount, bankAccount1, customer1, 100, "Moniez");
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                TransferMoneyMethod.parseResponse(parsedResponse);
+            }
 
             // getTransactionOverview
             System.out.println("-- Donald wants to get transaction overview --");
@@ -348,8 +373,13 @@ public class BasicHappyFlowTestSuite {
             }
 
             // close savings account
+            System.out.println("-- CloseSavingsAccount. Donald closes his savings account --");
+            request = CloseSavingsAccountMethod.createRequest(customer1, bankAccount1);
+            response = client.processRequest(request);
 
-
+            if ((parsedResponse = checkResponse(response)) != null) {
+                CloseSavingsAccountMethod.parseResponse(parsedResponse);
+            }
 
             //getEventLog for the past 400 days
             System.out.println("-- Donald wants to get an event overview --");

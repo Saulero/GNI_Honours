@@ -12,7 +12,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static api.ApiService.PREFIX;
-import static api.ApiService.ACCOUNT_NUMBER_LENGTH;
+import static api.ApiService.MAX_ACCOUNT_NUMBER_LENGTH;
 import static api.ApiService.DESCRIPTION_LIMIT;
 import static api.methods.SharedUtilityMethods.sendErrorReply;
 import static api.methods.SharedUtilityMethods.valueHasCorrectLength;
@@ -80,9 +80,9 @@ public class TransferMoney {
         final String destinationAccountHolderName = transaction.getDestinationAccountHolderName();
         final String transactionDescription = transaction.getDescription();
         final double transactionAmount = transaction.getTransactionAmount();
-        if (sourceAccountNumber == null || sourceAccountNumber.length() != ACCOUNT_NUMBER_LENGTH) {
+        if (sourceAccountNumber == null || sourceAccountNumber.length() > MAX_ACCOUNT_NUMBER_LENGTH) {
             throw new IncorrectInputException("The following variable was incorrectly specified: sourceAccountNumber.");
-        } else if (destinationAccountNumber == null || destinationAccountNumber.length() != ACCOUNT_NUMBER_LENGTH) {
+        } else if (destinationAccountNumber == null || destinationAccountNumber.length() > MAX_ACCOUNT_NUMBER_LENGTH) {
             throw new IncorrectInputException("The following variable was incorrectly specified:"
                     + " destinationAccountNumber.");
         } else if (destinationAccountHolderName == null || !valueHasCorrectLength(destinationAccountHolderName)) {
