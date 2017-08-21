@@ -906,17 +906,12 @@ class LedgerService {
                                                          final LocalDate firstProcessDay,
                                                          final LocalDate lastProcessDay) throws SQLException {
         Map<String, Double> interestMap = new HashMap<>();
-        int leapYearOffset = firstProcessDay.isLeapYear() ? 1 : 0;
-        double dailyTier1Rate = TIER_1_INTEREST_RATE / (365 + leapYearOffset);
-        double dailyTier2Rate = TIER_2_INTEREST_RATE / (365 + leapYearOffset);
-        double dailyTier3Rate = TIER_3_INTEREST_RATE / (365 + leapYearOffset);
         for (String accountNumber : savingsAccounts) {
             List<Transaction> savingsTransactions = findSavingsTransactions(accountNumber, firstProcessDay,
                                                                             lastProcessDay);
             if (savingsTransactions.isEmpty()) {
                 Account accountInfo = getAccountInfo(accountNumber);
                 Double savingsBalance = accountInfo.getSavingsBalance();
-                Double interest;
                 if (savingsBalance > 0) {
                     interestMap.put(accountNumber, calculateSavingsInterest(savingsBalance));
                 }
@@ -1001,11 +996,11 @@ class LedgerService {
         // sort transactions from earliest to latest.
         savingsTransactions.sort(Comparator.comparing(Transaction::getDate));
         Transaction firstTransaction = savingsTransactions.get(0);
-        if (firstTransaction.getSourceAccountNumber().equals(accountNumber)) {
-            currentBalance = firstTransaction.getNewBalance()
+        if (firstTransaction.getSourceAccountNumber().equals(accountNumber + "S")) {
+            currentBalance = firstTransaction.getNewSavingsBalance()
                     + firstTransaction.getTransactionAmount();
         } else {
-            currentBalance = firstTransaction.getNewBalance()
+            currentBalance = firstTransaction.getNewSavingsBalance()
                     - firstTransaction.getTransactionAmount();
         }
         while (currentProcessDay.isBefore(lastProcessDay) || currentProcessDay.isEqual(lastProcessDay)) {
@@ -1014,12 +1009,12 @@ class LedgerService {
             while (!savingsTransactions.isEmpty()
                     && savingsTransactions.get(0).getDate().equals(currentProcessDay)) {
                 Transaction transactionToProcess = savingsTransactions.remove(0);
-                currentBalance = transactionToProcess.getNewBalance();
+                currentBalance = transactionToProcess.getNewSavingsBalance();
                 if (currentBalance < lowestBalance) {
                     lowestBalance = currentBalance;
                 }
             }
-            averageBalance += (1 / (lastProcessDay.getDayOfYear() - firstProcessDay.getDayOfYear()) + 1) * (lowestBalance);
+            averageBalance += (1.00 / (lastProcessDay.getDayOfYear() - firstProcessDay.getDayOfYear() + 1)) * (lowestBalance);
             currentProcessDay = currentProcessDay.plusDays(1);
         }
         return calculateSavingsInterest(averageBalance);
