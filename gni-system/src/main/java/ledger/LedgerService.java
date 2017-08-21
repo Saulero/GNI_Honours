@@ -445,7 +445,7 @@ class LedgerService {
 
                     LocalDate date = (LocalDate) messageWrapper.getData();
                     Account account = getAccountInfo(transaction.getDestinationAccountNumber());
-                    if (account != null && account.depositTransactionIsAllowed(transaction)) {
+                    if (account != null) {
                         // Update the object
                         account.processDeposit(transaction);
 
@@ -521,7 +521,13 @@ class LedgerService {
                 if (!messageWrapper.isError()) {
 
                     LocalDate date = (LocalDate) messageWrapper.getData();
-                    Account account = getAccountInfo(transaction.getSourceAccountNumber());
+                    Account account;
+                    String sourceAccountNumber = transaction.getSourceAccountNumber();
+                    if (sourceAccountNumber.endsWith("S")) {
+                        account = getAccountInfo(sourceAccountNumber.substring(0, sourceAccountNumber.length() - 1));
+                    } else {
+                        account = getAccountInfo(sourceAccountNumber);
+                    }
                     if (account != null && account.withdrawTransactionIsAllowed(transaction) && customerIsAuthorized) {
                         // Update the object
                         account.processWithdraw(transaction);

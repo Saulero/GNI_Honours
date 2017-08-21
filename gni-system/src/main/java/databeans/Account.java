@@ -31,22 +31,29 @@ public class Account implements Serializable {
     public boolean withdrawTransactionIsAllowed(final Transaction transaction) {
         if (transaction.getDestinationAccountNumber().equals(transaction.getSourceAccountNumber() + "S")) {
             return savingsActive && transaction.getTransactionAmount() <= (balance + overdraftLimit);
+        } else if (transaction.getSourceAccountNumber().equals(transaction.getDestinationAccountNumber() + "S")) {
+            System.out.println("Savingsactive: " + savingsActive);
+            System.out.println("SavingsBalance: " + savingsBalance);
+            return savingsActive && transaction.getTransactionAmount() <= savingsBalance;
         } else {
             return transaction.getTransactionAmount() <= (balance + overdraftLimit);
         }
     }
 
-    public boolean depositTransactionIsAllowed(final Transaction transaction) {
-        return !transaction.getSourceAccountNumber().equals(transaction.getDestinationAccountNumber() + "S")
-                || savingsActive && transaction.getTransactionAmount() <= (savingsBalance);
-    }
-
     public void processWithdraw(final Transaction transaction) {
-        this.balance -= transaction.getTransactionAmount();
-        if ((transaction.getDestinationAccountNumber()).equals(transaction.getSourceAccountNumber() + "S")) {
+        if ((transaction.getSourceAccountNumber().equals(transaction.getDestinationAccountNumber() + "S"))) {
+            // transfer from savings to normal account
+            this.balance += transaction.getTransactionAmount();
+            this.savingsBalance -= transaction.getTransactionAmount();
+        } else if ((transaction.getDestinationAccountNumber()).equals(transaction.getSourceAccountNumber() + "S")) {
             // deposit comes from savings account, update savings balance
             this.savingsBalance += transaction.getTransactionAmount();
+            this.balance -= transaction.getTransactionAmount();
+        } else {
+            // normal withdraw
+            this.balance -= transaction.getTransactionAmount();
         }
+
     }
 
     public void processDeposit(final Transaction transaction) {

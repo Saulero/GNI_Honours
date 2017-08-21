@@ -312,6 +312,16 @@ public class BasicHappyFlowTestSuite {
                 TransferMoneyMethod.parseResponse(parsedResponse);
             }
 
+            // ObtainBalance
+            System.out.println("-- Donald wants to obtain his balance --");
+
+            request = GetBalanceMethod.createRequest(customer1, bankAccount1);
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                GetBalanceMethod.parseResponse(parsedResponse);
+            }
+
             // Open savings account
             System.out.println("-- OpenSavingsAccount. Donald opens a savings account --");
             request = OpenSavingsAccountMethod.createRequest(customer1, bankAccount1);
@@ -332,6 +342,15 @@ public class BasicHappyFlowTestSuite {
                 TransferMoneyMethod.parseResponse(parsedResponse);
             }
 
+            // ObtainBalance
+            System.out.println("-- Donald wants to obtain his balance --");
+
+            request = GetBalanceMethod.createRequest(customer1, bankAccount1);
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                GetBalanceMethod.parseResponse(parsedResponse);
+            }
 
             // simulateTime
             System.out.println("-- 365 days pass. --");
