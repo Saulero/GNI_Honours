@@ -32,8 +32,6 @@ public class Account implements Serializable {
         if (transaction.getDestinationAccountNumber().equals(transaction.getSourceAccountNumber() + "S")) {
             return savingsActive && transaction.getTransactionAmount() <= (balance + overdraftLimit);
         } else if (transaction.getSourceAccountNumber().equals(transaction.getDestinationAccountNumber() + "S")) {
-            System.out.println("Savingsactive: " + savingsActive);
-            System.out.println("SavingsBalance: " + savingsBalance);
             return savingsActive && transaction.getTransactionAmount() <= savingsBalance;
         } else {
             return transaction.getTransactionAmount() <= (balance + overdraftLimit);
