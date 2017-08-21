@@ -312,6 +312,10 @@ public class BasicHappyFlowTestSuite {
                 TransferMoneyMethod.parseResponse(parsedResponse);
             }
 
+            // Open savings account
+
+            // TransferMoney to savings account
+
             // simulateTime
             System.out.println("-- 365 days pass. --");
             request = SimulateTimeMethod.createRequest(365L);
@@ -320,6 +324,8 @@ public class BasicHappyFlowTestSuite {
             if ((parsedResponse = checkResponse(response)) != null) {
                 SimulateTimeMethod.parseResponse(parsedResponse);
             }
+
+            // TransferMoney from savings account
 
             // getTransactionOverview
             System.out.println("-- Donald wants to get transaction overview --");
@@ -340,6 +346,10 @@ public class BasicHappyFlowTestSuite {
             if ((parsedResponse = checkResponse(response)) != null) {
                 GetBalanceMethod.parseResponse(parsedResponse);
             }
+
+            // close savings account
+
+
 
             //getEventLog for the past 400 days
             System.out.println("-- Donald wants to get an event overview --");

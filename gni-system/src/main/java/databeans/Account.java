@@ -29,7 +29,16 @@ public class Account implements Serializable {
     }
 
     public boolean withdrawTransactionIsAllowed(final Transaction transaction) {
-        return transaction.getTransactionAmount() <= (balance + overdraftLimit);
+        if (transaction.getDestinationAccountNumber().equals(transaction.getSourceAccountNumber() + "S")) {
+            return savingsActive && transaction.getTransactionAmount() <= (balance + overdraftLimit);
+        } else {
+            return transaction.getTransactionAmount() <= (balance + overdraftLimit);
+        }
+    }
+
+    public boolean depositTransactionIsAllowed(final Transaction transaction) {
+        return !transaction.getSourceAccountNumber().equals(transaction.getDestinationAccountNumber() + "S")
+                || savingsActive && transaction.getTransactionAmount() <= (savingsBalance);
     }
 
     public void processWithdraw(final Transaction transaction) {

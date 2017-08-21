@@ -445,7 +445,7 @@ class LedgerService {
 
                     LocalDate date = (LocalDate) messageWrapper.getData();
                     Account account = getAccountInfo(transaction.getDestinationAccountNumber());
-                    if (account != null) {
+                    if (account != null && account.depositTransactionIsAllowed(transaction)) {
                         // Update the object
                         account.processDeposit(transaction);
 
