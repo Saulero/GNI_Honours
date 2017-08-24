@@ -8,6 +8,7 @@ import databeans.PinCard;
 import io.advantageous.qbit.reactive.CallbackBuilder;
 import util.JSONParser;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -108,10 +109,10 @@ public class NewPinCard {
         System.out.printf("%s New pin card request successful.\n\n\n\n", PREFIX);
         if (accountNrInResult) {
             sendOpenAccountCallback(api.getCallbackBuilder(), accountNumber, newPinCard.getCardNumber(),
-                    newPinCard.getPinCode(), api.getId());
+                    newPinCard.getPinCode(), newPinCard.getExpirationDate(), api.getId());
         } else {
             sendAccessRequestCallback(api.getCallbackBuilder(), newPinCard.getCardNumber(),
-                    newPinCard.getPinCode(), api.getId());
+                    newPinCard.getPinCode(), newPinCard.getExpirationDate(), api.getId());
         }
     }
 
@@ -123,14 +124,17 @@ public class NewPinCard {
      * @param accountNumber AccountNumber of the opened account.
      * @param cardNumber CardNumber of the card created with the new account.
      * @param pinCode Pincode for the new pinCard.
+     * @param expirationDate Expiration date of the pincard.
      * @param id Id of the request.
      */
     private static void sendOpenAccountCallback(final CallbackBuilder callbackBuilder, final String accountNumber,
-                final Long cardNumber, final String pinCode, final Object id) {
+                                                final Long cardNumber, final String pinCode,
+                                                final LocalDate expirationDate, final Object id) {
         Map<String, Object> result = new HashMap<>();
         result.put("iBAN", accountNumber);
         result.put("pinCard", cardNumber);
         result.put("pinCode", pinCode);
+        result.put("expirationDate", expirationDate.toString());
         JSONRPC2Response response = new JSONRPC2Response(result, id);
         callbackBuilder.build().reply(response.toJSONString());
     }
@@ -140,13 +144,16 @@ public class NewPinCard {
      * @param callbackBuilder Used to send the result of the request to the request source.
      * @param cardNumber CardNumber of the card created with the new access link.
      * @param pinCode Pincode for the new pinCard.
+     * @param expirationDate Expiration date of the pincard.
      * @param id Id of the request.
      */
     private static void sendAccessRequestCallback(final CallbackBuilder callbackBuilder, final Long cardNumber,
-            final String pinCode, final Object id) {
+                                                  final String pinCode, final LocalDate expirationDate,
+                                                  final Object id) {
         Map<String, Object> result = new HashMap<>();
         result.put("pinCard", cardNumber);
         result.put("pinCode", pinCode);
+        result.put("expirationDate", expirationDate.toString());
         JSONRPC2Response response = new JSONRPC2Response(result, id);
         callbackBuilder.build().reply(response.toJSONString());
     }

@@ -1053,7 +1053,7 @@ class AuthenticationService {
     public void processSetOverdraftLimit(final Callback<String> callback,
             @RequestParam("accountNumber") final String accountNumber,
             @RequestParam("cookie") final String cookie,
-            @RequestParam("overdraftLimit") final String overdraftLimit) {
+            @RequestParam("overdraftLimit") final Double overdraftLimit) {
         System.out.printf("%s Processing SetOverdraftLimit request.\n", PREFIX);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         handleSetOverdraftLimitExceptions(accountNumber, cookie, overdraftLimit, callbackBuilder);
@@ -1067,7 +1067,7 @@ class AuthenticationService {
      * @param callbackBuilder Used to send the result of the request to the request source.
      */
     private void handleSetOverdraftLimitExceptions(final String accountNumber, final String cookie,
-            final String overdraftLimit, final CallbackBuilder callbackBuilder) {
+            final Double overdraftLimit, final CallbackBuilder callbackBuilder) {
         try {
             authenticateRequest(cookie);
             doSetOverdraftLimitRequest(accountNumber, overdraftLimit, callbackBuilder);
@@ -1089,7 +1089,7 @@ class AuthenticationService {
      * @param overdraftLimit New overdraft limit
      * @param callbackBuilder Used to forward the result of the request to the request source.
      */
-    private void doSetOverdraftLimitRequest(final String accountNumber, final String overdraftLimit,
+    private void doSetOverdraftLimitRequest(final String accountNumber, final Double overdraftLimit,
                                          final CallbackBuilder callbackBuilder) {
         ledgerClient.putFormAsyncWith2Params("/services/ledger/overdraft/set",
                 "accountNumber", accountNumber, "overdraftLimit", overdraftLimit,

@@ -52,10 +52,21 @@ public class DepositIntoAccountMethod {
 
 
 
-
+        //TODO: move this code into PinCard
         // Check if pincode is valid
         if(!pinCard.getPinCode().equals((reqIn.getNamedParams().get("pinCode")))){
+
+            if(pinCard.getFailedAttempts() >= 2){
+                pinCard.setBlocked(true);
+            }
+            pinCard.setFailedAttempts(pinCard.getFailedAttempts()+1);
+
             return new JSONRPC2Response(JSONRPC2Error.INVALID_REQUEST, reqIn.getID()).toString();
+        } else {
+            if(pinCard.getBlocked()){
+                return new JSONRPC2Response(JSONRPC2Error.INVALID_REQUEST, reqIn.getID()).toString();
+            }
+            pinCard.setFailedAttempts(0);
         }
 
 

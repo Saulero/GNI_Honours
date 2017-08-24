@@ -8,9 +8,6 @@ import models.PinCard;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * @author Saul
- */
 public class UnblockCardMethod {
 
     public static JSONRPC2Request createRequest(CustomerAccount customerAccount, BankAccount bankAccount, PinCard pinCard){

@@ -5,19 +5,18 @@ import models.BankAccount;
 import models.CustomerAccount;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class GetOverdraftLimitMethod {
 
-    public static JSONRPC2Request createRequest(CustomerAccount customerAccount, BankAccount bankAccount){
+    public static JSONRPC2Request createRequest(CustomerAccount customerAccount, BankAccount bankAccount, float limit){
         // The remote method to call
         String method = "getOverdraftLimit";
 
         // The required named parameters to pass
         Map<String, Object> params = new HashMap<String, Object>();
-        params.put("iBAN", bankAccount.getiBAN());
         params.put("authToken", customerAccount.getAuthToken());
+        params.put("iBAN", bankAccount.getiBAN());
 
         // The mandatory request ID
         String id = "req-001";
@@ -32,9 +31,6 @@ public class GetOverdraftLimitMethod {
     }
 
     public static void parseResponse(Map<String, Object> namedResults){
-
-
-        // Assume everything went right.
-        // Do nothing. Because if there are no errors the result is true.
+        // Assume everything is alright.
     }
 }

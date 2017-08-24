@@ -1,16 +1,14 @@
 package methods.client;
 
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Request;
+import models.CustomerAccount;
 
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * @author Saul
- */
 public class GetDateMethod {
 
-    public static JSONRPC2Request createRequest(){
+    public static JSONRPC2Request createRequest(CustomerAccount customerAccount){
         // The remote method to call
         String method = "getDate";
 
@@ -29,8 +27,7 @@ public class GetDateMethod {
         return reqOut;
     }
 
-    public static void parseResponse(Map<String, Object> namedResults ){
-
-        // Assume success
+    public static void parseResponse(Map<String, Object> namedResults){
     }
+
 }

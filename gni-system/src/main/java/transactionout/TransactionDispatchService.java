@@ -96,13 +96,14 @@ class TransactionDispatchService {
     @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
     public void processTransactionRequest(final Callback<String> callback,
                                           @RequestParam("request") final String transactionRequestJson,
-                                          @RequestParam("customerId") final String customerId) {
+                                          @RequestParam("customerId") final String customerId,
+                                          @RequestParam("override") final Boolean override) {
         Transaction request = jsonConverter.fromJson(transactionRequestJson, Transaction.class);
         System.out.printf("%s Transaction received, sourceAccount: %s ,destAccount: %s, amount: %.2f, customerId %s\n",
                 PREFIX, request.getSourceAccountNumber(), request.getDestinationAccountNumber(),
                             request.getTransactionAmount(), customerId);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        doOutgoingTransactionRequest(transactionRequestJson, customerId, callbackBuilder);
+        doOutgoingTransactionRequest(transactionRequestJson, customerId, override, callbackBuilder);
     }
 
     /**
@@ -113,9 +114,9 @@ class TransactionDispatchService {
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
     private void doOutgoingTransactionRequest(final String transactionRequestJson, final String customerId,
-                                              final CallbackBuilder callbackBuilder) {
-        ledgerClient.putFormAsyncWith2Params("/services/ledger/transaction/out", "request",
-                transactionRequestJson, "customerId", customerId,
+                                              final boolean override, final CallbackBuilder callbackBuilder) {
+        ledgerClient.putFormAsyncWith3Params("/services/ledger/transaction/out", "request",
+                transactionRequestJson, "customerId", customerId, "override", override,
                 (httpStatusCode, httpContentType, transactionReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson), MessageWrapper.class);

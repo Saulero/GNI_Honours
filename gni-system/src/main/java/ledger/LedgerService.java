@@ -498,13 +498,14 @@ class LedgerService {
     @RequestMapping(value = "/transaction/out", method = RequestMethod.PUT)
     public void outgoingTransactionListener(final Callback<String> callback,
                                             @RequestParam("request") final String requestJson,
-                                            @RequestParam("customerId") final String customerId) {
+                                            @RequestParam("customerId") final String customerId,
+                                            @RequestParam("override") final Boolean override) {
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         System.out.printf("%s Received outgoing transaction request for customer %s.\n", PREFIX, customerId);
         Gson gson = new Gson();
         Transaction transaction = gson.fromJson(requestJson, Transaction.class);
         boolean customerIsAuthorized = getCustomerAuthorization(transaction.getSourceAccountNumber(), customerId);
-        processOutgoingTransaction(transaction, customerIsAuthorized, callbackBuilder);
+        processOutgoingTransaction(transaction, customerIsAuthorized, override, callbackBuilder);
     }
 
     /**
@@ -513,7 +514,8 @@ class LedgerService {
      * @param transaction Object representing a Transaction request.
      * @param customerIsAuthorized boolean to signify if the outgoing transaction is allowed
      */
-    void processOutgoingTransaction(final Transaction transaction, final boolean customerIsAuthorized, final CallbackBuilder callbackBuilder) {
+    void processOutgoingTransaction(final Transaction transaction, final boolean customerIsAuthorized,
+                                    final boolean override, final CallbackBuilder callbackBuilder) {
         systemInformationClient.getAsync("/services/systemInfo/date", (code, contentType, body) -> {
             if (code == HTTP_OK) {
                 MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
@@ -527,7 +529,8 @@ class LedgerService {
                     } else {
                         account = getAccountInfo(sourceAccountNumber);
                     }
-                    if (account != null && account.withdrawTransactionIsAllowed(transaction) && customerIsAuthorized) {
+                    if (account != null && (account.withdrawTransactionIsAllowed(transaction) || override)
+                            && customerIsAuthorized) {
                         // Update the object
                         account.processWithdraw(transaction);
 
@@ -1178,7 +1181,7 @@ class LedgerService {
     @RequestMapping(value = "/overdraft/set", method = RequestMethod.PUT)
     public void incomingSetOverdraftLimitRequestListener(final Callback<String> callback,
                                                 final @RequestParam("accountNumber") String accountNumber,
-                                                final @RequestParam("overdraftLimit") String overdraftLimit) {
+                                                final @RequestParam("overdraftLimit") Double overdraftLimit) {
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         System.out.printf("%s Received a setOverdraftLimit request for accountNumber: %s\n", PREFIX, accountNumber);
         handleSetOverdraftLimitExceptions(accountNumber, overdraftLimit, callbackBuilder);
@@ -1191,11 +1194,11 @@ class LedgerService {
      * @param callbackBuilder Used to send the result of the request to the request source.
      */
     private void handleSetOverdraftLimitExceptions(
-            final String accountNumber, final String overdraftLimit, final CallbackBuilder callbackBuilder) {
+            final String accountNumber, final Double overdraftLimit, final CallbackBuilder callbackBuilder) {
         try {
             Account account = getAccountInfo(accountNumber);
             if (account != null) {
-                account.setOverdraftLimit(Integer.parseInt(overdraftLimit));
+                account.setOverdraftLimit(overdraftLimit);
                 updateOverdraftLimit(account);
                 sendSetOverdraftLimitCallback(callbackBuilder);
             } else {

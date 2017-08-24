@@ -48,6 +48,9 @@ public class GetBalanceMethod {
         // The required named parameters to pass
         Map<String, Object> params = new HashMap<String, Object>();
         params.put("balance", bankAccount.getBalance());
+        if(bankAccount.isSavingsAccountActive()){
+            params.put("savingAccountBalance", bankAccount.getBalanceSavingAccount());
+        }
 
         JSONRPC2Response response = new JSONRPC2Response(params, reqIn.getID());
 

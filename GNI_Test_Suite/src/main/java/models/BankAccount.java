@@ -6,15 +6,18 @@ public class BankAccount {
 
     private String iBAN;
     private float balance;
+    private float balanceSavingAccount = 0;
+    private boolean savingsAccountActive = false;
+    private float limit;
     private Set<CustomerAccount> accessReceivers;
     private List<Transaction> transactions = new LinkedList<Transaction>();
-
 
 
     public BankAccount(String iBAN) {
         this.iBAN = iBAN;
         this.accessReceivers = new HashSet<CustomerAccount>();
         this.balance = 0;
+        this.limit = 0;
     }
 
     public String getiBAN() {
@@ -73,8 +76,28 @@ public class BankAccount {
         addTransaction(new Transaction(sIBAN, tIBAN, targetName, new Date().toString(), amount, description));
     }
 
+    public float getLimit() {
+        return limit;
+    }
 
+    public void setLimit(float limit) {
+        this.limit = limit;
+    }
 
+    public float getBalanceSavingAccount() {
+        return balanceSavingAccount;
+    }
 
+    public void setBalanceSavingAccount(float balanceSavingAccount) {
+        this.balanceSavingAccount = balanceSavingAccount;
+    }
+
+    public boolean isSavingsAccountActive() {
+        return savingsAccountActive;
+    }
+
+    public void setSavingsAccountActive(boolean savingsAccountActive) {
+        this.savingsAccountActive = savingsAccountActive;
+    }
 
 }

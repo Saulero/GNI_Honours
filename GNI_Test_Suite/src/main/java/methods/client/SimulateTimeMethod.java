@@ -1,16 +1,16 @@
 package methods.client;
 
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Request;
+import models.BankAccount;
+import models.CustomerAccount;
+import models.PinCard;
 
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * @author Saul
- */
 public class SimulateTimeMethod {
 
-    public static JSONRPC2Request createRequest(Long nrOfDays){
+    public static JSONRPC2Request createRequest(int nrOfDays){
         // The remote method to call
         String method = "simulateTime";
 
@@ -30,8 +30,10 @@ public class SimulateTimeMethod {
         return reqOut;
     }
 
-    public static void parseResponse(Map<String, Object> namedResults ){
+    public static void parseResponse(Map<String, Object> namedResults){
 
-        // Assume success
+
+        // Assume everything went right.
+        // Do nothing. Because if there are no errors the result is true.
     }
 }

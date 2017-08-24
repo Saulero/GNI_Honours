@@ -4,16 +4,30 @@ import com.thetransactioncompany.jsonrpc2.JSONRPC2Error;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2ParseException;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Request;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
+import methods.client.*;
 import methods.server.*;
 import methods.server.CloseAccountMethod;
+import methods.server.CloseSavingsAccountMethod;
 import methods.server.DepositIntoAccountMethod;
 import methods.server.GetAuthTokenMethod;
+import methods.server.GetBalanceMethod;
+import methods.server.GetBankAccountAccessMethod;
+import methods.server.GetDateMethod;
+import methods.server.GetEventLogsMethod;
+import methods.server.GetOverdraftLimitMethod;
+import methods.server.GetTransactionsMethod;
+import methods.server.GetUserAccessMethod;
+import methods.server.InvalidateCardMethod;
 import methods.server.OpenAccountMethod;
 import methods.server.OpenAdditionalAccountMethod;
+import methods.server.OpenSavingsAccountMethod;
 import methods.server.PayFromAccountMethod;
 import methods.server.ProvideAccessMethod;
 import methods.server.RevokeAccessMethod;
+import methods.server.SetOverdraftLimitMethod;
+import methods.server.SimulateTimeMethod;
 import methods.server.TransferMoneyMethod;
+import methods.server.UnblockCardMethod;
 
 public class DummyServer {
 
@@ -84,6 +98,42 @@ public class DummyServer {
             }
             case "getUserAccess": {
                 response = GetUserAccessMethod.parseRequest(reqIn);
+                break;
+            }
+            case "unblockCard": {
+                response = UnblockCardMethod.parseRequest(reqIn);
+                break;
+            }
+            case "invalidateCard": {
+                response = InvalidateCardMethod.parseRequest(reqIn);
+                break;
+            }
+            case "simulateTime": {
+                response = SimulateTimeMethod.parseRequest(reqIn);
+                break;
+            }
+            case "getDate": {
+                response = GetDateMethod.parseRequest(reqIn);
+                break;
+            }
+            case "setOverdraftLimit": {
+                response = SetOverdraftLimitMethod.parseRequest(reqIn);
+                break;
+            }
+            case "getOverdraftLimit": {
+                response = GetOverdraftLimitMethod.parseRequest(reqIn);
+                break;
+            }
+            case "openSavingsAccount": {
+                response = OpenSavingsAccountMethod.parseRequest(reqIn);
+                break;
+            }
+            case "closeSavingsAccount": {
+                response = CloseSavingsAccountMethod.parseRequest(reqIn);
+                break;
+            }
+            case "getEventLogs": {
+                response = GetEventLogsMethod.parseRequest(reqIn);
                 break;
             }
             default:{
