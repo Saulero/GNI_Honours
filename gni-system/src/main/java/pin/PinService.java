@@ -52,6 +52,8 @@ class PinService {
     private static final int CONTACTLESS_TRANSACTION_LIMIT = 25;
     /** Used to check if accountNumber are of the correct length. */
     private static int accountNumberLength = 18;
+    /** Account number where fees are transferred to. */
+    private static final String GNI_ACCOUNT = "NL52GNIB3676451168";
 
     /**
      * Constructor.
@@ -857,7 +859,7 @@ class PinService {
 
             // TODO WHAT IF NOT ENOUGH BALANCE? - SHOULD IT WITHDRAW ANYWAY(?)
             // get payment for new card
-            withdrawPaymentForNewCard(pinCardJson, callbackBuilder);
+            withdrawPaymentForNewCard(pinCard, callbackBuilder);
 
             // create new card & send callback
             String id = "" + pinCard.getCustomerId();
@@ -927,11 +929,30 @@ class PinService {
 
     /**
      * Withdraws 7.50 from a customers account as payment for a replacement PIN Card.
-     * @param pinCardJson Json String representing a {@link PinCard} with the account of the customer.
+     * @param pinCard A {@link PinCard} with the account of the customer.
      * @param callbackBuilder Used to send the result of the request to the request source.
      */
-    private void withdrawPaymentForNewCard(final String pinCardJson, final CallbackBuilder callbackBuilder) {
-        // TODO voor Noedel
+    private void withdrawPaymentForNewCard(final PinCard pinCard, final CallbackBuilder callbackBuilder) {
+        Transaction request = JSONParser.createJsonTransaction(-1,
+                pinCard.getAccountNumber(), GNI_ACCOUNT, "GNI Bank",
+                "Fees for replacement of old PIN Card #" + pinCard.getCardNumber(),
+                7.50, false, false);
+        transactionDispatchClient.putFormAsyncWith2Params("/services/transactionDispatch/transaction",
+                "request", jsonConverter.toJson(request), "customerId", pinCard.getCustomerId(),
+                (code, contentType, replyBody) -> {
+                    if (code == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                JSONParser.removeEscapeCharacters(replyBody), MessageWrapper.class);
+                        if (messageWrapper.isError()) {
+                            callbackBuilder.build().reply(replyBody);
+                        }
+                    } else {
+                        System.out.printf("%s Transaction request failed, sending rejection.\n", PREFIX);
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                                "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests")));
+                    }
+                });
     }
 
     /**
