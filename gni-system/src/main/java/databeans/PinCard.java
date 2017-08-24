@@ -5,7 +5,7 @@ import java.time.LocalDate;
 import java.util.Date;
 
 /**
- * @author Noel
+ * @author Noel & Saul
  */
 public class PinCard implements Serializable {
     private String accountNumber;
@@ -13,14 +13,16 @@ public class PinCard implements Serializable {
     private String pinCode;
     private Long customerId;
     private LocalDate expirationDate;
+    private boolean active;
 
     public PinCard(final String accountNumber, final Long cardNumber, final String pinCode, final Long customerId,
-                   final LocalDate expirationDate) {
+                   final LocalDate expirationDate, final boolean active) {
         this.accountNumber = accountNumber;
         this.cardNumber = cardNumber;
         this.pinCode = pinCode;
         this.customerId = customerId;
         this.expirationDate = expirationDate;
+        this.active = active;
     }
 
     public PinCard(final String accountNumber, final Long cardNumber) {
@@ -67,6 +69,14 @@ public class PinCard implements Serializable {
         expirationDate = newExpirationDate;
     }
 
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -74,6 +84,7 @@ public class PinCard implements Serializable {
 
         PinCard pinCard = (PinCard) o;
 
+        if (active != pinCard.active) return false;
         if (accountNumber != null ? !accountNumber.equals(pinCard.accountNumber) : pinCard.accountNumber != null)
             return false;
         if (cardNumber != null ? !cardNumber.equals(pinCard.cardNumber) : pinCard.cardNumber != null) return false;
@@ -89,6 +100,7 @@ public class PinCard implements Serializable {
         result = 31 * result + (pinCode != null ? pinCode.hashCode() : 0);
         result = 31 * result + (customerId != null ? customerId.hashCode() : 0);
         result = 31 * result + (expirationDate != null ? expirationDate.hashCode() : 0);
+        result = 31 * result + (active ? 1 : 0);
         return result;
     }
 
@@ -100,6 +112,7 @@ public class PinCard implements Serializable {
                 ", pinCode='" + pinCode + '\'' +
                 ", customerId=" + customerId +
                 ", expirationDate=" + expirationDate +
+                ", active=" + active +
                 '}';
     }
 }

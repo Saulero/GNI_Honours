@@ -1302,8 +1302,8 @@ class AuthenticationService {
 
         pinCard.setAccountNumber((String) params.get("iBAN"));
         pinCard.setCardNumber(Long.parseLong((String) params.get("pinCard")));
-        if (Boolean.getBoolean((String) params.get("newPin"))) {
-            pinCard.setPinCode((String) params.get("pinCode"));
+        if ((params.get("newPin")).equals("true")) {
+            pinCard.setActive(true);
         }
         handlePinCardRemovalExceptions(pinCard, authToken, callbackBuilder);
     }

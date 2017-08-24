@@ -31,11 +31,14 @@ public class InvalidateCard {
         try {
             String iBAN = (String) params.get("iBAN");
             String cardNumber = (String) params.get("pinCard");
-            boolean newPin = Boolean.getBoolean((String) params.get("newPin"));
+            boolean newPin = false;
+            if ((params.get("newPin")).equals("true")) {
+                newPin = true;
+            }
             verifyPinCardRemovalInput(iBAN, cardNumber);
             doPinCardReplacementRequest(params, newPin, api);
         } catch (IncorrectInputException e) {
-            System.out.printf("%s %s", PREFIX, e.getMessage());
+            System.out.printf("%s %s\n", PREFIX, e.getMessage());
             api.getCallbackBuilder().build().reply(api.getJsonConverter().toJson(JSONParser.createMessageWrapper(
                     true, 422,
                     "The user could not be authenticated, a wrong combination of credentials was provided.",
@@ -57,7 +60,7 @@ public class InvalidateCard {
      */
     private static void verifyPinCardRemovalInput(final String accountNumber, final String cardNumber)
             throws IncorrectInputException, JsonSyntaxException {
-        if (accountNumber == null || accountNumber.length() != MAX_ACCOUNT_NUMBER_LENGTH) {
+        if (accountNumber == null || accountNumber.length() > MAX_ACCOUNT_NUMBER_LENGTH) {
             throw new IncorrectInputException("The following variable was incorrectly specified: accountNumber.");
         }
         if (cardNumber == null) {
@@ -102,7 +105,7 @@ public class InvalidateCard {
     private static void sendPinCardReplacementCallback(final PinCard pinCard, final boolean newPin, final ApiBean api) {
         System.out.printf("%s Pin card replacement successful, sending callback.\n", PREFIX);
         Map<String, Object> result = new HashMap<>();
-        result.put("pinCard", pinCard.getCardNumber());
+        result.put("pinCard", "" + pinCard.getCardNumber());
         if (newPin) {
             result.put("pinCode", pinCard.getPinCode());
         }
