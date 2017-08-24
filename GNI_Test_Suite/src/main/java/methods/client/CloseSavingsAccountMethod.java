@@ -7,9 +7,6 @@ import models.CustomerAccount;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * @Author noel
- */
 public class CloseSavingsAccountMethod {
 
     public static JSONRPC2Request createRequest(CustomerAccount customerAccount, BankAccount bankAccount){
@@ -33,8 +30,6 @@ public class CloseSavingsAccountMethod {
         return reqOut;
     }
 
-    public static void parseResponse(Map<String, Object> namedResults ){
-
-        // Assume success
+    public static void parseResponse(Map<String, Object> namedResults){
     }
 }

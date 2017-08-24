@@ -11,15 +11,17 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
-public class ProvideAccessMethod {
+public class InvalidateCardMethod {
 
-    public static String parseRequest(JSONRPC2Request reqIn) {
 
+    public static String parseRequest(JSONRPC2Request reqIn){
+        boolean error = false;
 
         DummyServerDB db = DummyServerDB.getInstance();
+
         CustomerAccount customer = null;
-        for (CustomerAccount account : db.getCustomers()) {
-            if (account.getAuthToken().equals((String) reqIn.getNamedParams().get("authToken"))){
+        for(CustomerAccount account : db.getCustomers()){
+            if(account.getAuthToken().equals((String) reqIn.getNamedParams().get("authToken"))){
                 customer = account;
             }
         }
@@ -39,40 +41,50 @@ public class ProvideAccessMethod {
             return new JSONRPC2Response(JSONRPC2Error.INVALID_REQUEST, reqIn.getID()).toString();
         }
 
-        CustomerAccount customerReceivingAccess = null;
-        for (CustomerAccount account : db.getCustomers()) {
-            if (account.getUsername().equals((String) reqIn.getNamedParams().get("username"))){
-                customerReceivingAccess = account;
+        PinCard pinCard = null;
+
+        for(PinCard card : customer.getPinCards()){
+            if(card.getBankAccount().getiBAN().equals(bankAccount.getiBAN()) &&
+                    card.getPinCardNumber().equals((String) reqIn.getNamedParams().get("pinCard"))){
+                pinCard = card;
             }
         }
 
-        if(customerReceivingAccess==null){
+        if(pinCard==null){
             return new JSONRPC2Response(JSONRPC2Error.INVALID_REQUEST, reqIn.getID()).toString();
         }
 
-        // Add access to bank account.
-        bankAccount.addAccessReceiver(customerReceivingAccess);
+        if(pinCard.getBlocked()){
+            return new JSONRPC2Response(JSONRPC2Error.INVALID_REQUEST, reqIn.getID()).toString();
+        }
 
-        //Create card for access.
+        boolean newPin = (Boolean) reqIn.getNamedParams().get("newPin");
+
+
+
         Random generator = new Random();
-        String cardNumber = generator.nextInt(9999) + "";
-        String pinCode = generator.nextInt(9999) + "";
+        String cardNumber = generator.nextInt(9999) +"";
+        String pinCode  = generator.nextInt(9999) + "";
 
-        PinCard pinCard = new PinCard(bankAccount, cardNumber, pinCode, db.getExpirationCalendar());
-        customerReceivingAccess.addPinCard(pinCard);
 
+
+        pinCard.setPinCardNumber(cardNumber);
+        if(newPin){
+            pinCard.setPinCode(pinCode);
+        }
+
+        bankAccount.lowerBalance(7.5f);
 
         // Construct response message.
         // The required named parameters to pass
         Map<String, Object> params = new HashMap<String, Object>();
-        params.put("iBAN", bankAccount.getiBAN());
         params.put("pinCard", cardNumber);
-        params.put("pinCode", pinCode);
-        params.put("expirationDate", pinCard.getExpirationDateString());
+        if(newPin) {
+            params.put("pinCode", pinCode);
+        }
 
         JSONRPC2Response response = new JSONRPC2Response(params, reqIn.getID());
 
         return response.toString();
-
     }
 }

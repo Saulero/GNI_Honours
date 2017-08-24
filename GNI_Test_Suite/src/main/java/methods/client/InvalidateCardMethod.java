@@ -8,9 +8,6 @@ import models.PinCard;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * @author Saul
- */
 public class InvalidateCardMethod {
 
     public static JSONRPC2Request createRequest(CustomerAccount customerAccount, BankAccount bankAccount, PinCard pinCard, boolean newPin){
@@ -19,10 +16,10 @@ public class InvalidateCardMethod {
 
         // The required named parameters to pass
         Map<String, Object> params = new HashMap<String, Object>();
-        params.put("authToken", customerAccount.getAuthToken());
         params.put("iBAN", bankAccount.getiBAN());
+        params.put("authToken", customerAccount.getAuthToken());
         params.put("pinCard", pinCard.getPinCardNumber());
-        params.put("newPin", Boolean.toString(newPin));
+        params.put("newPin", newPin);
 
         // The mandatory request ID
         String id = "req-001";
@@ -36,8 +33,16 @@ public class InvalidateCardMethod {
         return reqOut;
     }
 
-    public static PinCard parseResponse(Map<String, Object> namedResults ){
+    public static void parseResponse(Map<String, Object> namedResults, PinCard card){
+
+        String pinCardNumber = namedResults.get("pinCard").toString();
+
+        card.setPinCardNumber(pinCardNumber);
+        if(namedResults.containsKey("pinCode")){
+            card.setPinCode(namedResults.get("pinCode").toString());
+        }
+        //TODO. Update card info.
         // Assume everything went right.
-        return new PinCard(null, (String) namedResults.get("pinCard"), (String) namedResults.get("pinCode"));
+        // Do nothing. Because if there are no errors the result is true.
     }
 }

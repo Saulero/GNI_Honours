@@ -5,6 +5,9 @@ import models.BankAccount;
 import models.CustomerAccount;
 import models.PinCard;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -34,9 +37,19 @@ public class ProvideAccessMethod {
 
     public static PinCard parseResponse(Map<String, Object> namedResults,  BankAccount bankAccount, CustomerAccount receivingCustomer){
 
+        Calendar cal = Calendar.getInstance();
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+        try {
+            cal.setTime(sdf.parse(namedResults.get("expirationDate").toString()));// all done
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+
         PinCard pinCard = new PinCard(bankAccount,
                 ( namedResults.get("pinCard").toString()),
-                ( namedResults.get("pinCode").toString())
+                ( namedResults.get("pinCode").toString()),
+                cal
+
         );
         receivingCustomer.addPinCard(pinCard);
 

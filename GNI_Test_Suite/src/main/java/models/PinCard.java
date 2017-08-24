@@ -1,28 +1,24 @@
 package models;
 
-import java.util.Date;
+import methods.server.CalanderUTIL;
+
+import java.util.Calendar;
 
 public class PinCard {
     private BankAccount bankAccount;
     private String pinCardNumber;
     private String pinCode;
-    private Date expirationDate;
+    private Calendar expirationDate;
+    private int failedAttempts = 0;
+    private Boolean blocked = false;
 
     // Temporary method. While expirationDate is not part of the protocol.
-    public PinCard(BankAccount bankAccount, String pinCardNumber, String pinCode) {
+    public PinCard(BankAccount bankAccount, String pinCardNumber, String pinCode, Calendar now) {
         this.bankAccount = bankAccount;
         this.pinCardNumber = pinCardNumber;
         this.pinCode = pinCode;
+        this.expirationDate = now;
     }
-
-    public PinCard(BankAccount bankAccount, String pinCardNumber, String pinCode, Date expirationDate) {
-        this.bankAccount = bankAccount;
-        this.pinCardNumber = pinCardNumber;
-        this.pinCode = pinCode;
-        this.expirationDate = expirationDate;
-    }
-
-    public PinCard() {}
 
     public BankAccount getBankAccount() {
         return bankAccount;
@@ -48,11 +44,32 @@ public class PinCard {
         this.pinCode = pinCode;
     }
 
-    public Date getExpirationDate() {
+    public Calendar getExpirationDate() {
         return expirationDate;
     }
 
-    public void setExpirationDate(Date expirationDate) {
+    public String getExpirationDateString() {
+        return CalanderUTIL.CalanderToDateString(this.expirationDate);
+    }
+
+    public void setExpirationDate(Calendar expirationDate) {
         this.expirationDate = expirationDate;
+    }
+
+
+    public int getFailedAttempts() {
+        return failedAttempts;
+    }
+
+    public void setFailedAttempts(int failedAttempts) {
+        this.failedAttempts = failedAttempts;
+    }
+
+    public Boolean getBlocked() {
+        return blocked;
+    }
+
+    public void setBlocked(Boolean blocked) {
+        this.blocked = blocked;
     }
 }

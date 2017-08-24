@@ -2,23 +2,19 @@ package methods.client;
 
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Request;
 
-import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * @Author noel
- */
 public class GetEventLogsMethod {
 
-    public static JSONRPC2Request createRequest(LocalDate beginDate, LocalDate endDate){
+    public static JSONRPC2Request createRequest(String beginDate, String endDate){
         // The remote method to call
         String method = "getEventLogs";
 
         // The required named parameters to pass
         Map<String, Object> params = new HashMap<String, Object>();
-        params.put("beginDate", beginDate.toString());
-        params.put("endDate", endDate.toString());
+        params.put("beginDate", beginDate);
+        params.put("endDate", endDate);
 
         // The mandatory request ID
         String id = "req-001";
@@ -32,8 +28,10 @@ public class GetEventLogsMethod {
         return reqOut;
     }
 
-    public static void parseResponse(Map<String, Object> namedResults ){
+    public static void parseResponse(Map<String, Object> namedResults){
 
-        // Assume success
+
+        // Assume everything went right.
+        // Do nothing. Because if there are no errors the result is true.
     }
 }

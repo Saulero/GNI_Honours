@@ -40,7 +40,7 @@ public class OpenAdditionalAccountMethod {
         String cardNumber = generator.nextInt(9999) +"";
         String pinCode = generator.nextInt(9999) + "";
 
-        PinCard pinCard = new PinCard(bankAccount, cardNumber, pinCode);
+        PinCard pinCard = new PinCard(bankAccount, cardNumber, pinCode, db.getExpirationCalendar());
         customer.addPinCard(pinCard);
 
 
@@ -50,6 +50,7 @@ public class OpenAdditionalAccountMethod {
         params.put("iBAN", bankAccount.getiBAN());
         params.put("pinCard", cardNumber);
         params.put("pinCode", pinCode);
+        params.put("expirationDate", pinCard.getExpirationDateString());
 
         JSONRPC2Response response = new JSONRPC2Response(params, reqIn.getID());
 

@@ -11,7 +11,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
-public class ProvideAccessMethod {
+public class SetOverdraftLimitMethod {
 
     public static String parseRequest(JSONRPC2Request reqIn) {
 
@@ -39,36 +39,12 @@ public class ProvideAccessMethod {
             return new JSONRPC2Response(JSONRPC2Error.INVALID_REQUEST, reqIn.getID()).toString();
         }
 
-        CustomerAccount customerReceivingAccess = null;
-        for (CustomerAccount account : db.getCustomers()) {
-            if (account.getUsername().equals((String) reqIn.getNamedParams().get("username"))){
-                customerReceivingAccess = account;
-            }
-        }
-
-        if(customerReceivingAccess==null){
-            return new JSONRPC2Response(JSONRPC2Error.INVALID_REQUEST, reqIn.getID()).toString();
-        }
-
-        // Add access to bank account.
-        bankAccount.addAccessReceiver(customerReceivingAccess);
-
-        //Create card for access.
-        Random generator = new Random();
-        String cardNumber = generator.nextInt(9999) + "";
-        String pinCode = generator.nextInt(9999) + "";
-
-        PinCard pinCard = new PinCard(bankAccount, cardNumber, pinCode, db.getExpirationCalendar());
-        customerReceivingAccess.addPinCard(pinCard);
-
+        bankAccount.setLimit(((Double) reqIn.getNamedParams().get("overdraftLimit")).floatValue());
 
         // Construct response message.
         // The required named parameters to pass
         Map<String, Object> params = new HashMap<String, Object>();
-        params.put("iBAN", bankAccount.getiBAN());
-        params.put("pinCard", cardNumber);
-        params.put("pinCode", pinCode);
-        params.put("expirationDate", pinCard.getExpirationDateString());
+
 
         JSONRPC2Response response = new JSONRPC2Response(params, reqIn.getID());
 

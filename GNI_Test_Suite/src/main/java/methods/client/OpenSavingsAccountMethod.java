@@ -1,17 +1,12 @@
 package methods.client;
 
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Request;
-import models.AccountCardTuple;
 import models.BankAccount;
 import models.CustomerAccount;
-import models.PinCard;
 
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * @author Noel
- */
 public class OpenSavingsAccountMethod {
 
     public static JSONRPC2Request createRequest(CustomerAccount customerAccount, BankAccount bankAccount){
@@ -35,8 +30,6 @@ public class OpenSavingsAccountMethod {
         return reqOut;
     }
 
-    public static void parseResponse(Map<String, Object> namedResults ){
-
-        // Assume success
+    public static void parseResponse(Map<String, Object> namedResults){
     }
 }
