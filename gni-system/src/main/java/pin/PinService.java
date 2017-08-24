@@ -15,6 +15,7 @@ import io.advantageous.qbit.reactive.CallbackBuilder;
 import api.IncorrectInputException;
 import util.JSONParser;
 
+import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.sql.PreparedStatement;
@@ -552,7 +553,7 @@ class PinService {
                               final @RequestParam("accountNumber") String accountNumber) {
         System.out.printf("%s Received new pin card request.\n", PREFIX);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        generateExpirationDate(requesterId, ownerId, accountNumber, callbackBuilder);
+        generateExpirationDate(requesterId, ownerId, accountNumber, null, callbackBuilder);
     }
 
     /**
@@ -560,10 +561,11 @@ class PinService {
      * @param requesterId CustomerId of the user that sent the request.
      * @param ownerId CustomerId of the customer that will own the new card.
      * @param accountNumber AccountNumber the card should be created for.
+     * @param newPinCode the preset pinCode, in case of a replacement.
      * @param callbackBuilder Used to send the creation result to the request source.
      */
     void generateExpirationDate(final String requesterId, final String ownerId, final String accountNumber,
-                                final CallbackBuilder callbackBuilder) {
+                                final String newPinCode, final CallbackBuilder callbackBuilder) {
         systemInformationClient.getAsync("/services/systemInfo/date", (httpStatusCode, contentType, body) -> {
             if (httpStatusCode == HTTP_OK) {
                 MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
@@ -571,7 +573,8 @@ class PinService {
                 if (!messageWrapper.isError()) {
                     LocalDate systemDate = (LocalDate) messageWrapper.getData();
                     LocalDate expirationDate = systemDate.plusYears(VALID_CARD_DURATION);
-                    handleNewPinCardExceptions(expirationDate, requesterId, ownerId, accountNumber, callbackBuilder);
+                    handleNewPinCardExceptions(expirationDate, requesterId,
+                            ownerId, accountNumber, newPinCode, callbackBuilder);
                 } else {
                     callbackBuilder.build().reply(body);
                 }
@@ -590,14 +593,18 @@ class PinService {
      * @param requesterId CustomerId of the user that sent the request.
      * @param ownerId CustomerId of the customer that will own the new card.
      * @param accountNumber AccountNumber the card should be created for.
+     * @param newPinCode the preset pinCode, in case of a replacement.
      * @param callbackBuilder Used to send the creation result to the request source.
      */
     private void handleNewPinCardExceptions(final LocalDate expirationDate, final String requesterId,
-                                            final String ownerId, final String accountNumber,
+                                            final String ownerId, final String accountNumber, final String newPinCode,
                                             final CallbackBuilder callbackBuilder) {
         try {
             Long cardNumber = getNextAvailableCardNumber();
-            String pinCode = generatePinCode();
+            String pinCode = newPinCode;
+            if (pinCode == null) {
+                pinCode = generatePinCode();
+            }
             //todo check if the requester has permissions for the card.
             PinCard pinCard;
             if (ownerId.length() > 0) {
@@ -610,11 +617,15 @@ class PinService {
             addPinCardToDatabase(pinCard);
             sendNewPinCardCallback(pinCard, callbackBuilder);
         } catch (SQLException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to pin database.")));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to pin database.")));
         } catch (NumberFormatException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "Something went wrong when parsing the customerId in Pin.")));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418,
+                    "One of the parameters has an invalid value.",
+                    "Something went wrong when parsing the customerId in Pin.")));
         } catch (NoSuchAlgorithmException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred.")));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Unknown error occurred.")));
         }
     }
 
@@ -755,6 +766,8 @@ class PinService {
      * @throws SQLException Thrown when the sql query fails, will cause the unblock request to be rejected.
      * @throws NumberFormatException Cause when a parameter is incorrectly specified, will cause the unblock request
      * to be rejected.
+     * @throws IncorrectInputException Thrown when any of the provided information appears to be incorrect.
+     * @throws NoEffectException Thrown when the pin card wasn't blocked in the first place.
      */
     void unblockPinCard(final PinCard pinCard) throws SQLException, IncorrectInputException, NoEffectException {
         SQLConnection con = databaseConnectionPool.getConnection();
@@ -767,7 +780,8 @@ class PinService {
             rs.close();
 
             if (!pinCard.getAccountNumber().equals(accountNumber)) {
-                throw new IncorrectInputException("The provided account number does not match the account number in the system.");
+                throw new IncorrectInputException(
+                        "The provided account number does not match the account number in the system.");
             } else {
                 // reset the count
                 ps = con.getConnection().prepareStatement(SQLStatements.unblockPinCard);
@@ -775,7 +789,8 @@ class PinService {
                 ps.executeUpdate();
 
                 if (attempts < 3) {
-                    throw new NoEffectException("The card was not blocked in the first place, but the attempts count has been reset none the less");
+                    throw new NoEffectException("The card was not blocked in the first place, "
+                            + "but the attempts count has been reset none the less");
                 }
             }
         } else {
@@ -788,9 +803,93 @@ class PinService {
         databaseConnectionPool.returnConnection(con);
     }
 
+    /**
+     * Sends the correct callback back to the source.
+     * @param pinCard The unlocked pinCard.
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     */
     private void sendPinCardUnblockCallback(final PinCard pinCard, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Pin card #%s successfully unblocked, sending callback.\n", PREFIX, pinCard.getCardNumber());
-        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", pinCard)));
+        System.out.printf("%s Pin card #%s successfully unblocked, sending callback.\n",
+                PREFIX, pinCard.getCardNumber());
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                false, 200, "Normal Reply", pinCard)));
+    }
+
+    /**
+     * Creates a callbackBuilder to send the result of the request to and then calls the exception handler to execute
+     * the pin card replacement.
+     * @param callback Used to send the result of the request to the request source.
+     * @param pinCardJson Json String representing a {@link PinCard} that should be removed from the system.
+     */
+    @RequestMapping(value = "/invalidateCard", method = RequestMethod.PUT)
+    public void invalidateCard(final Callback<String> callback, final @RequestParam("pinCard") String pinCardJson) {
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleRemovePinCardExceptions(pinCardJson, callbackBuilder);
+    }
+
+    /**
+     * Tries to create a {@link PinCard} from the Json string and then delete it from the database. Sends a rejection
+     * if this fails or a callback with the {@link PinCard} that was removed from the system if it is successful.
+     * @param pinCardJson Json String representing a {@link PinCard} that should be removed from the system.
+     * @param callbackBuilder Used to send the result of the request to the request source.
+     */
+    private void handleRemovePinCardExceptions(final String pinCardJson, final CallbackBuilder callbackBuilder) {
+        try {
+            PinCard pinCard = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(pinCardJson), PinCard.class);
+            // deactivate old card
+            deactivatePinCard(pinCard);
+
+            // TODO WHAT IF NOT ENOUGH BALANCE? - SHOULD IT WITHDRAW ANYWAY(?)
+            // get payment for new card
+            withdrawPaymentForNewCard(pinCardJson, callbackBuilder);
+
+            // create new card & send callback
+            String id = "" + pinCard.getCustomerId();
+            generateExpirationDate(id, id, pinCard.getAccountNumber(), pinCard.getPinCode(), callbackBuilder);
+        } catch (SQLException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to the Pin database.")));
+        } catch (NumberFormatException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418,
+                    "One of the parameters has an invalid value.",
+                    "Something went wrong when parsing the customerId in Pin.")));
+        } catch (InvalidParameterException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 418, e.getMessage())));
+        }
+    }
+
+    /**
+     * Deletes a pinCard from the pin database.
+     * @param pinCard Pin card that should be deleted from the database.
+     * @throws SQLException Thrown when the sql query fails, will cause the removal request to be rejected.
+     * @throws NumberFormatException Cause when a parameter is incorrectly specified, will cause the removal request
+     * to be rejected.
+     * @throws InvalidParameterException Thrown when there was no card found to deactivate.
+     */
+    private void deactivatePinCard(final PinCard pinCard)
+            throws SQLException, NumberFormatException, InvalidParameterException {
+        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+        PreparedStatement removePinCard = databaseConnection.getConnection()
+                .prepareStatement(SQLStatements.deactivatePinCard);
+        removePinCard.setString(1, pinCard.getAccountNumber());
+        removePinCard.setLong(2, pinCard.getCustomerId());
+        removePinCard.setLong(3, pinCard.getCardNumber());
+        int success = removePinCard.executeUpdate();
+        databaseConnection.close();
+        databaseConnectionPool.returnConnection(databaseConnection);
+        if (success == 0) {
+            throw new InvalidParameterException("Card not found.");
+        }
+    }
+
+    /**
+     * Withdraws 7.50 from a customers account as payment for a replacement PIN Card.
+     * @param pinCardJson Json String representing a {@link PinCard} with the account of the customer.
+     * @param callbackBuilder Used to send the result of the request to the request source.
+     */
+    private void withdrawPaymentForNewCard(final String pinCardJson, final CallbackBuilder callbackBuilder) {
+        // TODO voor Noedel
     }
 
     /**
