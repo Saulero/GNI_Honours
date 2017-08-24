@@ -19,6 +19,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Base64;
+import java.util.Map;
 
 import static database.SQLStatements.*;
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
@@ -1281,6 +1282,84 @@ class AuthenticationService {
     private void sendCloseSavingsAccountCallback(final String replyJson, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Close savings account request successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(replyJson);
+    }
+
+    /**
+     * Creates a callbackBuilder for the request so that the result can be sent back to the request source and then
+     * calls the exception handler for the request. Replaces a pinCard belonging to a customer.
+     * @param callback Used to send the result of the request back to the request source.
+     * @param request Parameters from the original request.
+     */
+    @RequestMapping(value = "/invalidateCard", method = RequestMethod.PUT)
+    public void invalidateCard(final Callback<String> callback,
+                                             @RequestParam("params") final String request) {
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(request), MessageWrapper.class);
+        Map<String, Object> params  = (Map) messageWrapper.getData();
+        PinCard pinCard = new PinCard();
+        String authToken = (String) params.get("authToken");
+
+        pinCard.setAccountNumber((String) params.get("iBAN"));
+        pinCard.setCardNumber(Long.parseLong((String) params.get("pinCard")));
+        if (Boolean.getBoolean((String) params.get("newPin"))) {
+            pinCard.setPinCode((String) params.get("pinCode"));
+        }
+        handlePinCardRemovalExceptions(pinCard, authToken, callbackBuilder);
+    }
+
+    /**
+     * Tries to authenticate the user that sent the request, creates a {@link PinCard} object based on the request
+     * json and then forwards the request with the customerId of the user that sent the request.
+     * @param pinCard A {@link PinCard} that should be removed from the system.
+     * @param authToken Cookie of the user that sent the request.
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     */
+    private void handlePinCardRemovalExceptions(final PinCard pinCard, final String authToken,
+                                                final CallbackBuilder callbackBuilder) {
+        try {
+            authenticateRequest(authToken);
+            pinCard.setCustomerId(getCustomerId(authToken));
+            doPinCardReplacementRequest(jsonConverter.toJson(pinCard), callbackBuilder);
+        } catch (SQLException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
+        } catch (UserNotAuthorizedException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "User does not appear to be logged in.")));
+        }
+    }
+
+    /**
+     * Forwards the pin card replacement request to the pin service, forwards the result to the request source if the
+     * request is successful, or sends a rejection to the request source if the request fails.
+     * @param pinCardJson Json String representing a {@link PinCard} that should be removed from the system.
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     */
+    private void doPinCardReplacementRequest(final String pinCardJson, final CallbackBuilder callbackBuilder) {
+        pinClient.putFormAsyncWith1Param("/services/pin/invalidateCard",
+                "pinCard", pinCardJson, (code, contentType, body) -> {
+                    if (code == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendPinCardReplacementCallback(body, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(body);
+                        }
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                                "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                    }
+                });
+    }
+
+    /**
+     * Sends the correct callback back to the source, depending on accountNrInResult.
+     * @param jsonReply The new pinCard.
+     * @param callbackBuilder Used to send the result of the request back to the request source.
+     */
+    private void sendPinCardReplacementCallback(final String jsonReply, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Pin card replacement successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonReply);
     }
 
     /**
