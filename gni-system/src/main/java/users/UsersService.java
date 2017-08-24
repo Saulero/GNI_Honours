@@ -384,9 +384,10 @@ class UsersService {
      */
     private void doTransactionRequest(final Transaction transactionRequest, final String customerId,
                                       final CallbackBuilder callbackBuilder) {
-        transactionDispatchClient.putFormAsyncWith2Params("/services/transactionDispatch/transaction",
+        transactionDispatchClient.putFormAsyncWith3Params("/services/transactionDispatch/transaction",
                                                         "request", jsonConverter.toJson(transactionRequest),
                                                         "customerId", customerId,
+                                                        "override", false,
                                                         (httpStatusCode, httpContentType, transactionReplyJson) -> {
             if (httpStatusCode == HTTP_OK) {
                 MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson), MessageWrapper.class);

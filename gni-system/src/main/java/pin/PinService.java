@@ -494,8 +494,9 @@ class PinService {
      */
     private void doTransactionRequest(final Transaction request, final Long customerId,
                                       final CallbackBuilder callbackBuilder) {
-        transactionDispatchClient.putFormAsyncWith2Params("/services/transactionDispatch/transaction",
+        transactionDispatchClient.putFormAsyncWith3Params("/services/transactionDispatch/transaction",
                 "request", jsonConverter.toJson(request), "customerId", customerId,
+                "override", false,
         (code, contentType, replyBody) -> {
             if (code == HTTP_OK) {
                 MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyBody), MessageWrapper.class);
@@ -937,8 +938,9 @@ class PinService {
                 pinCard.getAccountNumber(), GNI_ACCOUNT, "GNI Bank",
                 "Fees for replacement of old PIN Card #" + pinCard.getCardNumber(),
                 7.50, false, false);
-        transactionDispatchClient.putFormAsyncWith2Params("/services/transactionDispatch/transaction",
+        transactionDispatchClient.putFormAsyncWith3Params("/services/transactionDispatch/transaction",
                 "request", jsonConverter.toJson(request), "customerId", pinCard.getCustomerId(),
+                "override", true,
                 (code, contentType, replyBody) -> {
                     if (code == HTTP_OK) {
                         MessageWrapper messageWrapper = jsonConverter.fromJson(
