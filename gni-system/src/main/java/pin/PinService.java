@@ -164,6 +164,10 @@ class PinService {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
                     .createMessageWrapper(true, 500, "Unknown error occurred.",
                             "Invalid json specification.")));
+        } catch (CardDeactivatedException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
+                    .createMessageWrapper(true, 421, e.getMessage(),
+                            "The pin card used has been permanently deactivated.")));
         }
     }
 
@@ -171,7 +175,7 @@ class PinService {
      * Creates a new {@link Transaction} object from a {@link PinTransaction} object.
      * @param pinTransaction ATM withdrawal/deposit to convert to a {@link Transaction}.
      * @param cardAccountNumber AccountNumber of the card used in the transaction.
-     * @return Transaction object representing the ATM withdrawal/deposit that is to be exectued.
+     * @return Transaction object representing the ATM withdrawal/deposit that is to be executed.
      */
     Transaction createATMTransaction(final PinTransaction pinTransaction, final String cardAccountNumber) {
         String description;
@@ -376,14 +380,15 @@ class PinService {
      * @param pinTransaction PinTransaction that should be authorized.
      * @throws SQLException Thrown when the database cannot be reached, will cause a rejection of the transaction.
      * @throws CardBlockedException Thrown when the card used in the transaction is blocked.
-     * @throws IncorrectPinException Thrown when the pincode used in the transaction is incorrect.
+     * @throws IncorrectPinException Thrown when the pin code used in the transaction is incorrect.
      * @throws CardExpiredException Thrown when the card used in the transaction is expired.
      * @throws IncorrectInputException Thrown when a field is incorrectly specified.
+     * @throws CardDeactivatedException Thrown when the card has previously been permanently deactivated.
      */
     void getPinTransactionAuthorization(final PinTransaction pinTransaction,
                                         final CallbackBuilder callbackBuilder) throws SQLException,
                                         CardExpiredException, IncorrectInputException, IncorrectPinException,
-                                        CardBlockedException {
+                                        CardBlockedException, CardDeactivatedException {
         if (pinTransaction.getTransactionAmount() < 0
                 || pinTransaction.getSourceAccountNumber().equals(pinTransaction.getDestinationAccountNumber())
                 || pinTransaction.getSourceAccountNumber().length() != accountNumberLength
@@ -405,27 +410,34 @@ class PinService {
                     getCustomerIdFromCardNumber(pinTransaction.getCardNumber()),
                     cardInfo.getDate("expiration_date").toLocalDate());
             if (pinTransaction.getSourceAccountNumber().equals(accountNumberLinkedToCard)) {
-                if (incorrectAttempts < 3) {
-                    if (pinCodeUsed == null) {
-                        if (pinTransaction.getTransactionAmount() < CONTACTLESS_TRANSACTION_LIMIT) {
+                if (cardInfo.getBoolean("active")) {
+                    if (incorrectAttempts < 3) {
+                        if (pinCodeUsed == null) {
+                            if (pinTransaction.getTransactionAmount() < CONTACTLESS_TRANSACTION_LIMIT) {
+                                checkPinValidity(pinCard, pinTransaction, false, callbackBuilder);
+                            } else {
+                                getCardInfo.close();
+                                databaseConnectionPool.returnConnection(databaseConnection);
+                                throw new IncorrectPinException(
+                                        "The transfer amount is too high, please enter pin code.");
+                            }
+                        } else if (pinCodeUsed.equals(pinCard.getPinCode())) {
                             checkPinValidity(pinCard, pinTransaction, false, callbackBuilder);
                         } else {
                             getCardInfo.close();
                             databaseConnectionPool.returnConnection(databaseConnection);
-                            throw new IncorrectPinException("The transfer amount is too high, please enter pin code.");
+                            incrementIncorrectAttempts(pinCard.getCardNumber());
+                            throw new IncorrectPinException("The pin code used was incorrect.");
                         }
-                    } else if (pinCodeUsed.equals(pinCard.getPinCode())) {
-                        checkPinValidity(pinCard, pinTransaction, false, callbackBuilder);
                     } else {
                         getCardInfo.close();
                         databaseConnectionPool.returnConnection(databaseConnection);
-                        incrementIncorrectAttempts(pinCard.getCardNumber());
-                        throw new IncorrectPinException("The pin code used was incorrect.");
+                        throw new CardBlockedException("The card used is blocked.");
                     }
                 } else {
                     getCardInfo.close();
                     databaseConnectionPool.returnConnection(databaseConnection);
-                    throw new CardBlockedException("The card used is blocked.");
+                    throw new CardDeactivatedException("The card used has been deactivated.");
                 }
             } else {
                 getCardInfo.close();
@@ -667,7 +679,7 @@ class PinService {
      * Inserts a pin card into the pin database.
      * ExpirationDate for the card will be set to the day that the date is on, time is disregarded once the card is
      * in the database.
-     * @param pinCard Pincard to be inserted into the database.
+     * @param pinCard PinCard to be inserted into the database.
      * @throws SQLException Thrown when the insertion fails, will reject the new pin card request.
      */
     void addPinCardToDatabase(final PinCard pinCard) throws SQLException {
@@ -680,6 +692,7 @@ class PinService {
         addPinCard.setString(4, pinCard.getPinCode());
         addPinCard.setDate(5, java.sql.Date.valueOf(pinCard.getExpirationDate()));
         addPinCard.setLong(6, 0L);
+        addPinCard.setBoolean(7, true);
         addPinCard.executeUpdate();
         addPinCard.close();
         databaseConnectionPool.returnConnection(databaseConnection);
