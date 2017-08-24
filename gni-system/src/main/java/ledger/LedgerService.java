@@ -1178,7 +1178,7 @@ class LedgerService {
     @RequestMapping(value = "/overdraft/set", method = RequestMethod.PUT)
     public void incomingSetOverdraftLimitRequestListener(final Callback<String> callback,
                                                 final @RequestParam("accountNumber") String accountNumber,
-                                                final @RequestParam("overdraftLimit") String overdraftLimit) {
+                                                final @RequestParam("overdraftLimit") Double overdraftLimit) {
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         System.out.printf("%s Received a setOverdraftLimit request for accountNumber: %s\n", PREFIX, accountNumber);
         handleSetOverdraftLimitExceptions(accountNumber, overdraftLimit, callbackBuilder);
@@ -1191,11 +1191,11 @@ class LedgerService {
      * @param callbackBuilder Used to send the result of the request to the request source.
      */
     private void handleSetOverdraftLimitExceptions(
-            final String accountNumber, final String overdraftLimit, final CallbackBuilder callbackBuilder) {
+            final String accountNumber, final Double overdraftLimit, final CallbackBuilder callbackBuilder) {
         try {
             Account account = getAccountInfo(accountNumber);
             if (account != null) {
-                account.setOverdraftLimit(Integer.parseInt(overdraftLimit));
+                account.setOverdraftLimit(overdraftLimit);
                 updateOverdraftLimit(account);
                 sendSetOverdraftLimitCallback(callbackBuilder);
             } else {

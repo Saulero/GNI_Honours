@@ -26,7 +26,7 @@ public class SetOverdraftLimit {
         System.out.printf("%s Sending set overdraft limit request.\n", PREFIX);
         verifyOverdraftInput((String) params.get("iBAN"),
                 (String) params.get("authToken"),
-                (String) params.get("overdraftLimit"), api);
+                (Double) params.get("overdraftLimit"), api);
     }
 
     /**
@@ -37,9 +37,8 @@ public class SetOverdraftLimit {
      * @param api DataBean containing everything in the ApiService
      */
     private static void verifyOverdraftInput(
-            final String accountNumber, final String cookie, final String overdraftLimit, final ApiBean api) {
-        int newLimit = Integer.parseInt(overdraftLimit);
-        if (newLimit < 0 || newLimit > 5000) {
+            final String accountNumber, final String cookie, final Double overdraftLimit, final ApiBean api) {
+        if (overdraftLimit < 0 || overdraftLimit > 5000) {
             sendErrorReply(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "The new limit is not >0 and <5000"), api);
         } else {
             doSetOverdraftRequest(accountNumber, cookie, overdraftLimit, api);
@@ -55,7 +54,7 @@ public class SetOverdraftLimit {
      * @param api DataBean containing everything in the ApiService
      */
     private static void doSetOverdraftRequest(
-            final String accountNumber, final String cookie, final String overdraftLimit, final ApiBean api) {
+            final String accountNumber, final String cookie, final Double overdraftLimit, final ApiBean api) {
         System.out.printf("%s Forwarding setOverdraft request.\n", PREFIX);
         api.getAuthenticationClient().putFormAsyncWith3Params("/services/authentication/overdraft/set",
                 "accountNumber", accountNumber, "cookie", cookie, "overdraftLimit", overdraftLimit,
