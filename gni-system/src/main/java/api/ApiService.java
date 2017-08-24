@@ -194,6 +194,8 @@ public class ApiService {
                 break;
             case "closeSavingsAccount":     CloseSavingsAccount.closeSavingsAccount(params, api);
                 break;
+            case "invalidateCard":          InvalidateCard.invalidateCard(params, api);
+                break;
             default:                        callback.reply(new JSONRPC2Response(JSONRPC2Error.METHOD_NOT_FOUND,
                     request.getID()).toJSONString());
                 break;

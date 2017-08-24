@@ -55,8 +55,8 @@ class LedgerService {
     private static final int TIER_2_CAP = 75000;
     /** Interest rate for a savings balance of more than tier 2 cap. */
     private static final double TIER_3_INTEREST_RATE = 0.20;
-    /** Account number where overdraft fees are transferred to. */
-    private static final String OVERDRAFT_ACCOUNT = "NL52GNIB3676451168";
+    /** Account number where fees are transferred to. */
+    private static final String GNI_ACCOUNT = "NL52GNIB3676451168";
 
     /**
      * Constructor.
@@ -512,7 +512,6 @@ class LedgerService {
      * Checks if the account making the transaction is allowed to do this. (has a high enough overdraft limit)
      * @param transaction Object representing a Transaction request.
      * @param customerIsAuthorized boolean to signify if the outgoing transaction is allowed
-     * @return The processed transaction
      */
     void processOutgoingTransaction(final Transaction transaction, final boolean customerIsAuthorized, final CallbackBuilder callbackBuilder) {
         systemInformationClient.getAsync("/services/systemInfo/date", (code, contentType, body) -> {
@@ -1113,7 +1112,7 @@ class LedgerService {
             Transaction transaction = new Transaction();
             transaction.setSourceAccountNumber(accountNumber);
             transaction.setTransactionAmount(interestMap.get(accountNumber));
-            transaction.setDestinationAccountNumber(OVERDRAFT_ACCOUNT);
+            transaction.setDestinationAccountNumber(GNI_ACCOUNT);
             transaction.setDestinationAccountHolderName("GNI Bank");
             transaction.setDescription(String.format("Overdraft interest %s until %s", firstDayOfInterest,
                                                     lastDayOfInterest));
@@ -1137,7 +1136,7 @@ class LedgerService {
         final String lastDayOfInterest = currentDate.minusDays(1).toString();
         for (String accountNumber : interestMap.keySet()) {
             Transaction transaction = new Transaction();
-            transaction.setSourceAccountNumber(OVERDRAFT_ACCOUNT);
+            transaction.setSourceAccountNumber(GNI_ACCOUNT);
             transaction.setTransactionAmount(interestMap.get(accountNumber));
             transaction.setDestinationAccountNumber(accountNumber);
             transaction.setDestinationAccountHolderName("GNI Bank");

@@ -62,7 +62,7 @@ public class BasicHappyFlowTestSuite {
             Map<String, Object> parsedResponse;
 
             // SimulateTime, Reset and getDate method
-            System.out.println("-- SimulateTime & Reset & GetDate method --");
+            System.out.println("\n-- SimulateTime & Reset & GetDate method --");
 
             // getDate
             System.out.println("--> getDate");
@@ -111,7 +111,7 @@ public class BasicHappyFlowTestSuite {
 
 
             // Method 1. OpenAccount.
-            System.out.println("-- OpenAccountMethod. Donald opens an account --");
+            System.out.println("\n-- OpenAccountMethod. Donald opens an account --");
 
             request = OpenAccountMethod.createRequest(customer1);
             response = client.processRequest(request);
@@ -123,7 +123,7 @@ public class BasicHappyFlowTestSuite {
             }
 
             // Method 2. getAccountAuth.
-            System.out.println("-- getAccountAuth Method. Donald logs in. --");
+            System.out.println("\n-- getAccountAuth Method. Donald logs in. --");
 
             request = GetAuthTokenMethod.createRequest(customer1);
             response = client.processRequest(request);
@@ -133,7 +133,7 @@ public class BasicHappyFlowTestSuite {
             }
 
             // Method 2. OpenAdditonalAccount.
-            System.out.println("-- OpenAdditonalAccount Method. Donald wants a holiday savings account --");
+            System.out.println("\n-- OpenAdditonalAccount Method. Donald wants a holiday savings account --");
 
             request = OpenAdditionalAccountMethod.createRequest(customer1);
             response = client.processRequest(request);
@@ -157,7 +157,7 @@ public class BasicHappyFlowTestSuite {
                 card3 = tuple.getCard();
             }
 
-            System.out.println("-- Daisy logs in. --");
+            System.out.println("\n-- Daisy logs in. --");
 
             request = GetAuthTokenMethod.createRequest(customer2);
             response = client.processRequest(request);
@@ -167,7 +167,7 @@ public class BasicHappyFlowTestSuite {
             }
 
             // ProvideAccessMethod
-            System.out.println("-- ProvideAccessMethod. Donald shares access with Daisy--");
+            System.out.println("\n-- ProvideAccessMethod. Donald shares access with Daisy--");
 
             request = ProvideAccessMethod.createRequest(customer1, bankAccount1, customer2);
             response = client.processRequest(request);
@@ -177,7 +177,7 @@ public class BasicHappyFlowTestSuite {
             }
 
             // DepositIntoAccount
-            System.out.println("-- DepositIntoAccount. Donald deposits his salary --");
+            System.out.println("\n-- DepositIntoAccount. Donald deposits his salary --");
 
             request = DepositIntoAccountMethod.createRequest(bankAccount1, card1, 313);
             response = client.processRequest(request);
@@ -187,7 +187,7 @@ public class BasicHappyFlowTestSuite {
             }
 
             // PayFromAccount
-            System.out.println("-- PayFromAccount. Donald buys hot dogs --");
+            System.out.println("\n-- PayFromAccount. Donald buys hot dogs --");
 
             request = PayFromAccountMethod.createRequest(bankAccount1, bankAccount3, card1, (12.3));
             response = client.processRequest(request);
@@ -197,7 +197,7 @@ public class BasicHappyFlowTestSuite {
             }
 
             // UnblockCard
-            System.out.println("-- UnblockCard. Donald uses the wrong pin code and then unblocks his card --");
+            System.out.println("\n-- UnblockCard. Donald uses the wrong pin code and then unblocks his card --");
 
             String pinCode = card1.getPinCode();
             card1.setPinCode("999999");
@@ -231,7 +231,7 @@ public class BasicHappyFlowTestSuite {
             }
 
             // TransferMoney
-            System.out.println("-- TransferMoney. Daisy transfers to Donald --");
+            System.out.println("\n-- TransferMoney. Daisy transfers to Donald --");
 
             request = TransferMoneyMethod.createRequest(bankAccount3, bankAccount1, customer2, 200, "Moniez");
             response = client.processRequest(request);
@@ -241,7 +241,7 @@ public class BasicHappyFlowTestSuite {
             }
 
             // ObtainBalance
-            System.out.println("-- Donald wants to obtain his balance --");
+            System.out.println("\n-- Donald wants to obtain his balance --");
 
             request = GetBalanceMethod.createRequest(customer1, bankAccount1);
             response = client.processRequest(request);
@@ -251,7 +251,7 @@ public class BasicHappyFlowTestSuite {
             }
 
             // getTransactionOverview
-            System.out.println("-- Donald wants to get transaction overview --");
+            System.out.println("\n-- Donald wants to get transaction overview --");
 
             request = GetTransactionsMethod.createRequest(customer1, bankAccount1, 2);
             response = client.processRequest(request);
@@ -262,7 +262,7 @@ public class BasicHappyFlowTestSuite {
             }
 
             // GetUserAccess
-            System.out.println("-- Donald wants to obtain his access. --");
+            System.out.println("\n-- Donald wants to obtain his access. --");
 
             request = GetUserAccessMethod.createRequest(customer1);
             response = client.processRequest(request);
@@ -273,7 +273,7 @@ public class BasicHappyFlowTestSuite {
 
 
             // GetBankAccountAccessMethod
-            System.out.println("-- Donald wants to fetch his current overdraft limit --");
+            System.out.println("\n-- Donald wants to fetch his current overdraft limit --");
 
             request = GetOverdraftLimitMethod.createRequest(customer1, bankAccount1);
             response = client.processRequest(request);
@@ -283,7 +283,7 @@ public class BasicHappyFlowTestSuite {
             }
 
             // SetOverdraftLimitMethod
-            System.out.println("-- Donald wants to set his overdraft limit --");
+            System.out.println("\n-- Donald wants to set his overdraft limit --");
 
             request = SetOverdraftLimitMethod.createRequest(customer1, bankAccount1, "2500");
             response = client.processRequest(request);
@@ -293,7 +293,7 @@ public class BasicHappyFlowTestSuite {
             }
 
             // GetOverdraftLimitMethod
-            System.out.println("-- Donald wants to fetch his current overdraft limit --");
+            System.out.println("\n-- Donald wants to fetch his current overdraft limit --");
 
             request = GetOverdraftLimitMethod.createRequest(customer1, bankAccount1);
             response = client.processRequest(request);
@@ -303,7 +303,7 @@ public class BasicHappyFlowTestSuite {
             }
 
             // TransferMoney
-            System.out.println("-- TransferMoney. Donald transfers to Daisy and goes overdraft --");
+            System.out.println("\n-- TransferMoney. Donald transfers to Daisy and goes overdraft --");
 
             request = TransferMoneyMethod.createRequest(bankAccount1, bankAccount3, customer1, 1299.7, "Moniez");
             response = client.processRequest(request);
@@ -313,7 +313,7 @@ public class BasicHappyFlowTestSuite {
             }
 
             // ObtainBalance
-            System.out.println("-- Donald wants to obtain his balance --");
+            System.out.println("\n-- Donald wants to obtain his balance --");
 
             request = GetBalanceMethod.createRequest(customer1, bankAccount1);
             response = client.processRequest(request);
@@ -323,7 +323,7 @@ public class BasicHappyFlowTestSuite {
             }
 
             // Open savings account
-            System.out.println("-- OpenSavingsAccount. Donald opens a savings account --");
+            System.out.println("\n-- OpenSavingsAccount. Donald opens a savings account --");
             request = OpenSavingsAccountMethod.createRequest(customer1, bankAccount1);
             response = client.processRequest(request);
 
@@ -332,7 +332,7 @@ public class BasicHappyFlowTestSuite {
             }
 
             // TransferMoney to savings account
-            System.out.println("-- TransferMoney. Donald transfers some money to his savings account --");
+            System.out.println("\n-- TransferMoney. Donald transfers some money to his savings account --");
 
             BankAccount savingsAccount = new BankAccount(bankAccount1.getiBAN() + "S");
             request = TransferMoneyMethod.createRequest(bankAccount1, savingsAccount, customer1, 100, "Moniez");
@@ -343,7 +343,7 @@ public class BasicHappyFlowTestSuite {
             }
 
             // ObtainBalance
-            System.out.println("-- Donald wants to obtain his balance --");
+            System.out.println("\n-- Donald wants to obtain his balance --");
 
             request = GetBalanceMethod.createRequest(customer1, bankAccount1);
             response = client.processRequest(request);
@@ -353,7 +353,7 @@ public class BasicHappyFlowTestSuite {
             }
 
             // simulateTime
-            System.out.println("-- 365 days pass. --");
+            System.out.println("\n-- 365 days pass. --");
             request = SimulateTimeMethod.createRequest(365L);
             response = client.processRequest(request);
 
@@ -362,7 +362,7 @@ public class BasicHappyFlowTestSuite {
             }
 
             // TransferMoney from savings account
-            System.out.println("-- TransferMoney. Donald transfers some money from his savings account --");
+            System.out.println("\n-- TransferMoney. Donald transfers some money from his savings account --");
 
             request = TransferMoneyMethod.createRequest(savingsAccount, bankAccount1, customer1, 100, "Moniez");
             response = client.processRequest(request);
@@ -372,7 +372,7 @@ public class BasicHappyFlowTestSuite {
             }
 
             // getTransactionOverview
-            System.out.println("-- Donald wants to get transaction overview --");
+            System.out.println("\n-- Donald wants to get transaction overview --");
 
             request = GetTransactionsMethod.createRequest(customer1, bankAccount1, 25);
             response = client.processRequest(request);
@@ -382,7 +382,7 @@ public class BasicHappyFlowTestSuite {
             }
 
             // ObtainBalance
-            System.out.println("-- Donald wants to obtain his balance --");
+            System.out.println("\n-- Donald wants to obtain his balance --");
 
             request = GetBalanceMethod.createRequest(customer1, bankAccount1);
             response = client.processRequest(request);
@@ -392,7 +392,7 @@ public class BasicHappyFlowTestSuite {
             }
 
             // close savings account
-            System.out.println("-- CloseSavingsAccount. Donald closes his savings account --");
+            System.out.println("\n-- CloseSavingsAccount. Donald closes his savings account --");
             request = CloseSavingsAccountMethod.createRequest(customer1, bankAccount1);
             response = client.processRequest(request);
 
@@ -401,7 +401,7 @@ public class BasicHappyFlowTestSuite {
             }
 
             //getEventLog for the past 400 days
-            System.out.println("-- Donald wants to get an event overview --");
+            System.out.println("\n-- Donald wants to get an event overview --");
 
             request = GetEventLogsMethod.createRequest(LocalDate.now().minusDays(2), LocalDate.now().plusYears(2));
             response = client.processRequest(request);
@@ -410,10 +410,62 @@ public class BasicHappyFlowTestSuite {
                 GetTransactionsMethod.parseResponse(namedArrayResults);
             }
 
+            // invalidateCard
+            System.out.println("\n-- InvalidateCard. Donald invalidates his pin card w/o new code request --");
+            request = InvalidateCardMethod.createRequest(customer1, bankAccount1, card1, false);
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                card2 = InvalidateCardMethod.parseResponse(parsedResponse);
+            }
+
+            System.out.println("-- PayFromAccount. Donald attempts to make a purchase with the deactivated card --");
+
+            request = PayFromAccountMethod.createRequest(bankAccount1, bankAccount3, card1, (1));
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                PayFromAccountMethod.parseResponse(parsedResponse);
+            }
+
+            System.out.println("-- PayFromAccount. Donald attempts to make a purchase with the new card and old code --");
+
+            request = PayFromAccountMethod.createRequest(bankAccount1, bankAccount3, new PinCard(null, card2.getPinCardNumber(), card1.getPinCode()), (1));
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                PayFromAccountMethod.parseResponse(parsedResponse);
+            }
+
+            System.out.println("-- InvalidateCard. Donald invalidates his pin card w/ new code request --");
+            request = InvalidateCardMethod.createRequest(customer1, bankAccount1, card1, true);
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                card3 = InvalidateCardMethod.parseResponse(parsedResponse);
+            }
+
+            System.out.println("-- PayFromAccount. Donald attempts to make a purchase with the new card and new code --");
+
+            request = PayFromAccountMethod.createRequest(bankAccount1, bankAccount3, card3, (1));
+            response = client.processRequest(request);
+
+            if ((parsedResponse = checkResponse(response)) != null) {
+                PayFromAccountMethod.parseResponse(parsedResponse);
+            }
+
+            System.out.println("-- Donald wants to get transaction overview --");
+
+            request = GetTransactionsMethod.createRequest(customer1, bankAccount1, 25);
+            response = client.processRequest(request);
+
+            if ((namedArrayResults = checkArrayResponse(response)) != null) {
+                GetTransactionsMethod.parseResponse(namedArrayResults);
+            }
 
             ///------ TEAR DOWN TESTS.
             // RevokeAccessMethod
-            System.out.println("-- RevokeAccessMethod. Donald revokes Daisy's access--");
+            System.out.println("\n-- RevokeAccessMethod. Donald revokes Daisy's access--");
 
             request = RevokeAccessMethod.createRequest(customer1, bankAccount1, customer2);
             response = client.processRequest(request);
@@ -423,7 +475,7 @@ public class BasicHappyFlowTestSuite {
             }
 
             // Method 3. Close both accounts.
-            System.out.println("-- CloseAccount method. Donald closes all his Bank Accounts --");
+            System.out.println("\n-- CloseAccount method. Donald closes all his Bank Accounts --");
             for (BankAccount bankAccount : customer1.getBankAccounts()) {
 
                 request = CloseAccountMethod.createRequest(customer1, bankAccount);
