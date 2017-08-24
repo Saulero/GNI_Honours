@@ -454,6 +454,15 @@ public class BasicHappyFlowTestSuite {
                 PayFromAccountMethod.parseResponse(parsedResponse);
             }
 
+            System.out.println("-- Donald wants to get transaction overview --");
+
+            request = GetTransactionsMethod.createRequest(customer1, bankAccount1, 25);
+            response = client.processRequest(request);
+
+            if ((namedArrayResults = checkArrayResponse(response)) != null) {
+                GetTransactionsMethod.parseResponse(namedArrayResults);
+            }
+
             ///------ TEAR DOWN TESTS.
             // RevokeAccessMethod
             System.out.println("\n-- RevokeAccessMethod. Donald revokes Daisy's access--");
