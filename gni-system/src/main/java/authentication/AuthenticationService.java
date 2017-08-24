@@ -1353,7 +1353,7 @@ class AuthenticationService {
     }
 
     /**
-     * Sends the correct callback back to the source, depending on accountNrInResult.
+     * Sends the correct callback back to the source.
      * @param jsonReply The new pinCard.
      * @param callbackBuilder Used to send the result of the request back to the request source.
      */

@@ -29,13 +29,11 @@ public class InvalidateCard {
     public static void invalidateCard(final Map<String, Object> params, final ApiBean api) {
         System.out.printf("%s Pin card replacement request received, processing...\n", PREFIX);
         try {
-            //String authToken = (String) params.get("authToken");
             String iBAN = (String) params.get("iBAN");
             String cardNumber = (String) params.get("pinCard");
-            //boolean newPin = Boolean.getBoolean((String) params.get("newPin"));
-            //String newPinCode = (String) params.get("pinCode");
+            boolean newPin = Boolean.getBoolean((String) params.get("newPin"));
             verifyPinCardRemovalInput(iBAN, cardNumber);
-            doPinCardReplacementRequest(params, api);
+            doPinCardReplacementRequest(params, newPin, api);
         } catch (IncorrectInputException e) {
             System.out.printf("%s %s", PREFIX, e.getMessage());
             api.getCallbackBuilder().build().reply(api.getJsonConverter().toJson(JSONParser.createMessageWrapper(
@@ -70,9 +68,11 @@ public class InvalidateCard {
     /**
      * Forwards the pin card replacement request to the authentication service.
      * @param params Parameters of the request.
+     * @param newPin boolean indicating whether a new pin code should be created.
      * @param api DataBean containing everything in the ApiService
      */
-    private static void doPinCardReplacementRequest(final Map<String, Object> params, final ApiBean api) {
+    private static void doPinCardReplacementRequest(
+            final Map<String, Object> params, final boolean newPin, final ApiBean api) {
         String message = api.getJsonConverter().toJson(JSONParser.createMessageWrapper(false, 0, "Request", params));
         api.getAuthenticationClient().putFormAsyncWith1Param("/services/authentication/invalidateCard",
                 "params", message, (code, contentType, body) -> {
@@ -80,7 +80,7 @@ public class InvalidateCard {
                         MessageWrapper messageWrapper = api.getJsonConverter().fromJson(
                                 JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
-                            sendPinCardReplacementCallback((PinCard) messageWrapper.getData(), api);
+                            sendPinCardReplacementCallback((PinCard) messageWrapper.getData(), newPin, api);
                         } else {
                             sendErrorReply(messageWrapper, api);
                         }
@@ -96,13 +96,14 @@ public class InvalidateCard {
     /**
      * Sends the correct callback back to the source.
      * @param pinCard The new pinCard.
+     * @param newPin boolean indicating whether a new pin code should be created.
      * @param api DataBean containing everything in the ApiService
      */
-    private static void sendPinCardReplacementCallback(final PinCard pinCard, final ApiBean api) {
+    private static void sendPinCardReplacementCallback(final PinCard pinCard, final boolean newPin, final ApiBean api) {
         System.out.printf("%s Pin card replacement successful, sending callback.\n", PREFIX);
         Map<String, Object> result = new HashMap<>();
         result.put("pinCard", pinCard.getCardNumber());
-        if (pinCard.getPinCode() != null) {
+        if (newPin) {
             result.put("pinCode", pinCard.getPinCode());
         }
         JSONRPC2Response response = new JSONRPC2Response(result, api.getId());
