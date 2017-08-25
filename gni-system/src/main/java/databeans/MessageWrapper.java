@@ -1,6 +1,7 @@
 package databeans;
 
 import java.io.*;
+import java.util.Arrays;
 import java.util.Base64;
 
 /**
@@ -12,6 +13,8 @@ public class MessageWrapper implements Serializable {
     private int code;
     private String message;
     private byte[] data;
+    private boolean isAdmin;
+    private MethodType methodType;
 
     public MessageWrapper() {
 
@@ -39,6 +42,22 @@ public class MessageWrapper implements Serializable {
 
     public void setMessage(String message) {
         this.message = message;
+    }
+
+    public boolean isAdmin() {
+        return isAdmin;
+    }
+
+    public void setAdmin(boolean admin) {
+        isAdmin = admin;
+    }
+
+    public MethodType getMethodType() {
+        return methodType;
+    }
+
+    public void setMethodType(MethodType methodType) {
+        this.methodType = methodType;
     }
 
     public Object getData() {
@@ -85,7 +104,8 @@ public class MessageWrapper implements Serializable {
                 "error=" + error +
                 ", code=" + code +
                 ", message='" + message + '\'' +
-                ", data=" + data +
+                ", data=" + Arrays.toString(data) +
+                ", isAdmin=" + isAdmin +
                 '}';
     }
 }
