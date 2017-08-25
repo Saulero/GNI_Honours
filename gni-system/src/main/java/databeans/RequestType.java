@@ -22,5 +22,8 @@ public enum RequestType implements Serializable {
     CUSTOMERACCESSLIST,
 
     /** Used to fetch the access list for a certain account. */
-    ACCOUNTACCESSLIST
+    ACCOUNTACCESSLIST,
+
+    /** Used to get the overdraftLimit of a certain account. */
+    OVERDRAFTLIMIT
 }

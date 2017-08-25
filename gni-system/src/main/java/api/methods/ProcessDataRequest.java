@@ -156,12 +156,20 @@ public class ProcessDataRequest {
                 break;
             case ACCOUNTACCESSLIST:
                 System.out.printf("%s BankAccountAccess request successful.\n\n\n\n", PREFIX);
-                List<Map<String, Object>> result = new ArrayList<>();
+                List<Map<String, Object>> accountList = new ArrayList<>();
                 dataReply.getAccounts().forEach(k -> {
                     Map<String, Object> account = new HashMap<>();
                     account.put("username", k.getUsername());
-                    result.add(account);
+                    accountList.add(account);
                 });
+                sendDataRequestResponse(accountList, api);
+                break;
+            case OVERDRAFTLIMIT:
+                Double overdraftLimit = dataReply.getAccountData().getOverdraftLimit();
+                System.out.printf(
+                        "%s Successfully queried the current overdraft limit: %f.\n\n\n\n", PREFIX, overdraftLimit);
+                Map<String, Object> result = new HashMap<>();
+                result.put("overdraftLimit", overdraftLimit);
                 sendDataRequestResponse(result, api);
                 break;
             default:
