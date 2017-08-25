@@ -150,54 +150,100 @@ public class ApiService {
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         ApiBean api = new ApiBean(this, callbackBuilder, id);
         switch (method) {
-            case "openAccount":             OpenAccount.openAccount(params, api);
+            case "openAccount":
+                params.put("method_type", MethodType.OPEN_ACCOUNT);
+                OpenAccount.openAccount(params, api);
                 break;
-            case "openAdditionalAccount":   OpenAdditionalAccount.openAdditionalAccount(params, api);
+            case "openAdditionalAccount":
+                params.put("method_type", MethodType.OPEN_ADDITIONAL_ACCOUNT);
+                OpenAdditionalAccount.openAdditionalAccount(params, api);
                 break;
-            case "closeAccount":            CloseAccount.closeAccount(params, api);
+            case "closeAccount":
+                params.put("method_type", MethodType.CLOSE_ACCOUNT);
+                CloseAccount.closeAccount(params, api);
                 break;
-            case "provideAccess":           ProvideAccess.provideAccess(params, api);
+            case "provideAccess":
+                params.put("method_type", MethodType.PROVIDE_ACCESS);
+                ProvideAccess.provideAccess(params, api);
                 break;
-            case "revokeAccess":            RevokeAccess.revokeAccess(params, api);
+            case "revokeAccess":
+                params.put("method_type", MethodType.REVOKE_ACCESS);
+                RevokeAccess.revokeAccess(params, api);
                 break;
-            case "depositIntoAccount":      DepositIntoAccount.depositIntoAccount(params, api);
+            case "depositIntoAccount":
+                params.put("method_type", MethodType.DEPOSIT_INTO_ACCOUNT);
+                DepositIntoAccount.depositIntoAccount(params, api);
                 break;
-            case "payFromAccount":          PayFromAccount.payFromAccount(params, api);
+            case "payFromAccount":
+                params.put("method_type", MethodType.PAY_FROM_ACCOUNT);
+                PayFromAccount.payFromAccount(params, api);
                 break;
-            case "transferMoney":           TransferMoney.transferMoney(params, api);
+            case "transferMoney":
+                params.put("method_type", MethodType.TRANSFER_MONEY);
+                TransferMoney.transferMoney(params, api);
                 break;
-            case "getAuthToken":            GetAuthToken.getAuthToken(params, api);
+            case "getAuthToken":
+                params.put("method_type", MethodType.GET_AUTH_TOKEN);
+                GetAuthToken.getAuthToken(params, api);
                 break;
-            case "getBalance":              GetBalance.getBalance(params, api);
+            case "getBalance":
+                params.put("method_type", MethodType.GET_BALANCE);
+                GetBalance.getBalance(params, api);
                 break;
-            case "getTransactionsOverview": GetTransactionsOverview.getTransactionsOverview(params, api);
+            case "getTransactionsOverview":
+                params.put("method_type", MethodType.GET_TRANSACTION_OVERVIEW);
+                GetTransactionsOverview.getTransactionsOverview(params, api);
                 break;
-            case "getUserAccess":           GetUserAccess.getUserAccess(params, api);
+            case "getUserAccess":
+                params.put("method_type", MethodType.GET_USER_ACCESS);
+                GetUserAccess.getUserAccess(params, api);
                 break;
-            case "getBankAccountAccess":    GetBankAccountAccess.getBankAccountAccess(params, api);
+            case "getBankAccountAccess":
+                params.put("method_type", MethodType.GET_BANK_ACCOUNT_ACCESS);
+                GetBankAccountAccess.getBankAccountAccess(params, api);
                 break;
-            case "unblockCard":             UnblockCard.unblockCard(params, api);
+            case "unblockCard":
+                params.put("method_type", MethodType.UNBLOCK_CARD);
+                UnblockCard.unblockCard(params, api);
                 break;
-            case "simulateTime":            SimulateTime.simulateTime(params, api);
+            case "simulateTime":
+                params.put("method_type", MethodType.SIMULATE_TIME);
+                SimulateTime.simulateTime(params, api);
                 break;
-            case "reset":                   Reset.reset(api);
+            case "reset":
+                params.put("method_type", MethodType.RESET);
+                Reset.reset(api);
                 break;
-            case "getDate":                 GetDate.getDate(api);
+            case "getDate":
+                params.put("method_type", MethodType.GET_DATE);
+                GetDate.getDate(api);
                 break;
-            case "setOverdraftLimit":       SetOverdraftLimit.setOverdraftLimit(params, api);
+            case "setOverdraftLimit":
+                params.put("method_type", MethodType.SET_OVERDRAFT_LIMIT);
+                SetOverdraftLimit.setOverdraftLimit(params, api);
                 break;
-            case "getOverdraftLimit":       GetOverdraftLimit.getOverdraftLimit(params, api);
+            case "getOverdraftLimit":
+                params.put("method_type", MethodType.GET_OVERDRAFT_LIMIT);
+                GetOverdraftLimit.getOverdraftLimit(params, api);
                 break;
-            case "getEventLogs":            GetEventLogs.getEventLogs(params, api);
+            case "getEventLogs":
+                params.put("method_type", MethodType.GET_EVENT_LOGS);
+                GetEventLogs.getEventLogs(params, api);
                 break;
-            case "openSavingsAccount":      OpenSavingsAccount.openSavingsAccount(params, api);
+            case "openSavingsAccount":
+                params.put("method_type", MethodType.OPEN_SAVING_ACCOUNT);
+                OpenSavingsAccount.openSavingsAccount(params, api);
                 break;
-            case "closeSavingsAccount":     CloseSavingsAccount.closeSavingsAccount(params, api);
+            case "closeSavingsAccount":
+                params.put("method_type", MethodType.CLOSE_SAVINGS_ACCOUNT);
+                CloseSavingsAccount.closeSavingsAccount(params, api);
                 break;
-            case "invalidateCard":          InvalidateCard.invalidateCard(params, api);
+            case "invalidateCard":
+                params.put("method_type", MethodType.INVALIDATE_CARD);
+                InvalidateCard.invalidateCard(params, api);
                 break;
-            default:                        callback.reply(new JSONRPC2Response(JSONRPC2Error.METHOD_NOT_FOUND,
-                    request.getID()).toJSONString());
+            default:
+                callback.reply(new JSONRPC2Response(JSONRPC2Error.METHOD_NOT_FOUND, request.getID()).toJSONString());
                 break;
         }
     }
