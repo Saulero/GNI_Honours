@@ -1,6 +1,8 @@
 package util;
 
-import database.*;
+import database.ConnectionPool;
+import database.SQLConnection;
+import database.SQLStatements;
 
 import java.sql.SQLException;
 
@@ -9,27 +11,44 @@ import java.sql.SQLException;
  * @version 2
  */
 public class TableCreator {
+
     /** Database connection needed to drop/create tables. */
     private static ConnectionPool databaseConnectionPool = new ConnectionPool();
 
     /** SQL statements to create all necessary tables in the database. */
-    private static final String[] CREATE_TABLE_ARRAY = {SQLStatements.createAccountsTable,
-            SQLStatements.createLedgerTable, SQLStatements.createPinTable,
+    private static final String[] CREATE_TABLE_ARRAY = {
+            SQLStatements.createAccountsTable,
+            SQLStatements.createLedgerTable,
+            SQLStatements.createPinTable,
             SQLStatements.createTransactionsInTable,
-            SQLStatements.createTransactionsOutTable, SQLStatements.createAuthTable,
-            SQLStatements.createUsersTable, SQLStatements.createRequestLogTable, SQLStatements.createErrorLogTable};
+            SQLStatements.createTransactionsOutTable,
+            SQLStatements.createAuthTable,
+            SQLStatements.createUsersTable,
+            SQLStatements.createRequestLogTable,
+            SQLStatements.createErrorLogTable};
 
     /** SQL statements to drop all necessary tables in the database. */
-    private static final String[] DROP_TABLE_ARRAY = {SQLStatements.dropAccountsTable, SQLStatements.dropLedgerTable,
-            SQLStatements.dropPinTable, SQLStatements.dropTransactionsInTable,
-            SQLStatements.dropTransactionsOutTable, SQLStatements.dropAuthTable,
-            SQLStatements.dropUsersTable, SQLStatements.dropRequestLogTable, SQLStatements.dropErrorLogTable};
+    private static final String[] DROP_TABLE_ARRAY = {
+            SQLStatements.dropAccountsTable,
+            SQLStatements.dropLedgerTable,
+            SQLStatements.dropPinTable,
+            SQLStatements.dropTransactionsInTable,
+            SQLStatements.dropTransactionsOutTable,
+            SQLStatements.dropAuthTable,
+            SQLStatements.dropUsersTable,
+            SQLStatements.dropRequestLogTable,
+            SQLStatements.dropErrorLogTable};
 
     /** SQL statements to truncate all tables in the database. */
-    private static final String[] TRUNCATE_ARRAY = {SQLStatements.truncateAccountsTable,
-            SQLStatements.truncateLedgerTable, SQLStatements.truncatePinTable,
-            SQLStatements.truncateTransactionsInTable, SQLStatements.truncateTransactionsOutTable,
-            SQLStatements.truncateAuthTable, SQLStatements.truncateUsersTable, SQLStatements.truncateRequestLogTable,
+    private static final String[] TRUNCATE_ARRAY = {
+            SQLStatements.truncateAccountsTable,
+            SQLStatements.truncateLedgerTable,
+            SQLStatements.truncatePinTable,
+            SQLStatements.truncateTransactionsInTable,
+            SQLStatements.truncateTransactionsOutTable,
+            SQLStatements.truncateAuthTable,
+            SQLStatements.truncateUsersTable,
+            SQLStatements.truncateRequestLogTable,
             SQLStatements.truncateErrorLogTable};
 
     /** Drops all tables and creates new tables to use the system with.
@@ -38,24 +57,12 @@ public class TableCreator {
         createNewTables();
     }
 
-    public static void truncateTables() {
-        executeStatements(TRUNCATE_ARRAY);
-    }
-
-    public static void dropTables() {
+    private static void createNewTables() {
         executeStatements(DROP_TABLE_ARRAY);
-    }
-
-    public static void createTables() {
         executeStatements(CREATE_TABLE_ARRAY);
     }
 
-    public static void createNewTables() {
-        dropTables();
-        createTables();
-    }
-
-    public static void executeStatements(String[] statements) {
+    private static void executeStatements(final String[] statements) {
         try {
             SQLConnection databaseConnection = databaseConnectionPool.getConnection();
             for (String statement : statements) {
@@ -65,5 +72,19 @@ public class TableCreator {
         }  catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+    // public methods
+
+    public static void truncateTables() {
+        executeStatements(TRUNCATE_ARRAY);
+    }
+
+    public static void truncateAdminTable() {
+        executeStatements(new String[] {SQLStatements.truncateAdminTable});
+    }
+
+    public static void createNewAdminTable() {
+        executeStatements(new String[] {SQLStatements.dropAdminTable, SQLStatements.createAdminTable});
     }
 }

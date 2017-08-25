@@ -80,6 +80,10 @@ public final class SQLStatements {
     public final static String dropRequestLogTable = "DROP TABLE IF EXISTS `request_logs`;";
     public final static String createErrorLogTable = "CREATE TABLE IF NOT EXISTS `error_logs`(`request_id` TEXT NOT NULL, `error_code` BIGINT(20) NOT NULL, `date` DATE NOT NULL, `time` TEXT NOT NULL, `message` TEXT NOT NULL, `data` TEXT NOT NULL);";
     public final static String dropErrorLogTable = "DROP TABLE IF EXISTS `error_logs`;";
+    public final static String createAdminTable = "CREATE TABLE IF NOT EXISTS `admin`( `user_id` BIGINT(20) NOT NULL, `permission_id` BIGINT(20) NOT NULL);";
+    public final static String dropAdminTable = "DROP TABLE IF EXISTS `admin`;";
+
+    // Truncate statements used for resetting the database
     public final static String truncateAccountsTable = "TRUNCATE TABLE `accounts`";
     public final static String truncateLedgerTable = "TRUNCATE TABLE `ledger`";
     public final static String truncatePinTable = "TRUNCATE TABLE `pin`";
@@ -89,5 +93,6 @@ public final class SQLStatements {
     public final static String truncateUsersTable = "TRUNCATE TABLE `users`";
     public final static String truncateRequestLogTable = "TRUNCATE TABLE `request_logs`";
     public final static String truncateErrorLogTable = "TRUNCATE TABLE `error_logs`";
+    public final static String truncateAdminTable = "TRUNCATE TABLE `admin`";
 
 }
