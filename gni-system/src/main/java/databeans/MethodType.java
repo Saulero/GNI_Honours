@@ -1,9 +1,11 @@
 package databeans;
 
+import java.io.Serializable;
+
 /**
  * @author Saul
  */
-public enum MethodType {
+public enum MethodType implements Serializable {
 
     OPEN_ACCOUNT,
     OPEN_ADDITIONAL_ACCOUNT,
