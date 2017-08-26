@@ -4,6 +4,7 @@ import api.ApiBean;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 import databeans.DataRequest;
 import databeans.MessageWrapper;
+import databeans.MethodType;
 import databeans.RequestType;
 import util.JSONParser;
 
@@ -28,7 +29,9 @@ public class GetOverdraftLimit {
     public static void getOverdraftLimit(final Map<String, Object> params, final ApiBean api) {
         DataRequest request = JSONParser.createJsonDataRequest((String) params.get("iBAN"),
                 RequestType.OVERDRAFTLIMIT, 0L);
+        MessageWrapper messageWrapper = JSONParser.createMessageWrapper(false, 0, "Request", request);
+        messageWrapper.setMethodType(MethodType.GET_OVERDRAFT_LIMIT);
         System.out.printf("%s Sending close account request.\n", PREFIX);
-        handleDataRequestExceptions(request, (String) params.get("authToken"), 0L, api);
+        handleDataRequestExceptions(messageWrapper, (String) params.get("authToken"), 0L, api);
     }
 }
