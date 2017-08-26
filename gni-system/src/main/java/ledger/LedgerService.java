@@ -16,6 +16,7 @@ import databeans.RequestType;
 import io.advantageous.qbit.reactive.CallbackBuilder;
 import util.JSONParser;
 
+import javax.xml.crypto.Data;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.PreparedStatement;
@@ -1223,35 +1224,39 @@ class LedgerService {
 
     /**
      * Receives a request to query an overdraft limit.
-     * @param accountNumber AccountNumber of which the limit should be queried.
+     * @param data AccountNumber of which the limit should be queried. (& admin info)
      * @param callback Used to send a reply to the request source.
      */
     @RequestMapping(value = "/overdraft/get", method = RequestMethod.PUT)
     public void incomingGetOverdraftLimitRequestListener(final Callback<String> callback,
-                                                final @RequestParam("accountNumber") String accountNumber) {
+                                                final @RequestParam("data") String data) {
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        System.out.printf("%s Received a getOverdraftLimit request for accountNumber: %s\n", PREFIX, accountNumber);
-        handleGetOverdraftLimitExceptions(accountNumber, callbackBuilder);
+        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
+        System.out.printf("%s Received a getOverdraftLimit request for accountNumber: %s\n",
+                PREFIX, ((DataRequest) messageWrapper.getData()).getAccountNumber());
+        handleGetOverdraftLimitExceptions(messageWrapper, callbackBuilder);
     }
 
     /**
      * Authenticates the request and then forwards the request with the accountNumber to ledger.
-     * @param accountNumber AccountNumber of which the limit should be queried.
+     * @param messageWrapper AccountNumber of which the limit should be queried. (& admin info)
      * @param callbackBuilder Used to send the result of the request to the request source.
      */
     private void handleGetOverdraftLimitExceptions(
-            final String accountNumber, final CallbackBuilder callbackBuilder) {
-        try {
-            Account account = getAccountInfo(accountNumber);
+            final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
+        DataRequest dataRequest = (DataRequest) messageWrapper.getData();
+        if (messageWrapper.isAdmin()
+                || getCustomerAuthorization(dataRequest.getAccountNumber(), "" + dataRequest.getCustomerId())) {
+            Account account = getAccountInfo(dataRequest.getAccountNumber());
             if (account != null) {
                 Integer overdraftLimit = (int) account.getOverdraftLimit();
                 sendGetOverdraftLimitCallback(overdraftLimit, callbackBuilder);
             } else {
-                throw new SQLException();
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418,
+                        "One of the parameters has an invalid value.",
+                        "The requested account does not appear to exist. (or database failure)")));
             }
-        } catch (SQLException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
-                    "Error connecting to the ledger database.")));
         }
     }
 

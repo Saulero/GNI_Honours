@@ -122,6 +122,7 @@ class AuthenticationService {
         while (rs.next()) {
             if (rs.getLong("permission_id") == methodType.getId()) {
                 res = true;
+                break;
             }
         }
 
