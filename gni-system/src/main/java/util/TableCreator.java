@@ -25,7 +25,8 @@ public class TableCreator {
             SQLStatements.createAuthTable,
             SQLStatements.createUsersTable,
             SQLStatements.createRequestLogTable,
-            SQLStatements.createErrorLogTable};
+            SQLStatements.createErrorLogTable,
+            SQLStatements.createAdminTable};
 
     /** SQL statements to drop all necessary tables in the database. */
     private static final String[] DROP_TABLE_ARRAY = {
@@ -37,7 +38,8 @@ public class TableCreator {
             SQLStatements.dropAuthTable,
             SQLStatements.dropUsersTable,
             SQLStatements.dropRequestLogTable,
-            SQLStatements.dropErrorLogTable};
+            SQLStatements.dropErrorLogTable,
+            SQLStatements.dropAdminTable};
 
     /** SQL statements to truncate all tables in the database. */
     private static final String[] TRUNCATE_ARRAY = {
@@ -55,6 +57,21 @@ public class TableCreator {
      * @param args Arguments are not used, just there so we can run the main method. */
     public static void main(final String[] args) {
         createNewTables();
+        createDefaultAdmin();
+    }
+
+    private static void createDefaultAdmin() {
+        executeStatements(new String[] {
+                SQLStatements.createDefaultAdmin,
+                SQLStatements.grantGetBalance,
+                SQLStatements.grantGetTransactionOverview,
+                SQLStatements.grantGetUserAccess,
+                SQLStatements.grantGetBankAccountAccess,
+                SQLStatements.grantGetOverdraftLimit,
+                SQLStatements.grantSimulateTime,
+                SQLStatements.grantReset,
+                SQLStatements.grantGetDate,
+                SQLStatements.grantGetEventLogs});
     }
 
     private static void createNewTables() {
@@ -74,17 +91,11 @@ public class TableCreator {
         }
     }
 
-    // public methods
-
     public static void truncateTables() {
         executeStatements(TRUNCATE_ARRAY);
     }
 
     public static void truncateAdminTable() {
         executeStatements(new String[] {SQLStatements.truncateAdminTable});
-    }
-
-    public static void createNewAdminTable() {
-        executeStatements(new String[] {SQLStatements.dropAdminTable, SQLStatements.createAdminTable});
     }
 }
