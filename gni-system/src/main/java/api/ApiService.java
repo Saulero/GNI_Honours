@@ -209,11 +209,11 @@ public class ApiService {
                 break;
             case "reset":
                 params.put("method_type", MethodType.RESET);
-                Reset.reset(api);
+                Reset.reset(params, api);
                 break;
             case "getDate":
                 params.put("method_type", MethodType.GET_DATE);
-                GetDate.getDate(api);
+                GetDate.getDate(params, api);
                 break;
             case "setOverdraftLimit":
                 params.put("method_type", MethodType.SET_OVERDRAFT_LIMIT);
