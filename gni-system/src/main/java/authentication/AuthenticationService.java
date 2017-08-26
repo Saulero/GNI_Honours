@@ -1416,6 +1416,29 @@ class AuthenticationService {
         callbackBuilder.build().reply(body);
     }
 
+    private void doGetEventLogsRequest(final CallbackBuilder callbackBuilder, final String request) {
+        systemInformationClient.getAsyncWith1Param("/services/systemInfo/log",
+                "data", request, (code, contentType, body) -> {
+                    if (code == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendGetEventLogsCallback(callbackBuilder, body);
+                        } else {
+                            callbackBuilder.build().reply(body);
+                        }
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                                "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                    }
+                });
+    }
+
+    private void sendGetEventLogsCallback(final CallbackBuilder callbackBuilder, final String body) {
+        System.out.printf("%s Event log query request successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(body);
+    }
+
     /**
      * Safely shuts down the AuthenticationService.
      */
