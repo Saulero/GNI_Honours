@@ -1351,23 +1351,34 @@ class AuthenticationService {
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         MessageWrapper messageWrapper = jsonConverter.fromJson(
                 JSONParser.removeEscapeCharacters(request), MessageWrapper.class);
-        switch (messageWrapper.getMethodType()) {
-            case SIMULATE_TIME:
-                doSimulateTimeRequest(callbackBuilder, messageWrapper);
-                break;
-            case RESET:
-                doResetRequest(callbackBuilder);
-                break;
-            case GET_DATE:
-                doGetDateRequest(callbackBuilder);
-                break;
-            case GET_EVENT_LOGS:
-                doGetEventLogsRequest(callbackBuilder, request);
-                break;
-            default:
-                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
-                        true, 500, "Internal system error occurred.")));
-                break;
+        try {
+            if (isAdmin(messageWrapper.getMethodType(), messageWrapper.getCookie())) {
+                switch (messageWrapper.getMethodType()) {
+                    case SIMULATE_TIME:
+                        doSimulateTimeRequest(callbackBuilder, messageWrapper);
+                        break;
+                    case RESET:
+                        doResetRequest(callbackBuilder);
+                        break;
+                    case GET_DATE:
+                        doGetDateRequest(callbackBuilder);
+                        break;
+                    case GET_EVENT_LOGS:
+                        doGetEventLogsRequest(callbackBuilder, request);
+                        break;
+                    default:
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                                true, 500, "Internal system error occurred.")));
+                        break;
+                }
+            } else {
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
+                        "The user is not authorized to perform this action.",
+                        "This user does not seem to have appropriate admin rights.")));
+            }
+        } catch (SQLException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
         }
     }
 
