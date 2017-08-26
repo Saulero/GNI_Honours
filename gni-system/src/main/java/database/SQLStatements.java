@@ -1,5 +1,7 @@
 package database;
 
+import databeans.MethodType;
+
 /**
  * @author Saul
  */
@@ -95,4 +97,30 @@ public final class SQLStatements {
     public final static String truncateErrorLogTable = "TRUNCATE TABLE `error_logs`";
     public final static String truncateAdminTable = "TRUNCATE TABLE `admin`";
 
+    // Admin methods to create default account & grant specific permissions
+    public static final String createDefaultAdmin = "INSERT INTO users (id, initials, firstname, lastname, email, telephone_number, address, date_of_birth, social_security_number) VALUES (-1, \"A.A.\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", -1)";
+
+    public final static String grantOpenAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";
+    public final static String grantOpenAdditionalAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";
+    public final static String grantCloseAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";
+    public final static String grantProvideAccess = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";
+    public final static String grantRevokeAccess = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";
+    public final static String grantDepositIntoAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";
+    public final static String grantPayFromAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";
+    public final static String grantTransferMoney = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";
+    public final static String grantGetAuthToken = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";
+    public final static String grantGetBalance = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";
+    public final static String grantGetTransactionOverview = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";
+    public final static String grantGetUserAccess = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";
+    public final static String grantGetBankAccountAccess = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";
+    public final static String grantUnblockCard = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";
+    public final static String grantSimulateTime = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";
+    public final static String grantReset = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";
+    public final static String grantGetDate = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";
+    public final static String grantSetOverdraftLimit = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";
+    public final static String grantGetOverdraftLimit = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";
+    public final static String grantGetEventLogs = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";
+    public final static String grantOpenSavingsAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";
+    public final static String grantCloseSavingsAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";
+    public final static String grantInvalidateCard = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";
 }
