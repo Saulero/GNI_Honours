@@ -1,6 +1,8 @@
 package authentication;
 
 import com.google.gson.Gson;
+import com.thetransactioncompany.jsonrpc2.JSONRPC2Error;
+import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 import database.ConnectionPool;
 import database.SQLConnection;
 import database.SQLStatements;
@@ -76,12 +78,12 @@ class AuthenticationService {
         System.out.printf("%s Sending ServiceInformation to the SystemInformationService.\n", PREFIX);
         systemInformationClient.putFormAsyncWith1Param("/services/systemInfo/newServiceInfo",
                 "serviceInfo", jsonConverter.toJson(serviceInfo), (httpStatusCode, httpContentType, replyJson) -> {
-                    if (httpStatusCode != HTTP_OK) {
-                        System.err.println("Problem with connection to the SystemInformationService.");
-                        System.err.println("Shutting down the Authentication service.");
-                        System.exit(1);
-                    }
-                });
+            if (httpStatusCode != HTTP_OK) {
+                System.err.println("Problem with connection to the SystemInformationService.");
+                System.err.println("Shutting down the Authentication service.");
+                System.exit(1);
+            }
+        });
     }
 
     /**
@@ -1318,6 +1320,32 @@ class AuthenticationService {
     private void sendPinCardReplacementCallback(final String jsonReply, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Pin card replacement successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(jsonReply);
+    }
+
+    @RequestMapping(value = "/systemInformation", method = RequestMethod.PUT)
+    public void processSysInfoRequest(final Callback<String> callback, @RequestParam("data") final String request) {
+        System.out.printf("%s Received sysInfo admin request.\n", PREFIX);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(request), MessageWrapper.class);
+        switch (messageWrapper.getMethodType()) {
+            case SIMULATE_TIME:
+                doSimulateTimeRequest(callbackBuilder, messageWrapper);
+                break;
+            case RESET:
+                doResetRequest(callbackBuilder);
+                break;
+            case GET_DATE:
+                doGetDateRequest(callbackBuilder);
+                break;
+            case GET_EVENT_LOGS:
+                doGetEventLogsRequest(callbackBuilder, request);
+                break;
+            default:
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                        true, 500, "Internal system error occurred.")));
+                break;
+        }
     }
 
     /**
