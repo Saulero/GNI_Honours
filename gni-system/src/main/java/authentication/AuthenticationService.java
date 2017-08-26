@@ -160,7 +160,9 @@ class AuthenticationService {
 
             authenticateRequest(cookie);
             messageWrapper.setAdmin(isAdmin(messageWrapper.getMethodType(), cookie));
-            ((DataRequest) messageWrapper.getData()).setCustomerId(getCustomerId(cookie));
+            DataRequest dataRequest = ((DataRequest) messageWrapper.getData());
+            dataRequest.setCustomerId(getCustomerId(cookie));
+            messageWrapper.setData(dataRequest);
             doDataRequest(messageWrapper, callbackBuilder);
         } catch (SQLException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
@@ -676,7 +678,7 @@ class AuthenticationService {
     private void doAccountLinkRequest(final String accountLinkRequestJson, final long requesterId,
                                       final CallbackBuilder callbackBuilder) {
         usersClient.putFormAsyncWith2Params("/services/users/accountLink", "body",
-                accountLinkRequestJson,"requesterId", requesterId,
+                accountLinkRequestJson, "requesterId", requesterId,
                 ((httpStatusCode, httpContentType, accountLinkReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(accountLinkReplyJson), MessageWrapper.class);
@@ -686,7 +688,10 @@ class AuthenticationService {
                             callbackBuilder.build().reply(accountLinkReplyJson);
                         }
                     } else {
-                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                                true, 500,
+                                "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests")));
                     }
                 }));
     }

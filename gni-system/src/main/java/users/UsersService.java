@@ -11,6 +11,7 @@ import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
+import org.omg.CORBA.Request;
 import util.JSONParser;
 
 import java.sql.PreparedStatement;
@@ -644,19 +645,22 @@ class UsersService {
      */
     private void doAccountExistsRequest(final String accountNumber, final long customerId, final String requesterId,
                                         final CallbackBuilder callbackBuilder) {
-        DataRequest accountExistsRequest = JSONParser.createAccountExistsRequest(accountNumber);
-        ledgerClient.getAsyncWith1Param("/services/ledger/data", "request",
-                                        jsonConverter.toJson(accountExistsRequest),
-                                        (httpStatusCode, httpContentType, dataReplyJson) -> {
+        DataRequest accountExistsRequest = new DataRequest(accountNumber, RequestType.ACCOUNTEXISTS, customerId);
+        MessageWrapper request = JSONParser.createMessageWrapper(false, 0, "Request", accountExistsRequest);
+        ledgerClient.getAsyncWith1Param("/services/ledger/data", "data", jsonConverter.toJson(request),
+                (httpStatusCode, httpContentType, dataReplyJson) -> {
             if (httpStatusCode == HTTP_OK) {
-                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(dataReplyJson), MessageWrapper.class);
+                MessageWrapper messageWrapper = jsonConverter.fromJson(
+                        JSONParser.removeEscapeCharacters(dataReplyJson), MessageWrapper.class);
                 if (!messageWrapper.isError()) {
-                    processAccountExistsReply((DataReply) messageWrapper.getData(), customerId, requesterId, callbackBuilder);
+                    processAccountExistsReply(
+                            (DataReply) messageWrapper.getData(), customerId, requesterId, callbackBuilder);
                 } else {
                     callbackBuilder.build().reply(dataReplyJson);
                 }
             } else {
-                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                        "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
         });
     }

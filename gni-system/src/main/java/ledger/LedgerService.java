@@ -633,7 +633,7 @@ class LedgerService {
         if (requestType != RequestType.ACCOUNTEXISTS
                 && !messageWrapper.isAdmin()
                 && !getCustomerAuthorization(dataRequest.getAccountNumber(), "" + dataRequest.getCustomerId())) {
-            System.out.printf("%s rejecting because not authorized", PREFIX);
+            System.out.printf("%s rejecting because not authorized\n", PREFIX);
             callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
                     "The user is not authorized to perform this action.",
                     "Customer not authorized to request data for this accountNumber.")));

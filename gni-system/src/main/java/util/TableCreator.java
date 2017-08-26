@@ -51,7 +51,8 @@ public class TableCreator {
             SQLStatements.truncateAuthTable,
             SQLStatements.truncateUsersTable,
             SQLStatements.truncateRequestLogTable,
-            SQLStatements.truncateErrorLogTable};
+            SQLStatements.truncateErrorLogTable,
+            SQLStatements.truncateAdminTable};
 
     /** Drops all tables and creates new tables to use the system with.
      * @param args Arguments are not used, just there so we can run the main method. */
@@ -99,10 +100,6 @@ public class TableCreator {
 
     public static void truncateTables() {
         executeStatements(TRUNCATE_ARRAY);
-    }
-
-    public static void truncateAdminTable() {
-        executeStatements(new String[] {SQLStatements.truncateAdminTable});
-        grantDefaultAdminPermissions();
+        createDefaultAdmin();
     }
 }
