@@ -112,6 +112,25 @@ class AuthenticationService {
         callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply")));
     }
 
+    private boolean isAdmin(final MethodType methodType, final String cookie) throws SQLException {
+        SQLConnection connection = databaseConnectionPool.getConnection();
+        PreparedStatement ps = connection.getConnection().prepareStatement(SQLStatements.getAdminPermissions);
+        ps.setLong(1, getCustomerId(cookie));
+        ResultSet rs = ps.executeQuery();
+        boolean res = false;
+
+        while (rs.next()) {
+            if (rs.getLong("permission_id") == methodType.getId()) {
+                res = true;
+            }
+        }
+
+        rs.close();
+        ps.close();
+        databaseConnectionPool.returnConnection(connection);
+        return res;
+    }
+
     /**
      * Creates a callback for the data request and then calls the exception handler.
      * @param callback Used to send the reply of User service to the source of the request.
@@ -135,10 +154,13 @@ class AuthenticationService {
     private void handleDataRequestExceptions(final String dataRequestJson, final String cookie,
                                              final CallbackBuilder callbackBuilder) {
         try {
+            MessageWrapper messageWrapper = jsonConverter.fromJson(
+                    JSONParser.removeEscapeCharacters(dataRequestJson), MessageWrapper.class);
+
             authenticateRequest(cookie);
-            DataRequest dataRequest = jsonConverter.fromJson(dataRequestJson, DataRequest.class);
-            dataRequest.setCustomerId(getCustomerId(cookie));
-            doDataRequest(dataRequest, callbackBuilder);
+            messageWrapper.setAdmin(isAdmin(messageWrapper.getMethodType(), cookie));
+            ((DataRequest) messageWrapper.getData()).setCustomerId(getCustomerId(cookie));
+            doDataRequest(messageWrapper, callbackBuilder);
         } catch (SQLException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         } catch (UserNotAuthorizedException e) {
@@ -230,14 +252,14 @@ class AuthenticationService {
     /**
      * Forwards the data request to the Users service and sends the reply off to processing, or rejects the request if
      * the forward fails.
-     * @param dataRequest Json string representing a dataRequest that should be sent to the UsersService.
+     * @param dataRequest A dataRequest that should be sent to the UsersService.
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
-    private void doDataRequest(final DataRequest dataRequest, final CallbackBuilder callbackBuilder) {
+    private void doDataRequest(final MessageWrapper dataRequest, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Forwarding data request.\n", PREFIX);
-        if (dataRequest.getType() == RequestType.OVERDRAFTLIMIT) {
+        if (dataRequest.getMethodType() == MethodType.GET_OVERDRAFT_LIMIT) {
             ledgerClient.putFormAsyncWith1Param("/services/ledger/overdraft/get",
-                    "accountNumber", dataRequest.getAccountNumber(),
+                    "data", jsonConverter.toJson(dataRequest),
                     (httpStatusCode, httpContentType, replyJson) -> {
                         if (httpStatusCode == HTTP_OK) {
                             MessageWrapper messageWrapper = jsonConverter.fromJson(
@@ -253,7 +275,7 @@ class AuthenticationService {
                         }
                     });
         } else {
-            usersClient.getAsyncWith1Param("/services/users/data", "request",
+            usersClient.getAsyncWith1Param("/services/users/data", "data",
                     jsonConverter.toJson(dataRequest), (httpStatusCode, httpContentType, dataReplyJson) -> {
                         if (httpStatusCode == HTTP_OK) {
                             MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(dataReplyJson), MessageWrapper.class);

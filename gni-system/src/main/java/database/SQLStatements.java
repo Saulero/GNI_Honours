@@ -97,10 +97,12 @@ public final class SQLStatements {
     public final static String truncateErrorLogTable = "TRUNCATE TABLE `error_logs`";
     public final static String truncateAdminTable = "TRUNCATE TABLE `admin`";
 
-    // Admin methods to create default account & grant specific permissions
+    // Admin methods
+    // Create default admin & add authentication data
     public static final String createDefaultAdmin = "INSERT INTO users (id, initials, firstname, lastname, email, telephone_number, address, date_of_birth, social_security_number) VALUES (-1, \"A.A.\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", -1)";
     public static final String addAdminAuthenticationData = "INSERT INTO authentication (user_id, username, password) VALUES (-1, \"admin\", \"admin\")";
 
+    // All grant permission statements, currently hardcoded for the default admin
     public final static String grantOpenAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";
     public final static String grantOpenAdditionalAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ADDITIONAL_ACCOUNT.getId() + ");";
     public final static String grantCloseAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.CLOSE_ACCOUNT.getId() + ");";
@@ -124,4 +126,7 @@ public final class SQLStatements {
     public final static String grantOpenSavingsAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_SAVING_ACCOUNT.getId() + ");";
     public final static String grantCloseSavingsAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.CLOSE_SAVINGS_ACCOUNT.getId() + ");";
     public final static String grantInvalidateCard = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.INVALIDATE_CARD.getId() + ");";
+
+    // Query method
+    public static final String getAdminPermissions = "SELECT permission_id FROM admin WHERE user_id = ?";
 }
