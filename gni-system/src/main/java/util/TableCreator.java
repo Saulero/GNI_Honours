@@ -71,7 +71,6 @@ public class TableCreator {
         executeStatements(new String[] {
                 SQLStatements.grantGetBalance,
                 SQLStatements.grantGetTransactionOverview,
-                SQLStatements.grantGetUserAccess,
                 SQLStatements.grantGetBankAccountAccess,
                 SQLStatements.grantGetOverdraftLimit,
                 SQLStatements.grantSimulateTime,

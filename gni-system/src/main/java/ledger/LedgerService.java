@@ -1257,6 +1257,9 @@ class LedgerService {
                         "One of the parameters has an invalid value.",
                         "The requested account does not appear to exist. (or database failure)")));
             }
+        } else {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 419, "The user is not authorized to perform this action.")));
         }
     }
 
