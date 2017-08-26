@@ -621,29 +621,34 @@ class LedgerService {
      * Receives a request to process a datarequest.
      * The datarequest is either for account information, a transaction history, or to check if an account exists.
      * @param callback Used to send a reply to the request source.
-     * @param dataRequestJson JSON String representing a DataRequest containing the request information
+     * @param data JSON String representing a DataRequest containing the request information
      */
     @RequestMapping(value = "/data", method = RequestMethod.GET)
-    public void dataRequestListener(final Callback<String> callback,
-                                    final @RequestParam("request") String dataRequestJson) {
-        Gson gson = new Gson();
-        DataRequest dataRequest = gson.fromJson(dataRequestJson, DataRequest.class);
+    public void dataRequestListener(final Callback<String> callback, final @RequestParam("data") String data) {
+        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
+        DataRequest dataRequest = (DataRequest) messageWrapper.getData();
         RequestType requestType = dataRequest.getType();
         System.out.printf("%s Received data request of type %s.\n", PREFIX, dataRequest.getType().toString());
-        if (requestType != RequestType.ACCOUNTEXISTS && !getCustomerAuthorization(dataRequest.getAccountNumber(),
-                "" + dataRequest.getCustomerId())) {
+        if (requestType != RequestType.ACCOUNTEXISTS
+                && !messageWrapper.isAdmin()
+                && !getCustomerAuthorization(dataRequest.getAccountNumber(), "" + dataRequest.getCustomerId())) {
             System.out.printf("%s rejecting because not authorized", PREFIX);
-            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "Customer not authorized to request data for this accountNumber.")));
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
+                    "The user is not authorized to perform this action.",
+                    "Customer not authorized to request data for this accountNumber.")));
         } else {
             // Method call
             DataReply dataReply = processDataRequest(dataRequest);
 
             if (dataReply != null) {
                 System.out.printf("%s Data request successful, sending callback.\n", PREFIX);
-                callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", dataReply)));
+                callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                        false, 200, "Normal Reply", dataReply)));
             } else {
                 System.out.printf("%s Data request failed, sending rejection.\n", PREFIX);
-                callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to the Ledger database.")));
+                callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                        true, 500, "Error connecting to the Ledger database.")));
             }
         }
     }
