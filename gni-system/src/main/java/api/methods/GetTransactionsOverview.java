@@ -2,6 +2,8 @@ package api.methods;
 
 import api.ApiBean;
 import databeans.DataRequest;
+import databeans.MessageWrapper;
+import databeans.MethodType;
 import databeans.RequestType;
 import util.JSONParser;
 
@@ -24,8 +26,10 @@ public class GetTransactionsOverview {
     public static void getTransactionsOverview(final Map<String, Object> params, final ApiBean api) {
         DataRequest request = JSONParser.createJsonDataRequest((String) params.get("iBAN"),
                 RequestType.TRANSACTIONHISTORY, 0L);
+        MessageWrapper messageWrapper = JSONParser.createMessageWrapper(false, 0, "Request", request);
+        messageWrapper.setMethodType(MethodType.GET_TRANSACTION_OVERVIEW);
         System.out.printf("%s Sending transactionOverview request.\n", PREFIX);
-        handleDataRequestExceptions(request, (String) params.get("authToken"),
-                (Long) params.get("nrOfTransactions"), api);
+        handleDataRequestExceptions(
+                messageWrapper, (String) params.get("authToken"), (Long) params.get("nrOfTransactions"), api);
     }
 }
