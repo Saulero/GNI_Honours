@@ -15,6 +15,7 @@ public class MessageWrapper implements Serializable {
     private byte[] data;
     private boolean isAdmin;
     private MethodType methodType;
+    private String cookie;
 
     public MessageWrapper() {
 
@@ -58,6 +59,14 @@ public class MessageWrapper implements Serializable {
 
     public void setMethodType(MethodType methodType) {
         this.methodType = methodType;
+    }
+
+    public String getCookie() {
+        return cookie;
+    }
+
+    public void setCookie(String cookie) {
+        this.cookie = cookie;
     }
 
     public Object getData() {
