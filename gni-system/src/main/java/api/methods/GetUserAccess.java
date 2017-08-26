@@ -2,6 +2,8 @@ package api.methods;
 
 import api.ApiBean;
 import databeans.DataRequest;
+import databeans.MessageWrapper;
+import databeans.MethodType;
 import databeans.RequestType;
 import util.JSONParser;
 
@@ -22,7 +24,9 @@ public class GetUserAccess {
      */
     public static void getUserAccess(final Map<String, Object> params, final ApiBean api) {
         DataRequest request = JSONParser.createJsonDataRequest(null, RequestType.CUSTOMERACCESSLIST, 0L);
+        MessageWrapper messageWrapper = JSONParser.createMessageWrapper(false, 0, "Request", request);
+        messageWrapper.setMethodType(MethodType.GET_USER_ACCESS);
         System.out.printf("%s Sending UserAccess request.\n", PREFIX);
-        handleDataRequestExceptions(request, (String) params.get("authToken"), 0L, api);
+        handleDataRequestExceptions(messageWrapper, (String) params.get("authToken"), 0L, api);
     }
 }
