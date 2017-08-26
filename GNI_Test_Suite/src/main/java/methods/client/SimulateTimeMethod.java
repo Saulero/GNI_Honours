@@ -1,22 +1,21 @@
 package methods.client;
 
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Request;
-import models.BankAccount;
 import models.CustomerAccount;
-import models.PinCard;
 
 import java.util.HashMap;
 import java.util.Map;
 
 public class SimulateTimeMethod {
 
-    public static JSONRPC2Request createRequest(int nrOfDays){
+    public static JSONRPC2Request createRequest(CustomerAccount customerAccount, int nrOfDays){
         // The remote method to call
         String method = "simulateTime";
 
         // The required named parameters to pass
         Map<String, Object> params = new HashMap<String, Object>();
         params.put("nrOfDays", nrOfDays);
+        params.put("authToken", customerAccount.getAuthToken());
 
         // The mandatory request ID
         String id = "req-001";

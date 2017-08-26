@@ -53,6 +53,8 @@ public class BasicHappyFlowTestSuite {
         CustomerAccount customer2 = new CustomerAccount("Duck", "Daisy", "D", new Date().toString(),
                 "571376047", "1313 Webfoot Walk, Duckburg",  "+316 12345679", "daisy@gmail.com",
                 "daisyduck", "donald");
+        CustomerAccount admin = new CustomerAccount("Admin", "Admin", "A.A.", "Admin",
+                "Admin", "Admin", "Admin", "Admin", "admin", "admin");
 
         BankAccount bankAccount1 = null;
         BankAccount bankAccount2 = null;
@@ -68,6 +70,16 @@ public class BasicHappyFlowTestSuite {
         JSONRPC2Request request;
         JSONRPC2Response response;
         Map<String, Object> parsedResponse;
+
+        // Get admin Auth token
+        System.out.println("-- Get Admin Auth Token --");
+
+        request = GetAuthTokenMethod.createRequest(admin);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            GetAuthTokenMethod.parseResponse(parsedResponse, admin);
+        }
 
         // Method 1. OpenAccount.
         System.out.println("-- OpenAccountMethod. Donald opens an account --");
@@ -341,7 +353,7 @@ public class BasicHappyFlowTestSuite {
         // Extension 4 - Simulate Time
         System.out.println("-- Extension 4: SimulateTime. No response expected --");
 
-        request = SimulateTimeMethod.createRequest(25);
+        request = SimulateTimeMethod.createRequest(admin, 25);
         response = client.processRequest(request);
 
         if((parsedResponse = checkResponse(response)) != null){
@@ -390,7 +402,7 @@ public class BasicHappyFlowTestSuite {
 
         System.out.println("-- SimulateTime 366 days. Than check balance--");
 
-        request = SimulateTimeMethod.createRequest(366);
+        request = SimulateTimeMethod.createRequest(admin, 366);
         response = client.processRequest(request);
 
         if((parsedResponse = checkResponse(response)) != null){
@@ -425,20 +437,58 @@ public class BasicHappyFlowTestSuite {
         }
 
         System.out.println("-- Extension 7: Logging --");
-        request = GetEventLogsMethod.createRequest("2017-08-17", "2017-12-17");
+        request = GetEventLogsMethod.createRequest(admin, "2017-08-17", "2017-12-17");
         response = client.processRequest(request);
 
-        namedArrayResults = null;
         if((namedArrayResults = checkArrayResponse(response)) != null){
             GetTransactionsMethod.parseResponse(namedArrayResults);
         }
+
+        // Test Admin override methods
+        // getBalance
+        System.out.println("-- Admin getBalance --");
+        request = GetBalanceMethod.createRequest(admin, bankAccount3);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            GetBalanceMethod.parseResponse(parsedResponse);
+        }
+
+        // getTransactionOverview
+        System.out.println("-- Admin getTransactionOverview --");
+        request = GetTransactionsMethod.createRequest(admin, bankAccount1, 25);
+        response = client.processRequest(request);
+
+        if((namedArrayResults = checkArrayResponse(response)) != null){
+            GetTransactionsMethod.parseResponse(namedArrayResults);
+        }
+/*
+        // GetUserAccess
+        System.out.println("-- Admin getUserAccess --");
+        request = GetUserAccessMethod.createRequest(admin);
+        response = client.processRequest(request);
+
+        if((namedArrayResults = checkArrayResponse(response)) != null){
+            GetUserAccessMethod.parseResponse(namedArrayResults);
+        }
+*/
+
+        // GetBankAccountAccessMethod
+        System.out.println("-- Admin getBankAccountAccessMethod --");
+        request = GetBankAccountAccessMethod.createRequest(admin, bankAccount1);
+        response = client.processRequest(request);
+
+        if((namedArrayResults = checkArrayResponse(response)) != null){
+            GetBankAccountAccessMethod.parseResponse(namedArrayResults);
+        }
+
 
         ///------ TEAR DOWN TESTS.
 
         // First we progress time 2000 days. All cards should be expired.
         System.out.println("-- SimulateTime 2000 days to make sure all cards are expired --");
 
-        request = SimulateTimeMethod.createRequest(2000);
+        request = SimulateTimeMethod.createRequest(admin, 2000);
         response = client.processRequest(request);
 
         if((parsedResponse = checkResponse(response)) != null){
@@ -454,10 +504,6 @@ public class BasicHappyFlowTestSuite {
         if((parsedResponse = checkResponse(response)) != null){
             PayFromAccountMethod.parseResponse(parsedResponse);
         }
-
-
-
-
 
         // TEAR DOWN TESTS PART 2
 
@@ -484,23 +530,31 @@ public class BasicHappyFlowTestSuite {
         }
 
         System.out.println("-- Extra methods --");
-        System.out.println("-- GetDate --");
-        request = GetDateMethod.createRequest(customer2);
+        System.out.println("-- Admin GetDate --");
+        request = GetDateMethod.createRequest(admin);
         response = client.processRequest(request);
 
         if((parsedResponse = checkResponse(response)) != null){
             GetDateMethod.parseResponse(parsedResponse);
         }
 
-        System.out.println("-- Reset --");
-        request = ResetMethod.createRequest();
+        System.out.println("-- Admin Reset --");
+        request = ResetMethod.createRequest(admin);
         response = client.processRequest(request);
 
         if((parsedResponse = checkResponse(response)) != null){
             ResetMethod.parseResponse(parsedResponse);
         }
 
-        System.out.println("-- GetDate --");
+        System.out.println("-- Admin GetDate --");
+        request = GetDateMethod.createRequest(admin);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            GetDateMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Non-Admin GetDate - Should Fail --");
         request = GetDateMethod.createRequest(customer2);
         response = client.processRequest(request);
 

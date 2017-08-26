@@ -1,6 +1,7 @@
 package methods.client;
 
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Request;
+import models.CustomerAccount;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -10,12 +11,13 @@ import java.util.Map;
  */
 public class ResetMethod {
 
-    public static JSONRPC2Request createRequest(){
+    public static JSONRPC2Request createRequest(CustomerAccount customerAccount){
         // The remote method to call
         String method = "reset";
 
         // The required named parameters to pass
         Map<String, Object> params = new HashMap<String, Object>();
+        params.put("authToken", customerAccount.getAuthToken());
 
         // The mandatory request ID
         String id = "req-001";
