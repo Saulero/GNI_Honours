@@ -36,9 +36,9 @@ public class ProcessDataRequest {
      * @param api DataBean containing everything in the ApiService
      */
     public static void handleDataRequestExceptions(
-            final DataRequest dataRequest, final String cookie, final long nrOfTransactions, final ApiBean api) {
+            final MessageWrapper dataRequest, final String cookie, final long nrOfTransactions, final ApiBean api) {
         try {
-            verifyDataRequestInput(dataRequest);
+            verifyDataRequestInput((DataRequest) dataRequest.getData());
             doDataRequest(dataRequest, cookie, nrOfTransactions, api);
         } catch (IncorrectInputException e) {
             System.out.printf("%s %s, sending rejection.\n", PREFIX, e.getMessage());
@@ -81,7 +81,7 @@ public class ProcessDataRequest {
      * @param api DataBean containing everything in the ApiService
      */
     private static void doDataRequest(
-            final DataRequest dataRequest, final String cookie, final long nrOfTransactions, final ApiBean api) {
+            final MessageWrapper dataRequest, final String cookie, final long nrOfTransactions, final ApiBean api) {
         System.out.printf("%s Forwarding data request.\n", PREFIX);
         api.getAuthenticationClient().getAsyncWith2Params("/services/authentication/data",
                 "request", api.getJsonConverter().toJson(dataRequest), "cookie", cookie,
@@ -110,8 +110,9 @@ public class ProcessDataRequest {
      * @param api DataBean containing everything in the ApiService
      */
     private static void processDataReply(
-            final DataReply dataReply, final DataRequest dataRequest, final long nrOfTransactions, final ApiBean api) {
-        RequestType requestType = dataRequest.getType();
+            final DataReply dataReply, final MessageWrapper dataRequest,
+            final long nrOfTransactions, final ApiBean api) {
+        RequestType requestType = ((DataRequest) dataRequest.getData()).getType();
         switch (requestType) {
             case BALANCE:
                 Double balance = dataReply.getAccountData().getBalance();
