@@ -14,15 +14,15 @@ public final class Variables {
      * URL of the MySQL Database.
      * format: <IP-address>:<port>/<Database name>
      */
-    public static final String URL = "";
+    public static final String URL = "192.168.1.218:3306/gni";
 
     /**
      * Username for the MySQL Database.
      */
-    public static final String USERNAME = "";
+    public static final String USERNAME = "WbqqCH52jusSBGUg";
 
     /**
      * Password for the MySQL Database.
      */
-    public static final String PASSWORD = "";
+    public static final String PASSWORD = "SQZhDnwQhQ6AqN9j";
 }
