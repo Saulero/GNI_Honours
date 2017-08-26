@@ -11,6 +11,7 @@ import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
+import org.omg.CORBA.Request;
 import util.JSONParser;
 
 import java.sql.PreparedStatement;
@@ -112,20 +113,20 @@ class UsersService {
      * Checks if incoming data request needs to be handled internally of externally and then calls the appropriate
      * function.
      * @param callback Used to send a reply back to the service that sent the request.
-     * @param dataRequestJson Json String representing a {@link DataRequest}.
+     * @param data Json String representing a {@link DataRequest}.
      */
     @RequestMapping(value = "/data", method = RequestMethod.GET)
     public void processDataRequest(final Callback<String> callback,
-                                   final @RequestParam("request") String dataRequestJson) {
-        DataRequest dataRequest = jsonConverter.fromJson(dataRequestJson, DataRequest.class);
-        RequestType dataRequestType = dataRequest.getType();
+                                   final @RequestParam("data") String data) {
+        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        if (dataRequestType == RequestType.TRANSACTIONHISTORY
-                || dataRequestType == RequestType.BALANCE
-                || dataRequestType == RequestType.ACCOUNTEXISTS) {
-            doLedgerDataRequest(dataRequest, callbackBuilder);
+        if (messageWrapper.getMethodType() == MethodType.GET_TRANSACTION_OVERVIEW
+                || messageWrapper.getMethodType() == MethodType.GET_BALANCE
+                || ((DataRequest) messageWrapper.getData()).getType() == RequestType.ACCOUNTEXISTS) {
+            doLedgerDataRequest(messageWrapper, callbackBuilder);
         } else {
-            handleInternalDataRequest(dataRequest, callbackBuilder);
+            handleInternalDataRequest(messageWrapper, callbackBuilder);
         }
     }
 
@@ -135,15 +136,15 @@ class UsersService {
      * @param dataRequest Data request that needs to be handled.
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void handleInternalDataRequest(final DataRequest dataRequest, final CallbackBuilder callbackBuilder) {
+    private void handleInternalDataRequest(final MessageWrapper dataRequest, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Received customer data request, fetching data.\n", PREFIX);
-        switch (dataRequest.getType()) {
-            case ACCOUNTACCESSLIST:
-                handleAccountAccessListRequestExceptions(dataRequest.getAccountNumber(), dataRequest.getCustomerId(),
-                        callbackBuilder);
+        switch (dataRequest.getMethodType()) {
+            case GET_BANK_ACCOUNT_ACCESS:
+                handleAccountAccessListRequestExceptions(dataRequest, callbackBuilder);
                 break;
-            case CUSTOMERACCESSLIST:
-                handleCustomerAccessListRequestExceptions(dataRequest.getCustomerId(), callbackBuilder);
+            case GET_USER_ACCESS:
+                handleCustomerAccessListRequestExceptions(
+                        ((DataRequest) dataRequest.getData()).getCustomerId(), callbackBuilder);
                 break;
             default:
                 callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Internal system error occurred.", "Incorrect requestType specified.")));
@@ -214,25 +215,33 @@ class UsersService {
     /**
      * Sends a reject to the service that sent the data request if the SQL query in getAccountAccessList fails or the
      * account does not exist.
-     * @param accountNumber iBAN of the account
-     * @param customerID ID of the customer
+     * @param messageWrapper MessageWrapper containing the request
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void handleAccountAccessListRequestExceptions(final String accountNumber, final long customerID,
-                                                          final CallbackBuilder callbackBuilder) {
+    private void handleAccountAccessListRequestExceptions(
+            final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
+        DataRequest dataRequest = (DataRequest) messageWrapper.getData();
         try {
-            if (!isCustomerPrimaryOwner(accountNumber, customerID)) {
-                throw new users.UserNotAuthorizedException("The customer is not the primary owner of the provided bank account.");
+            if (!messageWrapper.isAdmin()
+                    && !isCustomerPrimaryOwner(dataRequest.getAccountNumber(), dataRequest.getCustomerId())) {
+                throw new users.UserNotAuthorizedException(
+                        "The customer is not the primary owner of the provided bank account.");
             }
-            DataReply reply = new DataReply(RequestType.ACCOUNTACCESSLIST, getAccountAccessList(accountNumber));
+            DataReply reply = new DataReply(
+                    RequestType.ACCOUNTACCESSLIST, getAccountAccessList(dataRequest.getAccountNumber()));
             sendAccountAccessListRequestCallback(reply, callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to Users database.")));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 500, "Error connecting to Users database.")));
         } catch (UserNotAuthorizedException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.")));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 419, "The user is not authorized to perform this action.")));
         } catch (AccountDoesNotExistException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "The provided account does not seem to exist.")));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 418,
+                    "One of the parameters has an invalid value.",
+                    "The provided account does not seem to exist.")));
         }
     }
 
@@ -333,9 +342,9 @@ class UsersService {
      * @param dataRequest Data request that needs to be sent to the ledger.
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void doLedgerDataRequest(final DataRequest dataRequest, final CallbackBuilder callbackBuilder) {
+    private void doLedgerDataRequest(final MessageWrapper dataRequest, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Called for a data request, calling Ledger.\n", PREFIX);
-        ledgerClient.getAsyncWith1Param("/services/ledger/data", "request",
+        ledgerClient.getAsyncWith1Param("/services/ledger/data", "data",
                                         jsonConverter.toJson(dataRequest),
                                         (httpStatusCode, httpContentType, dataReplyJson) -> {
             if (httpStatusCode == HTTP_OK) {
@@ -636,19 +645,22 @@ class UsersService {
      */
     private void doAccountExistsRequest(final String accountNumber, final long customerId, final String requesterId,
                                         final CallbackBuilder callbackBuilder) {
-        DataRequest accountExistsRequest = JSONParser.createAccountExistsRequest(accountNumber);
-        ledgerClient.getAsyncWith1Param("/services/ledger/data", "request",
-                                        jsonConverter.toJson(accountExistsRequest),
-                                        (httpStatusCode, httpContentType, dataReplyJson) -> {
+        DataRequest accountExistsRequest = new DataRequest(accountNumber, RequestType.ACCOUNTEXISTS, customerId);
+        MessageWrapper request = JSONParser.createMessageWrapper(false, 0, "Request", accountExistsRequest);
+        ledgerClient.getAsyncWith1Param("/services/ledger/data", "data", jsonConverter.toJson(request),
+                (httpStatusCode, httpContentType, dataReplyJson) -> {
             if (httpStatusCode == HTTP_OK) {
-                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(dataReplyJson), MessageWrapper.class);
+                MessageWrapper messageWrapper = jsonConverter.fromJson(
+                        JSONParser.removeEscapeCharacters(dataReplyJson), MessageWrapper.class);
                 if (!messageWrapper.isError()) {
-                    processAccountExistsReply((DataReply) messageWrapper.getData(), customerId, requesterId, callbackBuilder);
+                    processAccountExistsReply(
+                            (DataReply) messageWrapper.getData(), customerId, requesterId, callbackBuilder);
                 } else {
                     callbackBuilder.build().reply(dataReplyJson);
                 }
             } else {
-                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                        "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
         });
     }

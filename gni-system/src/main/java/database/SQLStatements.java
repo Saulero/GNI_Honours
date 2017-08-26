@@ -1,5 +1,7 @@
 package database;
 
+import databeans.MethodType;
+
 /**
  * @author Saul
  */
@@ -80,6 +82,10 @@ public final class SQLStatements {
     public final static String dropRequestLogTable = "DROP TABLE IF EXISTS `request_logs`;";
     public final static String createErrorLogTable = "CREATE TABLE IF NOT EXISTS `error_logs`(`request_id` TEXT NOT NULL, `error_code` BIGINT(20) NOT NULL, `date` DATE NOT NULL, `time` TEXT NOT NULL, `message` TEXT NOT NULL, `data` TEXT NOT NULL);";
     public final static String dropErrorLogTable = "DROP TABLE IF EXISTS `error_logs`;";
+    public final static String createAdminTable = "CREATE TABLE IF NOT EXISTS `admin`( `user_id` BIGINT(20) NOT NULL, `permission_id` BIGINT(20) NOT NULL);";
+    public final static String dropAdminTable = "DROP TABLE IF EXISTS `admin`;";
+
+    // Truncate statements used for resetting the database
     public final static String truncateAccountsTable = "TRUNCATE TABLE `accounts`";
     public final static String truncateLedgerTable = "TRUNCATE TABLE `ledger`";
     public final static String truncatePinTable = "TRUNCATE TABLE `pin`";
@@ -89,5 +95,38 @@ public final class SQLStatements {
     public final static String truncateUsersTable = "TRUNCATE TABLE `users`";
     public final static String truncateRequestLogTable = "TRUNCATE TABLE `request_logs`";
     public final static String truncateErrorLogTable = "TRUNCATE TABLE `error_logs`";
+    public final static String truncateAdminTable = "TRUNCATE TABLE `admin`";
 
+    // Admin methods
+    // Create default admin & add authentication data
+    public static final String createDefaultAdmin = "INSERT INTO users (id, initials, firstname, lastname, email, telephone_number, address, date_of_birth, social_security_number) VALUES (-1, \"A.A.\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", -1)";
+    public static final String addAdminAuthenticationData = "INSERT INTO authentication (user_id, username, password) VALUES (-1, \"admin\", \"admin\")";
+
+    // All grant permission statements, currently hardcoded for the default admin
+    public final static String grantOpenAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";
+    public final static String grantOpenAdditionalAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ADDITIONAL_ACCOUNT.getId() + ");";
+    public final static String grantCloseAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.CLOSE_ACCOUNT.getId() + ");";
+    public final static String grantProvideAccess = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.PROVIDE_ACCESS.getId() + ");";
+    public final static String grantRevokeAccess = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.REVOKE_ACCESS.getId() + ");";
+    public final static String grantDepositIntoAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.DEPOSIT_INTO_ACCOUNT.getId() + ");";
+    public final static String grantPayFromAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.PAY_FROM_ACCOUNT.getId() + ");";
+    public final static String grantTransferMoney = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.TRANSFER_MONEY.getId() + ");";
+    public final static String grantGetAuthToken = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.GET_AUTH_TOKEN.getId() + ");";
+    public final static String grantGetBalance = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.GET_BALANCE.getId() + ");";
+    public final static String grantGetTransactionOverview = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.GET_TRANSACTION_OVERVIEW.getId() + ");";
+    public final static String grantGetUserAccess = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.GET_USER_ACCESS.getId() + ");";
+    public final static String grantGetBankAccountAccess = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.GET_BANK_ACCOUNT_ACCESS.getId() + ");";
+    public final static String grantUnblockCard = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.UNBLOCK_CARD.getId() + ");";
+    public final static String grantSimulateTime = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.SIMULATE_TIME.getId() + ");";
+    public final static String grantReset = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.RESET.getId() + ");";
+    public final static String grantGetDate = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.GET_DATE.getId() + ");";
+    public final static String grantSetOverdraftLimit = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.SET_OVERDRAFT_LIMIT.getId() + ");";
+    public final static String grantGetOverdraftLimit = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.GET_OVERDRAFT_LIMIT.getId() + ");";
+    public final static String grantGetEventLogs = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.GET_EVENT_LOGS.getId() + ");";
+    public final static String grantOpenSavingsAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_SAVING_ACCOUNT.getId() + ");";
+    public final static String grantCloseSavingsAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.CLOSE_SAVINGS_ACCOUNT.getId() + ");";
+    public final static String grantInvalidateCard = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.INVALIDATE_CARD.getId() + ");";
+
+    // Query method
+    public static final String getAdminPermissions = "SELECT permission_id FROM admin WHERE user_id = ?";
 }

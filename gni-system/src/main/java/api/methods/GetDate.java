@@ -4,6 +4,8 @@ import api.ApiBean;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Error;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 import databeans.MessageWrapper;
+import databeans.MetaMethodData;
+import databeans.MethodType;
 import util.JSONParser;
 
 import java.time.LocalDate;
@@ -21,11 +23,16 @@ public class GetDate {
 
     /**
      * Requests the current system date.
+     * @param params Parameters of the request(authToken).
      * @param api DataBean containing everything in the ApiService
      */
-    public static void getDate(final ApiBean api) {
+    public static void getDate(final Map<String, Object> params, final ApiBean api) {
         System.out.printf("%s Sending current date request.\n", PREFIX);
-        api.getSystemInformationClient().getAsync("/services/systemInfo/date", (code, contentType, body) -> {
+        MessageWrapper request = JSONParser.createMessageWrapper(false, 0, "Admin Request");
+        request.setMethodType(MethodType.GET_DATE);
+        request.setCookie((String) params.get("authToken"));
+        api.getAuthenticationClient().putFormAsyncWith1Param("/services/authentication/systemInformation",
+                "data", api.getJsonConverter().toJson(request), (code, contentType, body) -> {
             if (code == HTTP_OK) {
                 MessageWrapper messageWrapper = api.getJsonConverter().fromJson(
                         JSONParser.removeEscapeCharacters(body), MessageWrapper.class);

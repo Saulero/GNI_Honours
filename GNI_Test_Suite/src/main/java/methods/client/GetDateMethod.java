@@ -14,6 +14,7 @@ public class GetDateMethod {
 
         // The required named parameters to pass
         Map<String, Object> params = new HashMap<String, Object>();
+        params.put("authToken", customerAccount.getAuthToken());
 
         // The mandatory request ID
         String id = "req-001";

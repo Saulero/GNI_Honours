@@ -1,6 +1,8 @@
 package authentication;
 
 import com.google.gson.Gson;
+import com.thetransactioncompany.jsonrpc2.JSONRPC2Error;
+import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 import database.ConnectionPool;
 import database.SQLConnection;
 import database.SQLStatements;
@@ -76,12 +78,12 @@ class AuthenticationService {
         System.out.printf("%s Sending ServiceInformation to the SystemInformationService.\n", PREFIX);
         systemInformationClient.putFormAsyncWith1Param("/services/systemInfo/newServiceInfo",
                 "serviceInfo", jsonConverter.toJson(serviceInfo), (httpStatusCode, httpContentType, replyJson) -> {
-                    if (httpStatusCode != HTTP_OK) {
-                        System.err.println("Problem with connection to the SystemInformationService.");
-                        System.err.println("Shutting down the Authentication service.");
-                        System.exit(1);
-                    }
-                });
+            if (httpStatusCode != HTTP_OK) {
+                System.err.println("Problem with connection to the SystemInformationService.");
+                System.err.println("Shutting down the Authentication service.");
+                System.exit(1);
+            }
+        });
     }
 
     /**
@@ -110,6 +112,26 @@ class AuthenticationService {
         callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply")));
     }
 
+    private boolean isAdmin(final MethodType methodType, final String cookie) throws SQLException {
+        SQLConnection connection = databaseConnectionPool.getConnection();
+        PreparedStatement ps = connection.getConnection().prepareStatement(SQLStatements.getAdminPermissions);
+        ps.setLong(1, getCustomerId(cookie));
+        ResultSet rs = ps.executeQuery();
+        boolean res = false;
+
+        while (rs.next()) {
+            if (rs.getLong("permission_id") == methodType.getId()) {
+                res = true;
+                break;
+            }
+        }
+
+        rs.close();
+        ps.close();
+        databaseConnectionPool.returnConnection(connection);
+        return res;
+    }
+
     /**
      * Creates a callback for the data request and then calls the exception handler.
      * @param callback Used to send the reply of User service to the source of the request.
@@ -133,10 +155,15 @@ class AuthenticationService {
     private void handleDataRequestExceptions(final String dataRequestJson, final String cookie,
                                              final CallbackBuilder callbackBuilder) {
         try {
+            MessageWrapper messageWrapper = jsonConverter.fromJson(
+                    JSONParser.removeEscapeCharacters(dataRequestJson), MessageWrapper.class);
+
             authenticateRequest(cookie);
-            DataRequest dataRequest = jsonConverter.fromJson(dataRequestJson, DataRequest.class);
+            messageWrapper.setAdmin(isAdmin(messageWrapper.getMethodType(), cookie));
+            DataRequest dataRequest = ((DataRequest) messageWrapper.getData());
             dataRequest.setCustomerId(getCustomerId(cookie));
-            doDataRequest(jsonConverter.toJson(dataRequest), callbackBuilder);
+            messageWrapper.setData(dataRequest);
+            doDataRequest(messageWrapper, callbackBuilder);
         } catch (SQLException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         } catch (UserNotAuthorizedException e) {
@@ -228,24 +255,53 @@ class AuthenticationService {
     /**
      * Forwards the data request to the Users service and sends the reply off to processing, or rejects the request if
      * the forward fails.
-     * @param dataRequestJson Json string representing a dataRequest that should be sent to the UsersService.
+     * @param dataRequest A dataRequest that should be sent to the UsersService.
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
-    private void doDataRequest(final String dataRequestJson, final CallbackBuilder callbackBuilder) {
+    private void doDataRequest(final MessageWrapper dataRequest, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Forwarding data request.\n", PREFIX);
-        usersClient.getAsyncWith1Param("/services/users/data", "request",
-                                        dataRequestJson, (httpStatusCode, httpContentType, dataReplyJson) -> {
-            if (httpStatusCode == HTTP_OK) {
-                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(dataReplyJson), MessageWrapper.class);
-                if (!messageWrapper.isError()) {
-                    handleDataReply((DataReply) messageWrapper.getData(), callbackBuilder);
-                } else {
-                    callbackBuilder.build().reply(dataReplyJson);
-                }
-            } else {
-                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
-            }
-        });
+        if (dataRequest.getMethodType() == MethodType.GET_OVERDRAFT_LIMIT) {
+            ledgerClient.putFormAsyncWith1Param("/services/ledger/overdraft/get",
+                    "data", jsonConverter.toJson(dataRequest),
+                    (httpStatusCode, httpContentType, replyJson) -> {
+                        if (httpStatusCode == HTTP_OK) {
+                            MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                    JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
+                            if (!messageWrapper.isError()) {
+                                sendGetOverdraftLimitCallback(replyJson, callbackBuilder);
+                            } else {
+                                callbackBuilder.build().reply(replyJson);
+                            }
+                        } else {
+                            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                                    "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                        }
+                    });
+        } else {
+            usersClient.getAsyncWith1Param("/services/users/data", "data",
+                    jsonConverter.toJson(dataRequest), (httpStatusCode, httpContentType, dataReplyJson) -> {
+                        if (httpStatusCode == HTTP_OK) {
+                            MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(dataReplyJson), MessageWrapper.class);
+                            if (!messageWrapper.isError()) {
+                                handleDataReply((DataReply) messageWrapper.getData(), callbackBuilder);
+                            } else {
+                                callbackBuilder.build().reply(dataReplyJson);
+                            }
+                        } else {
+                            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                        }
+                    });
+        }
+    }
+
+    /**
+     * Send a callback to the original source.
+     * @param replyJson JSON String representing the reply
+     * @param callbackBuilder Used to forward the result of the request to the request source.
+     */
+    private void sendGetOverdraftLimitCallback(final String replyJson, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Get overdraft limit request successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(replyJson);
     }
 
     private void handleDataReply(final DataReply dataReply, final CallbackBuilder callbackBuilder) {
@@ -622,7 +678,7 @@ class AuthenticationService {
     private void doAccountLinkRequest(final String accountLinkRequestJson, final long requesterId,
                                       final CallbackBuilder callbackBuilder) {
         usersClient.putFormAsyncWith2Params("/services/users/accountLink", "body",
-                accountLinkRequestJson,"requesterId", requesterId,
+                accountLinkRequestJson, "requesterId", requesterId,
                 ((httpStatusCode, httpContentType, accountLinkReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(accountLinkReplyJson), MessageWrapper.class);
@@ -632,7 +688,10 @@ class AuthenticationService {
                             callbackBuilder.build().reply(accountLinkReplyJson);
                         }
                     } else {
-                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                                true, 500,
+                                "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests")));
                     }
                 }));
     }
@@ -1119,77 +1178,6 @@ class AuthenticationService {
         callbackBuilder.build().reply(replyJson);
     }
 
-    /**
-     * Creates a callbackBuilder so that the result of the request can be forwarded to the request source and then
-     * calls the exception handler to further process the request. Gets the current overdraft limit for an account.
-     * @param callback Used to send a reply/rejection to the request source.
-     * @param accountNumber AccountNumber of which the limit should be queried.
-     * @param cookie Cookie of the user that sent the request, should be a user that is linked to the accountNumber.
-     */
-    @RequestMapping(value = "/overdraft/get", method = RequestMethod.PUT)
-    public void processGetOverdraftLimit(final Callback<String> callback,
-                                         @RequestParam("accountNumber") final String accountNumber,
-                                         @RequestParam("cookie") final String cookie) {
-        System.out.printf("%s Processing getOverdraftLimit request.\n", PREFIX);
-        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handleGetOverdraftLimitExceptions(accountNumber, cookie, callbackBuilder);
-    }
-
-    /**
-     * Authenticates the request and then forwards the request with the accountNumber to ledger.
-     * @param accountNumber AccountNumber of which the limit should be queried.
-     * @param cookie Cookie of the user that sent the request.
-     * @param callbackBuilder Used to send the result of the request to the request source.
-     */
-    private void handleGetOverdraftLimitExceptions(
-            final String accountNumber, final String cookie, final CallbackBuilder callbackBuilder) {
-        try {
-            authenticateRequest(cookie);
-            doGetOverdraftLimitRequest(accountNumber, callbackBuilder);
-        } catch (SQLException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
-                    "Error connecting to the authentication database.")));
-        } catch (UserNotAuthorizedException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
-                    "The user is not authorized to perform this action.")));
-        }
-    }
-
-    /**
-     * Forwards a getOverdraftLimit request to Ledger service and sends a callback if the request is successful, or
-     * an error if the request fails.
-     * @param accountNumber AccountNumber of which the limit should be queried.
-     * @param callbackBuilder Used to forward the result of the request to the request source.
-     */
-    private void doGetOverdraftLimitRequest(final String accountNumber, final CallbackBuilder callbackBuilder) {
-        ledgerClient.putFormAsyncWith1Param("/services/ledger/overdraft/get",
-                "accountNumber", accountNumber,
-                (httpStatusCode, httpContentType, replyJson) -> {
-                    if (httpStatusCode == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(
-                                JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
-                        if (!messageWrapper.isError()) {
-                            sendGetOverdraftLimitCallback(replyJson, callbackBuilder);
-                        } else {
-                            callbackBuilder.build().reply(replyJson);
-                        }
-                    } else {
-                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
-                                "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
-                    }
-                });
-    }
-
-    /**
-     * Send a callback to the original source.
-     * @param replyJson JSON String representing the reply
-     * @param callbackBuilder Used to forward the result of the request to the request source.
-     */
-    private void sendGetOverdraftLimitCallback(final String replyJson, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Get overdraft limit request successful, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(replyJson);
-    }
-
     @RequestMapping(value = "/savingsAccount", method = RequestMethod.PUT)
     public void openSavingsAccount(final Callback<String> callback,
                                    @RequestParam("authToken") final String authToken,
@@ -1360,6 +1348,134 @@ class AuthenticationService {
     private void sendPinCardReplacementCallback(final String jsonReply, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Pin card replacement successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(jsonReply);
+    }
+
+    @RequestMapping(value = "/systemInformation", method = RequestMethod.PUT)
+    public void processSysInfoRequest(final Callback<String> callback, @RequestParam("data") final String request) {
+        System.out.printf("%s Received sysInfo admin request.\n", PREFIX);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(request), MessageWrapper.class);
+        try {
+            if (isAdmin(messageWrapper.getMethodType(), messageWrapper.getCookie())) {
+                switch (messageWrapper.getMethodType()) {
+                    case SIMULATE_TIME:
+                        doSimulateTimeRequest(callbackBuilder, messageWrapper);
+                        break;
+                    case RESET:
+                        doResetRequest(callbackBuilder);
+                        break;
+                    case GET_DATE:
+                        doGetDateRequest(callbackBuilder);
+                        break;
+                    case GET_EVENT_LOGS:
+                        doGetEventLogsRequest(callbackBuilder, request);
+                        break;
+                    default:
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                                true, 500, "Internal system error occurred.")));
+                        break;
+                }
+            } else {
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
+                        "The user is not authorized to perform this action.",
+                        "This user does not seem to have appropriate admin rights.")));
+            }
+        } catch (SQLException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+        }
+    }
+
+    private void doSimulateTimeRequest(final CallbackBuilder callbackBuilder, final MessageWrapper request) {
+        systemInformationClient.putFormAsyncWith1Param("/services/systemInfo/date/increment",
+                "days", jsonConverter.toJson(((MetaMethodData) request.getData()).getDays()),
+                (code, contentType, body) -> {
+            if (code == HTTP_OK) {
+                MessageWrapper messageWrapper = jsonConverter.fromJson(
+                        JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    sendSimulateTimeCallback(callbackBuilder, body);
+                } else {
+                    callbackBuilder.build().reply(body);
+                }
+            } else {
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                        "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+            }
+        });
+    }
+
+    private void sendSimulateTimeCallback(final CallbackBuilder callbackBuilder, final String body) {
+        System.out.printf("%s Simulate time request successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(body);
+    }
+
+    private void doResetRequest(final CallbackBuilder callbackBuilder) {
+        systemInformationClient.postAsync("/services/systemInfo/reset", (code, contentType, body) -> {
+            if (code == HTTP_OK) {
+                MessageWrapper messageWrapper = jsonConverter.fromJson(
+                        JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    sendResetCallback(callbackBuilder, body);
+                } else {
+                    callbackBuilder.build().reply(body);
+                }
+            } else {
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                        "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+            }
+        });
+    }
+
+    private void sendResetCallback(final CallbackBuilder callbackBuilder, final String body) {
+        System.out.printf("%s Reset request successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(body);
+    }
+
+    private void doGetDateRequest(final CallbackBuilder callbackBuilder) {
+        systemInformationClient.getAsync("/services/systemInfo/date", (code, contentType, body) -> {
+            if (code == HTTP_OK) {
+                MessageWrapper messageWrapper = jsonConverter.fromJson(
+                        JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    sendDateRequestCallback(callbackBuilder, body);
+                } else {
+                    callbackBuilder.build().reply(body);
+                }
+            } else {
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                        "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+            }
+        });
+    }
+
+    private void sendDateRequestCallback(final CallbackBuilder callbackBuilder, final String body) {
+        System.out.printf("%s Get Date request successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(body);
+    }
+
+    private void doGetEventLogsRequest(final CallbackBuilder callbackBuilder, final String request) {
+        systemInformationClient.getAsyncWith1Param("/services/systemInfo/log",
+                "data", request, (code, contentType, body) -> {
+                    if (code == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendGetEventLogsCallback(callbackBuilder, body);
+                        } else {
+                            callbackBuilder.build().reply(body);
+                        }
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                                "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                    }
+                });
+    }
+
+    private void sendGetEventLogsCallback(final CallbackBuilder callbackBuilder, final String body) {
+        System.out.printf("%s Event log query request successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(body);
     }
 
     /**

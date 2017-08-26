@@ -232,21 +232,23 @@ public final class JSONParser {
         return pinCard;
     }
 
-    public static MessageWrapper createMessageWrapper(boolean isError, int code, String message) {
-        MessageWrapper error = new MessageWrapper();
-        error.setError(isError);
-        error.setCode(code);
-        error.setMessage(message);
-        return error;
+    public static MessageWrapper createMessageWrapper(
+            final boolean isError, final int code, final String message) {
+        MessageWrapper messageWrapper = new MessageWrapper();
+        messageWrapper.setError(isError);
+        messageWrapper.setCode(code);
+        messageWrapper.setMessage(message);
+        return messageWrapper;
     }
 
-    public static MessageWrapper createMessageWrapper(boolean isError, int code, String message, Object data) {
-        MessageWrapper error = new MessageWrapper();
-        error.setError(isError);
-        error.setCode(code);
-        error.setMessage(message);
-        error.setData(data);
-        return error;
+    public static MessageWrapper createMessageWrapper(
+            final boolean isError, final int code, final String message, final Object data) {
+        MessageWrapper messageWrapper = new MessageWrapper();
+        messageWrapper.setError(isError);
+        messageWrapper.setCode(code);
+        messageWrapper.setMessage(message);
+        messageWrapper.setData(data);
+        return messageWrapper;
     }
 
     /**

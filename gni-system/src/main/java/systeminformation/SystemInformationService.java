@@ -8,6 +8,7 @@ import database.ConnectionPool;
 import database.SQLConnection;
 import database.SQLStatements;
 import databeans.MessageWrapper;
+import databeans.MetaMethodData;
 import databeans.ServiceInformation;
 import databeans.SystemInformation;
 import io.advantageous.qbit.annotation.RequestMapping;
@@ -374,16 +375,16 @@ class SystemInformationService {
     /**
      * Fetches all system logs of a given time span.
      * @param callback Used to send the logs back to the request source.
-     * @param beginDateString LocalDate that marks the beginning of the time span.
-     * @param endDateString LocalDate that marks the end of the time span.
+     * @param request LocalDate objects from the request.
      */
     @RequestMapping(value = "/log", method = RequestMethod.GET)
-    void retrieveLogs(final Callback<String> callback, final @RequestParam("beginDate") String beginDateString,
-                      final @RequestParam("endDate") String endDateString) {
-        LocalDate beginDate = LocalDate.parse(beginDateString);
-        LocalDate endDate = LocalDate.parse(endDateString);
+    void retrieveLogs(final Callback<String> callback, final @RequestParam("data") String request) {
+        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(request), MessageWrapper.class);
         try {
-            List<Map<String, Object>> logs = fetchLogs(beginDate, endDate);
+            List<Map<String, Object>> logs = fetchLogs(
+                    ((MetaMethodData) messageWrapper.getData()).getBeginDate(),
+                    ((MetaMethodData) messageWrapper.getData()).getEndDate());
             callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200,
                     "Normal Reply", logs)));
         } catch (SQLException e) {
