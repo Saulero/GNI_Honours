@@ -2,7 +2,11 @@ package api.methods;
 
 import api.ApiBean;
 import databeans.DataRequest;
+import databeans.MessageWrapper;
+import databeans.MethodType;
 import databeans.RequestType;
+import util.JSONParser;
+
 import java.util.Map;
 
 import static api.ApiService.PREFIX;
@@ -21,7 +25,9 @@ public class GetBalance {
      */
     public static void getBalance(final Map<String, Object> params, final ApiBean api) {
         DataRequest request = new DataRequest((String) params.get("iBAN"), RequestType.BALANCE, 0L);
+        MessageWrapper messageWrapper = JSONParser.createMessageWrapper(false, 0, "Request", request);
+        messageWrapper.setMethodType(MethodType.GET_BALANCE);
         System.out.printf("%s Sending getBalance request.\n", PREFIX);
-        handleDataRequestExceptions(request, (String) params.get("authToken"), 0L, api);
+        handleDataRequestExceptions(messageWrapper, (String) params.get("authToken"), 0L, api);
     }
 }
