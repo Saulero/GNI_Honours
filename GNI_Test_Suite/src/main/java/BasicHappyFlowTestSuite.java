@@ -483,10 +483,30 @@ public class BasicHappyFlowTestSuite {
             }
         }
 
+        System.out.println("-- Extra methods --");
+        System.out.println("-- GetDate --");
+        request = GetDateMethod.createRequest(customer2);
+        response = client.processRequest(request);
 
+        if((parsedResponse = checkResponse(response)) != null){
+            GetDateMethod.parseResponse(parsedResponse);
+        }
 
+        System.out.println("-- Reset --");
+        request = ResetMethod.createRequest();
+        response = client.processRequest(request);
 
+        if((parsedResponse = checkResponse(response)) != null){
+            ResetMethod.parseResponse(parsedResponse);
+        }
 
+        System.out.println("-- GetDate --");
+        request = GetDateMethod.createRequest(customer2);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            GetDateMethod.parseResponse(parsedResponse);
+        }
     }
 
     private static String getInvalidPin(String pinCode) {
