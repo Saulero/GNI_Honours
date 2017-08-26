@@ -1348,6 +1348,30 @@ class AuthenticationService {
         }
     }
 
+    private void doSimulateTimeRequest(final CallbackBuilder callbackBuilder, final MessageWrapper request) {
+        systemInformationClient.putFormAsyncWith1Param("/services/systemInfo/date/increment",
+                "days", jsonConverter.toJson(((MetaMethodData) request.getData()).getDays()),
+                (code, contentType, body) -> {
+            if (code == HTTP_OK) {
+                MessageWrapper messageWrapper = jsonConverter.fromJson(
+                        JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    sendSimulateTimeCallback(callbackBuilder, body);
+                } else {
+                    callbackBuilder.build().reply(body);
+                }
+            } else {
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                        "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+            }
+        });
+    }
+
+    private void sendSimulateTimeCallback(final CallbackBuilder callbackBuilder, final String body) {
+        System.out.printf("%s Simulate time request successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(body);
+    }
+
     /**
      * Safely shuts down the AuthenticationService.
      */
