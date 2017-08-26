@@ -30,6 +30,7 @@ public class GetDate {
         System.out.printf("%s Sending current date request.\n", PREFIX);
         MessageWrapper request = JSONParser.createMessageWrapper(false, 0, "Admin Request");
         request.setMethodType(MethodType.GET_DATE);
+        request.setCookie((String) params.get("authToken"));
         api.getAuthenticationClient().putFormAsyncWith1Param("/services/authentication/systemInformation",
                 "data", api.getJsonConverter().toJson(request), (code, contentType, body) -> {
             if (code == HTTP_OK) {

@@ -34,6 +34,7 @@ public class GetEventLogs {
         MessageWrapper request = JSONParser.createMessageWrapper(
                 false, 0, "Admin Request", new MetaMethodData(beginDate, endDate));
         request.setMethodType(MethodType.GET_EVENT_LOGS);
+        request.setCookie((String) params.get("authToken"));
         api.getAuthenticationClient().putFormAsyncWith1Param("/services/authentication/systemInformation",
                 "data", api.getJsonConverter().toJson(request), (code, contentType, body) -> {
             if (code == HTTP_OK) {
