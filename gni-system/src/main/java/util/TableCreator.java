@@ -63,6 +63,12 @@ public class TableCreator {
     private static void createDefaultAdmin() {
         executeStatements(new String[] {
                 SQLStatements.createDefaultAdmin,
+                SQLStatements.addAdminAuthenticationData});
+        grantDefaultAdminPermissions();
+    }
+
+    private static void grantDefaultAdminPermissions() {
+        executeStatements(new String[] {
                 SQLStatements.grantGetBalance,
                 SQLStatements.grantGetTransactionOverview,
                 SQLStatements.grantGetUserAccess,
@@ -97,5 +103,6 @@ public class TableCreator {
 
     public static void truncateAdminTable() {
         executeStatements(new String[] {SQLStatements.truncateAdminTable});
+        grantDefaultAdminPermissions();
     }
 }

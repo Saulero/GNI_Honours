@@ -99,6 +99,7 @@ public final class SQLStatements {
 
     // Admin methods to create default account & grant specific permissions
     public static final String createDefaultAdmin = "INSERT INTO users (id, initials, firstname, lastname, email, telephone_number, address, date_of_birth, social_security_number) VALUES (-1, \"A.A.\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", -1)";
+    public static final String addAdminAuthenticationData = "INSERT INTO authentication (user_id, username, password) VALUES (-1, \"admin\", \"admin\")";
 
     public final static String grantOpenAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";
     public final static String grantOpenAdditionalAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ADDITIONAL_ACCOUNT.getId() + ");";
