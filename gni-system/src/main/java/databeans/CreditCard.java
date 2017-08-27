@@ -1,14 +1,19 @@
 package databeans;
 
+import java.time.LocalDate;
+
 /**
  * @Author noel
  */
 public class CreditCard {
     private String accountNumber;
     private String creditCardNumber;
+    private String cardHolderName;
     private String username;
-    private Long customerId;
-    private String activationDate;
+    private Double limit;
+    private Double balance;
+    private Double fee;
+    private LocalDate activationDate;
     private PinCard pinCard;
 
     public String getAccountNumber() {
@@ -35,19 +40,11 @@ public class CreditCard {
         username = newUsername;
     }
 
-    public Long getCustomerId() {
-        return customerId;
-    }
-
-    public void setCustomerId(final Long newCustomerId) {
-        customerId = newCustomerId;
-    }
-
-    public String getActivationDate() {
+    public LocalDate getActivationDate() {
         return activationDate;
     }
 
-    public void setActivationDate(final String newActivationDate) {
+    public void setActivationDate(final LocalDate newActivationDate) {
         activationDate = newActivationDate;
     }
 
@@ -57,5 +54,37 @@ public class CreditCard {
 
     public void setPinCard(final PinCard newPinCard) {
         pinCard = newPinCard;
+    }
+
+    public String getCardHolderName() {
+        return cardHolderName;
+    }
+
+    public void setCardHolderName(final String newCardHolderName) {
+        cardHolderName = newCardHolderName;
+    }
+
+    public Double getLimit() {
+        return limit;
+    }
+
+    public void setLimit(final Double newLimit) {
+        limit = newLimit;
+    }
+
+    public Double getBalance() {
+        return balance;
+    }
+
+    public void setBalance(final Double newBalance) {
+        balance = newBalance;
+    }
+
+    public Double getFee() {
+        return fee;
+    }
+
+    public void setFee(final Double newFee) {
+        fee = newFee;
     }
 }

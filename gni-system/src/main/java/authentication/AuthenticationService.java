@@ -1478,6 +1478,57 @@ class AuthenticationService {
         callbackBuilder.build().reply(body);
     }
 
+    @RequestMapping(value = "/creditCard", method = RequestMethod.PUT)
+    public void processNewCreditCardRequest(final Callback<String> callback, @RequestParam("cookie") final String cookie,
+                                            @RequestParam("accountNumber") final String accountNumber) {
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleNewCreditCardExceptions(cookie, accountNumber, callbackBuilder);
+    }
+
+    private void handleNewCreditCardExceptions(final String cookie, final String accountNumber,
+                                               final CallbackBuilder callbackBuilder) {
+        try {
+            authenticateRequest(cookie);
+            Long customerId = getCustomerId(cookie);
+            doNewCreditCardRequest(customerId, accountNumber, callbackBuilder);
+        } catch (SQLException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
+        } catch (UserNotAuthorizedException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "User does not appear to be logged in.")));
+        }
+    }
+
+    private void doNewCreditCardRequest(final Long customerId, final String accountNumber,
+                                        final CallbackBuilder callbackBuilder) {
+        ledgerClient.putFormAsyncWith1Param("/services/ledger/creditCard", "accountNumber",
+                accountNumber, (httpStatusCode, httpContentType, replyJson) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            CreditCard creditCard = (CreditCard) messageWrapper.getData();
+                            try {
+                                creditCard.setUsername(getUserNameFromCustomerId(customerId));
+                                sendNewCreditCardCallback(creditCard, callbackBuilder);
+                            } catch (SQLException | CustomerDoesNotExistException e) {
+                                e.printStackTrace();
+                            }
+                        } else {
+                            callbackBuilder.build().reply(replyJson);
+                        }
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                    }
+                });
+    }
+
+    private void sendNewCreditCardCallback(final CreditCard creditCard, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s New credit card request successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                false, 200, "Normal Reply", creditCard)));
+    }
+
+
+
     /**
      * Safely shuts down the AuthenticationService.
      */

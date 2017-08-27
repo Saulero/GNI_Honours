@@ -56,6 +56,12 @@ class LedgerService {
     private static final int TIER_2_CAP = 75000;
     /** Interest rate for a savings balance of more than tier 2 cap. */
     private static final double TIER_3_INTEREST_RATE = 0.20;
+    /** Credit card fee. */
+    private static final double MONTHLY_CREDIT_CARD_FEE = 5.00;
+    /** Credit card limit. */
+    private static final double CREDIT_CARD_LIMIT = 1000;
+    /** Length of a credit card number. */
+    private static final int CREDIT_CARD_DIGITS = 16;
     /** Account number where fees are transferred to. */
     private static final String GNI_ACCOUNT = "NL52GNIB3676451168";
 
@@ -1436,6 +1442,94 @@ class LedgerService {
         System.out.printf("%s Close savings account request successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
                 false, 200, "Normal Reply")));
+    }
+
+    @RequestMapping(value = "/creditCard", method = RequestMethod.PUT)
+    public void processNewCreditCard(final Callback<String> callback,
+                                     @RequestParam("accountNumber") final String accountNumber) {
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        getCurrentDateForCreditCard(accountNumber, callbackBuilder);
+    }
+
+    private void getCurrentDateForCreditCard(final String accountNumber, final CallbackBuilder callbackBuilder) {
+        systemInformationClient.getAsync("/services/systemInfo/date", (code, contentType, body) -> {
+            if (code == HTTP_OK) {
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    LocalDate currentDate = (LocalDate) messageWrapper.getData();
+                    handleNewCreditCardExceptions(accountNumber, currentDate, callbackBuilder);
+                } else {
+                    callbackBuilder.build().reply(body);
+                }
+            } else {
+                System.out.printf("%s Processing new credit card failed, body: %s\n\n\n\n", PREFIX, body);
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true,
+                        500, "An unknown error occurred.",
+                        "There was a problem with one of the HTTP requests")));
+            }
+        });
+    }
+
+    private void handleNewCreditCardExceptions(final String accountNumber, final LocalDate currentDate,
+                                               final CallbackBuilder callbackBuilder) {
+        try {
+            Account account = getAccountInfo(accountNumber);
+            CreditCard creditCard = createCreditCardFromAccount(account);
+            creditCard = addNewCreditCardToDb(creditCard, currentDate);
+            sendNewCreditCardCallback(creditCard, callbackBuilder);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to the Credit card database.")));
+        }
+    }
+
+    private CreditCard createCreditCardFromAccount(final Account account) {
+        CreditCard creditCard = new CreditCard();
+        creditCard.setAccountNumber(account.getAccountNumber());
+        creditCard.setCardHolderName(account.getAccountHolderName());
+        creditCard.setLimit(CREDIT_CARD_LIMIT);
+        creditCard.setBalance(0.0);
+        creditCard.setFee(MONTHLY_CREDIT_CARD_FEE);
+        return creditCard;
+    }
+
+    private CreditCard addNewCreditCardToDb(final CreditCard creditCard, final LocalDate currentDate) throws SQLException {
+        SQLConnection connection = db.getConnection();
+        long newID = connection.getNextID(getNextCreditCardID);
+        String creditCardNumber = generateCreditCardNumber(newID);
+        LocalDate activationDate = currentDate.plusDays(1L);
+        creditCard.setCreditCardNumber(creditCardNumber);
+        creditCard.setActivationDate(activationDate);
+
+        PreparedStatement ps = connection.getConnection().prepareStatement(addCreditCard);
+        ps.setLong(1, newID);
+        ps.setString(2, creditCardNumber);
+        ps.setString(3, creditCard.getAccountNumber());
+        ps.setString(4, creditCard.getCardHolderName());
+        ps.setDouble(5, CREDIT_CARD_LIMIT);
+        ps.setDouble(6, 0); // balance always starts at 0.
+        ps.setDouble(7, MONTHLY_CREDIT_CARD_FEE);
+        ps.setDate(8, java.sql.Date.valueOf(activationDate));
+        ps.executeUpdate();
+        ps.close();
+        db.returnConnection(connection);
+        return creditCard;
+    }
+
+    private String generateCreditCardNumber(final long cardID) {
+        StringBuilder creditCardNumber = new StringBuilder();
+        creditCardNumber.append(Long.toString(cardID));
+        while (creditCardNumber.length() < CREDIT_CARD_DIGITS) {
+            creditCardNumber.insert(0, "0");
+        }
+        return creditCardNumber.toString();
+    }
+
+    private void sendNewCreditCardCallback(final CreditCard creditCard, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s New credit card request successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                false, 200, "Normal Reply", creditCard)));
     }
 
     /**
