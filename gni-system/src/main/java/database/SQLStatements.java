@@ -68,6 +68,8 @@ public final class SQLStatements {
     public final static String dropAccountsTable = "DROP TABLE IF EXISTS `accounts`;";
     public final static String createLedgerTable = "CREATE TABLE IF NOT EXISTS `ledger` ( `id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL, `name` TEXT NOT NULL, `overdraft_limit` DOUBLE NOT NULL, `balance` DOUBLE NOT NULL, `savings_active` BOOLEAN NOT NULL, `savings_balance` DOUBLE NOT NULL, PRIMARY KEY (id));";
     public final static String dropLedgerTable = "DROP TABLE IF EXISTS `ledger`;";
+    public final static String createCreditCardsTable = "CREATE TABLE IF NOT EXISTS `credit_cards` ( `id` BIGINT(20) NOT NULL, `credit_card_id` TEXT NOT NULL, `account_number` TEXT NOT NULL, `name` TEXT NOT NULL, `credit_limit` DOUBLE NOT NULL, `balance` DOUBLE NOT NULL, `card_fee` DOUBLE NOT NULL, `active_from` DATE NOT NULL, PRIMARY KEY (id));";
+    public final static String dropCreditCardsTable = "DROP TABLE IF EXISTS `credit_cards`;";
     public final static String createPinTable = "CREATE TABLE IF NOT EXISTS `pin`( `account_number` TEXT NOT NULL, `user_id` BIGINT(20) NOT NULL, `card_number` BIGINT(20) NOT NULL, `pin_code` TEXT NOT NULL, `expiration_date` DATE NOT NULL, `incorrect_attempts` BIGINT(20) NOT NULL, `active` BOOLEAN NOT NULL, PRIMARY KEY (card_number));";
     public final static String dropPinTable = "DROP TABLE IF EXISTS `pin`;";
     public final static String createTransactionsInTable = "CREATE TABLE IF NOT EXISTS `transactions_in`( `id` BIGINT(20) NOT NULL, `date` DATE NOT NULL, `account_to` TEXT NOT NULL, `account_to_name` TEXT NOT NULL, `account_from` TEXT NOT NULL, `amount` DOUBLE NOT NULL, `new_balance` DOUBLE NOT NULL, `new_savings_balance` DOUBLE NOT NULL, `description` TEXT NOT NULL, PRIMARY KEY (id));";
@@ -88,6 +90,7 @@ public final class SQLStatements {
     // Truncate statements used for resetting the database
     public final static String truncateAccountsTable = "TRUNCATE TABLE `accounts`";
     public final static String truncateLedgerTable = "TRUNCATE TABLE `ledger`";
+    public final static String truncateCreditCardsTable = "TRUNCATE TABLE `credit_cards`;";
     public final static String truncatePinTable = "TRUNCATE TABLE `pin`";
     public final static String truncateTransactionsInTable = "TRUNCATE TABLE `transactions_in`";
     public final static String truncateTransactionsOutTable = "TRUNCATE TABLE `transactions_out`";
