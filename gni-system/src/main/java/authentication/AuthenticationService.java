@@ -1500,7 +1500,7 @@ class AuthenticationService {
 
     private void doNewCreditCardRequest(final Long customerId, final String accountNumber,
                                         final CallbackBuilder callbackBuilder) {
-        ledgerClient.putFormAsyncWith1Param("/services/ledger/creditCard", "accountNumber",
+        ledgerClient.putFormAsyncWith1Param("/services/pin/creditCard", "accountNumber",
                 accountNumber, (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
@@ -1526,8 +1526,6 @@ class AuthenticationService {
         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
                 false, 200, "Normal Reply", creditCard)));
     }
-
-
 
     /**
      * Safely shuts down the AuthenticationService.

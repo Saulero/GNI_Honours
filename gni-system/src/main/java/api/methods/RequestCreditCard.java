@@ -3,10 +3,12 @@ package api.methods;
 import api.ApiBean;
 import api.ApiService;
 import api.IncorrectInputException;
+import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 import databeans.CreditCard;
 import databeans.MessageWrapper;
 import util.JSONParser;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import static api.ApiService.PREFIX;
@@ -53,7 +55,7 @@ public class RequestCreditCard {
                                 JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
                             CreditCard creditCard = (CreditCard) messageWrapper.getData();
-                            sendRequestCreditCardCallback(creditCard, cookie, api);
+                            sendRequestCreditCardCallback(creditCard, api);
                         } else {
                             sendErrorReply(messageWrapper, api);
                         }
@@ -65,9 +67,12 @@ public class RequestCreditCard {
         });
     }
 
-    private void sendRequestCreditCardCallback(final CreditCard creditCard, final String cookie, final ApiBean api) {
+    private void sendRequestCreditCardCallback(final CreditCard creditCard, final ApiBean api) {
         System.out.printf("%s Successfully created credit card, creating pin card for this credit card.\n", PREFIX);
-        doNewPinCardRequest(creditCard.getCreditCardNumber(), creditCard.getUsername(), cookie, api,
-                            false);
+        Map<String, Object> result = new HashMap<>();
+        result.put("pinCard", creditCard.getCreditCardNumber());
+        result.put("pinCode", creditCard.getPinCode());
+        JSONRPC2Response response = new JSONRPC2Response(result, api.getId());
+        api.getCallbackBuilder().build().reply(response.toJSONString());
     }
 }

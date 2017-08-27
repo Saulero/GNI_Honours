@@ -7,14 +7,14 @@ import java.time.LocalDate;
  */
 public class CreditCard {
     private String accountNumber;
-    private String creditCardNumber;
-    private String cardHolderName;
+    private Long creditCardNumber;
     private String username;
     private Double limit;
     private Double balance;
     private Double fee;
     private LocalDate activationDate;
-    private PinCard pinCard;
+    private LocalDate expirationDate;
+    private String pinCode;
 
     public String getAccountNumber() {
         return accountNumber;
@@ -24,11 +24,11 @@ public class CreditCard {
         accountNumber = newAccountNumber;
     }
 
-    public String getCreditCardNumber() {
+    public Long getCreditCardNumber() {
         return creditCardNumber;
     }
 
-    public void setCreditCardNumber(final String newCreditCardNumber) {
+    public void setCreditCardNumber(final Long newCreditCardNumber) {
         creditCardNumber = newCreditCardNumber;
     }
 
@@ -46,22 +46,6 @@ public class CreditCard {
 
     public void setActivationDate(final LocalDate newActivationDate) {
         activationDate = newActivationDate;
-    }
-
-    public PinCard getPinCard() {
-        return pinCard;
-    }
-
-    public void setPinCard(final PinCard newPinCard) {
-        pinCard = newPinCard;
-    }
-
-    public String getCardHolderName() {
-        return cardHolderName;
-    }
-
-    public void setCardHolderName(final String newCardHolderName) {
-        cardHolderName = newCardHolderName;
     }
 
     public Double getLimit() {
@@ -86,5 +70,21 @@ public class CreditCard {
 
     public void setFee(final Double newFee) {
         fee = newFee;
+    }
+
+    public LocalDate getExpirationDate() {
+        return expirationDate;
+    }
+
+    public void setExpirationDate(final LocalDate newExpirationDate) {
+        expirationDate = newExpirationDate;
+    }
+
+    public String getPinCode() {
+        return pinCode;
+    }
+
+    public void setPinCode(final String newPinCode) {
+        pinCode = newPinCode;
     }
 }
