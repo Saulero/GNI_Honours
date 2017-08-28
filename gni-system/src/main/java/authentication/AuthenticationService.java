@@ -1297,9 +1297,10 @@ class AuthenticationService {
         pinCard.setAccountNumber((String) params.get("iBAN"));
         pinCard.setCardNumber(Long.parseLong((String) params.get("pinCard")));
         if ((params.get("newPin")).equals("true")) {
-            pinCard.setActive(true);
+            handlePinCardRemovalExceptions(pinCard, authToken, true, callbackBuilder);
+        } else {
+            handlePinCardRemovalExceptions(pinCard, authToken, false, callbackBuilder);
         }
-        handlePinCardRemovalExceptions(pinCard, authToken, callbackBuilder);
     }
 
     /**
@@ -1309,12 +1310,12 @@ class AuthenticationService {
      * @param authToken Cookie of the user that sent the request.
      * @param callbackBuilder Used to send the result of the request back to the request source.
      */
-    private void handlePinCardRemovalExceptions(final PinCard pinCard, final String authToken,
+    private void handlePinCardRemovalExceptions(final PinCard pinCard, final String authToken, final boolean newPin,
                                                 final CallbackBuilder callbackBuilder) {
         try {
             authenticateRequest(authToken);
             pinCard.setCustomerId(getCustomerId(authToken));
-            doPinCardReplacementRequest(jsonConverter.toJson(pinCard), callbackBuilder);
+            doPinCardReplacementRequest(jsonConverter.toJson(pinCard), newPin, callbackBuilder);
         } catch (SQLException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         } catch (UserNotAuthorizedException e) {
@@ -1328,9 +1329,10 @@ class AuthenticationService {
      * @param pinCardJson Json String representing a {@link PinCard} that should be removed from the system.
      * @param callbackBuilder Used to send the result of the request back to the request source.
      */
-    private void doPinCardReplacementRequest(final String pinCardJson, final CallbackBuilder callbackBuilder) {
-        pinClient.putFormAsyncWith1Param("/services/pin/invalidateCard",
-                "pinCard", pinCardJson, (code, contentType, body) -> {
+    private void doPinCardReplacementRequest(final String pinCardJson, final boolean newPin,
+                                             final CallbackBuilder callbackBuilder) {
+        pinClient.putFormAsyncWith2Params("/services/pin/invalidateCard",
+                "pinCard", pinCardJson, "newPin", newPin, (code, contentType, body) -> {
                     if (code == HTTP_OK) {
                         MessageWrapper messageWrapper = jsonConverter.fromJson(
                                 JSONParser.removeEscapeCharacters(body), MessageWrapper.class);

@@ -63,14 +63,14 @@ public final class SQLStatements {
     public static final String addErrorLog = "INSERT INTO error_logs (request_id, error_code, date, time, message, data) VALUES (?, ?, ?, ?, ?, ?)";
     public static final String getRequestLogs = "SELECT * FROM request_logs WHERE date BETWEEN ? AND ?";
     public static final String getErrorLogs = "SELECT * FROM error_logs WHERE date BETWEEN ? AND ?";
-    public static final String addCreditCard = "INSERT INTO credit_cards (card_number, account_number, pin_code, incorrect_attempts, credit_limit, balance, card_fee, active_from, active_until) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    public static final String addCreditCard = "INSERT INTO credit_cards (card_number, account_number, pin_code, incorrect_attempts, credit_limit, balance, card_fee, active_from, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
     public static final String getHighestCreditCardID = "SELECT MAX(card_number) FROM credit_cards";
     public static final String getCreditCardInfo = "SELECT * FROM credit_cards WHERE card_number = ?";
     public static final String updateCreditCardBalance = "UPDATE credit_cards SET balance = ? WHERE card_number = ?";
     public static final String addCreditCardTransaction = "INSERT INTO credit_card_transactions (id, date, card_number, account_to, amount, new_balance`";
     public static final String getHighestCreditCardTransactionId = "SELECT MAX(id) FROM credit_card_transactions;";
     public static final String getCreditCardFromAccountNUmber = "SELECT * from credit_cards WHERE account_number = ?";
-    public static final String removeCreditCard = "DELETE FROM credit_cards WHERE card_number = ?";
+    public static final String deactivateCreditCard = "UPDATE credit_cards SET active = false WHERE card_number = ?";
     public static final String unblockCreditCard = "UPDATE credit_cards SET incorrect_attempts = 0 WHERE card_number = ?";
 
     // Create statements used for setting up the database
@@ -78,7 +78,7 @@ public final class SQLStatements {
     public final static String dropAccountsTable = "DROP TABLE IF EXISTS `accounts`;";
     public final static String createLedgerTable = "CREATE TABLE IF NOT EXISTS `ledger` ( `id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL, `name` TEXT NOT NULL, `overdraft_limit` DOUBLE NOT NULL, `balance` DOUBLE NOT NULL, `savings_active` BOOLEAN NOT NULL, `savings_balance` DOUBLE NOT NULL, PRIMARY KEY (id));";
     public final static String dropLedgerTable = "DROP TABLE IF EXISTS `ledger`;";
-    public final static String createCreditCardsTable = "CREATE TABLE IF NOT EXISTS `credit_cards` (`card_number` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL, `pin_code` TEXT NOT NULL, `incorrect_attempts` BIGINT(20) NOT NULL, `credit_limit` DOUBLE NOT NULL, `balance` DOUBLE NOT NULL, `card_fee` DOUBLE NOT NULL, `active_from` DATE NOT NULL, `active_until` DATE NOT NULL, PRIMARY KEY (card_number));";
+    public final static String createCreditCardsTable = "CREATE TABLE IF NOT EXISTS `credit_cards` (`card_number` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL, `pin_code` TEXT NOT NULL, `incorrect_attempts` BIGINT(20) NOT NULL, `credit_limit` DOUBLE NOT NULL, `balance` DOUBLE NOT NULL, `card_fee` DOUBLE NOT NULL, `active_from` DATE NOT NULL, `active` BOOLEAN NOT NULL, PRIMARY KEY (card_number));";
     public final static String dropCreditCardsTable = "DROP TABLE IF EXISTS `credit_cards`;";
     public final static String createCreditCardTransactionsTable = "CREATE TABLE IF NOT EXISTS `credit_card_transactions` (`id` BIGINT(20) NOT NULL, `date` DATE NOT NULL, `card_number` BIGINT(20) NOT NULL, `account_to` TEXT NOT NULL, `amount` DOUBLE NOT NULL, `new_balance` DOUBLE NOT NULL, PRIMARY KEY (id));";
     public final static String getDropCreditCardTransactionsTable = "DROP TABLE IF EXISTS `credit_card_transactions`;";

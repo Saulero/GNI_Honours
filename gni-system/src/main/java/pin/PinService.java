@@ -197,7 +197,7 @@ class PinService {
             creditCard.setBalance(cardInfo.getDouble("balance"));
             creditCard.setFee(cardInfo.getDouble("card_fee"));
             creditCard.setActivationDate(cardInfo.getDate("active_from").toLocalDate());
-            creditCard.setExpirationDate(cardInfo.getDate("active_until").toLocalDate());
+            creditCard.setActive(cardInfo.getBoolean("active"));
         } else {
             throw new IncorrectInputException("There does not exist a credit card with this card number.");
         }
@@ -533,7 +533,7 @@ class PinService {
                 if (!messageWrapper.isError()) {
                     LocalDate systemDate = (LocalDate) messageWrapper.getData();
                     if (systemDate.isBefore(creditCard.getActivationDate())
-                            || systemDate.isAfter(creditCard.getExpirationDate())) {
+                            || !creditCard.isActive()) {
                         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
                                 .createMessageWrapper(true, 421,
                                         "The card used is not active.",
@@ -1051,9 +1051,10 @@ class PinService {
      * @param pinCardJson Json String representing a {@link PinCard} that should be removed from the system.
      */
     @RequestMapping(value = "/invalidateCard", method = RequestMethod.PUT)
-    public void invalidateCard(final Callback<String> callback, final @RequestParam("pinCard") String pinCardJson) {
+    public void invalidateCard(final Callback<String> callback, final @RequestParam("pinCard") String pinCardJson,
+                               final @RequestParam("newPin") boolean newPin) {
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handleRemovePinCardExceptions(pinCardJson, callbackBuilder);
+        handleRemovePinCardExceptions(pinCardJson, newPin, callbackBuilder);
     }
 
     /**
@@ -1062,31 +1063,46 @@ class PinService {
      * @param pinCardJson Json String representing a {@link PinCard} that should be removed from the system.
      * @param callbackBuilder Used to send the result of the request to the request source.
      */
-    private void handleRemovePinCardExceptions(final String pinCardJson, final CallbackBuilder callbackBuilder) {
+    private void handleRemovePinCardExceptions(final String pinCardJson, final boolean newPin,
+                                               final CallbackBuilder callbackBuilder) {
         try {
             PinCard pinCard = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(pinCardJson), PinCard.class);
-            // deactivate old card
-            deactivatePinCard(pinCard);
+            Long cardNumber = pinCard.getCardNumber();
+            if (cardNumber > 5248860000000000L && cardNumber < 5248870000000000L) {
+                CreditCard cardToRemove = new CreditCard();
+                cardToRemove.setCreditCardNumber(cardNumber);
+                deactivateCreditCard(cardToRemove);
+                String pinCode;
+                if (newPin) {
+                    pinCode = generatePinCode();
+                } else {
+                    pinCode = getCreditCardData(cardNumber).getPinCode();
+                }
+                getCurrentDateForCreditCard(pinCard.getAccountNumber(), pinCode, callbackBuilder);
+            } else {
+                deactivatePinCard(pinCard);
+                // TODO WHAT IF NOT ENOUGH BALANCE? - SHOULD IT WITHDRAW ANYWAY(?)
+                // get payment for new card
+                withdrawPaymentForNewCard(pinCard, callbackBuilder);
 
-            // TODO WHAT IF NOT ENOUGH BALANCE? - SHOULD IT WITHDRAW ANYWAY(?)
-            // get payment for new card
-            withdrawPaymentForNewCard(pinCard, callbackBuilder);
-
-            // create new card & send callback
-            String id = "" + pinCard.getCustomerId();
-            String pinCode = null;
-            if (!pinCard.isActive()) {
-                pinCode = getPinCodeFromCard(pinCard);
+                // create new card & send callback
+                String id = "" + pinCard.getCustomerId();
+                String pinCode;
+                if (!newPin) {
+                    pinCode = getPinCodeFromCard(pinCard);
+                } else {
+                    pinCode = generatePinCode();
+                }
+                generateExpirationDate(id, id, pinCard.getAccountNumber(), pinCode, callbackBuilder);
             }
-            generateExpirationDate(id, id, pinCard.getAccountNumber(), pinCode, callbackBuilder);
         } catch (SQLException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
                     "Error connecting to the Pin database.")));
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException | NoSuchAlgorithmException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418,
                     "One of the parameters has an invalid value.",
                     "Something went wrong when parsing the customerId in Pin.")));
-        } catch (InvalidParameterException e) {
+        } catch (InvalidParameterException | IncorrectInputException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
                     true, 418, e.getMessage())));
         }
@@ -1171,16 +1187,17 @@ class PinService {
     public void processNewCreditCard(final Callback<String> callback,
                                      @RequestParam("accountNumber") final String accountNumber) {
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        getCurrentDateForCreditCard(accountNumber, callbackBuilder);
+        getCurrentDateForCreditCard(accountNumber, null, callbackBuilder);
     }
 
-    private void getCurrentDateForCreditCard(final String accountNumber, final CallbackBuilder callbackBuilder) {
+    private void getCurrentDateForCreditCard(final String accountNumber, final String pinCode,
+                                             final CallbackBuilder callbackBuilder) {
         systemInformationClient.getAsync("/services/systemInfo/date", (code, contentType, body) -> {
             if (code == HTTP_OK) {
                 MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
                 if (!messageWrapper.isError()) {
                     LocalDate currentDate = (LocalDate) messageWrapper.getData();
-                    handleNewCreditCardExceptions(accountNumber, currentDate, callbackBuilder);
+                    handleNewCreditCardExceptions(accountNumber, pinCode, currentDate, callbackBuilder);
                 } else {
                     callbackBuilder.build().reply(body);
                 }
@@ -1193,7 +1210,8 @@ class PinService {
         });
     }
 
-    private void handleNewCreditCardExceptions(final String accountNumber, final LocalDate currentDate,
+    private void handleNewCreditCardExceptions(final String accountNumber, final String pinCode,
+                                               final LocalDate currentDate,
                                                final CallbackBuilder callbackBuilder) {
         try {
             CreditCard creditCard = new CreditCard();
@@ -1202,6 +1220,7 @@ class PinService {
             creditCard.setBalance(0.0);
             creditCard.setIncorrect_attempts(0L);
             creditCard.setFee(MONTHLY_CREDIT_CARD_FEE);
+            creditCard.setPinCode(pinCode);
             creditCard = addNewCreditCardToDb(creditCard, currentDate);
             sendNewCreditCardCallback(creditCard, callbackBuilder);
             throw new SQLException();
@@ -1221,9 +1240,11 @@ class PinService {
         SQLConnection connection = databaseConnectionPool.getConnection();
         LocalDate activationDate = currentDate.plusDays(1L);
         creditCard.setCreditCardNumber(generateCreditCardNumber());
-        creditCard.setPinCode(generatePinCode());
+        if (creditCard.getPinCode() != null) {
+            creditCard.setPinCode(generatePinCode());
+        }
         creditCard.setActivationDate(activationDate);
-        creditCard.setExpirationDate(activationDate.plusYears(VALID_CARD_DURATION));
+        creditCard.setActive(true);
 
         PreparedStatement ps = connection.getConnection().prepareStatement(addCreditCard);
         ps.setLong(1, creditCard.getCreditCardNumber());
@@ -1234,7 +1255,7 @@ class PinService {
         ps.setDouble(6, creditCard.getBalance());
         ps.setDouble(7, creditCard.getFee());
         ps.setDate(8, java.sql.Date.valueOf(creditCard.getActivationDate()));
-        ps.setDate(9, java.sql.Date.valueOf(creditCard.getExpirationDate()));
+        ps.setBoolean(9, creditCard.isActive());
         ps.executeUpdate();
         ps.close();
         databaseConnectionPool.returnConnection(connection);
@@ -1300,7 +1321,7 @@ class PinService {
             card.setBalance(cardResult.getDouble("balance"));
             card.setFee(cardResult.getDouble("card_fee"));
             card.setActivationDate(cardResult.getDate("active_from").toLocalDate());
-            card.setExpirationDate(cardResult.getDate("active_until").toLocalDate());
+            card.setActive(cardResult.getBoolean("active"));
             getCard.close();
             databaseConnectionPool.returnConnection(connection);
             return card;
@@ -1317,13 +1338,14 @@ class PinService {
             // try to withdraw funds from the account linked to the CC
             refillCreditCard(creditCard, customerId, true, callbackBuilder);
         } else {
-            removeCreditCardFromDb(creditCard);
+            deactivateCreditCard(creditCard);
+            sendRemoveCreditCardCallback(callbackBuilder);
         }
     }
 
-    private void removeCreditCardFromDb(final CreditCard creditCard) throws SQLException {
+    private void deactivateCreditCard(final CreditCard creditCard) throws SQLException {
         SQLConnection connection = databaseConnectionPool.getConnection();
-        PreparedStatement removeCard = connection.getConnection().prepareStatement(removeCreditCard);
+        PreparedStatement removeCard = connection.getConnection().prepareStatement(deactivateCreditCard);
         removeCard.setLong(1, creditCard.getCreditCardNumber());
         removeCard.execute();
         removeCard.close();
@@ -1349,7 +1371,7 @@ class PinService {
                             if (reply.isSuccessful()) {
                                 if (closeCard) {
                                     try {
-                                        removeCreditCardFromDb(creditCard);
+                                        deactivateCreditCard(creditCard);
                                         sendRemoveCreditCardCallback(callbackBuilder);
                                     } catch (SQLException e) {
                                         e.printStackTrace();

@@ -13,7 +13,7 @@ public class CreditCard {
     private Double balance;
     private Double fee;
     private LocalDate activationDate;
-    private LocalDate expirationDate;
+    private boolean active;
     private String pinCode;
     private Long incorrect_attempts;
 
@@ -73,14 +73,6 @@ public class CreditCard {
         fee = newFee;
     }
 
-    public LocalDate getExpirationDate() {
-        return expirationDate;
-    }
-
-    public void setExpirationDate(final LocalDate newExpirationDate) {
-        expirationDate = newExpirationDate;
-    }
-
     public String getPinCode() {
         return pinCode;
     }
@@ -99,5 +91,13 @@ public class CreditCard {
 
     public void processTransaction(final PinTransaction pinTransaction) {
         this.balance -= pinTransaction.getTransactionAmount();
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(final boolean newActive) {
+        active = newActive;
     }
 }
