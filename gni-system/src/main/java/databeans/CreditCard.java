@@ -15,6 +15,7 @@ public class CreditCard {
     private LocalDate activationDate;
     private LocalDate expirationDate;
     private String pinCode;
+    private Long incorrect_attempts;
 
     public String getAccountNumber() {
         return accountNumber;
@@ -86,5 +87,17 @@ public class CreditCard {
 
     public void setPinCode(final String newPinCode) {
         pinCode = newPinCode;
+    }
+
+    public Long getIncorrect_attempts() {
+        return incorrect_attempts;
+    }
+
+    public void setIncorrect_attempts(final Long newIncorrect_attempts) {
+        incorrect_attempts = newIncorrect_attempts;
+    }
+
+    public void processTransaction(final PinTransaction pinTransaction) {
+        this.balance -= pinTransaction.getTransactionAmount();
     }
 }

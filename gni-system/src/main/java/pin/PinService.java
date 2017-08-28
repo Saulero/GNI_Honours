@@ -15,6 +15,7 @@ import io.advantageous.qbit.reactive.CallbackBuilder;
 import api.IncorrectInputException;
 import util.JSONParser;
 
+import javax.smartcardio.CardNotPresentException;
 import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
@@ -60,8 +61,6 @@ class PinService {
     private static final double MONTHLY_CREDIT_CARD_FEE = 5.00;
     /** Credit card limit. */
     private static final double CREDIT_CARD_LIMIT = 1000;
-    /** Length of a credit card number. */
-    private static final int CREDIT_CARD_DIGITS = 10;
 
     /**
      * Constructor.
@@ -146,6 +145,9 @@ class PinService {
             PinTransaction request = jsonConverter.fromJson(pinTransactionRequestJson, PinTransaction.class);
             if (request.isATMTransaction()) {
                 getATMTransactionAuthorization(request, callbackBuilder);
+            } else if (request.isCreditCardTransaction()) {
+                CreditCard creditCard = getCreditCardData(request.getCardNumber());
+                getCreditCardTransactionAuthorization(request, creditCard, callbackBuilder);
             } else {
                 getPinTransactionAuthorization(request, callbackBuilder);
             }
@@ -179,6 +181,31 @@ class PinService {
                     .createMessageWrapper(true, 421, e.getMessage(),
                             "The pin card used has been permanently deactivated.")));
         }
+    }
+
+
+    private CreditCard getCreditCardData(final Long creditCardNumber) throws SQLException, IncorrectInputException {
+        SQLConnection connection = databaseConnectionPool.getConnection();
+        PreparedStatement getCreditCardInfo = connection.getConnection()
+                                                        .prepareStatement(SQLStatements.getCreditCardInfo);
+        getCreditCardInfo.setLong(1, creditCardNumber);
+        ResultSet cardInfo = getCreditCardInfo.executeQuery();
+        CreditCard creditCard = new CreditCard();
+        if (cardInfo.next()) {
+            creditCard.setCreditCardNumber(creditCardNumber);
+            creditCard.setAccountNumber(cardInfo.getString("account_number"));
+            creditCard.setPinCode(cardInfo.getString("pin_code"));
+            creditCard.setLimit(cardInfo.getDouble("credit_limit"));
+            creditCard.setBalance(cardInfo.getDouble("balance"));
+            creditCard.setFee(cardInfo.getDouble("card_fee"));
+            creditCard.setActivationDate(cardInfo.getDate("active_from").toLocalDate());
+            creditCard.setExpirationDate(cardInfo.getDate("active_until").toLocalDate());
+        } else {
+            throw new IncorrectInputException("There does not exist a credit card with this card number.");
+        }
+        getCreditCardInfo.close();
+        databaseConnectionPool.returnConnection(connection);
+        return creditCard;
     }
 
     /**
@@ -256,7 +283,7 @@ class PinService {
         } else {
             getCardInfo.close();
             databaseConnectionPool.returnConnection(databaseConnection);
-            incrementIncorrectAttempts(pinTransaction.getCardNumber());
+            incrementIncorrectAttempts(pinTransaction.getCardNumber(), false);
             throw new IncorrectPinException("Pin card does not exist.");
         }
         getCardInfo.close();
@@ -285,8 +312,7 @@ class PinService {
                                     if (pinCard.getPinCode().equals(pinTransaction.getPinCode())) {
                                         try {
                                             // reset the count
-                                            unblockPinCard(new PinCard(pinCard.getAccountNumber(),
-                                                    pinCard.getCardNumber()));
+                                            unblockPinCard(pinCard.getCardNumber(), pinCard.getAccountNumber());
                                         } catch (NoEffectException e) {
                                             // do nothing
                                         }
@@ -311,7 +337,7 @@ class PinService {
                                             doDepositTransactionRequest(transaction, callbackBuilder);
                                         }
                                     } else {
-                                        incrementIncorrectAttempts(pinTransaction.getCardNumber());
+                                        incrementIncorrectAttempts(pinTransaction.getCardNumber(), false);
                                         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
                                                 .createMessageWrapper(true, 421,
                                                         "The pin code used is incorrect.",
@@ -355,12 +381,20 @@ class PinService {
     /**
      * Increments the amount of incorrect pin code attempts in the database.
      * @param cardNumber Cardnumber to increment the amount of incorrect attempts for.
+     * @param isCreditCard boolean indicating if the increment statement is for a credit card or a pin card.
      * @throws SQLException Thrown when there is an error connecting to the database.
      */
-    private void incrementIncorrectAttempts(final Long cardNumber) throws SQLException {
+    private void incrementIncorrectAttempts(final Long cardNumber, boolean isCreditCard) throws SQLException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
-        PreparedStatement incrementStatement = databaseConnection.getConnection()
-                                                        .prepareStatement(SQLStatements.incrementIncorrectAttempts);
+        PreparedStatement incrementStatement;
+        if (isCreditCard) {
+            incrementStatement = databaseConnection.getConnection()
+                    .prepareStatement(SQLStatements.incrementIncorrectCreditcardAttempts);
+        } else {
+            incrementStatement = databaseConnection.getConnection()
+                    .prepareStatement(SQLStatements.incrementIncorrectPincardAttempts);
+        }
+
         incrementStatement.setLong(1, cardNumber);
         incrementStatement.execute();
         databaseConnectionPool.returnConnection(databaseConnection);
@@ -444,7 +478,7 @@ class PinService {
                     } else {
                         getCardInfo.close();
                         databaseConnectionPool.returnConnection(databaseConnection);
-                        incrementIncorrectAttempts(pinCard.getCardNumber());
+                        incrementIncorrectAttempts(pinCard.getCardNumber(), false);
                         throw new IncorrectPinException("The pin code used was incorrect.");
                     }
                 } else {
@@ -455,13 +489,13 @@ class PinService {
             } else {
                 getCardInfo.close();
                 databaseConnectionPool.returnConnection(databaseConnection);
-                incrementIncorrectAttempts(pinTransaction.getCardNumber());
+                incrementIncorrectAttempts(pinTransaction.getCardNumber(), false);
                 throw new IncorrectPinException("Pin card does not belong to accountNumber used in the transaction.");
             }
         } else {
             getCardInfo.close();
             databaseConnectionPool.returnConnection(databaseConnection);
-            incrementIncorrectAttempts(pinTransaction.getCardNumber());
+            incrementIncorrectAttempts(pinTransaction.getCardNumber(), false);
             throw new IncorrectPinException("Pin card does not exist.");
         }
         getCardInfo.close();
@@ -490,6 +524,78 @@ class PinService {
         }
     }
 
+    private void getCreditCardTransactionAuthorization(final PinTransaction pinTransaction, final CreditCard creditCard,
+                                                       final CallbackBuilder callbackBuilder)
+            throws SQLException, IncorrectPinException, CardExpiredException, CardBlockedException {
+        systemInformationClient.getAsync("/services/systemInfo/date",
+                (httpStatusCode, contentType, body) -> {
+            if (httpStatusCode == HTTP_OK) {
+                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser
+                        .removeEscapeCharacters(body), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    LocalDate systemDate = (LocalDate) messageWrapper.getData();
+                    if (systemDate.isBefore(creditCard.getActivationDate())
+                            || systemDate.isAfter(creditCard.getExpirationDate())) {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
+                                .createMessageWrapper(true, 421,
+                                        "The card used is not active.",
+                                        "The credit card used is not active yet or expired.")));
+                    } else if (creditCard.getIncorrect_attempts() > 3) {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
+                                .createMessageWrapper(true, 419, "The card used is currently blocked.",
+                                        "The pin card used does not have the authorization to perform this request.")));
+                    } else if (!creditCard.getPinCode().equals(pinTransaction.getPinCode())) {
+                        try {
+                            incrementIncorrectAttempts(creditCard.getCreditCardNumber(), true);
+                        } catch (SQLException e) {
+                            e.printStackTrace();
+                        }
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
+                                .createMessageWrapper(true, 421,
+                                        "The pin code used is incorrect.",
+                                        "An invalid PINcard, -code or -combination was used.")));
+                    } else if (!creditCard.getAccountNumber().equals(pinTransaction.getSourceAccountNumber())) {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
+                                .createMessageWrapper(true, 419,
+                                        "Pin card does not belong to accountNumber used in the transaction.",
+                                        "The pin card used does not have the authorization to perform this request.")));
+                    } else if (creditCard.getBalance() < pinTransaction.getTransactionAmount()) {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
+                                .createMessageWrapper(true, 418,
+                                        "There are not enough funds on the credit card to make the transaction.",
+                                        "The balance on the credit card used is not high enough.")));
+                    } else {
+                        CreditCard updatedCard = creditCard;
+                        updatedCard.processTransaction(pinTransaction);
+                        updateCreditCardBalanceInDb(updatedCard);
+                        //todo process the destination of this transaction.
+                    }
+                } else {
+                    callbackBuilder.build().reply(body);
+                }
+            } else {
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
+                        .createMessageWrapper(true, 500,
+                                "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests")));
+            }
+        });
+    }
+
+    private void updateCreditCardBalanceInDb(final CreditCard creditCard) {
+        try {
+            SQLConnection connection = databaseConnectionPool.getConnection();
+            PreparedStatement updateBalanceStatement = connection.getConnection()
+                    .prepareStatement(SQLStatements.updateCreditCardBalance);
+            updateBalanceStatement.setDouble(1, creditCard.getBalance());
+            updateBalanceStatement.setLong(2, creditCard.getCreditCardNumber());
+            updateBalanceStatement.execute();
+            updateBalanceStatement.close();
+            databaseConnectionPool.returnConnection(connection);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
 
 
     /**
@@ -776,7 +882,7 @@ class PinService {
     private void handlePinCardUnblockExceptions(final String pinCardJson, final CallbackBuilder callbackBuilder) {
         try {
             PinCard pinCard = jsonConverter.fromJson(pinCardJson, PinCard.class);
-            unblockPinCard(pinCard);
+            unblockPinCard(pinCard.getCardNumber(), pinCard.getAccountNumber());
             sendPinCardUnblockCallback(pinCard, callbackBuilder);
         } catch (SQLException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to the Pin database.")));
@@ -789,30 +895,32 @@ class PinService {
 
     /**
      * Unblocks a PinCard in the pin database.
-     * @param pinCard Pin card that should be unblocked.
+     * @param cardNumber cardNumber of the Card that should be unblocked.
+     * @param accountNumber accountNumber linked to the card that should be unblocked.
      * @throws SQLException Thrown when the sql query fails, will cause the unblock request to be rejected.
      * @throws NumberFormatException Cause when a parameter is incorrectly specified, will cause the unblock request
      * to be rejected.
      * @throws IncorrectInputException Thrown when any of the provided information appears to be incorrect.
      * @throws NoEffectException Thrown when the pin card wasn't blocked in the first place.
      */
-    void unblockPinCard(final PinCard pinCard) throws SQLException, IncorrectInputException, NoEffectException {
+    void unblockPinCard(final Long cardNumber, final String accountNumber) throws SQLException,
+            IncorrectInputException, NoEffectException {
         SQLConnection con = databaseConnectionPool.getConnection();
         PreparedStatement ps = con.getConnection().prepareStatement(SQLStatements.getPinCard);
-        ps.setLong(1, pinCard.getCardNumber());
+        ps.setLong(1, cardNumber);
         ResultSet rs = ps.executeQuery();
         if (rs.next()) {
-            String accountNumber = rs.getString("account_number");
+            String accountNumberInDb = rs.getString("account_number");
             Long attempts = rs.getLong("incorrect_attempts");
             rs.close();
 
-            if (!pinCard.getAccountNumber().equals(accountNumber)) {
+            if (!accountNumber.equals(accountNumberInDb)) {
                 throw new IncorrectInputException(
                         "The provided account number does not match the account number in the system.");
             } else {
                 // reset the count
                 ps = con.getConnection().prepareStatement(SQLStatements.unblockPinCard);
-                ps.setLong(1, pinCard.getCardNumber());
+                ps.setLong(1, cardNumber);
                 ps.executeUpdate();
 
                 if (attempts < 3) {
@@ -998,6 +1106,7 @@ class PinService {
             creditCard.setAccountNumber(accountNumber);
             creditCard.setLimit(CREDIT_CARD_LIMIT);
             creditCard.setBalance(0.0);
+            creditCard.setIncorrect_attempts(0L);
             creditCard.setFee(MONTHLY_CREDIT_CARD_FEE);
             creditCard = addNewCreditCardToDb(creditCard, currentDate);
             sendNewCreditCardCallback(creditCard, callbackBuilder);
@@ -1026,11 +1135,12 @@ class PinService {
         ps.setLong(1, creditCard.getCreditCardNumber());
         ps.setString(2, creditCard.getAccountNumber());
         ps.setString(3, creditCard.getPinCode());
-        ps.setDouble(4, creditCard.getLimit());
-        ps.setDouble(5, creditCard.getBalance());
-        ps.setDouble(6, creditCard.getFee());
-        ps.setDate(7, java.sql.Date.valueOf(creditCard.getActivationDate()));
-        ps.setDate(8, java.sql.Date.valueOf(creditCard.getExpirationDate()));
+        ps.setLong(4, creditCard.getIncorrect_attempts());
+        ps.setDouble(5, creditCard.getLimit());
+        ps.setDouble(6, creditCard.getBalance());
+        ps.setDouble(7, creditCard.getFee());
+        ps.setDate(8, java.sql.Date.valueOf(creditCard.getActivationDate()));
+        ps.setDate(9, java.sql.Date.valueOf(creditCard.getExpirationDate()));
         ps.executeUpdate();
         ps.close();
         databaseConnectionPool.returnConnection(connection);
