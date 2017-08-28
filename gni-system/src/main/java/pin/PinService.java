@@ -310,7 +310,7 @@ class PinService {
                                     if (pinCard.getPinCode().equals(pinTransaction.getPinCode())) {
                                         try {
                                             // reset the count
-                                            unblockPinCard(pinCard.getCardNumber(), pinCard.getAccountNumber());
+                                            unblockCard(pinCard.getCardNumber(), pinCard.getAccountNumber(), false);
                                         } catch (NoEffectException e) {
                                             // do nothing
                                         }
@@ -947,9 +947,10 @@ class PinService {
      * @param pinCardJson Json String representing a {@link PinCard} that should be unblocked.
      */
     @RequestMapping(value = "/unblockCard", method = RequestMethod.PUT)
-    public void unblockCard(final Callback<String> callback, final @RequestParam("pinCard") String pinCardJson) {
+    public void ProcessUnblockCardRequest(final Callback<String> callback,
+                                          final @RequestParam("pinCard") String pinCardJson) {
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handlePinCardUnblockExceptions(pinCardJson, callbackBuilder);
+        handleCardUnblockExceptions(pinCardJson, callbackBuilder);
     }
 
     /**
@@ -958,10 +959,15 @@ class PinService {
      * @param pinCardJson Json String representing a {@link PinCard} that should be unblocked.
      * @param callbackBuilder Used to send the result of the request to the request source.
      */
-    private void handlePinCardUnblockExceptions(final String pinCardJson, final CallbackBuilder callbackBuilder) {
+    private void handleCardUnblockExceptions(final String pinCardJson, final CallbackBuilder callbackBuilder) {
         try {
             PinCard pinCard = jsonConverter.fromJson(pinCardJson, PinCard.class);
-            unblockPinCard(pinCard.getCardNumber(), pinCard.getAccountNumber());
+            Long cardnumber = pinCard.getCardNumber();
+            if (cardnumber > 5248860000000000L && cardnumber < 5248870000000000L) {
+                unblockCard(pinCard.getCardNumber(), pinCard.getAccountNumber(), true);
+            } else {
+                unblockCard(pinCard.getCardNumber(), pinCard.getAccountNumber(), false);
+            }
             sendPinCardUnblockCallback(pinCard, callbackBuilder);
         } catch (SQLException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to the Pin database.")));
@@ -982,25 +988,34 @@ class PinService {
      * @throws IncorrectInputException Thrown when any of the provided information appears to be incorrect.
      * @throws NoEffectException Thrown when the pin card wasn't blocked in the first place.
      */
-    void unblockPinCard(final Long cardNumber, final String accountNumber) throws SQLException,
+    void unblockCard(final Long cardNumber, final String accountNumber, final boolean isCreditCard) throws SQLException,
             IncorrectInputException, NoEffectException {
         SQLConnection con = databaseConnectionPool.getConnection();
-        PreparedStatement ps = con.getConnection().prepareStatement(SQLStatements.getPinCard);
-        ps.setLong(1, cardNumber);
-        ResultSet rs = ps.executeQuery();
-        if (rs.next()) {
-            String accountNumberInDb = rs.getString("account_number");
-            Long attempts = rs.getLong("incorrect_attempts");
-            rs.close();
+        PreparedStatement getCard;
+        if (isCreditCard) {
+            getCard = con.getConnection().prepareStatement(SQLStatements.getCreditCardInfo);
+        } else {
+            getCard = con.getConnection().prepareStatement(SQLStatements.getPinCard);
+        }
+        getCard.setLong(1, cardNumber);
+        ResultSet cardInfo = getCard.executeQuery();
+        if (cardInfo.next()) {
+            String accountNumberInDb = cardInfo.getString("account_number");
+            Long attempts = cardInfo.getLong("incorrect_attempts");
+            cardInfo.close();
 
             if (!accountNumber.equals(accountNumberInDb)) {
                 throw new IncorrectInputException(
                         "The provided account number does not match the account number in the system.");
             } else {
                 // reset the count
-                ps = con.getConnection().prepareStatement(SQLStatements.unblockPinCard);
-                ps.setLong(1, cardNumber);
-                ps.executeUpdate();
+                if (isCreditCard) {
+                    getCard = con.getConnection().prepareCall(SQLStatements.unblockCreditCard);
+                } else {
+                    getCard = con.getConnection().prepareStatement(SQLStatements.unblockPinCard);
+                }
+                getCard.setLong(1, cardNumber);
+                getCard.executeUpdate();
 
                 if (attempts < 3) {
                     throw new NoEffectException("The card was not blocked in the first place, "
@@ -1008,11 +1023,11 @@ class PinService {
                 }
             }
         } else {
-            rs.close();
+            getCard.close();
             throw new IncorrectInputException("The provided pin card does not appear to exist.");
         }
 
-        ps.close();
+        getCard.close();
         con.close();
         databaseConnectionPool.returnConnection(con);
     }
@@ -1023,7 +1038,7 @@ class PinService {
      * @param callbackBuilder Used to send the result of the request back to the request source.
      */
     private void sendPinCardUnblockCallback(final PinCard pinCard, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Pin card #%s successfully unblocked, sending callback.\n",
+        System.out.printf("%s Card #%s successfully unblocked, sending callback.\n",
                 PREFIX, pinCard.getCardNumber());
         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
                 false, 200, "Normal Reply", pinCard)));
@@ -1250,18 +1265,22 @@ class PinService {
                                         @RequestParam("accountNumber") final String accountNumber,
                                         @RequestParam("customerId") final Long customerId) {
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handleCreditCardRemovalExceptions(accountNumber, customerId);
+        handleCreditCardRemovalExceptions(accountNumber, customerId, callbackBuilder);
     }
 
     private void handleCreditCardRemovalExceptions(final String accountNumber, final Long customerId,
                                                    final CallbackBuilder callbackBuilder) {
         try {
             CreditCard creditCard = getCreditCardFromAccountNr(accountNumber);
-
+            handleCreditCardRemovalBalance(creditCard, customerId, callbackBuilder);
         } catch (SQLException e) {
-
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Unknown error occurred.")));
         } catch (IncorrectInputException e) {
-
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418,
+                    e.getMessage(), "The accountNumber used does not have a credit card.")));
         }
     }
 
@@ -1292,9 +1311,9 @@ class PinService {
         }
     }
 
-    private void processCreditCardRemoval(final CreditCard creditCard, final Long customerId,
-                                          final CallbackBuilder callbackBuilder) throws SQLException {
-        if (creditCard.getBalance() != creditCard.getLimit()) {
+    private void handleCreditCardRemovalBalance(final CreditCard creditCard, final Long customerId,
+                                                final CallbackBuilder callbackBuilder) throws SQLException {
+        if (!creditCard.getBalance().equals(creditCard.getLimit())) {
             // try to withdraw funds from the account linked to the CC
             refillCreditCard(creditCard, customerId, true, callbackBuilder);
         } else {
