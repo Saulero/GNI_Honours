@@ -565,10 +565,10 @@ class PinService {
                                         "There are not enough funds on the credit card to make the transaction.",
                                         "The balance on the credit card used is not high enough.")));
                     } else {
-                        CreditCard updatedCard = creditCard;
-                        updatedCard.processTransaction(pinTransaction);
-                        updateCreditCardBalanceInDb(updatedCard);
-                        //todo process the destination of this transaction.
+                        creditCard.processTransaction(pinTransaction);
+                        updateCreditCardBalanceInDb(creditCard);
+                        addCreditCardTransactionToDb(pinTransaction, creditCard.getBalance(), systemDate);
+                        sendCreditCardTransactionCallback(callbackBuilder);
                     }
                 } else {
                     callbackBuilder.build().reply(body);
@@ -595,6 +595,57 @@ class PinService {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+    private void addCreditCardTransactionToDb(final PinTransaction pinTransaction,
+                                              final Double newBalance,
+                                              final LocalDate currentDate) {
+        try {
+            SQLConnection connection = databaseConnectionPool.getConnection();
+            PreparedStatement addTransactionStatement = connection.getConnection()
+                    .prepareStatement(SQLStatements.addCreditCardTransaction);
+            addTransactionStatement.setLong(1, getCreditCardTransactionId());
+            addTransactionStatement.setDate(2, java.sql.Date.valueOf(currentDate));
+            addTransactionStatement.setLong(3, pinTransaction.getCardNumber());
+            addTransactionStatement.setString(4, pinTransaction.getDestinationAccountNumber());
+            addTransactionStatement.setDouble(5, pinTransaction.getTransactionAmount());
+            addTransactionStatement.setDouble(6, newBalance);
+            addTransactionStatement.execute();
+            addTransactionStatement.close();
+            databaseConnectionPool.returnConnection(connection);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private Long getCreditCardTransactionId() {
+        try {
+            SQLConnection connection = databaseConnectionPool.getConnection();
+            PreparedStatement highestIdStatement = connection.getConnection()
+                    .prepareStatement(SQLStatements.getHighestCreditCardTransactionId);
+            ResultSet idResult = highestIdStatement.executeQuery();
+            Long id;
+            if (idResult.next()) {
+                id = idResult.getLong(1) + 1;
+            } else {
+                id = 1L;
+            }
+            highestIdStatement.close();
+            databaseConnectionPool.returnConnection(connection);
+            return id;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return 1L;
+        }
+    }
+
+    private void sendCreditCardTransactionCallback(final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Credit card transaction successfull, sending callback.\n", PREFIX);
+        Transaction transaction = new Transaction();
+        transaction.setSuccessful(true);
+        transaction.setProcessed(true);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200,
+                                                                            "Normal Reply", transaction)));
     }
 
 

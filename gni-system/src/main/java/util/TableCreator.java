@@ -27,7 +27,8 @@ public class TableCreator {
             SQLStatements.createRequestLogTable,
             SQLStatements.createErrorLogTable,
             SQLStatements.createAdminTable,
-            SQLStatements.createCreditCardsTable};
+            SQLStatements.createCreditCardsTable,
+            SQLStatements.createCreditCardTransactionsTable};
 
     /** SQL statements to drop all necessary tables in the database. */
     private static final String[] DROP_TABLE_ARRAY = {
@@ -41,7 +42,8 @@ public class TableCreator {
             SQLStatements.dropRequestLogTable,
             SQLStatements.dropErrorLogTable,
             SQLStatements.dropAdminTable,
-            SQLStatements.dropCreditCardsTable};
+            SQLStatements.dropCreditCardsTable,
+            SQLStatements.getDropCreditCardTransactionsTable};
 
     /** SQL statements to truncate all tables in the database. */
     private static final String[] TRUNCATE_ARRAY = {
@@ -55,7 +57,8 @@ public class TableCreator {
             SQLStatements.truncateRequestLogTable,
             SQLStatements.truncateErrorLogTable,
             SQLStatements.truncateAdminTable,
-            SQLStatements.truncateCreditCardsTable};
+            SQLStatements.truncateCreditCardsTable,
+            SQLStatements.truncateCreditCardTransactionsTable};
 
     /** Drops all tables and creates new tables to use the system with.
      * @param args Arguments are not used, just there so we can run the main method. */

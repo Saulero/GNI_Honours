@@ -68,6 +68,7 @@ public final class SQLStatements {
     public static final String getCreditCardInfo = "SELECT * FROM credit_cards WHERE card_number = ?";
     public static final String updateCreditCardBalance = "UPDATE credit_cards SET balance = ? WHERE card_number = ?";
     public static final String addCreditCardTransaction = "INSERT INTO credit_card_transactions (id, date, card_number, account_to, amount, new_balance`";
+    public static final String getHighestCreditCardTransactionId = "SELECT MAX(id) FROM credit_card_transactions;";
 
     // Create statements used for setting up the database
     public final static String createAccountsTable = "CREATE TABLE IF NOT EXISTS `accounts` ( `user_id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL, `primary_owner` BOOLEAN NOT NULL);";
@@ -76,7 +77,7 @@ public final class SQLStatements {
     public final static String dropLedgerTable = "DROP TABLE IF EXISTS `ledger`;";
     public final static String createCreditCardsTable = "CREATE TABLE IF NOT EXISTS `credit_cards` (`card_number` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL, `pin_code` TEXT NOT NULL, `incorrect_attempts` BIGINT(20) NOT NULL, `credit_limit` DOUBLE NOT NULL, `balance` DOUBLE NOT NULL, `card_fee` DOUBLE NOT NULL, `active_from` DATE NOT NULL, `active_until` DATE NOT NULL, PRIMARY KEY (card_number));";
     public final static String dropCreditCardsTable = "DROP TABLE IF EXISTS `credit_cards`;";
-    public final static String createCreditCardHTransactionsTable = "CREATE TABLE IF NOT EXISTS `credit_card_transactions` (`id` BIGINT(20) NOT NULL, `date` DATE NOT NULL, `card_number` BIGINT(20) NOT NULL, `account_to` TEXT NOT NULL, `amount` DOUBLE NOT NULL, `new_balance` DOUBLE NOT NULL, PRIMARY KEY (id));";
+    public final static String createCreditCardTransactionsTable = "CREATE TABLE IF NOT EXISTS `credit_card_transactions` (`id` BIGINT(20) NOT NULL, `date` DATE NOT NULL, `card_number` BIGINT(20) NOT NULL, `account_to` TEXT NOT NULL, `amount` DOUBLE NOT NULL, `new_balance` DOUBLE NOT NULL, PRIMARY KEY (id));";
     public final static String getDropCreditCardTransactionsTable = "DROP TABLE IF EXISTS `credit_card_transactions`;";
     public final static String createPinTable = "CREATE TABLE IF NOT EXISTS `pin`( `account_number` TEXT NOT NULL, `user_id` BIGINT(20) NOT NULL, `card_number` BIGINT(20) NOT NULL, `pin_code` TEXT NOT NULL, `expiration_date` DATE NOT NULL, `incorrect_attempts` BIGINT(20) NOT NULL, `active` BOOLEAN NOT NULL, PRIMARY KEY (card_number));";
     public final static String dropPinTable = "DROP TABLE IF EXISTS `pin`;";
@@ -99,6 +100,7 @@ public final class SQLStatements {
     public final static String truncateAccountsTable = "TRUNCATE TABLE `accounts`";
     public final static String truncateLedgerTable = "TRUNCATE TABLE `ledger`";
     public final static String truncateCreditCardsTable = "TRUNCATE TABLE `credit_cards`;";
+    public final static String truncateCreditCardTransactionsTable = "TRUNCATE TABLE `credit_card_transactions`;";
     public final static String truncatePinTable = "TRUNCATE TABLE `pin`";
     public final static String truncateTransactionsInTable = "TRUNCATE TABLE `transactions_in`";
     public final static String truncateTransactionsOutTable = "TRUNCATE TABLE `transactions_out`";
