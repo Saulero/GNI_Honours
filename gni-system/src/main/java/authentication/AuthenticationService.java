@@ -845,7 +845,14 @@ class AuthenticationService {
                                                 final CallbackBuilder callbackBuilder) {
         try {
             authenticateRequest(cookie);
-            doAccountRemovalRequest(accountNumber, Long.toString(getCustomerId(cookie)), callbackBuilder);
+            if (accountNumber.endsWith("S")) {
+                doCloseSavingsAccountRequest(accountNumber.substring(0, accountNumber.length() - 1), callbackBuilder);
+            } else if (accountNumber.endsWith("C")) {
+                doCloseCreditCardRequest(accountNumber.substring(0, accountNumber.length() - 1),
+                                        getCustomerId(cookie), callbackBuilder);
+            } else {
+                doAccountRemovalRequest(accountNumber, Long.toString(getCustomerId(cookie)), callbackBuilder);
+            }
         } catch (SQLException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to the authentication database.")));
         } catch (UserNotAuthorizedException e) {
@@ -898,6 +905,29 @@ class AuthenticationService {
         } catch (SQLException e) {
             System.out.printf("%s failed to remove tokens when deleting customer.", PREFIX);
         }
+    }
+
+    private void doCloseCreditCardRequest(final String accountNumber, final Long customerId,
+                                          final CallbackBuilder callbackBuilder) {
+        pinClient.putFormAsyncWith2Params("/services/pin/creditCard/remove", "accountNumber",
+                accountNumber, "customerId", customerId,
+                (httpStatusCode, httpContentType, replyJson) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendCloseCreditCardCallback(replyJson, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(replyJson);
+                        }
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                    }
+                });
+    }
+
+    private void sendCloseCreditCardCallback(final String replyJson, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Credit card removal successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(replyJson);
     }
 
     /**
@@ -1223,30 +1253,6 @@ class AuthenticationService {
     private void sendOpenSavingsAccountCallback(final String replyJson, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Open savings account request successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(replyJson);
-    }
-
-    @RequestMapping(value = "/savingsAccount/close", method = RequestMethod.PUT)
-    public void closeSavingsAccount(final Callback<String> callback,
-                                   @RequestParam("authToken") final String authToken,
-                                   @RequestParam("iBAN") final String iBAN) {
-        System.out.printf("%s Received close savings account request.\n", PREFIX);
-        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handleCloseSavingsAccountExceptions(authToken, iBAN, callbackBuilder);
-    }
-
-    private void handleCloseSavingsAccountExceptions(final String authToken, final String iBAN,
-                                                    final CallbackBuilder callbackBuilder) {
-        try {
-            authenticateRequest(authToken);
-            doCloseSavingsAccountRequest(iBAN, callbackBuilder);
-        } catch (UserNotAuthorizedException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
-                    "The user is not authorized to perform this action.")));
-        } catch (SQLException e) {
-            e.printStackTrace();
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
-                    "Error connecting to the authentication database.")));
-        }
     }
 
     private void doCloseSavingsAccountRequest(final String iBAN, final CallbackBuilder callbackBuilder) {

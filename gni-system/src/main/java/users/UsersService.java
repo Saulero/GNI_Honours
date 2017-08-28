@@ -11,7 +11,6 @@ import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
-import org.omg.CORBA.Request;
 import util.JSONParser;
 
 import java.sql.PreparedStatement;
@@ -35,6 +34,8 @@ class UsersService {
     private HttpClient ledgerClient;
     /** Connection to the Transaction Dispatch service.*/
     private HttpClient transactionDispatchClient;
+    /** Connection to the Transaction Receive Service.*/
+    private HttpClient transactionReceiveClient;
     /** Connection to the SystemInformation service. */
     private HttpClient systemInformationClient;
     /** Connection pool with database connections for the User Service. */
@@ -91,11 +92,14 @@ class UsersService {
         SystemInformation sysInfo = (SystemInformation) messageWrapper.getData();
         ServiceInformation ledger = sysInfo.getLedgerServiceInformation();
         ServiceInformation transactionDispatch = sysInfo.getTransactionDispatchServiceInformation();
+        ServiceInformation transactionReceive = sysInfo.getTransactionReceiveServiceInformation();
 
         this.ledgerClient = httpClientBuilder().setHost(ledger.getServiceHost())
                 .setPort(ledger.getServicePort()).buildAndStart();
         this.transactionDispatchClient = httpClientBuilder().setHost(transactionDispatch.getServiceHost())
                 .setPort(transactionDispatch.getServicePort()).buildAndStart();
+        this.transactionReceiveClient = httpClientBuilder().setHost(transactionReceive.getServiceHost())
+                .setPort(transactionReceive.getServicePort()).buildAndStart();
 
         System.out.printf("%s Initialization of Users service connections complete.\n", PREFIX);
         callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply")));
@@ -401,7 +405,7 @@ class UsersService {
             if (httpStatusCode == HTTP_OK) {
                 MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson), MessageWrapper.class);
                 if (!messageWrapper.isError()) {
-                    processTransactionReply((Transaction) messageWrapper.getData(), transactionReplyJson, callbackBuilder);
+                    processTransactionDispatchReply((Transaction) messageWrapper.getData(), transactionReplyJson, callbackBuilder);
                 } else {
                     callbackBuilder.build().reply(transactionReplyJson);
                 }
@@ -417,11 +421,41 @@ class UsersService {
      * @param transactionReplyJson Original Json String
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void processTransactionReply(final Transaction transaction, final String transactionReplyJson, final CallbackBuilder callbackBuilder) {
+    private void processTransactionDispatchReply(final Transaction transaction, final String transactionReplyJson, final CallbackBuilder callbackBuilder) {
         if (transaction.isProcessed() && transaction.isSuccessful()) {
+            transactionReceiveClient.putFormAsyncWith1Param("/services/transactionReceive/transaction",
+                    "request", jsonConverter.toJson(transaction),
+                    (statusCode, httpContentType, replyBody) -> processTransactionReceiveReply(statusCode, replyBody, callbackBuilder));
             sendTransactionRequestCallback(transactionReplyJson, callbackBuilder);
         } else {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred.")));
+        }
+    }
+
+    private void processTransactionReceiveReply(final int statusCode,
+                                                final String replyBody,
+                                                final CallbackBuilder callbackBuilder) {
+        if (statusCode == HTTP_OK) {
+            MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyBody),
+                    MessageWrapper.class);
+            if (!messageWrapper.isError()) {
+                Transaction reply = (Transaction) messageWrapper.getData();
+                if (reply.isSuccessful()) {
+                    System.out.printf("%s Transaction was successful, sending callback.\n", PREFIX);
+                    callbackBuilder.build().reply(replyBody);
+                } else {
+                    System.out.printf("%s Transaction was unsuccessful, sending rejection.\n", PREFIX);
+                    callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                            "Unknown error occurred.")));
+                }
+            } else {
+                callbackBuilder.build().reply(replyBody);
+            }
+        } else {
+            System.out.printf("%s Transaction request failed, sending rejection.\n", PREFIX);
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true,
+                    500, "An unknown error occurred.",
+                    "There was a problem with one of the HTTP requests")));
         }
     }
 

@@ -231,10 +231,6 @@ public class ApiService {
                 params.put("method_type", MethodType.OPEN_SAVING_ACCOUNT);
                 OpenSavingsAccount.openSavingsAccount(params, api);
                 break;
-            case "closeSavingsAccount":
-                params.put("method_type", MethodType.CLOSE_SAVINGS_ACCOUNT);
-                CloseSavingsAccount.closeSavingsAccount(params, api);
-                break;
             case "invalidateCard":
                 params.put("method_type", MethodType.INVALIDATE_CARD);
                 InvalidateCard.invalidateCard(params, api);

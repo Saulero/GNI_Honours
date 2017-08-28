@@ -69,6 +69,8 @@ public final class SQLStatements {
     public static final String updateCreditCardBalance = "UPDATE credit_cards SET balance = ? WHERE card_number = ?";
     public static final String addCreditCardTransaction = "INSERT INTO credit_card_transactions (id, date, card_number, account_to, amount, new_balance`";
     public static final String getHighestCreditCardTransactionId = "SELECT MAX(id) FROM credit_card_transactions;";
+    public static final String getCreditCardFromAccountNUmber = "SELECT * from credit_cards WHERE account_number = ?";
+    public static final String removeCreditCard = "DELETE FROM credit_cards WHERE card_number = ?";
 
     // Create statements used for setting up the database
     public final static String createAccountsTable = "CREATE TABLE IF NOT EXISTS `accounts` ( `user_id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL, `primary_owner` BOOLEAN NOT NULL);";

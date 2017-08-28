@@ -40,7 +40,7 @@ public class CloseAccount {
     private static void handleAccountRemovalExceptions(
             final String accountNumber, final String cookie, final ApiBean api) {
         try {
-            verifyAccountRemovalInput(accountNumber);
+            verifyAccountRemovalInput(accountNumber, cookie);
             doAccountRemovalRequest(accountNumber, cookie, api);
         } catch (IncorrectInputException e) {
             e.printStackTrace();
@@ -54,9 +54,12 @@ public class CloseAccount {
      * @param accountNumber AccountNumber of the account that is to be removed from the system.
      * @throws IncorrectInputException Thrown when a value is not correctly specified.
      */
-    private static void verifyAccountRemovalInput(final String accountNumber) throws IncorrectInputException {
+    private static void verifyAccountRemovalInput(final String accountNumber, final String cookie)
+            throws IncorrectInputException {
         if (accountNumber == null || accountNumber.length() > MAX_ACCOUNT_NUMBER_LENGTH) {
             throw new IncorrectInputException("The following variable was incorrectly specified: accountNumber.");
+        } else if (cookie == null) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: authToken.");
         }
     }
 

@@ -23,8 +23,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 
-import static database.SQLStatements.addCreditCard;
-import static database.SQLStatements.getHighestCreditCardID;
+import static database.SQLStatements.*;
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
 import static java.net.HttpURLConnection.HTTP_OK;
 
@@ -1244,6 +1243,124 @@ class PinService {
         System.out.printf("%s New credit card request successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
                 false, 200, "Normal Reply", creditCard)));
+    }
+
+    @RequestMapping(value = "/creditCard/remove", method = RequestMethod.PUT)
+    public void processCreditCardRemoval(final Callback<String> callback,
+                                        @RequestParam("accountNumber") final String accountNumber,
+                                        @RequestParam("customerId") final Long customerId) {
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleCreditCardRemovalExceptions(accountNumber, customerId);
+    }
+
+    private void handleCreditCardRemovalExceptions(final String accountNumber, final Long customerId,
+                                                   final CallbackBuilder callbackBuilder) {
+        try {
+            CreditCard creditCard = getCreditCardFromAccountNr(accountNumber);
+
+        } catch (SQLException e) {
+
+        } catch (IncorrectInputException e) {
+
+        }
+    }
+
+    private CreditCard getCreditCardFromAccountNr(final String accountNumber) throws SQLException,
+            IncorrectInputException {
+        SQLConnection connection = databaseConnectionPool.getConnection();
+        PreparedStatement getCard = connection.getConnection().prepareStatement(getCreditCardFromAccountNUmber);
+        getCard.setString(1, accountNumber);
+        ResultSet cardResult = getCard.executeQuery();
+        if (cardResult.next()) {
+            CreditCard card = new CreditCard();
+            card.setCreditCardNumber(cardResult.getLong("card_number"));
+            card.setAccountNumber(accountNumber);
+            card.setPinCode(cardResult.getString("pin_code"));
+            card.setIncorrect_attempts(cardResult.getLong("incorrect_attempts"));
+            card.setLimit(cardResult.getDouble("credit_limit"));
+            card.setBalance(cardResult.getDouble("balance"));
+            card.setFee(cardResult.getDouble("card_fee"));
+            card.setActivationDate(cardResult.getDate("active_from").toLocalDate());
+            card.setExpirationDate(cardResult.getDate("active_until").toLocalDate());
+            getCard.close();
+            databaseConnectionPool.returnConnection(connection);
+            return card;
+        } else {
+            getCard.close();
+            databaseConnectionPool.returnConnection(connection);
+            throw new IncorrectInputException("Account does not have a credit card.");
+        }
+    }
+
+    private void processCreditCardRemoval(final CreditCard creditCard, final Long customerId,
+                                          final CallbackBuilder callbackBuilder) throws SQLException {
+        if (creditCard.getBalance() != creditCard.getLimit()) {
+            // try to withdraw funds from the account linked to the CC
+            refillCreditCard(creditCard, customerId, true, callbackBuilder);
+        } else {
+            removeCreditCardFromDb(creditCard);
+        }
+    }
+
+    private void removeCreditCardFromDb(final CreditCard creditCard) throws SQLException {
+        SQLConnection connection = databaseConnectionPool.getConnection();
+        PreparedStatement removeCard = connection.getConnection().prepareStatement(removeCreditCard);
+        removeCard.setLong(1, creditCard.getCreditCardNumber());
+        removeCard.execute();
+        removeCard.close();
+        databaseConnectionPool.returnConnection(connection);
+    }
+
+    private void refillCreditCard(final CreditCard creditCard, final Long customerId, final boolean closeCard,
+                                  final CallbackBuilder callbackBuilder) {
+        Transaction transaction = new Transaction();
+        transaction.setSourceAccountNumber(creditCard.getAccountNumber());
+        transaction.setDestinationAccountNumber(GNI_ACCOUNT);
+        transaction.setTransactionAmount(creditCard.getLimit() - creditCard.getBalance());
+        transaction.setDescription("Refill of credit card #" + creditCard.getCreditCardNumber());
+        transactionDispatchClient.putFormAsyncWith3Params("/services/transactionDispatch/transaction",
+                "request", jsonConverter.toJson(transaction), "customerId", customerId,
+                "override", false,
+                (code, contentType, replyBody) -> {
+                    if (code == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyBody),
+                                MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            Transaction reply = (Transaction) messageWrapper.getData();
+                            if (reply.isSuccessful()) {
+                                if (closeCard) {
+                                    try {
+                                        removeCreditCardFromDb(creditCard);
+                                        sendRemoveCreditCardCallback(callbackBuilder);
+                                    } catch (SQLException e) {
+                                        e.printStackTrace();
+                                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                                                "Unknown error occurred.")));
+                                    }
+                                } else {
+                                    //todo send callback for normal refill.
+                                }
+                            } else {
+                                System.out.printf("%s Credit card refill unsuccessfull, sending rejection.\n", PREFIX);
+                                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                                        "Unknown error occurred, possibly not enough funds to refill the credit card.")));
+                            }
+                        } else {
+                            callbackBuilder.build().reply(replyBody);
+                        }
+                    } else {
+                        System.out.printf("%s Credit card refill request failed, sending rejection.\n", PREFIX);
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true,
+                                500, "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests")));
+                    }
+                });
+    }
+
+    private void sendRemoveCreditCardCallback(final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Credit card successfully removed, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                false, 200, "Normal Reply")));
     }
 
     /**
