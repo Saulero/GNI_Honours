@@ -126,9 +126,10 @@ class UsersService {
                 JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         if (messageWrapper.getMethodType() == MethodType.GET_TRANSACTION_OVERVIEW
-                || messageWrapper.getMethodType() == MethodType.GET_BALANCE
                 || ((DataRequest) messageWrapper.getData()).getType() == RequestType.ACCOUNTEXISTS) {
             doLedgerDataRequest(messageWrapper, callbackBuilder);
+        } else if ( messageWrapper.getMethodType() == MethodType.GET_BALANCE) {
+
         } else {
             handleInternalDataRequest(messageWrapper, callbackBuilder);
         }

@@ -1420,6 +1420,30 @@ class PinService {
                 false, 200, "Normal Reply")));
     }
 
+    @RequestMapping(value = "/creditCard/balance", method = RequestMethod.GET)
+    public void processCreditCardBalanceRequest(final Callback<String> callback,
+                                                @RequestParam("accountNumber") final String accountNumber) {
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        try {
+            Double creditCardBalance = getCreditCardFromAccountNr(accountNumber).getBalance();
+            sendCreditCardBalanceCallback(creditCardBalance, callbackBuilder);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Unknown error occurred.")));
+        } catch (IncorrectInputException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418,
+                    e.getMessage(), "The accountNumber used does not have a credit card.")));
+        }
+    }
+
+    private void sendCreditCardBalanceCallback(final Double creditCardBalance, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Credit card balance request successfull, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                false, 200, "Normal Reply", creditCardBalance)));
+    }
+
     /**
      * Safely shuts down the PinService.
      */
