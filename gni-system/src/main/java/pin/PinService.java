@@ -23,6 +23,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.util.LinkedList;
+import java.util.List;
 
 import static database.SQLStatements.*;
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
@@ -1353,7 +1355,9 @@ class PinService {
                                                 final CallbackBuilder callbackBuilder) throws SQLException {
         if (!creditCard.getBalance().equals(creditCard.getLimit())) {
             // try to withdraw funds from the account linked to the CC
-            refillCreditCard(creditCard, customerId, true, callbackBuilder);
+            LinkedList<CreditCard> cardList = new LinkedList<>();
+            cardList.add(creditCard);
+            refillCreditCards(cardList, customerId, true, callbackBuilder);
         } else {
             deactivateCreditCard(creditCard);
             sendRemoveCreditCardCallback(callbackBuilder);
@@ -1369,8 +1373,9 @@ class PinService {
         databaseConnectionPool.returnConnection(connection);
     }
 
-    private void refillCreditCard(final CreditCard creditCard, final Long customerId, final boolean closeCard,
+    private void refillCreditCards(final List<CreditCard> creditCards, final Long customerId, final boolean closeCard,
                                   final CallbackBuilder callbackBuilder) {
+        CreditCard creditCard = creditCards.get(0);
         Transaction transaction = new Transaction();
         transaction.setSourceAccountNumber(creditCard.getAccountNumber());
         transaction.setDestinationAccountNumber(GNI_ACCOUNT);
@@ -1378,13 +1383,14 @@ class PinService {
         transaction.setDescription("Refill of credit card #" + creditCard.getCreditCardNumber());
         transactionDispatchClient.putFormAsyncWith3Params("/services/transactionDispatch/transaction",
                 "request", jsonConverter.toJson(transaction), "customerId", customerId,
-                "override", false,
+                "override", !closeCard, //if the card should not be closed this method is being called by an admin.
                 (code, contentType, replyBody) -> handleDispatchRefillResponse(code, replyBody, transaction,
-                                                                creditCard, customerId, closeCard, callbackBuilder));
+                                                                creditCards, customerId, closeCard, callbackBuilder));
     }
 
     private void handleDispatchRefillResponse(final int code, final String replyBody, final Transaction transaction,
-                                              final CreditCard creditCard, final Long customerId, final boolean closeCard,
+                                              final List<CreditCard> creditCards, final Long customerId,
+                                              final boolean closeCard,
                                               final CallbackBuilder callbackBuilder) {
         if (code == HTTP_OK) {
             MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyBody),
@@ -1395,7 +1401,7 @@ class PinService {
                     transactionReceiveClient.putFormAsyncWith3Params("/services/transactionReceive/transaction",
                             "request", jsonConverter.toJson(transaction), "customerId", customerId,
                             "override", false, (receiveStatusCode, httpContentType, replyJson)
-                                    -> handleReceiveRefillResponse(receiveStatusCode, replyJson, creditCard, closeCard,
+                                    -> handleReceiveRefillResponse(receiveStatusCode, replyJson, creditCards, closeCard,
                                     callbackBuilder));
                 } else {
                     System.out.printf("%s Credit card refill unsuccessfull, sending rejection.\n", PREFIX);
@@ -1413,7 +1419,7 @@ class PinService {
         }
     }
 
-    private void handleReceiveRefillResponse(final int code, final String replyBody, final CreditCard creditCard,
+    private void handleReceiveRefillResponse(final int code, final String replyBody, final List<CreditCard> creditCards,
                                              final boolean closeCard, final CallbackBuilder callbackBuilder) {
         if (code == HTTP_OK) {
             MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyBody),
@@ -1423,7 +1429,7 @@ class PinService {
                 if (reply.isSuccessful()) {
                     if (closeCard) {
                         try {
-                            deactivateCreditCard(creditCard);
+                            deactivateCreditCard(creditCards.get(0));
                             sendRemoveCreditCardCallback(callbackBuilder);
                         } catch (SQLException e) {
                             e.printStackTrace();
@@ -1431,7 +1437,14 @@ class PinService {
                                     "Unknown error occurred.")));
                         }
                     } else {
-                        //todo send callback for normal refill.
+                        creditCards.remove(0); // remove card that has been processed
+                        if (creditCards.size() > 0) {
+                            refillCreditCards(creditCards, 0L, false, callbackBuilder);
+                        } else {
+                            System.out.printf("%s Credit cards successfully refilled, sending callback.\n", PREFIX);
+                            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                                    false, 200, "Normal Reply")));
+                        }
                     }
                 } else {
                     System.out.printf("%s Credit card refill unsuccessfull, sending rejection.\n", PREFIX);
@@ -1477,6 +1490,40 @@ class PinService {
         System.out.printf("%s Credit card balance request successfull, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
                 false, 200, "Normal Reply", creditCardBalance)));
+    }
+
+    @RequestMapping(value = "/refillCards", method = RequestMethod.PUT)
+    public void processRefillCardsRequest(final Callback<String> callback,
+                                          @RequestParam("date") final String dateJson) {
+        LocalDate systemDate = (LocalDate) jsonConverter.fromJson(dateJson, LocalDate.class);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        List<CreditCard> cardsToRefill = getCreditCardsToRefill();
+        refillCreditCards(cardsToRefill, 0L, false, callbackBuilder);
+    }
+
+    private List<CreditCard> getCreditCardsToRefill() {
+        try {
+            SQLConnection connection = databaseConnectionPool.getConnection();
+            PreparedStatement getCards = connection.getConnection().prepareStatement(getCreditCardsWithCredit);
+            ResultSet cardsWithCredit = getCards.executeQuery();
+            List<CreditCard> cardsToRefill = new LinkedList<>();
+            while (cardsWithCredit.next()) {
+                CreditCard creditCard = new CreditCard();
+                creditCard.setCreditCardNumber(cardsWithCredit.getLong("card_number"));
+                creditCard.setAccountNumber(cardsWithCredit.getString("account_number"));
+                creditCard.setPinCode(cardsWithCredit.getString("pin_code"));
+                creditCard.setLimit(cardsWithCredit.getDouble("credit_limit"));
+                creditCard.setBalance(cardsWithCredit.getDouble("balance"));
+                creditCard.setFee(cardsWithCredit.getDouble("card_fee"));
+                creditCard.setActivationDate(cardsWithCredit.getDate("active_from").toLocalDate());
+                creditCard.setActive(cardsWithCredit.getBoolean("active"));
+                cardsToRefill.add(creditCard);
+            }
+            return cardsToRefill;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return new LinkedList<>();
+        }
     }
 
     /**
