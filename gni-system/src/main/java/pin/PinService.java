@@ -1072,37 +1072,21 @@ class PinService {
                 CreditCard cardToRemove = new CreditCard();
                 cardToRemove.setCreditCardNumber(cardNumber);
                 deactivateCreditCard(cardToRemove);
-                String pinCode;
-                if (newPin) {
-                    pinCode = generatePinCode();
-                } else {
-                    pinCode = getCreditCardData(cardNumber).getPinCode();
-                }
-                getCurrentDateForCreditCard(pinCard.getAccountNumber(), pinCode, callbackBuilder);
+                withdrawPaymentForNewCard(pinCard, true, newPin, callbackBuilder);
             } else {
                 deactivatePinCard(pinCard);
                 // TODO WHAT IF NOT ENOUGH BALANCE? - SHOULD IT WITHDRAW ANYWAY(?)
                 // get payment for new card
-                withdrawPaymentForNewCard(pinCard, callbackBuilder);
-
-                // create new card & send callback
-                String id = "" + pinCard.getCustomerId();
-                String pinCode;
-                if (!newPin) {
-                    pinCode = getPinCodeFromCard(pinCard);
-                } else {
-                    pinCode = generatePinCode();
-                }
-                generateExpirationDate(id, id, pinCard.getAccountNumber(), pinCode, callbackBuilder);
+                withdrawPaymentForNewCard(pinCard, false, newPin, callbackBuilder);
             }
         } catch (SQLException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
                     "Error connecting to the Pin database.")));
-        } catch (NumberFormatException | NoSuchAlgorithmException e) {
+        } catch (NumberFormatException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418,
                     "One of the parameters has an invalid value.",
                     "Something went wrong when parsing the customerId in Pin.")));
-        } catch (InvalidParameterException | IncorrectInputException e) {
+        } catch (InvalidParameterException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
                     true, 418, e.getMessage())));
         }
@@ -1159,7 +1143,8 @@ class PinService {
      * @param pinCard A {@link PinCard} with the account of the customer.
      * @param callbackBuilder Used to send the result of the request to the request source.
      */
-    private void withdrawPaymentForNewCard(final PinCard pinCard, final CallbackBuilder callbackBuilder) {
+    private void withdrawPaymentForNewCard(final PinCard pinCard, final boolean isCreditCard, final boolean newPin,
+                                           final CallbackBuilder callbackBuilder) {
         Transaction request = JSONParser.createJsonTransaction(-1,
                 pinCard.getAccountNumber(), GNI_ACCOUNT, "GNI Bank",
                 "Fees for replacement of old PIN Card #" + pinCard.getCardNumber(),
@@ -1171,7 +1156,38 @@ class PinService {
                     if (code == HTTP_OK) {
                         MessageWrapper messageWrapper = jsonConverter.fromJson(
                                 JSONParser.removeEscapeCharacters(replyBody), MessageWrapper.class);
-                        if (messageWrapper.isError()) {
+                        if (!messageWrapper.isError()) {
+                            try {
+                                if (isCreditCard) {
+                                    String pinCode;
+                                    if (newPin) {
+                                        pinCode = generatePinCode();
+                                    } else {
+                                        pinCode = getCreditCardData(pinCard.getCardNumber()).getPinCode();
+                                    }
+                                    getCurrentDateForCreditCard(pinCard.getAccountNumber(), pinCode, callbackBuilder);
+                                } else {
+                                    // create new card & send callback
+                                    String id = "" + pinCard.getCustomerId();
+                                    String pinCode;
+                                    if (!newPin) {
+                                        pinCode = getPinCodeFromCard(pinCard);
+                                    } else {
+                                        pinCode = generatePinCode();
+                                    }
+                                    generateExpirationDate(id, id, pinCard.getAccountNumber(), pinCode, callbackBuilder);
+                                }
+                            } catch (SQLException | NoSuchAlgorithmException e) {
+                                e.printStackTrace();
+                                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
+                                        .createMessageWrapper(true, 500,
+                                                "An unknown error occurred.",
+                                                "There was a problem with one of the HTTP requests")));
+                            } catch (IncorrectInputException e) {
+                                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                                        true, 418, e.getMessage())));
+                            }
+                        } else {
                             callbackBuilder.build().reply(replyBody);
                         }
                     } else {
