@@ -438,7 +438,6 @@ class LedgerService {
                 if (!messageWrapper.isError()) {
 
                     LocalDate date = (LocalDate) messageWrapper.getData();
-                    System.out.println("Destination account nr: " + transaction.getDestinationAccountNumber());
                     Account account = getAccountInfo(transaction.getDestinationAccountNumber());
                     if (account != null) {
                         // Update the object

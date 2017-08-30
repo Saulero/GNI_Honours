@@ -538,7 +538,7 @@ public class BasicHappyFlowTestSuite {
         request = GetBalanceMethod.createRequest(customer1, bankAccount1);
         response = client.processRequest(request);
 
-        if((parsedResponse = checkResponse(response)) != null){
+        if((parsedResponse = checkResponse(response)) != null) {
             GetBalanceMethod.parseResponse(parsedResponse);
         }
 
@@ -562,7 +562,7 @@ public class BasicHappyFlowTestSuite {
 
         if((parsedResponse = checkResponse(response)) != null){
             PayFromAccountMethod.parseResponse(parsedResponse);
-        }*/
+        }
 
         // TEAR DOWN TESTS PART 2
 
@@ -619,7 +619,7 @@ public class BasicHappyFlowTestSuite {
 
         if((parsedResponse = checkResponse(response)) != null){
             GetDateMethod.parseResponse(parsedResponse);
-        }
+        }*/
     }
 
     private static String getInvalidPin(String pinCode) {

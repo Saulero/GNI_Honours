@@ -148,8 +148,6 @@ class PinService {
                 getATMTransactionAuthorization(request, callbackBuilder);
             } else if (request.isCreditCardTransaction()) {
                 System.out.printf("%s Received credit card transacion.\n", PREFIX);
-                System.out.println("src " + request.getSourceAccountNumber());
-                System.out.println("dst " + request.getDestinationAccountNumber());
                 CreditCard creditCard = getCreditCardData(request.getCardNumber());
                 getCreditCardTransactionAuthorization(request, creditCard, callbackBuilder);
             } else {
@@ -582,6 +580,7 @@ class PinService {
                         addCreditCardTransactionToDb(pinTransaction, creditCard.getBalance(), systemDate);
                         if (pinTransaction.getDestinationAccountNumber().contains("GNI")) {
                             Transaction transactionToProcess = new Transaction();
+                            transactionToProcess.setTransactionAmount(pinTransaction.getTransactionAmount());
                             transactionToProcess.setSourceAccountNumber(creditCard.getAccountNumber());
                             transactionToProcess.setDestinationAccountNumber(pinTransaction.getDestinationAccountNumber());
                             transactionToProcess.setDestinationAccountHolderName(pinTransaction.getDestinationAccountHolderName());
