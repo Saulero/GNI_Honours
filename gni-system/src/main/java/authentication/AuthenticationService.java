@@ -1529,6 +1529,30 @@ class AuthenticationService {
                 });
     }
 
+    @RequestMapping(value = "/savingsAccount/close", method = RequestMethod.PUT)
+     public void closeSavingsAccount(final Callback<String> callback,
+                                    @RequestParam("authToken") final String authToken,
+                                    @RequestParam("iBAN") final String iBAN) {
+        System.out.printf("%s Received close savings account request.\n", PREFIX);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleCloseSavingsAccountExceptions(authToken, iBAN, callbackBuilder);
+     }
+
+     private void handleCloseSavingsAccountExceptions(final String authToken, final String iBAN,
+                                             final CallbackBuilder callbackBuilder) {
+     try {
+             authenticateRequest(authToken);
+             doCloseSavingsAccountRequest(iBAN, callbackBuilder);
+         } catch (UserNotAuthorizedException e) {
+             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
+                             "The user is not authorized to perform this action.")));
+         } catch (SQLException e) {
+             e.printStackTrace();
+             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                             "Error connecting to the authentication database.")));
+         }
+     }
+
     private void sendNewCreditCardCallback(final CreditCard creditCard, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s New credit card request successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
