@@ -147,7 +147,9 @@ class PinService {
             if (request.isATMTransaction()) {
                 getATMTransactionAuthorization(request, callbackBuilder);
             } else if (request.isCreditCardTransaction()) {
+                System.out.printf("%s Received credit card transacion.\n", PREFIX);
                 CreditCard creditCard = getCreditCardData(request.getCardNumber());
+                System.out.println("Fetched cc data");
                 getCreditCardTransactionAuthorization(request, creditCard, callbackBuilder);
             } else {
                 getPinTransactionAuthorization(request, callbackBuilder);
@@ -201,6 +203,7 @@ class PinService {
             creditCard.setFee(cardInfo.getDouble("card_fee"));
             creditCard.setActivationDate(cardInfo.getDate("active_from").toLocalDate());
             creditCard.setActive(cardInfo.getBoolean("active"));
+            creditCard.setIncorrect_attempts(cardInfo.getLong("incorrect_attempts"));
         } else {
             throw new IncorrectInputException("There does not exist a credit card with this card number.");
         }
@@ -535,17 +538,22 @@ class PinService {
                         .removeEscapeCharacters(body), MessageWrapper.class);
                 if (!messageWrapper.isError()) {
                     LocalDate systemDate = (LocalDate) messageWrapper.getData();
+                    String sourceAccountNumber = pinTransaction.getSourceAccountNumber();
+                    sourceAccountNumber = sourceAccountNumber.substring(0, sourceAccountNumber.length() - 1); // remove C from accountNumber
                     if (systemDate.isBefore(creditCard.getActivationDate())
                             || !creditCard.isActive()) {
+                        System.out.printf("%s Card is inactive, sending callback.\n", PREFIX);
                         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
                                 .createMessageWrapper(true, 421,
                                         "The card used is not active.",
                                         "The credit card used is not active yet or expired.")));
                     } else if (creditCard.getIncorrect_attempts() > 3) {
+                        System.out.printf("%s Card is blocked sending callback./n", PREFIX);
                         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
                                 .createMessageWrapper(true, 419, "The card used is currently blocked.",
                                         "The pin card used does not have the authorization to perform this request.")));
                     } else if (!creditCard.getPinCode().equals(pinTransaction.getPinCode())) {
+                        System.out.printf("%s Pincode incorrect, sending callback.\n", PREFIX);
                         try {
                             incrementIncorrectAttempts(creditCard.getCreditCardNumber(), true);
                         } catch (SQLException e) {
@@ -555,27 +563,36 @@ class PinService {
                                 .createMessageWrapper(true, 421,
                                         "The pin code used is incorrect.",
                                         "An invalid PINcard, -code or -combination was used.")));
-                    } else if (!creditCard.getAccountNumber().equals(pinTransaction.getSourceAccountNumber())) {
+                    } else if (!creditCard.getAccountNumber().equals(sourceAccountNumber)) {
+                        System.out.printf("%s Creditcard does not belong to that accountnumber, sending callback.\n", PREFIX);
                         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
                                 .createMessageWrapper(true, 419,
                                         "Pin card does not belong to accountNumber used in the transaction.",
                                         "The pin card used does not have the authorization to perform this request.")));
                     } else if (creditCard.getBalance() < pinTransaction.getTransactionAmount()) {
+                        System.out.printf("%s Credit card does not have enough balance to process transaction.\n", PREFIX);
                         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
                                 .createMessageWrapper(true, 418,
                                         "There are not enough funds on the credit card to make the transaction.",
                                         "The balance on the credit card used is not high enough.")));
                     } else {
+                        System.out.println("Processing");
                         creditCard.processTransaction(pinTransaction);
+                        System.out.println(1);
                         updateCreditCardBalanceInDb(creditCard);
+                        System.out.println(2);
                         addCreditCardTransactionToDb(pinTransaction, creditCard.getBalance(), systemDate);
+                        System.out.println(3);
                         if (pinTransaction.getDestinationAccountNumber().contains("GNI")) {
+                            System.out.println(4);
                             Transaction transactionToProcess = new Transaction();
                             transactionToProcess.setSourceAccountNumber(creditCard.getAccountNumber());
                             transactionToProcess.setDestinationAccountNumber(pinTransaction.getDestinationAccountNumber());
                             transactionToProcess.setDestinationAccountHolderName(pinTransaction.getDestinationAccountHolderName());
+                            System.out.println(5);
                             doTransactionReceiveRequest(transactionToProcess, callbackBuilder);
                         } else {
+                            System.out.println(6);
                             sendCreditCardTransactionCallback(callbackBuilder);
                         }
                     }
