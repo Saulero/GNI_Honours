@@ -1375,17 +1375,21 @@ class PinService {
 
     private void refillCreditCards(final List<CreditCard> creditCards, final Long customerId, final boolean closeCard,
                                   final CallbackBuilder callbackBuilder) {
-        CreditCard creditCard = creditCards.get(0);
-        Transaction transaction = new Transaction();
-        transaction.setSourceAccountNumber(creditCard.getAccountNumber());
-        transaction.setDestinationAccountNumber(GNI_ACCOUNT);
-        transaction.setTransactionAmount(creditCard.getLimit() - creditCard.getBalance());
-        transaction.setDescription("Refill of credit card #" + creditCard.getCreditCardNumber());
-        transactionDispatchClient.putFormAsyncWith3Params("/services/transactionDispatch/transaction",
-                "request", jsonConverter.toJson(transaction), "customerId", customerId,
-                "override", !closeCard, //if the card should not be closed this method is being called by an admin.
-                (code, contentType, replyBody) -> handleDispatchRefillResponse(code, replyBody, transaction,
-                                                                creditCards, customerId, closeCard, callbackBuilder));
+        if (creditCards.size() < 1) {
+            sendRemoveCreditCardCallback(callbackBuilder);
+        } else {
+            CreditCard creditCard = creditCards.get(0);
+            Transaction transaction = new Transaction();
+            transaction.setSourceAccountNumber(creditCard.getAccountNumber());
+            transaction.setDestinationAccountNumber(GNI_ACCOUNT);
+            transaction.setTransactionAmount(creditCard.getLimit() - creditCard.getBalance());
+            transaction.setDescription("Refill of credit card #" + creditCard.getCreditCardNumber());
+            transactionDispatchClient.putFormAsyncWith3Params("/services/transactionDispatch/transaction",
+                    "request", jsonConverter.toJson(transaction), "customerId", customerId,
+                    "override", !closeCard, //if the card should not be closed this method is being called by an admin.
+                    (code, contentType, replyBody) -> handleDispatchRefillResponse(code, replyBody, transaction,
+                            creditCards, customerId, closeCard, callbackBuilder));
+        }
     }
 
     private void handleDispatchRefillResponse(final int code, final String replyBody, final Transaction transaction,
@@ -1480,7 +1484,6 @@ class PinService {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
                     "Unknown error occurred.")));
         } catch (IncorrectInputException e) {
-            e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418,
                     e.getMessage(), "The accountNumber used does not have a credit card.")));
         }
@@ -1495,6 +1498,7 @@ class PinService {
     @RequestMapping(value = "/refillCards", method = RequestMethod.PUT)
     public void processRefillCardsRequest(final Callback<String> callback,
                                           @RequestParam("date") final String dateJson) {
+        System.out.printf("%s Recevied refill credit cards request, refilling..\n", PREFIX);
         LocalDate systemDate = (LocalDate) jsonConverter.fromJson(dateJson, LocalDate.class);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         List<CreditCard> cardsToRefill = getCreditCardsToRefill();
