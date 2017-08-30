@@ -361,7 +361,7 @@ class UsersService {
                 MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(dataReplyJson), MessageWrapper.class);
                 if (!messageWrapper.isError()) {
                     if (getCreditCardData) {
-                        doCreditCardBalanceRequest(dataRequest, (DataReply) messageWrapper.getData(), callbackBuilder);
+                        doCreditCardBalanceRequest(dataRequest, dataReplyJson, callbackBuilder);
                     } else {
                         sendLedgerDataRequestCallback(dataReplyJson, callbackBuilder);
                     }
@@ -384,22 +384,28 @@ class UsersService {
         callbackBuilder.build().reply(dataReplyJson);
     }
 
-    private void doCreditCardBalanceRequest(final MessageWrapper datarequest, final DataReply ledgerReply,
+    private void doCreditCardBalanceRequest(final MessageWrapper datarequest, final String ledgerReplyJson,
                                             final CallbackBuilder callbackBuilder) {
         DataRequest request = (DataRequest) datarequest.getData();
-        pinClient.getAsyncWith1Param("/services/pin/creditCardBalance", "accountNumber",
+        pinClient.getAsyncWith1Param("/services/pin/creditCard/Balance", "accountNumber",
                 request.getAccountNumber(), (httpStatusCode, httpContentType, dataReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser
+                        MessageWrapper pinReply = jsonConverter.fromJson(JSONParser
                                                         .removeEscapeCharacters(dataReplyJson), MessageWrapper.class);
-                        if (!messageWrapper.isError()) {
-                            DataReply pinReply = jsonConverter.fromJson(dataReplyJson, DataReply.class);
-                            Account completeBalanceOverview = ledgerReply.getAccountData();
-                            completeBalanceOverview.setCreditCardBalance(pinReply.getAccountData().getCreditCardBalance());
-                            ledgerReply.setAccountData(completeBalanceOverview);
+                        MessageWrapper ledgerReply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(ledgerReplyJson),
+                                                                            MessageWrapper.class);
+                        DataReply ledgerData = (DataReply) ledgerReply.getData();
+                        if (!pinReply.isError()) {
+                            Double creditCardBalance = (Double) pinReply.getData();
+                            Account completeBalanceOverview = ledgerData.getAccountData();
+                            completeBalanceOverview.setCreditCardBalance(creditCardBalance);
+                            ledgerData.setAccountData(completeBalanceOverview);
                             String responseJson = jsonConverter.toJson(JSONParser.createMessageWrapper(false,
-                                    200, "normal reply", ledgerReply));
+                                    200, "normal reply", ledgerData));
                             sendLedgerDataRequestCallback(responseJson, callbackBuilder);
+                        } else if (pinReply.getCode() == 418) {
+                            // no card for this account
+                            sendLedgerDataRequestCallback(ledgerReplyJson, callbackBuilder);
                         } else {
                             callbackBuilder.build().reply(dataReplyJson);
                         }
