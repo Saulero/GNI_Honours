@@ -1337,7 +1337,7 @@ class AuthenticationService {
                         MessageWrapper messageWrapper = jsonConverter.fromJson(
                                 JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
-                            sendPinCardReplacementCallback(body, callbackBuilder);
+                            sendPinCardReplacementCallback(JSONParser.removeEscapeCharacters(body), callbackBuilder);
                         } else {
                             callbackBuilder.build().reply(body);
                         }

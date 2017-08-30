@@ -605,6 +605,56 @@ public class BasicHappyFlowTestSuite {
             PayFromAccountMethod.parseResponse(parsedResponse);
         }
 
+        System.out.println("-- Invalidate Credit Card --");
+        // Extension 3 - Invalidate Card
+
+        String oldCreditCard = card5.getPinCardNumber();
+
+        request = InvalidateCardMethod.createRequest(customer1, bankAccount1, card5, true);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            InvalidateCardMethod.parseResponse(parsedResponse, card5);
+        }
+
+        String newCreditCard = card5.getPinCardNumber();
+
+        System.out.println("-- Attempt to use old Credit Card. Expect Failure --");
+        card5.setPinCardNumber(oldCreditCard);
+
+        request = PayFromAccountMethod.createRequest(ccAccount, bankAccount3, card5, (12.3));
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            PayFromAccountMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Attempt to use new PinCard. Expect Failure --");
+        card5.setPinCardNumber(newCreditCard);
+
+        request = PayFromAccountMethod.createRequest(ccAccount, bankAccount3, card5, (12.3));
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            PayFromAccountMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Simulate the passing of one day so the credit card becomes active. --");
+        request = SimulateTimeMethod.createRequest(admin, 1);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            SimulateTimeMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Attempt to use new PinCard. should succeed. --");
+        request = PayFromAccountMethod.createRequest(ccAccount, bankAccount3, card5, (12.3));
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            PayFromAccountMethod.parseResponse(parsedResponse);
+        }
+
         ///------ TEAR DOWN TESTS.
 /*
         // First we progress time 2000 days. All cards should be expired.

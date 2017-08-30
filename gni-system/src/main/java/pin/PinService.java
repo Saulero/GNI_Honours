@@ -1223,9 +1223,13 @@ class PinService {
     private void getCurrentDateForCreditCard(final String accountNumber, final String pinCode,
                                              final CallbackBuilder callbackBuilder) {
         try {
-            getCreditCardFromAccountNr(accountNumber);
-            // if IncorrectInputException is not thrown this means the account already has a creditCard.
-            System.out.printf("%s Account already has a creditCard, rejecting request.\n", PREFIX);
+            CreditCard creditCard = getCreditCardFromAccountNr(accountNumber);
+            // If IncorrectInputException is not thrown this means the account already has a creditCard.
+            if (!creditCard.isActive()) {
+                // If card is inactive continue with creating a new card.
+                throw new IncorrectInputException("Card is inactive.");
+            }
+            System.out.printf("%s Account already has an active creditCard, rejecting request.\n", PREFIX);
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418,
                     "The accountNumber already has a creditCard",
                     "Cannot create new creditCard because there is already a card linked to this accountNumber..")));
