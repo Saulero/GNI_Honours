@@ -386,6 +386,7 @@ class UsersService {
 
     private void doCreditCardBalanceRequest(final MessageWrapper datarequest, final String ledgerReplyJson,
                                             final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Forwarding dataRequest to pin.\n", PREFIX);
         DataRequest request = (DataRequest) datarequest.getData();
         pinClient.getAsyncWith1Param("/services/pin/creditCard/Balance", "accountNumber",
                 request.getAccountNumber(), (httpStatusCode, httpContentType, dataReplyJson) -> {
@@ -405,6 +406,7 @@ class UsersService {
                             sendLedgerDataRequestCallback(responseJson, callbackBuilder);
                         } else if (pinReply.getCode() == 418) {
                             // no card for this account
+                            System.out.printf("%s No credit card linked to this account.\n", PREFIX);
                             sendLedgerDataRequestCallback(ledgerReplyJson, callbackBuilder);
                         } else {
                             callbackBuilder.build().reply(dataReplyJson);

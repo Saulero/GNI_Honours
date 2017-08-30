@@ -1237,13 +1237,12 @@ class PinService {
             CreditCard creditCard = new CreditCard();
             creditCard.setAccountNumber(accountNumber);
             creditCard.setLimit(CREDIT_CARD_LIMIT);
-            creditCard.setBalance(0.0);
+            creditCard.setBalance(CREDIT_CARD_LIMIT);
             creditCard.setIncorrect_attempts(0L);
             creditCard.setFee(MONTHLY_CREDIT_CARD_FEE);
             creditCard.setPinCode(pinCode);
             creditCard = addNewCreditCardToDb(creditCard, currentDate);
             sendNewCreditCardCallback(creditCard, callbackBuilder);
-            throw new SQLException();
         } catch (SQLException e) {
             e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
@@ -1296,7 +1295,6 @@ class PinService {
         } else {
             newCreditCardNumber = 5248860000000001L;
         }
-        System.out.println("Set new id " + newCreditCardNumber);
         return newCreditCardNumber;
     }
 
@@ -1481,6 +1479,7 @@ class PinService {
     @RequestMapping(value = "/creditCard/balance", method = RequestMethod.GET)
     public void processCreditCardBalanceRequest(final Callback<String> callback,
                                                 @RequestParam("accountNumber") final String accountNumber) {
+        System.out.printf("%s received credit card balance request for accountNumber %s.\n", PREFIX, accountNumber);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         try {
             Double creditCardBalance = getCreditCardFromAccountNr(accountNumber).getBalance();

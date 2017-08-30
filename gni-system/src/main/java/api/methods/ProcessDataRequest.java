@@ -117,8 +117,7 @@ public class ProcessDataRequest {
             case BALANCE:
                 Double balance = dataReply.getAccountData().getBalance();
                 Double savingBalance = dataReply.getAccountData().getSavingsBalance();
-                System.out.printf("%s Request successful, balance: %f\n\n\n\n",
-                        PREFIX, dataReply.getAccountData().getBalance());
+                System.out.printf("%s Balance request successful, sending callback.\n\n\n\n", PREFIX);
                 Map<String, Object> balanceResult = new HashMap<>();
                 balanceResult.put("balance", balance.toString());
                 balanceResult.put("savingAccountBalance", savingBalance);

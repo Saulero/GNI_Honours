@@ -174,7 +174,7 @@ public class BasicHappyFlowTestSuite {
         if((parsedResponse = checkResponse(response)) != null){
             TransferMoneyMethod.parseResponse(parsedResponse);
         }
-        
+
         // Extension 5 - Overdrafting
         System.out.println("-- Extension 5: Overdrafting --");
         System.out.println("-- Daisy wants to set her overdraft limit to 1000. --");
@@ -459,6 +459,7 @@ public class BasicHappyFlowTestSuite {
         if((namedArrayResults = checkArrayResponse(response)) != null){
             GetTransactionsMethod.parseResponse(namedArrayResults);
         }
+
 /*
         // GetUserAccess
         System.out.println("-- Admin getUserAccess --");
@@ -469,7 +470,6 @@ public class BasicHappyFlowTestSuite {
             GetUserAccessMethod.parseResponse(namedArrayResults);
         }
 */
-
         // GetBankAccountAccessMethod
         System.out.println("-- Admin getBankAccountAccessMethod --");
         request = GetBankAccountAccessMethod.createRequest(admin, bankAccount1);
@@ -490,17 +490,34 @@ public class BasicHappyFlowTestSuite {
 
         System.out.println("-- Donald requests his balance, should contain credit card --");
         // ObtainBalance
-        request = GetBalanceMethod.createRequest(customer2, bankAccount3);
+        request = GetBalanceMethod.createRequest(customer1, bankAccount1);
         response = client.processRequest(request);
 
         if((parsedResponse = checkResponse(response)) != null){
             GetBalanceMethod.parseResponse(parsedResponse);
         }
 
+
         BankAccount ccAccount = bankAccount1;
         ccAccount.setiBAN(ccAccount.getiBAN() + "C");
 
-        System.out.println("-- Donald tries to transfer credit to daisy --");
+        System.out.println("-- Donald tries to transfer credit to daisy, should fail because card not active. --");
+        request = PayFromAccountMethod.createRequest(ccAccount, bankAccount2, card5, (100.1));
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            PayFromAccountMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Simulate the passing of one day so the credit card becomes active. --");
+        request = SimulateTimeMethod.createRequest(admin, 1);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            SimulateTimeMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Donald tries to transfer credit to daisy again, should pass. --");
         request = PayFromAccountMethod.createRequest(ccAccount, bankAccount2, card5, (100.1));
         response = client.processRequest(request);
 
@@ -518,23 +535,15 @@ public class BasicHappyFlowTestSuite {
 
         System.out.println("-- Donald requests his balance, should contain credit card balance of 399.40--");
         // ObtainBalance
-        request = GetBalanceMethod.createRequest(customer2, bankAccount3);
+        request = GetBalanceMethod.createRequest(customer1, bankAccount1);
         response = client.processRequest(request);
 
         if((parsedResponse = checkResponse(response)) != null){
             GetBalanceMethod.parseResponse(parsedResponse);
         }
 
-
-
-
-
-
-
-
-
         ///------ TEAR DOWN TESTS.
-
+/*
         // First we progress time 2000 days. All cards should be expired.
         System.out.println("-- SimulateTime 2000 days to make sure all cards are expired --");
 
@@ -553,7 +562,7 @@ public class BasicHappyFlowTestSuite {
 
         if((parsedResponse = checkResponse(response)) != null){
             PayFromAccountMethod.parseResponse(parsedResponse);
-        }
+        }*/
 
         // TEAR DOWN TESTS PART 2
 
