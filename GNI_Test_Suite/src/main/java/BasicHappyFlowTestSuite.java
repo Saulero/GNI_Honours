@@ -629,7 +629,7 @@ public class BasicHappyFlowTestSuite {
             PayFromAccountMethod.parseResponse(parsedResponse);
         }
 
-        System.out.println("-- Attempt to use new PinCard. Expect Failure --");
+        System.out.println("-- Attempt to use new Credit Card. Expect Failure --");
         card5.setPinCardNumber(newCreditCard);
 
         request = PayFromAccountMethod.createRequest(ccAccount, bankAccount3, card5, (12.3));
@@ -647,12 +647,29 @@ public class BasicHappyFlowTestSuite {
             SimulateTimeMethod.parseResponse(parsedResponse);
         }
 
-        System.out.println("-- Attempt to use new PinCard. should succeed. --");
+        System.out.println("-- Attempt to use new PinCard. Should succeed. --");
         request = PayFromAccountMethod.createRequest(ccAccount, bankAccount3, card5, (12.3));
         response = client.processRequest(request);
 
         if((parsedResponse = checkResponse(response)) != null){
             PayFromAccountMethod.parseResponse(parsedResponse);
+        }
+
+        // getTransactionOverview
+        System.out.println("-- Admin getTransactionOverview. Should contain 7,50 withdrawal for new card. --");
+        request = GetTransactionsMethod.createRequest(admin, bankAccount1, 25);
+        response = client.processRequest(request);
+
+        if((namedArrayResults = checkArrayResponse(response)) != null){
+            GetTransactionsMethod.parseResponse(namedArrayResults);
+        }
+
+        System.out.println("-- Donald requests a credit card. Should Fail. --");
+        request = RequestCreditCardMethod.createRequest(customer1, bankAccount1);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            card5 = RequestCreditCardMethod.parseResponse(parsedResponse, bankAccount1, customer1);
         }
 
         ///------ TEAR DOWN TESTS.

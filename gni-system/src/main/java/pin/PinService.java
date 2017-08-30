@@ -9,7 +9,6 @@ import databeans.*;
 import io.advantageous.qbit.annotation.RequestMapping;
 import io.advantageous.qbit.annotation.RequestMethod;
 import io.advantageous.qbit.annotation.RequestParam;
-import io.advantageous.qbit.http.HTTP;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
@@ -1223,12 +1222,8 @@ class PinService {
     private void getCurrentDateForCreditCard(final String accountNumber, final String pinCode,
                                              final CallbackBuilder callbackBuilder) {
         try {
-            CreditCard creditCard = getCreditCardFromAccountNr(accountNumber);
-            // If IncorrectInputException is not thrown this means the account already has a creditCard.
-            if (!creditCard.isActive()) {
-                // If card is inactive continue with creating a new card.
-                throw new IncorrectInputException("Card is inactive.");
-            }
+            findActiveCreditCard(getCreditCardsFromAccountNr(accountNumber));
+            // If IncorrectInputException is not thrown this means the account already has an active creditCard.
             System.out.printf("%s Account already has an active creditCard, rejecting request.\n", PREFIX);
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418,
                     "The accountNumber already has a creditCard",
@@ -1345,7 +1340,7 @@ class PinService {
     private void handleCreditCardRemovalExceptions(final String accountNumber, final Long customerId,
                                                    final CallbackBuilder callbackBuilder) {
         try {
-            CreditCard creditCard = getCreditCardFromAccountNr(accountNumber);
+            CreditCard creditCard = findActiveCreditCard(getCreditCardsFromAccountNr(accountNumber));
             handleCreditCardRemovalBalance(creditCard, customerId, callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
@@ -1358,13 +1353,14 @@ class PinService {
         }
     }
 
-    private CreditCard getCreditCardFromAccountNr(final String accountNumber) throws SQLException,
+    private List<CreditCard> getCreditCardsFromAccountNr(final String accountNumber) throws SQLException,
             IncorrectInputException {
         SQLConnection connection = databaseConnectionPool.getConnection();
-        PreparedStatement getCard = connection.getConnection().prepareStatement(getCreditCardFromAccountNUmber);
-        getCard.setString(1, accountNumber);
-        ResultSet cardResult = getCard.executeQuery();
-        if (cardResult.next()) {
+        PreparedStatement getCards = connection.getConnection().prepareStatement(getCreditCardsFromAccountNumber);
+        getCards.setString(1, accountNumber);
+        ResultSet cardResult = getCards.executeQuery();
+        List<CreditCard> cardList = new LinkedList<>();
+        while (cardResult.next()) {
             CreditCard card = new CreditCard();
             card.setCreditCardNumber(cardResult.getLong("card_number"));
             card.setAccountNumber(accountNumber);
@@ -1375,14 +1371,23 @@ class PinService {
             card.setFee(cardResult.getDouble("card_fee"));
             card.setActivationDate(cardResult.getDate("active_from").toLocalDate());
             card.setActive(cardResult.getBoolean("active"));
-            getCard.close();
-            databaseConnectionPool.returnConnection(connection);
-            return card;
+            cardList.add(card);
+        } if (cardList.size() > 0) {
+            return cardList;
         } else {
-            getCard.close();
+            getCards.close();
             databaseConnectionPool.returnConnection(connection);
             throw new IncorrectInputException("Account does not have a credit card.");
         }
+    }
+
+    private CreditCard findActiveCreditCard(final List<CreditCard> cardList) throws IncorrectInputException {
+        for (CreditCard card : cardList) {
+            if (card.isActive()) {
+                return card;
+            }
+        }
+        throw new IncorrectInputException("There is no active credit card for this account.");
     }
 
     private void handleCreditCardRemovalBalance(final CreditCard creditCard, final Long customerId,
@@ -1515,7 +1520,7 @@ class PinService {
         System.out.printf("%s received credit card balance request for accountNumber %s.\n", PREFIX, accountNumber);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         try {
-            Double creditCardBalance = getCreditCardFromAccountNr(accountNumber).getBalance();
+            Double creditCardBalance = findActiveCreditCard(getCreditCardsFromAccountNr(accountNumber)).getBalance();
             sendCreditCardBalanceCallback(creditCardBalance, callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
