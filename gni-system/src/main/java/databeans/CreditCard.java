@@ -1,11 +1,12 @@
 package databeans;
 
+import java.io.Serializable;
 import java.time.LocalDate;
 
 /**
  * @Author noel
  */
-public class CreditCard {
+public class CreditCard implements Serializable {
     private String accountNumber;
     private Long creditCardNumber;
     private String username;

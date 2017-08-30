@@ -239,7 +239,12 @@ public class ApiService {
                 params.put("method_type", MethodType.INVALIDATE_CARD);
                 InvalidateCard.invalidateCard(params, api);
                 break;
+            case "requestCreditCard":
+                params.put("method_type", MethodType.REQUEST_CREDIT_CARD);
+                RequestCreditCard.requestCreditCard(params, api);
+                break;
             default:
+                System.out.println(request.getMethod());
                 callback.reply(new JSONRPC2Response(JSONRPC2Error.METHOD_NOT_FOUND, request.getID()).toJSONString());
                 break;
         }

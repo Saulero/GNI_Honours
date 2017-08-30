@@ -346,7 +346,7 @@ class SystemInformationService {
      */
     @RequestMapping(value = "/log/error", method = RequestMethod.PUT)
     void errorThing(final Callback<String> callback, final @RequestParam("request") String requestJson) {
-        System.out.printf("%s Logging error response.\n", PREFIX);
+        System.out.printf("%s Logging error response.\n\n", PREFIX);
         JSONRPC2Response response = jsonConverter.fromJson(requestJson, JSONRPC2Response.class);
         try {
             addErrorLogToDb(response);

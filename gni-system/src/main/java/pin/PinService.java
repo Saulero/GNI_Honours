@@ -1205,6 +1205,7 @@ class PinService {
     @RequestMapping(value = "/creditCard", method = RequestMethod.PUT)
     public void processNewCreditCard(final Callback<String> callback,
                                      @RequestParam("accountNumber") final String accountNumber) {
+        System.out.printf("%s Received new credit card request.\n", PREFIX);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         getCurrentDateForCreditCard(accountNumber, null, callbackBuilder);
     }
@@ -1259,7 +1260,7 @@ class PinService {
         SQLConnection connection = databaseConnectionPool.getConnection();
         LocalDate activationDate = currentDate.plusDays(1L);
         creditCard.setCreditCardNumber(generateCreditCardNumber());
-        if (creditCard.getPinCode() != null) {
+        if (creditCard.getPinCode() == null) {
             creditCard.setPinCode(generatePinCode());
         }
         creditCard.setActivationDate(activationDate);
@@ -1287,10 +1288,15 @@ class PinService {
         ResultSet highestIdResult = getHighestId.executeQuery();
         Long newCreditCardNumber;
         if (highestIdResult.next()) {
-            newCreditCardNumber = highestIdResult.getLong(1) + 1;
+            if (highestIdResult.getLong(1) == 0L) {
+                newCreditCardNumber = 5248860000000001L;
+            } else {
+                newCreditCardNumber = highestIdResult.getLong(1) + 1;
+            }
         } else {
             newCreditCardNumber = 5248860000000001L;
         }
+        System.out.println("Set new id " + newCreditCardNumber);
         return newCreditCardNumber;
     }
 

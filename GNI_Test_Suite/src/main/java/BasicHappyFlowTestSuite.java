@@ -1,6 +1,4 @@
-import client.DummyClient;
 import client.IClient;
-import client.SocketClient;
 import client.TestHttpClient;
 
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Error;
@@ -13,7 +11,6 @@ import methods.client.DepositIntoAccountMethod;
 import methods.client.GetAuthTokenMethod;
 import methods.client.GetBalanceMethod;
 import methods.client.GetBankAccountAccessMethod;
-import methods.client.GetOverdraftLimitMethod;
 import methods.client.GetTransactionsMethod;
 import methods.client.GetUserAccessMethod;
 import methods.client.InvalidateCardMethod;
@@ -35,7 +32,6 @@ import models.PinCard;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 public class BasicHappyFlowTestSuite {
 
@@ -64,6 +60,7 @@ public class BasicHappyFlowTestSuite {
         PinCard card2 = null;
         PinCard card3 = null;
         PinCard card4 = null;
+        PinCard card5 = null;
 
         AccountCardTuple tuple = null;
 
@@ -481,6 +478,59 @@ public class BasicHappyFlowTestSuite {
         if((namedArrayResults = checkArrayResponse(response)) != null){
             GetBankAccountAccessMethod.parseResponse(namedArrayResults);
         }
+
+        System.out.println("-- Extension 11 - credit cards --");
+        System.out.println("-- Donald requests a credit card --");
+        request = RequestCreditCardMethod.createRequest(customer1, bankAccount1);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            card5 = RequestCreditCardMethod.parseResponse(parsedResponse, bankAccount1, customer1);
+        }
+
+        System.out.println("-- Donald requests his balance, should contain credit card --");
+        // ObtainBalance
+        request = GetBalanceMethod.createRequest(customer2, bankAccount3);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            GetBalanceMethod.parseResponse(parsedResponse);
+        }
+
+        BankAccount ccAccount = bankAccount1;
+        ccAccount.setiBAN(ccAccount.getiBAN() + "C");
+
+        System.out.println("-- Donald tries to transfer credit to daisy --");
+        request = PayFromAccountMethod.createRequest(ccAccount, bankAccount2, card5, (100.1));
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            PayFromAccountMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Donald tries to transfer some credit to his own account --");
+        request = PayFromAccountMethod.createRequest(ccAccount, bankAccount1, card5, (500.50));
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            PayFromAccountMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Donald requests his balance, should contain credit card balance of 399.40--");
+        // ObtainBalance
+        request = GetBalanceMethod.createRequest(customer2, bankAccount3);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            GetBalanceMethod.parseResponse(parsedResponse);
+        }
+
+
+
+
+
+
+
 
 
         ///------ TEAR DOWN TESTS.

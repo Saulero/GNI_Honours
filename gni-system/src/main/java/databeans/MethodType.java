@@ -29,7 +29,8 @@ public enum MethodType implements Serializable {
     GET_EVENT_LOGS,
     OPEN_SAVING_ACCOUNT,
     CLOSE_SAVINGS_ACCOUNT,
-    INVALIDATE_CARD;
+    INVALIDATE_CARD,
+    REQUEST_CREDIT_CARD;
 
     public int getId() {
 
@@ -57,6 +58,7 @@ public enum MethodType implements Serializable {
             case OPEN_SAVING_ACCOUNT:       return 21;
             case CLOSE_SAVINGS_ACCOUNT:     return 22;
             case INVALIDATE_CARD:           return 23;
+            case REQUEST_CREDIT_CARD:       return 24;
             default:                        return -1;
         }
     }

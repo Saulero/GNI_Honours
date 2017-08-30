@@ -100,4 +100,7 @@ public class BankAccount {
         this.savingsAccountActive = savingsAccountActive;
     }
 
+    public void setiBAN(final String newiBAN) {
+        iBAN = newiBAN;
+    }
 }

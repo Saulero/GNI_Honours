@@ -1489,6 +1489,7 @@ class AuthenticationService {
     @RequestMapping(value = "/creditCard", method = RequestMethod.PUT)
     public void processNewCreditCardRequest(final Callback<String> callback, @RequestParam("cookie") final String cookie,
                                             @RequestParam("accountNumber") final String accountNumber) {
+        System.out.printf("%s Received new credit card request.\n", PREFIX);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         handleNewCreditCardExceptions(cookie, accountNumber, callbackBuilder);
     }
@@ -1500,15 +1501,18 @@ class AuthenticationService {
             Long customerId = getCustomerId(cookie);
             doNewCreditCardRequest(customerId, accountNumber, callbackBuilder);
         } catch (SQLException e) {
+            System.out.printf("%s Sql exception, Sending callback.\n", PREFIX);
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         } catch (UserNotAuthorizedException e) {
+            System.out.printf("%s User not authorized, Sending callback.\n", PREFIX);
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "User does not appear to be logged in.")));
         }
     }
 
     private void doNewCreditCardRequest(final Long customerId, final String accountNumber,
                                         final CallbackBuilder callbackBuilder) {
-        ledgerClient.putFormAsyncWith1Param("/services/pin/creditCard", "accountNumber",
+        System.out.printf("%s Forwarding new credit card request.\n", PREFIX);
+        pinClient.putFormAsyncWith1Param("/services/pin/creditCard", "accountNumber",
                 accountNumber, (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
@@ -1524,6 +1528,9 @@ class AuthenticationService {
                             callbackBuilder.build().reply(replyJson);
                         }
                     } else {
+                        System.out.println(httpContentType);
+                        System.out.println(httpStatusCode);
+                        System.out.println(replyJson);
                         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 });

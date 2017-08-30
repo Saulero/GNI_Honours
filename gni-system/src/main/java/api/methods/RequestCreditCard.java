@@ -24,9 +24,10 @@ public class RequestCreditCard {
     public static void requestCreditCard(final Map<String, Object> params, final ApiBean api) {
         String cookie = (String) params.get("authToken");
         String accountNumber = (String) params.get("iBAN");
+        handleNewCreditCardExceptions(cookie, accountNumber, api);
     }
 
-    private void handleNewCreditCardExceptions(final String cookie, final String accountNumber, final ApiBean api) {
+    private static void handleNewCreditCardExceptions(final String cookie, final String accountNumber, final ApiBean api) {
         try {
             verifyNewCreditCardInput(cookie, accountNumber);
             doNewCreditCardRequest(cookie, accountNumber, api);
@@ -37,7 +38,7 @@ public class RequestCreditCard {
         }
     }
 
-    private void verifyNewCreditCardInput(String cookie, final String accountNumber) throws IncorrectInputException {
+    private static void verifyNewCreditCardInput(String cookie, final String accountNumber) throws IncorrectInputException {
         if (accountNumber.length() > ApiService.MAX_ACCOUNT_NUMBER_LENGTH) {
             throw new IncorrectInputException("The following variable was incorrectly specified: iBAN.");
         } else if (cookie == null) {
@@ -45,7 +46,7 @@ public class RequestCreditCard {
         }
     }
 
-    private void doNewCreditCardRequest(final String cookie, final String accountNumber, final ApiBean api) {
+    private static void doNewCreditCardRequest(final String cookie, final String accountNumber, final ApiBean api) {
         System.out.printf("%s Forwarding new credit card request.\n", PREFIX);
         api.getAuthenticationClient().putFormAsyncWith2Params("/services/authentication/creditCard",
                 "cookie", cookie, "accountNumber", accountNumber,
@@ -67,7 +68,7 @@ public class RequestCreditCard {
         });
     }
 
-    private void sendRequestCreditCardCallback(final CreditCard creditCard, final ApiBean api) {
+    private static void sendRequestCreditCardCallback(final CreditCard creditCard, final ApiBean api) {
         System.out.printf("%s Successfully created credit card, creating pin card for this credit card.\n", PREFIX);
         Map<String, Object> result = new HashMap<>();
         result.put("pinCard", creditCard.getCreditCardNumber());
