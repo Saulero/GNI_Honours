@@ -67,7 +67,7 @@ public final class SQLStatements {
     public static final String getHighestCreditCardID = "SELECT MAX(card_number) FROM credit_cards";
     public static final String getCreditCardInfo = "SELECT * FROM credit_cards WHERE card_number = ?";
     public static final String updateCreditCardBalance = "UPDATE credit_cards SET balance = ? WHERE card_number = ?";
-    public static final String addCreditCardTransaction = "INSERT INTO credit_card_transactions (id, date, card_number, account_to, amount, new_balance`";
+    public static final String addCreditCardTransaction = "INSERT INTO credit_card_transactions (id, date, card_number, account_to, amount, new_balance) VALUES (?, ?, ?, ?, ?, ?)";
     public static final String getHighestCreditCardTransactionId = "SELECT MAX(id) FROM credit_card_transactions;";
     public static final String getCreditCardFromAccountNUmber = "SELECT * from credit_cards WHERE account_number = ?";
     public static final String deactivateCreditCard = "UPDATE credit_cards SET active = false WHERE card_number = ?";

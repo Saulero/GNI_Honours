@@ -148,8 +148,9 @@ class PinService {
                 getATMTransactionAuthorization(request, callbackBuilder);
             } else if (request.isCreditCardTransaction()) {
                 System.out.printf("%s Received credit card transacion.\n", PREFIX);
+                System.out.println("src " + request.getSourceAccountNumber());
+                System.out.println("dst " + request.getDestinationAccountNumber());
                 CreditCard creditCard = getCreditCardData(request.getCardNumber());
-                System.out.println("Fetched cc data");
                 getCreditCardTransactionAuthorization(request, creditCard, callbackBuilder);
             } else {
                 getPinTransactionAuthorization(request, callbackBuilder);
@@ -576,23 +577,17 @@ class PinService {
                                         "There are not enough funds on the credit card to make the transaction.",
                                         "The balance on the credit card used is not high enough.")));
                     } else {
-                        System.out.println("Processing");
                         creditCard.processTransaction(pinTransaction);
-                        System.out.println(1);
                         updateCreditCardBalanceInDb(creditCard);
-                        System.out.println(2);
                         addCreditCardTransactionToDb(pinTransaction, creditCard.getBalance(), systemDate);
-                        System.out.println(3);
                         if (pinTransaction.getDestinationAccountNumber().contains("GNI")) {
-                            System.out.println(4);
                             Transaction transactionToProcess = new Transaction();
                             transactionToProcess.setSourceAccountNumber(creditCard.getAccountNumber());
                             transactionToProcess.setDestinationAccountNumber(pinTransaction.getDestinationAccountNumber());
                             transactionToProcess.setDestinationAccountHolderName(pinTransaction.getDestinationAccountHolderName());
-                            System.out.println(5);
+                            transactionToProcess.setDescription("Credit card transaction.");
                             doTransactionReceiveRequest(transactionToProcess, callbackBuilder);
                         } else {
-                            System.out.println(6);
                             sendCreditCardTransactionCallback(callbackBuilder);
                         }
                     }

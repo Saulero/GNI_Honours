@@ -498,7 +498,7 @@ public class BasicHappyFlowTestSuite {
         }
 
 
-        BankAccount ccAccount = bankAccount1;
+        BankAccount ccAccount = new BankAccount(bankAccount1.getiBAN());
         ccAccount.setiBAN(ccAccount.getiBAN() + "C");
 
         System.out.println("-- Donald tries to transfer credit to daisy, should fail because card not active. --");
