@@ -147,7 +147,6 @@ class PinService {
             if (request.isATMTransaction()) {
                 getATMTransactionAuthorization(request, callbackBuilder);
             } else if (request.isCreditCardTransaction()) {
-                System.out.printf("%s Received credit card transacion.\n", PREFIX);
                 CreditCard creditCard = getCreditCardData(request.getCardNumber());
                 getCreditCardTransactionAuthorization(request, creditCard, callbackBuilder);
             } else {
@@ -546,7 +545,7 @@ class PinService {
                                 .createMessageWrapper(true, 421,
                                         "The card used is not active.",
                                         "The credit card used is not active yet or expired.")));
-                    } else if (creditCard.getIncorrect_attempts() > 3) {
+                    } else if (creditCard.getIncorrect_attempts() > 2) {
                         System.out.printf("%s Card is blocked sending callback./n", PREFIX);
                         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
                                 .createMessageWrapper(true, 419, "The card used is currently blocked.",

@@ -559,6 +559,52 @@ public class BasicHappyFlowTestSuite {
             GetBalanceMethod.parseResponse(parsedResponse);
         }
 
+        System.out.println("-- Fail pin for CC 3 times, error expected. --");
+        String ccPinCode = card5.getPinCode();
+        card5.setPinCode(getInvalidPin(ccPinCode));
+
+        //attempt 1
+        request = PayFromAccountMethod.createRequest(ccAccount, bankAccount3, card5, (12.3));
+        client.processRequest(request);
+        //attempt 2
+        request = PayFromAccountMethod.createRequest(ccAccount, bankAccount3, card5, (12.3));
+        client.processRequest(request);
+        //attempt 3
+        request = PayFromAccountMethod.createRequest(ccAccount, bankAccount1, card5, (12.3));
+        client.processRequest(request);
+
+        System.out.println("-- 4th attempt with correct Pin. Expect failure: --");
+        card5.setPinCode(ccPinCode);
+
+        // Attempt 4 - Should be blocked.
+        request = PayFromAccountMethod.createRequest(ccAccount, bankAccount3, card5, (12.3));
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            PayFromAccountMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Unblock Card: --");
+
+        // Unblock card.
+        request = UnblockCardMethod.createRequest(customer1, bankAccount1, card5);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            UnblockCardMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- 5th attempt. Should Work again: --");
+        card5.setPinCode(ccPinCode);
+
+        // Attempt 5 - Should work again.
+        request = PayFromAccountMethod.createRequest(ccAccount, bankAccount3, card5, (12.3));
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            PayFromAccountMethod.parseResponse(parsedResponse);
+        }
+
         ///------ TEAR DOWN TESTS.
 /*
         // First we progress time 2000 days. All cards should be expired.
