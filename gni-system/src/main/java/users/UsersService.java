@@ -36,6 +36,8 @@ class UsersService {
     private HttpClient transactionDispatchClient;
     /** Connection to the Transaction Receive Service.*/
     private HttpClient transactionReceiveClient;
+    /** Connection to the Pin Service.*/
+    private HttpClient pinClient;
     /** Connection to the SystemInformation service. */
     private HttpClient systemInformationClient;
     /** Connection pool with database connections for the User Service. */
@@ -93,6 +95,7 @@ class UsersService {
         ServiceInformation ledger = sysInfo.getLedgerServiceInformation();
         ServiceInformation transactionDispatch = sysInfo.getTransactionDispatchServiceInformation();
         ServiceInformation transactionReceive = sysInfo.getTransactionReceiveServiceInformation();
+        ServiceInformation pin = sysInfo.getPinServiceInformation();
 
         this.ledgerClient = httpClientBuilder().setHost(ledger.getServiceHost())
                 .setPort(ledger.getServicePort()).buildAndStart();
@@ -100,6 +103,7 @@ class UsersService {
                 .setPort(transactionDispatch.getServicePort()).buildAndStart();
         this.transactionReceiveClient = httpClientBuilder().setHost(transactionReceive.getServiceHost())
                 .setPort(transactionReceive.getServicePort()).buildAndStart();
+        this.pinClient = httpClientBuilder().setHost(pin.getServiceHost()).setPort(pin.getServicePort()).buildAndStart();
 
         System.out.printf("%s Initialization of Users service connections complete.\n", PREFIX);
         callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply")));
@@ -127,9 +131,9 @@ class UsersService {
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         if (messageWrapper.getMethodType() == MethodType.GET_TRANSACTION_OVERVIEW
                 || ((DataRequest) messageWrapper.getData()).getType() == RequestType.ACCOUNTEXISTS) {
-            doLedgerDataRequest(messageWrapper, callbackBuilder);
-        } else if ( messageWrapper.getMethodType() == MethodType.GET_BALANCE) {
-
+            doLedgerDataRequest(messageWrapper, false, callbackBuilder);
+        } else if (messageWrapper.getMethodType() == MethodType.GET_BALANCE) {
+            doLedgerDataRequest(messageWrapper, true, callbackBuilder);
         } else {
             handleInternalDataRequest(messageWrapper, callbackBuilder);
         }
@@ -347,7 +351,8 @@ class UsersService {
      * @param dataRequest Data request that needs to be sent to the ledger.
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void doLedgerDataRequest(final MessageWrapper dataRequest, final CallbackBuilder callbackBuilder) {
+    private void doLedgerDataRequest(final MessageWrapper dataRequest, final boolean getCreditCardData,
+                                     final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Called for a data request, calling Ledger.\n", PREFIX);
         ledgerClient.getAsyncWith1Param("/services/ledger/data", "data",
                                         jsonConverter.toJson(dataRequest),
@@ -355,7 +360,11 @@ class UsersService {
             if (httpStatusCode == HTTP_OK) {
                 MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(dataReplyJson), MessageWrapper.class);
                 if (!messageWrapper.isError()) {
-                    sendLedgerDataRequestCallback(dataReplyJson, callbackBuilder);
+                    if (getCreditCardData) {
+                        doCreditCardBalanceRequest(dataRequest, (DataReply) messageWrapper.getData(), callbackBuilder);
+                    } else {
+                        sendLedgerDataRequestCallback(dataReplyJson, callbackBuilder);
+                    }
                 } else {
                     callbackBuilder.build().reply(dataReplyJson);
                 }
@@ -373,6 +382,31 @@ class UsersService {
     private void sendLedgerDataRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Sending data request callback.\n", PREFIX);
         callbackBuilder.build().reply(dataReplyJson);
+    }
+
+    private void doCreditCardBalanceRequest(final MessageWrapper datarequest, final DataReply ledgerReply,
+                                            final CallbackBuilder callbackBuilder) {
+        DataRequest request = (DataRequest) datarequest.getData();
+        pinClient.getAsyncWith1Param("/services/pin/creditCardBalance", "accountNumber",
+                request.getAccountNumber(), (httpStatusCode, httpContentType, dataReplyJson) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser
+                                                        .removeEscapeCharacters(dataReplyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            DataReply pinReply = jsonConverter.fromJson(dataReplyJson, DataReply.class);
+                            Account completeBalanceOverview = ledgerReply.getAccountData();
+                            completeBalanceOverview.setCreditCardBalance(pinReply.getAccountData().getCreditCardBalance());
+                            ledgerReply.setAccountData(completeBalanceOverview);
+                            String responseJson = jsonConverter.toJson(JSONParser.createMessageWrapper(false,
+                                    200, "normal reply", ledgerReply));
+                            sendLedgerDataRequestCallback(responseJson, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(dataReplyJson);
+                        }
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                    }
+                });
     }
 
 
