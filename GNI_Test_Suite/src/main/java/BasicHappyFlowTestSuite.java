@@ -542,6 +542,23 @@ public class BasicHappyFlowTestSuite {
             GetBalanceMethod.parseResponse(parsedResponse);
         }
 
+        System.out.println("-- 1 month passes.. --");
+        request = SimulateTimeMethod.createRequest(admin, 31);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            SimulateTimeMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Check balance again, credit card should be refilled to 1000. --");
+        // ObtainBalance
+        request = GetBalanceMethod.createRequest(customer1, bankAccount1);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null) {
+            GetBalanceMethod.parseResponse(parsedResponse);
+        }
+
         ///------ TEAR DOWN TESTS.
 /*
         // First we progress time 2000 days. All cards should be expired.
