@@ -4,6 +4,7 @@ import api.ApiBean;
 import api.IncorrectInputException;
 import com.google.gson.JsonSyntaxException;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
+import databeans.CreditCard;
 import databeans.MessageWrapper;
 import databeans.PinCard;
 import util.JSONParser;
@@ -83,7 +84,12 @@ public class InvalidateCard {
                         MessageWrapper messageWrapper = api.getJsonConverter().fromJson(
                                 JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
-                            sendPinCardReplacementCallback((PinCard) messageWrapper.getData(), newPin, api);
+                            String cardNumber = (String) params.get("pinCard");
+                            if (cardNumber.startsWith("524886")) {
+                                sendCreditCardReplacementCallback((CreditCard) messageWrapper.getData(), newPin, api);
+                            } else {
+                                sendPinCardReplacementCallback((PinCard) messageWrapper.getData(), newPin, api);
+                            }
                         } else {
                             sendErrorReply(messageWrapper, api);
                         }
@@ -108,6 +114,24 @@ public class InvalidateCard {
         result.put("pinCard", "" + pinCard.getCardNumber());
         if (newPin) {
             result.put("pinCode", pinCard.getPinCode());
+        }
+        JSONRPC2Response response = new JSONRPC2Response(result, api.getId());
+        api.getCallbackBuilder().build().reply(response.toJSONString());
+    }
+
+    /**
+     * Sends the correct callback back to the source.
+     * @param creditCard The new creditCard.
+     * @param newPin boolean indicating whether a new pin code should be created.
+     * @param api DataBean containing everything in the ApiService
+     */
+    private static void sendCreditCardReplacementCallback(final CreditCard creditCard, final boolean newPin,
+                                                          final ApiBean api) {
+        System.out.printf("%s Pin card replacement successful, sending callback.\n", PREFIX);
+        Map<String, Object> result = new HashMap<>();
+        result.put("pinCard", "" + creditCard.getCreditCardNumber());
+        if (newPin) {
+            result.put("pinCode", creditCard.getPinCode());
         }
         JSONRPC2Response response = new JSONRPC2Response(result, api.getId());
         api.getCallbackBuilder().build().reply(response.toJSONString());

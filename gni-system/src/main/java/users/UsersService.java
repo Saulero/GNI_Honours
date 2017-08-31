@@ -11,7 +11,6 @@ import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
-import org.omg.CORBA.Request;
 import util.JSONParser;
 
 import java.sql.PreparedStatement;
@@ -35,6 +34,10 @@ class UsersService {
     private HttpClient ledgerClient;
     /** Connection to the Transaction Dispatch service.*/
     private HttpClient transactionDispatchClient;
+    /** Connection to the Transaction Receive Service.*/
+    private HttpClient transactionReceiveClient;
+    /** Connection to the Pin Service.*/
+    private HttpClient pinClient;
     /** Connection to the SystemInformation service. */
     private HttpClient systemInformationClient;
     /** Connection pool with database connections for the User Service. */
@@ -91,11 +94,16 @@ class UsersService {
         SystemInformation sysInfo = (SystemInformation) messageWrapper.getData();
         ServiceInformation ledger = sysInfo.getLedgerServiceInformation();
         ServiceInformation transactionDispatch = sysInfo.getTransactionDispatchServiceInformation();
+        ServiceInformation transactionReceive = sysInfo.getTransactionReceiveServiceInformation();
+        ServiceInformation pin = sysInfo.getPinServiceInformation();
 
         this.ledgerClient = httpClientBuilder().setHost(ledger.getServiceHost())
                 .setPort(ledger.getServicePort()).buildAndStart();
         this.transactionDispatchClient = httpClientBuilder().setHost(transactionDispatch.getServiceHost())
                 .setPort(transactionDispatch.getServicePort()).buildAndStart();
+        this.transactionReceiveClient = httpClientBuilder().setHost(transactionReceive.getServiceHost())
+                .setPort(transactionReceive.getServicePort()).buildAndStart();
+        this.pinClient = httpClientBuilder().setHost(pin.getServiceHost()).setPort(pin.getServicePort()).buildAndStart();
 
         System.out.printf("%s Initialization of Users service connections complete.\n", PREFIX);
         callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply")));
@@ -122,9 +130,10 @@ class UsersService {
                 JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         if (messageWrapper.getMethodType() == MethodType.GET_TRANSACTION_OVERVIEW
-                || messageWrapper.getMethodType() == MethodType.GET_BALANCE
                 || ((DataRequest) messageWrapper.getData()).getType() == RequestType.ACCOUNTEXISTS) {
-            doLedgerDataRequest(messageWrapper, callbackBuilder);
+            doLedgerDataRequest(messageWrapper, false, callbackBuilder);
+        } else if (messageWrapper.getMethodType() == MethodType.GET_BALANCE) {
+            doLedgerDataRequest(messageWrapper, true, callbackBuilder);
         } else {
             handleInternalDataRequest(messageWrapper, callbackBuilder);
         }
@@ -342,7 +351,8 @@ class UsersService {
      * @param dataRequest Data request that needs to be sent to the ledger.
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void doLedgerDataRequest(final MessageWrapper dataRequest, final CallbackBuilder callbackBuilder) {
+    private void doLedgerDataRequest(final MessageWrapper dataRequest, final boolean getCreditCardData,
+                                     final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Called for a data request, calling Ledger.\n", PREFIX);
         ledgerClient.getAsyncWith1Param("/services/ledger/data", "data",
                                         jsonConverter.toJson(dataRequest),
@@ -350,7 +360,11 @@ class UsersService {
             if (httpStatusCode == HTTP_OK) {
                 MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(dataReplyJson), MessageWrapper.class);
                 if (!messageWrapper.isError()) {
-                    sendLedgerDataRequestCallback(dataReplyJson, callbackBuilder);
+                    if (getCreditCardData) {
+                        doCreditCardBalanceRequest(dataRequest, dataReplyJson, callbackBuilder);
+                    } else {
+                        sendLedgerDataRequestCallback(dataReplyJson, callbackBuilder);
+                    }
                 } else {
                     callbackBuilder.build().reply(dataReplyJson);
                 }
@@ -368,6 +382,39 @@ class UsersService {
     private void sendLedgerDataRequestCallback(final String dataReplyJson, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Sending data request callback.\n", PREFIX);
         callbackBuilder.build().reply(dataReplyJson);
+    }
+
+    private void doCreditCardBalanceRequest(final MessageWrapper datarequest, final String ledgerReplyJson,
+                                            final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Forwarding dataRequest to pin.\n", PREFIX);
+        DataRequest request = (DataRequest) datarequest.getData();
+        pinClient.getAsyncWith1Param("/services/pin/creditCard/Balance", "accountNumber",
+                request.getAccountNumber(), (httpStatusCode, httpContentType, dataReplyJson) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        MessageWrapper pinReply = jsonConverter.fromJson(JSONParser
+                                                        .removeEscapeCharacters(dataReplyJson), MessageWrapper.class);
+                        MessageWrapper ledgerReply = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(ledgerReplyJson),
+                                                                            MessageWrapper.class);
+                        DataReply ledgerData = (DataReply) ledgerReply.getData();
+                        if (!pinReply.isError()) {
+                            Double creditCardBalance = (Double) pinReply.getData();
+                            Account completeBalanceOverview = ledgerData.getAccountData();
+                            completeBalanceOverview.setCreditCardBalance(creditCardBalance);
+                            ledgerData.setAccountData(completeBalanceOverview);
+                            String responseJson = jsonConverter.toJson(JSONParser.createMessageWrapper(false,
+                                    200, "normal reply", ledgerData));
+                            sendLedgerDataRequestCallback(responseJson, callbackBuilder);
+                        } else if (pinReply.getCode() == 418) {
+                            // no card for this account
+                            System.out.printf("%s No credit card linked to this account.\n", PREFIX);
+                            sendLedgerDataRequestCallback(ledgerReplyJson, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(dataReplyJson);
+                        }
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                    }
+                });
     }
 
 
@@ -401,7 +448,7 @@ class UsersService {
             if (httpStatusCode == HTTP_OK) {
                 MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson), MessageWrapper.class);
                 if (!messageWrapper.isError()) {
-                    processTransactionReply((Transaction) messageWrapper.getData(), transactionReplyJson, callbackBuilder);
+                    processTransactionDispatchReply((Transaction) messageWrapper.getData(), transactionReplyJson, callbackBuilder);
                 } else {
                     callbackBuilder.build().reply(transactionReplyJson);
                 }
@@ -417,11 +464,41 @@ class UsersService {
      * @param transactionReplyJson Original Json String
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
-    private void processTransactionReply(final Transaction transaction, final String transactionReplyJson, final CallbackBuilder callbackBuilder) {
+    private void processTransactionDispatchReply(final Transaction transaction, final String transactionReplyJson, final CallbackBuilder callbackBuilder) {
         if (transaction.isProcessed() && transaction.isSuccessful()) {
+            transactionReceiveClient.putFormAsyncWith1Param("/services/transactionReceive/transaction",
+                    "request", jsonConverter.toJson(transaction),
+                    (statusCode, httpContentType, replyBody) -> processTransactionReceiveReply(statusCode, replyBody, callbackBuilder));
             sendTransactionRequestCallback(transactionReplyJson, callbackBuilder);
         } else {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred.")));
+        }
+    }
+
+    private void processTransactionReceiveReply(final int statusCode,
+                                                final String replyBody,
+                                                final CallbackBuilder callbackBuilder) {
+        if (statusCode == HTTP_OK) {
+            MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyBody),
+                    MessageWrapper.class);
+            if (!messageWrapper.isError()) {
+                Transaction reply = (Transaction) messageWrapper.getData();
+                if (reply.isSuccessful()) {
+                    System.out.printf("%s Transaction was successful, sending callback.\n", PREFIX);
+                    callbackBuilder.build().reply(replyBody);
+                } else {
+                    System.out.printf("%s Transaction was unsuccessful, sending rejection.\n", PREFIX);
+                    callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                            "Unknown error occurred.")));
+                }
+            } else {
+                callbackBuilder.build().reply(replyBody);
+            }
+        } else {
+            System.out.printf("%s Transaction request failed, sending rejection.\n", PREFIX);
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true,
+                    500, "An unknown error occurred.",
+                    "There was a problem with one of the HTTP requests")));
         }
     }
 

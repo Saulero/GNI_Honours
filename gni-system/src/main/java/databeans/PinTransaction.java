@@ -87,6 +87,10 @@ public class PinTransaction implements Serializable {
         this.isATMTransaction = newIsATMTransaction;
     }
 
+    public boolean isCreditCardTransaction() {
+        return (cardNumber > 5248860000000000L && cardNumber < 5248870000000000L);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

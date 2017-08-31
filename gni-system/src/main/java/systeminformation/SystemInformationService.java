@@ -213,6 +213,26 @@ class SystemInformationService {
                         MessageWrapper messageWrapper = jsonConverter.fromJson(
                                                     JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
+                            doRefillCardsRequest(daysLeft, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(body);
+                        }
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(
+                                JSONParser.createMessageWrapper(true, 500,
+                                "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests")));
+                    }
+                });
+    }
+
+    private void doRefillCardsRequest(final Long daysLeft, final CallbackBuilder callbackBuilder) {
+        pinClient.putFormAsyncWith1Param("/services/pin/refillCards", "date",
+                                        jsonConverter.toJson(systemDate), (httpStatusCode, httpContentType, body) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
                             int newDaysInMonth = myCal.getActualMaximum(Calendar.DAY_OF_MONTH);
                             int newDayOfTheMonth = systemDate.getDayOfMonth();
                             if (daysLeft >= ((newDaysInMonth - newDayOfTheMonth) + 1)) {
@@ -224,14 +244,12 @@ class SystemInformationService {
                             callbackBuilder.build().reply(body);
                         }
                     } else {
-                        System.out.println(httpStatusCode);
-                        System.out.println(body);
                         callbackBuilder.build().reply(jsonConverter.toJson(
                                 JSONParser.createMessageWrapper(true, 500,
-                                "An unknown error occurred.",
-                                "There was a problem with one of the HTTP requests")));
+                                        "An unknown error occurred.",
+                                        "There was a problem with one of the HTTP requests")));
                     }
-                });
+        });
     }
 
     private void sendIncrementDaysCallback(final CallbackBuilder callbackBuilder) {
@@ -328,7 +346,7 @@ class SystemInformationService {
      */
     @RequestMapping(value = "/log/error", method = RequestMethod.PUT)
     void errorThing(final Callback<String> callback, final @RequestParam("request") String requestJson) {
-        System.out.printf("%s Logging error response.\n", PREFIX);
+        System.out.printf("%s Logging error response.\n\n", PREFIX);
         JSONRPC2Response response = jsonConverter.fromJson(requestJson, JSONRPC2Response.class);
         try {
             addErrorLogToDb(response);

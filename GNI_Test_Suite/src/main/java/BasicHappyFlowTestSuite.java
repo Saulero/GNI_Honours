@@ -1,6 +1,4 @@
-import client.DummyClient;
 import client.IClient;
-import client.SocketClient;
 import client.TestHttpClient;
 
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Error;
@@ -13,7 +11,6 @@ import methods.client.DepositIntoAccountMethod;
 import methods.client.GetAuthTokenMethod;
 import methods.client.GetBalanceMethod;
 import methods.client.GetBankAccountAccessMethod;
-import methods.client.GetOverdraftLimitMethod;
 import methods.client.GetTransactionsMethod;
 import methods.client.GetUserAccessMethod;
 import methods.client.InvalidateCardMethod;
@@ -35,7 +32,6 @@ import models.PinCard;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 public class BasicHappyFlowTestSuite {
 
@@ -64,6 +60,7 @@ public class BasicHappyFlowTestSuite {
         PinCard card2 = null;
         PinCard card3 = null;
         PinCard card4 = null;
+        PinCard card5 = null;
 
         AccountCardTuple tuple = null;
 
@@ -177,7 +174,7 @@ public class BasicHappyFlowTestSuite {
         if((parsedResponse = checkResponse(response)) != null){
             TransferMoneyMethod.parseResponse(parsedResponse);
         }
-        
+
         // Extension 5 - Overdrafting
         System.out.println("-- Extension 5: Overdrafting --");
         System.out.println("-- Daisy wants to set her overdraft limit to 1000. --");
@@ -462,6 +459,7 @@ public class BasicHappyFlowTestSuite {
         if((namedArrayResults = checkArrayResponse(response)) != null){
             GetTransactionsMethod.parseResponse(namedArrayResults);
         }
+
 /*
         // GetUserAccess
         System.out.println("-- Admin getUserAccess --");
@@ -472,7 +470,6 @@ public class BasicHappyFlowTestSuite {
             GetUserAccessMethod.parseResponse(namedArrayResults);
         }
 */
-
         // GetBankAccountAccessMethod
         System.out.println("-- Admin getBankAccountAccessMethod --");
         request = GetBankAccountAccessMethod.createRequest(admin, bankAccount1);
@@ -482,9 +479,201 @@ public class BasicHappyFlowTestSuite {
             GetBankAccountAccessMethod.parseResponse(namedArrayResults);
         }
 
+        System.out.println("-- Extension 11 - credit cards --");
+        System.out.println("-- Donald requests a credit card --");
+        request = RequestCreditCardMethod.createRequest(customer1, bankAccount1);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            card5 = RequestCreditCardMethod.parseResponse(parsedResponse, bankAccount1, customer1);
+        }
+
+        System.out.println("-- Donald requests his balance, should contain credit card --");
+        // ObtainBalance
+        request = GetBalanceMethod.createRequest(customer1, bankAccount1);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            GetBalanceMethod.parseResponse(parsedResponse);
+        }
+
+
+        BankAccount ccAccount = new BankAccount(bankAccount1.getiBAN());
+        ccAccount.setiBAN(ccAccount.getiBAN() + "C");
+
+        System.out.println("-- Donald tries to transfer credit to daisy, should fail because card not active. --");
+        request = PayFromAccountMethod.createRequest(ccAccount, bankAccount2, card5, (100.1));
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            PayFromAccountMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Simulate the passing of one day so the credit card becomes active. --");
+        request = SimulateTimeMethod.createRequest(admin, 1);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            SimulateTimeMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Donald tries to transfer credit to daisy again, should pass. --");
+        request = PayFromAccountMethod.createRequest(ccAccount, bankAccount2, card5, (100.1));
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            PayFromAccountMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Donald tries to transfer some credit to his own account --");
+        request = PayFromAccountMethod.createRequest(ccAccount, bankAccount1, card5, (500.50));
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            PayFromAccountMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Donald requests his balance, should contain credit card balance of 399.40--");
+        // ObtainBalance
+        request = GetBalanceMethod.createRequest(customer1, bankAccount1);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null) {
+            GetBalanceMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- 1 month passes.. --");
+        request = SimulateTimeMethod.createRequest(admin, 31);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            SimulateTimeMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Check balance again, credit card should be refilled to 1000. --");
+        // ObtainBalance
+        request = GetBalanceMethod.createRequest(customer1, bankAccount1);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null) {
+            GetBalanceMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Fail pin for CC 3 times, error expected. --");
+        String ccPinCode = card5.getPinCode();
+        card5.setPinCode(getInvalidPin(ccPinCode));
+
+        //attempt 1
+        request = PayFromAccountMethod.createRequest(ccAccount, bankAccount3, card5, (12.3));
+        client.processRequest(request);
+        //attempt 2
+        request = PayFromAccountMethod.createRequest(ccAccount, bankAccount3, card5, (12.3));
+        client.processRequest(request);
+        //attempt 3
+        request = PayFromAccountMethod.createRequest(ccAccount, bankAccount1, card5, (12.3));
+        client.processRequest(request);
+
+        System.out.println("-- 4th attempt with correct Pin. Expect failure: --");
+        card5.setPinCode(ccPinCode);
+
+        // Attempt 4 - Should be blocked.
+        request = PayFromAccountMethod.createRequest(ccAccount, bankAccount3, card5, (12.3));
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            PayFromAccountMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Unblock Card: --");
+
+        // Unblock card.
+        request = UnblockCardMethod.createRequest(customer1, bankAccount1, card5);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            UnblockCardMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- 5th attempt. Should Work again: --");
+        card5.setPinCode(ccPinCode);
+
+        // Attempt 5 - Should work again.
+        request = PayFromAccountMethod.createRequest(ccAccount, bankAccount3, card5, (12.3));
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            PayFromAccountMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Invalidate Credit Card --");
+        // Extension 3 - Invalidate Card
+
+        String oldCreditCard = card5.getPinCardNumber();
+
+        request = InvalidateCardMethod.createRequest(customer1, bankAccount1, card5, true);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            InvalidateCardMethod.parseResponse(parsedResponse, card5);
+        }
+
+        String newCreditCard = card5.getPinCardNumber();
+
+        System.out.println("-- Attempt to use old Credit Card. Expect Failure --");
+        card5.setPinCardNumber(oldCreditCard);
+
+        request = PayFromAccountMethod.createRequest(ccAccount, bankAccount3, card5, (12.3));
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            PayFromAccountMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Attempt to use new Credit Card. Expect Failure --");
+        card5.setPinCardNumber(newCreditCard);
+
+        request = PayFromAccountMethod.createRequest(ccAccount, bankAccount3, card5, (12.3));
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            PayFromAccountMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Simulate the passing of one day so the credit card becomes active. --");
+        request = SimulateTimeMethod.createRequest(admin, 1);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            SimulateTimeMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Attempt to use new PinCard. Should succeed. --");
+        request = PayFromAccountMethod.createRequest(ccAccount, bankAccount3, card5, (12.3));
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            PayFromAccountMethod.parseResponse(parsedResponse);
+        }
+
+        // getTransactionOverview
+        System.out.println("-- Admin getTransactionOverview. Should contain 7,50 withdrawal for new card. --");
+        request = GetTransactionsMethod.createRequest(admin, bankAccount1, 25);
+        response = client.processRequest(request);
+
+        if((namedArrayResults = checkArrayResponse(response)) != null){
+            GetTransactionsMethod.parseResponse(namedArrayResults);
+        }
+
+        System.out.println("-- Donald requests a credit card. Should Fail. --");
+        request = RequestCreditCardMethod.createRequest(customer1, bankAccount1);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            card5 = RequestCreditCardMethod.parseResponse(parsedResponse, bankAccount1, customer1);
+        }
 
         ///------ TEAR DOWN TESTS.
-
+/*
         // First we progress time 2000 days. All cards should be expired.
         System.out.println("-- SimulateTime 2000 days to make sure all cards are expired --");
 
@@ -560,7 +749,7 @@ public class BasicHappyFlowTestSuite {
 
         if((parsedResponse = checkResponse(response)) != null){
             GetDateMethod.parseResponse(parsedResponse);
-        }
+        }*/
     }
 
     private static String getInvalidPin(String pinCode) {

@@ -40,6 +40,8 @@ class LedgerService {
     private ConnectionPool db;
     /** Connection to the System Information Service.*/
     private HttpClient systemInformationClient;
+     /** Connection to the pin service. */
+     private HttpClient pinClient;
     /** Used for json conversions. */
     private Gson jsonConverter;
     /** Prefix used when printing to indicate the message is coming from the Ledger Service. */
@@ -100,21 +102,12 @@ class LedgerService {
      */
     @RequestMapping(value = "/start", method = RequestMethod.PUT)
     public void startService(final Callback<String> callback, @RequestParam("sysInfo") final String systemInfo) {
-/*        MessageWrapper messageWrapper = jsonConverter.fromJson(
+        MessageWrapper messageWrapper = jsonConverter.fromJson(
                 JSONParser.removeEscapeCharacters(systemInfo), MessageWrapper.class);
 
         SystemInformation sysInfo = (SystemInformation) messageWrapper.getData();
-        ServiceInformation users = sysInfo.getUsersServiceInformation();
-        ServiceInformation transactionIn = sysInfo.getTransactionReceiveServiceInformation();
-        ServiceInformation transactionOut = sysInfo.getTransactionDispatchServiceInformation();
-
-        this.usersClient = httpClientBuilder().setHost(users.getServiceHost())
-                .setPort(users.getServicePort()).buildAndStart();
-        this.transactionInClient = httpClientBuilder().setHost(transactionIn.getServiceHost())
-                .setPort(transactionIn.getServicePort()).buildAndStart();
-        this.transActionOutClient = httpClientBuilder().setHost(transactionOut.getServiceHost())
-                .setPort(transactionOut.getServicePort()).buildAndStart();
-*/
+        ServiceInformation pin = sysInfo.getPinServiceInformation();
+        pinClient = httpClientBuilder().setHost(pin.getServiceHost()).setPort(pin.getServicePort()).buildAndStart();
         System.out.printf("%s Initialization of Ledger service connections complete.\n", PREFIX);
         callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply")));
     }
@@ -637,6 +630,8 @@ class LedgerService {
             callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
                     "The user is not authorized to perform this action.",
                     "Customer not authorized to request data for this accountNumber.")));
+        } else if (requestType == RequestType.BALANCE) {
+            fetchCreditCardBalance(dataRequest, CallbackBuilder.newCallbackBuilder().withStringCallback(callback));
         } else {
             // Method call
             DataReply dataReply = processDataRequest(dataRequest);
@@ -662,8 +657,6 @@ class LedgerService {
     DataReply processDataRequest(final DataRequest dataRequest) {
         try {
             switch (dataRequest.getType()) {
-                case BALANCE:
-                    return processBalanceRequest(dataRequest);
                 case TRANSACTIONHISTORY:
                     return processTransactionHistoryRequest(dataRequest);
                 case ACCOUNTEXISTS:
@@ -677,13 +670,41 @@ class LedgerService {
         }
     }
 
+    private void fetchCreditCardBalance(final DataRequest dataRequest, final CallbackBuilder callbackBuilder) {
+        pinClient.getAsyncWith1Param("/services/pin/creditCard/balance", "accountNumber",
+                dataRequest.getAccountNumber(), (httpStatusCode, httpContentType, replyJson) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyJson),
+                                MessageWrapper.class);
+                        try {
+                            if (messageWrapper.isError()) {
+                                if (messageWrapper.getCode() == 418) {
+                                    // no credit card for this account Number
+                                    sendBalanceRequestCallback(processBalanceRequest(dataRequest,
+                                            null), callbackBuilder);
+                                } else {
+                                    callbackBuilder.build().reply(replyJson);
+                                }
+                            } else {
+                                Double creditCardBalance = (Double) messageWrapper.getData();
+                                sendBalanceRequestCallback(processBalanceRequest(dataRequest,
+                                        creditCardBalance), callbackBuilder);
+                            }
+                        } catch (SQLException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                });
+    }
+
     /**
      * Process a data request for the balance of an account.
      * @param dataRequest Object representing a DataRequest containing the request information
      * @return the dataReply
      * @throws SQLException sql Exception
      */
-    private DataReply processBalanceRequest(final DataRequest dataRequest) throws SQLException {
+    private DataReply processBalanceRequest(final DataRequest dataRequest, final Double creditCardBalance)
+                                            throws SQLException {
         SQLConnection connection = db.getConnection();
         DataReply dataReply = null;
         PreparedStatement ps = connection.getConnection().prepareStatement(getAccountInformation);
@@ -697,7 +718,12 @@ class LedgerService {
             double balance = rs.getDouble("balance");
             boolean savingsActive = rs.getBoolean("savings_active");
             double savingsBalance = rs.getDouble("savings_balance");
-            Account account = new Account(name, overdraftLimit, balance, savingsActive, savingsBalance);
+            Account account;
+            if (creditCardBalance != null) {
+                account = new Account(name, overdraftLimit, balance, savingsActive, savingsBalance, creditCardBalance);
+            } else {
+                account = new Account(name, overdraftLimit, balance, savingsActive, savingsBalance);
+            }
             account.setAccountNumber(accountNumber);
             dataReply = JSONParser.createJsonDataReply(dataRequest.getAccountNumber(), dataRequest.getType(), account);
         }
@@ -707,6 +733,18 @@ class LedgerService {
         db.returnConnection(connection);
 
         return dataReply;
+    }
+
+    private void sendBalanceRequestCallback(final DataReply dataReply, final CallbackBuilder callbackBuilder) {
+        if (dataReply != null) {
+            System.out.printf("%s Data request successful, sending callback.\n", PREFIX);
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    false, 200, "Normal Reply", dataReply)));
+        } else {
+            System.out.printf("%s Data request failed, sending rejection.\n", PREFIX);
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 500, "Error connecting to the Ledger database.")));
+        }
     }
 
     /**

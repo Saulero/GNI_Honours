@@ -13,6 +13,7 @@ public class Account implements Serializable {
     private double balance;
     private boolean savingsActive;
     private double savingsBalance;
+    private Double creditCardBalance;
 
     public Account(final String newAccountHolderName, final double newOverdraftLimit, final double newBalance,
                    final boolean savingsActive, final double savingsBalance) {
@@ -21,6 +22,16 @@ public class Account implements Serializable {
         this.balance = newBalance;
         this.savingsActive = savingsActive;
         this.savingsBalance = savingsBalance;
+    }
+
+    public Account(final String newAccountHolderName, final double newOverdraftLimit, final double newBalance,
+                   final boolean savingsActive, final double savingsBalance, final double creditCardBalance) {
+        this.accountHolderName = newAccountHolderName;
+        this.overdraftLimit = newOverdraftLimit;
+        this.balance = newBalance;
+        this.savingsActive = savingsActive;
+        this.savingsBalance = savingsBalance;
+        this.creditCardBalance = creditCardBalance;
     }
 
     /** Used for Json conversions, only use if you manually fill the object afterwards. */
@@ -116,8 +127,16 @@ public class Account implements Serializable {
         return savingsBalance;
     }
 
-    public void setSavingsBalance(final double newSavingsBalance) {
+    public void setSavingsBalance(final Double newSavingsBalance) {
         savingsBalance = newSavingsBalance;
+    }
+
+    public Double getCreditCardBalance() {
+        return creditCardBalance;
+    }
+
+    public void setCreditCardBalance(final double newCreditCardBalance) {
+        creditCardBalance = newCreditCardBalance;
     }
 
     @Override
