@@ -364,32 +364,33 @@ class AuthenticationService {
      * Creates a callback builder to forward the result of the request to the requester, and then forwards the request
      * to the Users service.
      * @param callback Used to send the reply of User service to the source of the request.
-     * @param transactionRequestJson Json String representing a Transaction object that is to be processed
-     *                               {@link Transaction}.
+     * @param data A Transaction object that is to be processed {@link Transaction}.
      */
     @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
     public void processTransactionRequest(final Callback<String> callback,
-                                          @RequestParam("request") final String transactionRequestJson,
-                                          @RequestParam("cookie") final String cookie) {
+                                          @RequestParam("data") final String data) {
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handleTransactionRequestExceptions(transactionRequestJson, cookie, callbackBuilder);
+        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
+        handleTransactionRequestExceptions(messageWrapper, callbackBuilder);
     }
 
     /**
      * Checks if the request is authorized and then forwards the transaction to the TransactionDispatch service.
-     * @param transactionRequestJson Json String representing a transaction request.
-     * @param cookie Cookie of the customer that made the request.
+     * @param messageWrapper MessageWrapper containing a transaction request & cookie
      * @param callbackBuilder Used to send the reply back to the service that sent the request.
      */
-    private void handleTransactionRequestExceptions(final String transactionRequestJson, final String cookie,
-                                                    final CallbackBuilder callbackBuilder) {
+    private void handleTransactionRequestExceptions(
+            final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
         try {
-            authenticateRequest(cookie);
-            doTransactionRequest(transactionRequestJson, getCustomerId(cookie), callbackBuilder);
+            authenticateRequest(messageWrapper.getCookie(), messageWrapper.getMethodType());
+            doTransactionRequest((String) messageWrapper.getData(), getCustomerId(messageWrapper.getCookie()), callbackBuilder);
         } catch (SQLException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         } catch (UserNotAuthorizedException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "CookieData does not belong to an authorized user.")));
+        } catch (AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
         }
     }
 
