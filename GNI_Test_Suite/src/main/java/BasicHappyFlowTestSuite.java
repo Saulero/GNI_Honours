@@ -673,7 +673,7 @@ public class BasicHappyFlowTestSuite {
         }
 
         ///------ TEAR DOWN TESTS.
-/*
+
         // First we progress time 2000 days. All cards should be expired.
         System.out.println("-- SimulateTime 2000 days to make sure all cards are expired --");
 
@@ -749,7 +749,7 @@ public class BasicHappyFlowTestSuite {
 
         if((parsedResponse = checkResponse(response)) != null){
             GetDateMethod.parseResponse(parsedResponse);
-        }*/
+        }
     }
 
     private static String getInvalidPin(String pinCode) {

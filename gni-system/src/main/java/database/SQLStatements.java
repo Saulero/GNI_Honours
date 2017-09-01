@@ -31,7 +31,7 @@ public final class SQLStatements {
     public static final String getUserCount = "SELECT count(*) FROM users WHERE id = ?";
     public static final String getAuthenticationData1 = "SELECT * FROM authentication WHERE username = ?";
     public static final String getAuthenticationData2 = "SELECT * FROM authentication WHERE user_id = ?";
-    public static final String createAuthenticationData = "INSERT INTO authentication (user_id, username, password) VALUES (?, ?, ?)";
+    public static final String createAuthenticationData = "INSERT INTO authentication (user_id, username, password, frozen) VALUES (?, ?, ?, 0)";
     public static final String updateToken = "UPDATE authentication SET token = ?, token_validity = ? WHERE user_id = ?";
     public static final String updateTokenValidity = "UPDATE authentication SET token_validity = ? WHERE user_id = ?";
     public static final String getAccountLinkCount = "SELECT count(*) FROM accounts WHERE user_id = ? AND account_number = ?";
@@ -89,7 +89,7 @@ public final class SQLStatements {
     public final static String dropTransactionsInTable = "DROP TABLE IF EXISTS `transactions_in`;";
     public final static String createTransactionsOutTable = "CREATE TABLE IF NOT EXISTS `transactions_out`( `id` BIGINT(20) NOT NULL, `date` DATE NOT NULL, `account_to` TEXT NOT NULL, `account_to_name` TEXT NOT NULL, `account_from` TEXT NOT NULL, `amount` DOUBLE NOT NULL, `new_balance` DOUBLE NOT NULL, `new_savings_balance` DOUBLE NOT NULL, `description` TEXT NOT NULL, PRIMARY KEY (id));";
     public final static String dropTransactionsOutTable = "DROP TABLE IF EXISTS `transactions_out`;";
-    public final static String createAuthTable = "CREATE TABLE IF NOT EXISTS `authentication`( `user_id` BIGINT(20) NOT NULL, `username` TEXT NOT NULL, `password` TEXT NOT NULL, `token` BIGINT(20), `token_validity` BIGINT(20), PRIMARY KEY (user_id));";
+    public final static String createAuthTable = "CREATE TABLE IF NOT EXISTS `authentication`( `user_id` BIGINT(20) NOT NULL, `username` TEXT NOT NULL, `password` TEXT NOT NULL, `token` BIGINT(20), `token_validity` BIGINT(20), `frozen` BOOLEAN NOT NULL, PRIMARY KEY (user_id));";
     public final static String dropAuthTable = "DROP TABLE IF EXISTS `authentication`;";
     public final static String createUsersTable = "CREATE TABLE IF NOT EXISTS `users`( `id` BIGINT(20) NOT NULL, `initials` TEXT NOT NULL, `firstname` TEXT NOT NULL, `lastname` TEXT NOT NULL, `email` TEXT NOT NULL, `telephone_number` TEXT NOT NULL, `address` TEXT NOT NULL, `date_of_birth` TEXT NOT NULL, `social_security_number` BIGINT(20) NOT NULL, PRIMARY KEY (id));";
     public final static String dropUsersTable = "DROP TABLE IF EXISTS `users`;";
@@ -117,7 +117,7 @@ public final class SQLStatements {
     // Admin methods
     // Create default admin & add authentication data
     public static final String createDefaultAdmin = "INSERT INTO users (id, initials, firstname, lastname, email, telephone_number, address, date_of_birth, social_security_number) VALUES (-1, \"A.A.\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", -1)";
-    public static final String addAdminAuthenticationData = "INSERT INTO authentication (user_id, username, password) VALUES (-1, \"admin\", \"admin\")";
+    public static final String addAdminAuthenticationData = "INSERT INTO authentication (user_id, username, password, frozen) VALUES (-1, \"admin\", \"admin\", 0)";
 
     // All grant permission statements, currently hardcoded for the default admin
     public final static String grantOpenAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";
