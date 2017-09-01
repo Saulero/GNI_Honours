@@ -195,6 +195,7 @@ public class ApiService {
                 break;
             case "requestCreditCard":       RequestCreditCard.requestCreditCard(params, api);
                 break;
+            case "setFreezeUserAccount":    SetFreezeUserAccount.setFreezeUserAccount(params, api);
             default:
                 System.out.println(request.getMethod());
                 callback.reply(new JSONRPC2Response(JSONRPC2Error.METHOD_NOT_FOUND, request.getID()).toJSONString());
