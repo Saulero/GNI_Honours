@@ -175,10 +175,13 @@ class AuthenticationService {
      * Checks if a request is authorized by checking if the token in the cookie is the correct token for that customer
      * and the token is still valid if one of these conditions is not met a UserNotAuthorizedException is thrown.
      * @param cookie Cookie of a customer
+     * @param methodType Type of method this request is for
      * @throws UserNotAuthorizedException thrown when the token is not legitimate/expired or the userId does not exist.
      * @throws SQLException thrown when there is a problem fetching the authentication data from the database.
+     * @throws AccountFrozenException thrown when the account is frozen and the requested method is not allowed.
      */
-    void authenticateRequest(final String cookie) throws UserNotAuthorizedException, SQLException {
+    void authenticateRequest(final String cookie, final MethodType methodType)
+            throws UserNotAuthorizedException, SQLException, AccountFrozenException {
         Long[] cookieData = decodeCookie(cookie);
         long customerId = cookieData[0];
         long cookieToken = cookieData[1];
@@ -188,6 +191,11 @@ class AuthenticationService {
         getAuthenticationData.setLong(1, customerId);
         ResultSet authenticationData = getAuthenticationData.executeQuery();
         if (authenticationData.next()) {
+            if (authenticationData.getBoolean("frozen") && !methodType.isAllowedWhenFrozen()) {
+                throw new AccountFrozenException(
+                        "User has no authorization to do this as long as the account is frozen.");
+            }
+
             long customerToken = authenticationData.getLong("token");
             long tokenValidity = authenticationData.getLong("token_validity");
             if (cookieToken == customerToken && System.currentTimeMillis() < tokenValidity) {
@@ -207,6 +215,10 @@ class AuthenticationService {
         authenticationData.close();
         getAuthenticationData.close();
         databaseConnectionPool.returnConnection(databaseConnection);
+    }
+
+    private void checkFrozenAccount(final MethodType methodType) {
+
     }
 
     /**
