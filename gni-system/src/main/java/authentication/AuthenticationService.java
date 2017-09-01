@@ -842,29 +842,30 @@ class AuthenticationService {
      * Creates a callbackbuilder so that the result of the request can be forwarded to the request source and then
      * calls the exception handler to further process the request. removes an account from a customer.
      * @param callback Used to send a reply/rejection to the request source.
-     * @param accountNumber AccountNumber that should be removed from the system.
-     * @param cookie Cookie of the user that sent the request, should be a user that is linked to the accountNumber.
+     * @param data MessageWrapper containing AccountNumber that should be removed from the system & cookie etc.
      */
     @RequestMapping(value = "/account/remove", method = RequestMethod.PUT)
     public void processAccountRemovalRequest(final Callback<String> callback,
-                                             @RequestParam("accountNumber") final String accountNumber,
-                                             @RequestParam("cookie") final String cookie) {
+                                             @RequestParam("data") final String data) {
         System.out.printf("%s Forwarding account removal request.\n", PREFIX);
+        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handleAccountRemovalExceptions(accountNumber, cookie, callbackBuilder);
+        handleAccountRemovalExceptions(messageWrapper, callbackBuilder);
     }
 
     /**
      * Authenticates the request and then forwards the removal request with the customerId of the user that sent the
      * request to the Users Service. Checking if the accountNumber belongs to the user is done in the Users Service.
-     * @param accountNumber AccountNumber that should be removed from the system.
-     * @param cookie Cookie of the user that sent the request.
+     * @param messageWrapper MessageWrapper containing AccountNumber that should be removed from the system & cookie.
      * @param callbackBuilder Used to send the result of the request to the request source.
      */
-    private void handleAccountRemovalExceptions(final String accountNumber, final String cookie,
-                                                final CallbackBuilder callbackBuilder) {
+    private void handleAccountRemovalExceptions(final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
+        String cookie = messageWrapper.getCookie();
+        String accountNumber = (String) messageWrapper.getData();
+
         try {
-            authenticateRequest(cookie);
+            authenticateRequest(cookie, messageWrapper.getMethodType());
             if (accountNumber.endsWith("S")) {
                 doCloseSavingsAccountRequest(accountNumber.substring(0, accountNumber.length() - 1), callbackBuilder);
             } else if (accountNumber.endsWith("C")) {
@@ -877,6 +878,8 @@ class AuthenticationService {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to the authentication database.")));
         } catch (UserNotAuthorizedException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.")));
+        } catch (AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
         }
     }
 
