@@ -721,27 +721,25 @@ class AuthenticationService {
     }
 
     @RequestMapping(value = "/accountLink/remove", method = RequestMethod.PUT)
-    public void processAccountLinkRemoval(final Callback<String> callback,
-                                          @RequestParam("request") final String accountLinkJson,
-                                          @RequestParam("cookie") final String cookie) {
-        AccountLink linkToRemove = jsonConverter.fromJson(accountLinkJson, AccountLink.class);
+    public void processAccountLinkRemoval(final Callback<String> callback, @RequestParam("data") final String data) {
         System.out.printf("%s Forwarding account link removal.\n", PREFIX);
+        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handleAccountLinkRemovalExceptions(linkToRemove, cookie, callbackBuilder);
+        handleAccountLinkRemovalExceptions(messageWrapper, callbackBuilder);
     }
 
     /**
      * Authenticates the account link removal request and then forwards the request to the Users service.
-     * @param accountLink Account Link that should be removed.
-     * @param cookie Cookie of the customer requesting the account link.
+     * @param messageWrapper MessageWrapper with Account Link that should be removed & cookie.
      * @param callbackBuilder Used to send the reply back to the requesting service.
      */
-    private void handleAccountLinkRemovalExceptions(final AccountLink accountLink, final String cookie,
-                                             final CallbackBuilder callbackBuilder) {
+    private void handleAccountLinkRemovalExceptions(final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
         try {
-            authenticateRequest(cookie);
+            authenticateRequest(messageWrapper.getCookie(), messageWrapper.getMethodType());
+            AccountLink accountLink = (AccountLink) messageWrapper.getData();
             accountLink.setCustomerId(getCustomerIdFromUsername(accountLink.getUsername()));
-            doAccountLinkRemoval(accountLink, "" + getCustomerId(cookie), callbackBuilder);
+            doAccountLinkRemoval(accountLink, "" + getCustomerId(messageWrapper.getCookie()), callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
@@ -751,6 +749,8 @@ class AuthenticationService {
         } catch (CustomerDoesNotExistException e) {
             e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "User with username does not appear to exist.")));
+        } catch (AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
         }
     }
 

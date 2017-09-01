@@ -6,6 +6,7 @@ import com.google.gson.JsonSyntaxException;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 import databeans.AccountLink;
 import databeans.MessageWrapper;
+import databeans.MethodType;
 import util.JSONParser;
 
 import java.util.HashMap;
@@ -68,8 +69,13 @@ public class RevokeAccess {
      */
     private static void doAccountLinkRemoval(
             final AccountLink accountLink, final String cookie, final ApiBean api) {
-        api.getAuthenticationClient().putFormAsyncWith2Params("/services/authentication/accountLink/remove",
-                "request", api.getJsonConverter().toJson(accountLink), "cookie", cookie,
+        MessageWrapper data = new MessageWrapper();
+        data.setCookie(cookie);
+        data.setMethodType(MethodType.REVOKE_ACCESS);
+        data.setData(accountLink);
+
+        api.getAuthenticationClient().putFormAsyncWith1Param("/services/authentication/accountLink/remove",
+                "data", api.getJsonConverter().toJson(data),
                 ((httpStatusCode, httpContentType, accountLinkReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = api.getJsonConverter().fromJson(
