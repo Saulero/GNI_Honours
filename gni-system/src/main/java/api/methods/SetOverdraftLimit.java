@@ -63,9 +63,8 @@ public class SetOverdraftLimit {
         data.setData(new Transaction(overdraftLimit, accountNumber));
 
         System.out.printf("%s Forwarding setOverdraft request.\n", PREFIX);
-        api.getAuthenticationClient().putFormAsyncWith3Params("/services/authentication/overdraft/set",
-                "accountNumber", accountNumber, "cookie", cookie, "overdraftLimit", overdraftLimit,
-                (httpStatusCode, httpContentType, replyJson) -> {
+        api.getAuthenticationClient().putFormAsyncWith1Param("/services/authentication/overdraft/set",
+                "data", api.getJsonConverter().toJson(data), (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = api.getJsonConverter().fromJson(
                                 JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
