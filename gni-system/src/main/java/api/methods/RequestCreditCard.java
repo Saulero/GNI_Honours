@@ -12,7 +12,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static api.ApiService.PREFIX;
-import static api.methods.NewPinCard.doNewPinCardRequest;
 import static api.methods.SharedUtilityMethods.sendErrorReply;
 import static java.net.HttpURLConnection.HTTP_OK;
 

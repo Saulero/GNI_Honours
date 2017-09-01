@@ -75,7 +75,7 @@ public class CloseAccount {
             final String accountNumber, final String cookie, final ApiBean api) {
         MessageWrapper data = new MessageWrapper();
         data.setCookie(cookie);
-        data.setMethodType(MethodType.REVOKE_ACCESS);
+        data.setMethodType(MethodType.CLOSE_ACCOUNT);
         data.setData(accountNumber);
 
         System.out.printf("%s Forwarding account removal request.\n", PREFIX);

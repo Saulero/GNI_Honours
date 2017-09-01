@@ -7,6 +7,7 @@ import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 import databeans.Authentication;
 import databeans.AuthenticationType;
 import databeans.MessageWrapper;
+import databeans.MethodType;
 import util.JSONParser;
 
 import java.util.HashMap;
@@ -129,7 +130,7 @@ public class GetAuthToken {
         System.out.printf("%s Successful login, set the following cookie: %s\n\n\n\n",
                 PREFIX, loginReply.getCookie());
         if (createPin != null) {
-            doNewPinCardRequest(createPin, loginReply.getUsername(), loginReply.getCookie(), api, true);
+            doNewPinCardRequest(MethodType.GET_AUTH_TOKEN, createPin, loginReply.getUsername(), loginReply.getCookie(), api, true);
         } else {
             Map<String, Object> result = new HashMap<>();
             result.put("authToken", loginReply.getCookie());

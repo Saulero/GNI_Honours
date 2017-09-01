@@ -983,32 +983,31 @@ class AuthenticationService {
      * Creates a callbackbuilder for the request and then calls the exception handler. Creates a new pincard for a
      * customer.
      * @param callback Used to send the result of the request back to the request source.
-     * @param accountNumber AccountNumber the pin card should be linked to.
-     * @param cookie Cookie of the user that sent the request, must be a user that is authorized to use
-     *               the accountNumber.
-     * @param username username of the user that owns the pincard.
+     * @param data MessageWrapper containing all the required data.
      */
     @RequestMapping(value = "/card", method = RequestMethod.PUT)
-    public void processNewPinCardRequest(final Callback<String> callback,
-                                         @RequestParam("accountNumber") final String accountNumber,
-                                         @RequestParam("cookie") final String cookie,
-                                         @RequestParam("username") final String username) {
+    public void processNewPinCardRequest(final Callback<String> callback, @RequestParam("data") final String data) {
         System.out.printf("%s Received new Pin card request, attempting to forward request.\n", PREFIX);
+        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handleNewPinCardExceptions(accountNumber, cookie, username, callbackBuilder);
+        handleNewPinCardExceptions(messageWrapper, callbackBuilder);
     }
 
     /**
      * Tries to authenticate the user that sent the request and then forwards the new pin card request with the
      * customerId of the User that sent the request.
-     * @param accountNumber AccountNumber the pin card should be linked to.
-     * @param cookie Cookie of the user that sent the request, so the system knows who the pincard is for.
+     * @param messageWrapper MessageWrapper containing all the required data.
      * @param callbackBuilder Used to send the result of the request to the request source.
      */
-    private void handleNewPinCardExceptions(final String accountNumber, final String cookie, final String username,
-                                            final CallbackBuilder callbackBuilder) {
+    private void handleNewPinCardExceptions(final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
+        AccountLink data = (AccountLink) messageWrapper.getData();
+        String cookie = messageWrapper.getCookie();
+        String username = data.getUsername();
+        String accountNumber = data.getAccountNumber();
+
         try {
-            authenticateRequest(cookie);
+            authenticateRequest(cookie, messageWrapper.getMethodType());
             Long requesterId = getCustomerId(cookie);
             Long ownerId;
             if (username == null) {
@@ -1028,6 +1027,8 @@ class AuthenticationService {
         } catch (UserNotAuthorizedException e) {
             System.out.println("Rejecting, User not authorized, please login.");
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.")));
+        } catch (AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
         }
 
     }

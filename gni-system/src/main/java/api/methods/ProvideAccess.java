@@ -103,6 +103,6 @@ public class ProvideAccess {
         System.out.printf("%s Successful account link, sending callback.\n", PREFIX);
         System.out.printf("%s Account link successful for Account Holder: %s, AccountNumber: %s\n\n\n\n",
                 PREFIX, accountLink.getCustomerId(), accountLink.getAccountNumber());
-        doNewPinCardRequest(accountLink.getAccountNumber(), accountLink.getUsername(), cookie, api, false);
+        doNewPinCardRequest(MethodType.PROVIDE_ACCESS, accountLink.getAccountNumber(), accountLink.getUsername(), cookie, api, false);
     }
 }
