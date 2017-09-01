@@ -3,6 +3,7 @@ package api.methods;
 import api.ApiBean;
 import databeans.Customer;
 import databeans.MessageWrapper;
+import databeans.MethodType;
 import util.JSONParser;
 
 import java.util.Map;
@@ -33,8 +34,13 @@ public class OpenAdditionalAccount {
      * @param api DataBean containing everything in the ApiService
      */
     private static void doNewAccountRequest(final String cookie, final ApiBean api) {
+        MessageWrapper data = new MessageWrapper();
+        data.setCookie(cookie);
+        data.setMethodType(MethodType.OPEN_ADDITIONAL_ACCOUNT);
+
         api.getAuthenticationClient().putFormAsyncWith1Param("/services/authentication/account/new",
-                "cookie", cookie, (httpStatusCode, httpContentType, newAccountReplyJson) -> {
+                "data", api.getJsonConverter().toJson(data),
+                (httpStatusCode, httpContentType, newAccountReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = api.getJsonConverter().fromJson(
                                 JSONParser.removeEscapeCharacters(newAccountReplyJson), MessageWrapper.class);

@@ -774,28 +774,34 @@ class AuthenticationService {
     /**
      * Creates a callback builder for the account creation request and then forwards the request to the UsersService.
      * @param callback Used to send the result of the request back to the source of the request.
+     * @param data MessageWrapper containing cookie etc.
      */
     @RequestMapping(value = "/account/new", method = RequestMethod.PUT)
     public void processNewAccountRequest(final Callback<String> callback,
-                                         @RequestParam("cookie") final String cookie) {
-        System.out.printf("%s Forwarding account creation request for customer %d.\n", PREFIX, getCustomerId(cookie));
+                                         @RequestParam("data") final String data) {
+        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
+        System.out.printf("%s Forwarding account creation request for customer %d.\n",
+                PREFIX, getCustomerId(messageWrapper.getCookie()));
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handleNewAccountExceptions(cookie, callbackBuilder);
+        handleNewAccountExceptions(messageWrapper, callbackBuilder);
     }
 
     /**
      * Authenticates the request and then forwards the request to the Users service.
-     * @param cookie Cookie of the customer making the request.
+     * @param messageWrapper Cookie of the customer making the request.
      * @param callbackBuilder Used to send the reply back to the requesting service.
      */
-    private void handleNewAccountExceptions(final String cookie, final CallbackBuilder callbackBuilder) {
+    private void handleNewAccountExceptions(final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
         try {
-            authenticateRequest(cookie);
-            doNewAccountRequest(getCustomerId(cookie), callbackBuilder);
+            authenticateRequest(messageWrapper.getCookie(), messageWrapper.getMethodType());
+            doNewAccountRequest(getCustomerId(messageWrapper.getCookie()), callbackBuilder);
         } catch (SQLException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to the authentication database.")));
         } catch (UserNotAuthorizedException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "The does not appear to be logged in.")));
+        } catch (AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
         }
     }
 
