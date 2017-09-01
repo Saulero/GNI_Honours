@@ -1018,14 +1018,14 @@ class AuthenticationService {
             if (ownerId != null) {
                 doNewPinCardRequest(accountNumber, Long.toString(requesterId), Long.toString(ownerId), callbackBuilder);
             } else {
-                System.out.println("Rejecting, OwnerId could not be found. Username does not exist.");
+                System.out.printf("%s Rejecting, OwnerId could not be found. Username does not exist.\n", PREFIX);
                 callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "The username does not seem to exist.")));
             }
         } catch (SQLException e) {
-            System.out.println("Rejecting, Error connecting to authentication database.");
+            System.out.printf("%s Rejecting, Error connecting to authentication database.\n", PREFIX);
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         } catch (UserNotAuthorizedException e) {
-            System.out.println("Rejecting, User not authorized, please login.");
+            System.out.printf("%s Rejecting, User not authorized, please login.\n", PREFIX);
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.")));
         } catch (AccountFrozenException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
