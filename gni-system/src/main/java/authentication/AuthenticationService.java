@@ -1157,32 +1157,28 @@ class AuthenticationService {
      * Creates a callbackBuilder so that the result of the request can be forwarded to the request source and then
      * calls the exception handler to further process the request. Sets a new overdraft limit for an account.
      * @param callback Used to send a reply/rejection to the request source.
-     * @param accountNumber AccountNumber of which the limit should be set.
-     * @param cookie Cookie of the user that sent the request, should be a user that is linked to the accountNumber.
-     * @param overdraftLimit New overdraft limit
+     * @param data MessageWrapper containing all necessary data.
      */
     @RequestMapping(value = "/overdraft/set", method = RequestMethod.PUT)
-    public void processSetOverdraftLimit(final Callback<String> callback,
-            @RequestParam("accountNumber") final String accountNumber,
-            @RequestParam("cookie") final String cookie,
-            @RequestParam("overdraftLimit") final Double overdraftLimit) {
+    public void processSetOverdraftLimit(final Callback<String> callback, @RequestParam("data") final String data) {
         System.out.printf("%s Processing SetOverdraftLimit request.\n", PREFIX);
+        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handleSetOverdraftLimitExceptions(accountNumber, cookie, overdraftLimit, callbackBuilder);
+        handleSetOverdraftLimitExceptions(messageWrapper, callbackBuilder);
     }
 
     /**
      * Authenticates the request and then forwards the request with the accountNumber to ledger.
-     * @param accountNumber AccountNumber of which the limit should be set.
-     * @param cookie Cookie of the user that sent the request.
-     * @param overdraftLimit New overdraft limit
+     * @param messageWrapper MessageWrapper containing all necessary data.
      * @param callbackBuilder Used to send the result of the request to the request source.
      */
-    private void handleSetOverdraftLimitExceptions(final String accountNumber, final String cookie,
-            final Double overdraftLimit, final CallbackBuilder callbackBuilder) {
+    private void handleSetOverdraftLimitExceptions(
+            final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
         try {
-            authenticateRequest(cookie);
-            doSetOverdraftLimitRequest(accountNumber, overdraftLimit, callbackBuilder);
+            authenticateRequest(messageWrapper.getCookie(), messageWrapper.getMethodType());
+            doSetOverdraftLimitRequest(((Transaction) messageWrapper.getData()).getSourceAccountNumber(),
+                    ((Transaction) messageWrapper.getData()).getNewBalance(), callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
@@ -1191,6 +1187,9 @@ class AuthenticationService {
             e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
                     "The user is not authorized to perform this action.")));
+        } catch (AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
+                    "The user is not authorized to perform this action.", e.getMessage())));
         }
     }
 

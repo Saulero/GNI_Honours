@@ -3,6 +3,8 @@ package api.methods;
 import api.ApiBean;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 import databeans.MessageWrapper;
+import databeans.MethodType;
+import databeans.Transaction;
 import util.JSONParser;
 
 import java.util.HashMap;
@@ -55,6 +57,11 @@ public class SetOverdraftLimit {
      */
     private static void doSetOverdraftRequest(
             final String accountNumber, final String cookie, final Double overdraftLimit, final ApiBean api) {
+        MessageWrapper data = new MessageWrapper();
+        data.setCookie(cookie);
+        data.setMethodType(MethodType.SET_OVERDRAFT_LIMIT);
+        data.setData(new Transaction(overdraftLimit, accountNumber));
+
         System.out.printf("%s Forwarding setOverdraft request.\n", PREFIX);
         api.getAuthenticationClient().putFormAsyncWith3Params("/services/authentication/overdraft/set",
                 "accountNumber", accountNumber, "cookie", cookie, "overdraftLimit", overdraftLimit,
