@@ -1346,6 +1346,8 @@ class AuthenticationService {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         } catch (UserNotAuthorizedException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "User does not appear to be logged in.")));
+        } catch (AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
         }
     }
 
@@ -1513,25 +1515,27 @@ class AuthenticationService {
     }
 
     @RequestMapping(value = "/creditCard", method = RequestMethod.PUT)
-    public void processNewCreditCardRequest(final Callback<String> callback, @RequestParam("cookie") final String cookie,
-                                            @RequestParam("accountNumber") final String accountNumber) {
+    public void processNewCreditCardRequest(final Callback<String> callback, @RequestParam("data") final String data) {
         System.out.printf("%s Received new credit card request.\n", PREFIX);
+        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handleNewCreditCardExceptions(cookie, accountNumber, callbackBuilder);
+        handleNewCreditCardExceptions(messageWrapper, callbackBuilder);
     }
 
-    private void handleNewCreditCardExceptions(final String cookie, final String accountNumber,
-                                               final CallbackBuilder callbackBuilder) {
+    private void handleNewCreditCardExceptions(final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
         try {
-            authenticateRequest(cookie);
-            Long customerId = getCustomerId(cookie);
-            doNewCreditCardRequest(customerId, accountNumber, callbackBuilder);
+            authenticateRequest(messageWrapper.getCookie(), messageWrapper.getMethodType());
+            Long customerId = getCustomerId(messageWrapper.getCookie());
+            doNewCreditCardRequest(customerId, (String) messageWrapper.getData(), callbackBuilder);
         } catch (SQLException e) {
             System.out.printf("%s Sql exception, Sending callback.\n", PREFIX);
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         } catch (UserNotAuthorizedException e) {
             System.out.printf("%s User not authorized, Sending callback.\n", PREFIX);
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "User does not appear to be logged in.")));
+        } catch (AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
         }
     }
 

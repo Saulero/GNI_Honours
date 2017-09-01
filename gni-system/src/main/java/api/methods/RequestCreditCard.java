@@ -6,6 +6,7 @@ import api.IncorrectInputException;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 import databeans.CreditCard;
 import databeans.MessageWrapper;
+import databeans.MethodType;
 import util.JSONParser;
 
 import java.util.HashMap;
@@ -46,10 +47,14 @@ public class RequestCreditCard {
     }
 
     private static void doNewCreditCardRequest(final String cookie, final String accountNumber, final ApiBean api) {
+        MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
+        data.setCookie(cookie);
+        data.setMethodType(MethodType.REQUEST_CREDIT_CARD);
+        data.setData(accountNumber);
+
         System.out.printf("%s Forwarding new credit card request.\n", PREFIX);
-        api.getAuthenticationClient().putFormAsyncWith2Params("/services/authentication/creditCard",
-                "cookie", cookie, "accountNumber", accountNumber,
-                (httpStatusCode, httpContentType, replyJson) -> {
+        api.getAuthenticationClient().putFormAsyncWith1Param("/services/authentication/creditCard",
+                "data", api.getJsonConverter().toJson(data), (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = api.getJsonConverter().fromJson(
                                 JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
