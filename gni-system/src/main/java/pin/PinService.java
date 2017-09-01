@@ -1,6 +1,5 @@
 package pin;
 
-import pin.AccountFrozenException;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import database.ConnectionPool;
@@ -418,10 +417,10 @@ class PinService {
         PreparedStatement incrementStatement;
         if (isCreditCard) {
             incrementStatement = databaseConnection.getConnection()
-                    .prepareStatement(SQLStatements.incrementIncorrectCreditcardAttempts);
+                    .prepareStatement(SQLStatements.incrementIncorrectCreditCardAttempts);
         } else {
             incrementStatement = databaseConnection.getConnection()
-                    .prepareStatement(SQLStatements.incrementIncorrectPincardAttempts);
+                    .prepareStatement(SQLStatements.incrementIncorrectPinCardAttempts);
         }
 
         incrementStatement.setLong(1, cardNumber);
