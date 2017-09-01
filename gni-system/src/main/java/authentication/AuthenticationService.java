@@ -1567,19 +1567,18 @@ class AuthenticationService {
     }
 
     @RequestMapping(value = "/savingsAccount/close", method = RequestMethod.PUT)
-     public void closeSavingsAccount(final Callback<String> callback,
-                                    @RequestParam("authToken") final String authToken,
-                                    @RequestParam("iBAN") final String iBAN) {
+     public void closeSavingsAccount(final Callback<String> callback, @RequestParam("data") final String data) {
         System.out.printf("%s Received close savings account request.\n", PREFIX);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handleCloseSavingsAccountExceptions(authToken, iBAN, callbackBuilder);
+        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
+        handleCloseSavingsAccountExceptions(messageWrapper, callbackBuilder);
      }
 
-     private void handleCloseSavingsAccountExceptions(final String authToken, final String iBAN,
-                                             final CallbackBuilder callbackBuilder) {
+     private void handleCloseSavingsAccountExceptions(final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
      try {
-             authenticateRequest(authToken);
-             doCloseSavingsAccountRequest(iBAN, callbackBuilder);
+             authenticateRequest(messageWrapper.getCookie(), messageWrapper.getMethodType());
+             doCloseSavingsAccountRequest((String) messageWrapper.getData(), callbackBuilder);
          } catch (UserNotAuthorizedException e) {
              callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
                              "The user is not authorized to perform this action.")));
@@ -1587,7 +1586,10 @@ class AuthenticationService {
              e.printStackTrace();
              callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
                              "Error connecting to the authentication database.")));
-         }
+         } catch (AccountFrozenException e) {
+         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
+                 "The user is not authorized to perform this action.", e.getMessage())));
+     }
      }
 
     private void sendNewCreditCardCallback(final CreditCard creditCard, final CallbackBuilder callbackBuilder) {
