@@ -1090,35 +1090,34 @@ class AuthenticationService {
     /**
      * Creates a callback builder for a pinCard unblock request and then forwards the request to the PinService.
      * @param callback Used to send the result of the request back to the source of the request.
-     * @param requestJson Json string representing a {@link PinCard} that should be unblocked.
+     * @param data Json string representing a {@link PinCard} that should be unblocked.
      */
     @RequestMapping(value = "/unblockCard", method = RequestMethod.PUT)
-    public void processPinCardUnblockRequest(final Callback<String> callback,
-                                          @RequestParam("request") final String requestJson,
-                                          @RequestParam("cookie") final String cookie) {
-        PinCard pinCard = jsonConverter.fromJson(requestJson, PinCard.class);
+    public void processPinCardUnblockRequest(final Callback<String> callback, @RequestParam("data") final String data) {
         System.out.printf("%s Forwarding pinCard unblock request.\n", PREFIX);
+        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handlePinCardUnblockExceptions(pinCard, cookie, callbackBuilder);
+        handlePinCardUnblockExceptions(messageWrapper, callbackBuilder);
     }
 
     /**
      * Authenticates the PinCard unblock request and then forwards the request to the Pinservice.
-     * @param pinCard PinCard that should be unblocked.
-     * @param cookie Cookie of the customer requesting the account link.
+     * @param messageWrapper PinCard that should be unblocked & cookie.
      * @param callbackBuilder Used to send the reply back to the requesting service.
      */
-    private void handlePinCardUnblockExceptions(final PinCard pinCard, final String cookie,
-                                             final CallbackBuilder callbackBuilder) {
+    private void handlePinCardUnblockExceptions(final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
         try {
-            authenticateRequest(cookie);
-            doPinCardUnblockRequest(jsonConverter.toJson(pinCard), callbackBuilder);
+            authenticateRequest(messageWrapper.getCookie(), messageWrapper.getMethodType());
+            doPinCardUnblockRequest(jsonConverter.toJson(messageWrapper.getData()), callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         } catch (UserNotAuthorizedException e) {
             e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.")));
+        } catch (AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
         }
     }
 

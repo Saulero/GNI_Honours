@@ -5,6 +5,7 @@ import api.IncorrectInputException;
 import com.google.gson.JsonSyntaxException;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 import databeans.MessageWrapper;
+import databeans.MethodType;
 import databeans.PinCard;
 import util.JSONParser;
 
@@ -78,9 +79,13 @@ public class UnblockCard {
      * @param api DataBean containing everything in the ApiService
      */
     private static void doPinCardUnblockRequest(final PinCard pinCard, final String cookie, final ApiBean api) {
-        api.getAuthenticationClient().putFormAsyncWith2Params("/services/authentication/unblockCard",
-                "request", api.getJsonConverter().toJson(pinCard), "cookie", cookie,
-                ((httpStatusCode, httpContentType, body) -> {
+        MessageWrapper data = new MessageWrapper();
+        data.setCookie(cookie);
+        data.setMethodType(MethodType.UNBLOCK_CARD);
+        data.setData(pinCard);
+
+        api.getAuthenticationClient().putFormAsyncWith1Param("/services/authentication/unblockCard",
+                "data", api.getJsonConverter().toJson(data), ((httpStatusCode, httpContentType, body) -> {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = api.getJsonConverter().fromJson(
                                 JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
