@@ -68,6 +68,6 @@ public class OpenAdditionalAccount {
         String accountNumber = newAccountReply.getAccount().getAccountNumber();
         System.out.printf("%s New Account creation successful, Account Holder: %s,"
                 + " AccountNumber: %s\n\n\n\n", PREFIX, newAccountReply.getCustomerId(), accountNumber);
-        doNewPinCardRequest(MethodType.OPEN_ADDITIONAL_ACCOUNT, accountNumber, "", cookie, api, true);
+        doNewPinCardRequest(MethodType.OPEN_ADDITIONAL_ACCOUNT, accountNumber, null, cookie, api, true);
     }
 }
