@@ -73,7 +73,7 @@ public class CloseAccount {
      */
     private static void doAccountRemovalRequest(
             final String accountNumber, final String cookie, final ApiBean api) {
-        MessageWrapper data = new MessageWrapper();
+        MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
         data.setCookie(cookie);
         data.setMethodType(MethodType.CLOSE_ACCOUNT);
         data.setData(accountNumber);

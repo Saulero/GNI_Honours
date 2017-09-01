@@ -45,7 +45,7 @@ public class OpenSavingsAccount {
      * @param api DataBean containing everything in the ApiService
      */
     private static void doOpenSavingsAccountRequest(final String authToken, final String iBAN, final ApiBean api) {
-        MessageWrapper data = new MessageWrapper();
+        MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
         data.setCookie(authToken);
         data.setMethodType(MethodType.OPEN_SAVING_ACCOUNT);
         data.setData(iBAN);

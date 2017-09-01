@@ -86,7 +86,7 @@ public class NewPinCard {
     private static void doNewPinCardRequest(
             final MethodType methodType, final String accountNumber, final String cookie,
             final String username, final boolean accountNrInResult, final ApiBean api) {
-        MessageWrapper data = new MessageWrapper();
+        MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
         data.setCookie(cookie);
         data.setMethodType(methodType);
         AccountLink accountLink = new AccountLink();

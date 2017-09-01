@@ -69,7 +69,7 @@ public class RevokeAccess {
      */
     private static void doAccountLinkRemoval(
             final AccountLink accountLink, final String cookie, final ApiBean api) {
-        MessageWrapper data = new MessageWrapper();
+        MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
         data.setCookie(cookie);
         data.setMethodType(MethodType.REVOKE_ACCESS);
         data.setData(accountLink);

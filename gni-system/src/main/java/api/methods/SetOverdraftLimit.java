@@ -57,7 +57,7 @@ public class SetOverdraftLimit {
      */
     private static void doSetOverdraftRequest(
             final String accountNumber, final String cookie, final Double overdraftLimit, final ApiBean api) {
-        MessageWrapper data = new MessageWrapper();
+        MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
         data.setCookie(cookie);
         data.setMethodType(MethodType.SET_OVERDRAFT_LIMIT);
         data.setData(new Transaction(overdraftLimit, accountNumber));

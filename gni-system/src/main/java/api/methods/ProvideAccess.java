@@ -68,7 +68,7 @@ public class ProvideAccess {
      * @param api DataBean containing everything in the ApiService
      */
     private static void doAccountLinkRequest(final AccountLink accountLink, final String cookie, final ApiBean api) {
-        MessageWrapper data = new MessageWrapper();
+        MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
         data.setCookie(cookie);
         data.setMethodType(MethodType.PROVIDE_ACCESS);
         data.setData(accountLink);

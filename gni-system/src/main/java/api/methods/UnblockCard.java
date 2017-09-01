@@ -79,7 +79,7 @@ public class UnblockCard {
      * @param api DataBean containing everything in the ApiService
      */
     private static void doPinCardUnblockRequest(final PinCard pinCard, final String cookie, final ApiBean api) {
-        MessageWrapper data = new MessageWrapper();
+        MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
         data.setCookie(cookie);
         data.setMethodType(MethodType.UNBLOCK_CARD);
         data.setData(pinCard);

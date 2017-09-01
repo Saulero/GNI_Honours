@@ -34,7 +34,7 @@ public class OpenAdditionalAccount {
      * @param api DataBean containing everything in the ApiService
      */
     private static void doNewAccountRequest(final String cookie, final ApiBean api) {
-        MessageWrapper data = new MessageWrapper();
+        MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
         data.setCookie(cookie);
         data.setMethodType(MethodType.OPEN_ADDITIONAL_ACCOUNT);
 

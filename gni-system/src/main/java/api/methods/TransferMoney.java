@@ -109,7 +109,7 @@ public class TransferMoney {
      * @param api DataBean containing everything in the ApiService
      */
     private static void doTransactionRequest(final Transaction transaction, final String cookie, final ApiBean api) {
-        MessageWrapper data = new MessageWrapper();
+        MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
         data.setCookie(cookie);
         data.setMethodType(MethodType.TRANSFER_MONEY);
         data.setData(api.getJsonConverter().toJson(transaction));
