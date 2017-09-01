@@ -38,7 +38,7 @@ public final class SQLStatements {
     public static final String getLoginUsernameCount = "SELECT count(*) FROM authentication WHERE username = ?";
     public static final String getCustomerIdFromUsername = "SELECT user_id FROM authentication WHERE username = ?";
     public static final String getUsernameFromCustomerId = "SELECT username FROM authentication WHERE user_id = ?";
-    public static final String addPinCard = "INSERT INTO pin (account_number, user_id, card_number, pin_code, expiration_date, incorrect_attempts, active) VALUES (?, ?, ?, ?, ?, ?, ?)";
+    public static final String addPinCard = "INSERT INTO pin (account_number, user_id, card_number, pin_code, expiration_date, incorrect_attempts, active, frozen) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
     public static final String getCustomerIdFromCardNumber = "SELECT user_id FROM pin WHERE card_number = ?";
     public static final String getPinCard = "SELECT * FROM pin WHERE card_number = ?";
     public static final String deactivatePinCard = "UPDATE pin SET active = false WHERE account_number = ? AND user_id = ? AND card_number = ?";
@@ -83,7 +83,7 @@ public final class SQLStatements {
     public final static String dropCreditCardsTable = "DROP TABLE IF EXISTS `credit_cards`;";
     public final static String createCreditCardTransactionsTable = "CREATE TABLE IF NOT EXISTS `credit_card_transactions` (`id` BIGINT(20) NOT NULL, `date` DATE NOT NULL, `card_number` BIGINT(20) NOT NULL, `account_to` TEXT NOT NULL, `amount` DOUBLE NOT NULL, `new_balance` DOUBLE NOT NULL, PRIMARY KEY (id));";
     public final static String getDropCreditCardTransactionsTable = "DROP TABLE IF EXISTS `credit_card_transactions`;";
-    public final static String createPinTable = "CREATE TABLE IF NOT EXISTS `pin`( `account_number` TEXT NOT NULL, `user_id` BIGINT(20) NOT NULL, `card_number` BIGINT(20) NOT NULL, `pin_code` TEXT NOT NULL, `expiration_date` DATE NOT NULL, `incorrect_attempts` BIGINT(20) NOT NULL, `active` BOOLEAN NOT NULL, PRIMARY KEY (card_number));";
+    public final static String createPinTable = "CREATE TABLE IF NOT EXISTS `pin`( `account_number` TEXT NOT NULL, `user_id` BIGINT(20) NOT NULL, `card_number` BIGINT(20) NOT NULL, `pin_code` TEXT NOT NULL, `expiration_date` DATE NOT NULL, `incorrect_attempts` BIGINT(20) NOT NULL, `active` BOOLEAN NOT NULL, `frozen` BOOLEAN NOT NULL, PRIMARY KEY (card_number));";
     public final static String dropPinTable = "DROP TABLE IF EXISTS `pin`;";
     public final static String createTransactionsInTable = "CREATE TABLE IF NOT EXISTS `transactions_in`( `id` BIGINT(20) NOT NULL, `date` DATE NOT NULL, `account_to` TEXT NOT NULL, `account_to_name` TEXT NOT NULL, `account_from` TEXT NOT NULL, `amount` DOUBLE NOT NULL, `new_balance` DOUBLE NOT NULL, `new_savings_balance` DOUBLE NOT NULL, `description` TEXT NOT NULL, PRIMARY KEY (id));";
     public final static String dropTransactionsInTable = "DROP TABLE IF EXISTS `transactions_in`;";

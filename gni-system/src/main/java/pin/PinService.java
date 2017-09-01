@@ -904,6 +904,7 @@ class PinService {
         addPinCard.setDate(5, java.sql.Date.valueOf(pinCard.getExpirationDate()));
         addPinCard.setLong(6, 0L);
         addPinCard.setBoolean(7, true);
+        addPinCard.setBoolean(8, false);
         addPinCard.executeUpdate();
         addPinCard.close();
         databaseConnectionPool.returnConnection(databaseConnection);
