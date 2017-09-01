@@ -630,31 +630,28 @@ class AuthenticationService {
     /**
      * Creates a callback builder for an account link request and then forwards the request to the UsersService.
      * @param callback Used to send the result of the request back to the source of the request.
-     * @param accountLinkRequestJson Json string representing an {@link AccountLink} that should be created in the
-     *                               database.
+     * @param data Messagewrapper containing an {@link AccountLink} & cookie.
      */
     @RequestMapping(value = "/accountLink", method = RequestMethod.PUT)
-    public void processAccountLinkRequest(final Callback<String> callback,
-                                          @RequestParam("request") final String accountLinkRequestJson,
-                                          @RequestParam("cookie") final String cookie) {
-        AccountLink accountLinkRequest = jsonConverter.fromJson(accountLinkRequestJson, AccountLink.class);
+    public void processAccountLinkRequest(final Callback<String> callback, @RequestParam("data") final String data) {
         System.out.printf("%s Forwarding account link request.\n", PREFIX);
+        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handleAccountLinkExceptions(accountLinkRequest, cookie, callbackBuilder);
+        handleAccountLinkExceptions(messageWrapper, callbackBuilder);
     }
 
     /**
      * Authenticates the account link request and then forwards the request to the Users service.
-     * @param accountLinkRequest Account Link that should be executed.
-     * @param cookie Cookie of the customer requesting the account link.
+     * @param messageWrapper MessageWrapper containing Account Link that should be executed & cookie.
      * @param callbackBuilder Used to send the reply back to the requesting service.
      */
-    private void handleAccountLinkExceptions(final AccountLink accountLinkRequest, final String cookie,
-                                             final CallbackBuilder callbackBuilder) {
+    private void handleAccountLinkExceptions(final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
         try {
-            authenticateRequest(cookie);
+            authenticateRequest(messageWrapper.getCookie(), messageWrapper.getMethodType());
+            AccountLink accountLinkRequest = (AccountLink) messageWrapper.getData();
             accountLinkRequest.setCustomerId(getCustomerIdFromUsername(accountLinkRequest.getUsername()));
-            doAccountLinkRequest(jsonConverter.toJson(accountLinkRequest), getCustomerId(cookie), callbackBuilder);
+            doAccountLinkRequest(jsonConverter.toJson(accountLinkRequest), getCustomerId(messageWrapper.getCookie()), callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
@@ -664,6 +661,8 @@ class AuthenticationService {
         } catch (CustomerDoesNotExistException e) {
             e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "User with username does not appear to exist.")));
+        } catch (AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
         }
     }
 

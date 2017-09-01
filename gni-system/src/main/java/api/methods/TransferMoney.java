@@ -116,7 +116,8 @@ public class TransferMoney {
 
         System.out.printf("%s Forwarding transaction request.\n", PREFIX);
         api.getAuthenticationClient().putFormAsyncWith1Param("/services/authentication/transaction",
-                "data", data, (httpStatusCode, httpContentType, transactionReplyJson) -> {
+                "data", api.getJsonConverter().toJson(data),
+                (httpStatusCode, httpContentType, transactionReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = api.getJsonConverter().fromJson(
                                 JSONParser.removeEscapeCharacters(transactionReplyJson), MessageWrapper.class);
