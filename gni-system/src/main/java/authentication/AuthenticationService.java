@@ -158,7 +158,7 @@ class AuthenticationService {
             MessageWrapper messageWrapper = jsonConverter.fromJson(
                     JSONParser.removeEscapeCharacters(dataRequestJson), MessageWrapper.class);
 
-            authenticateRequest(cookie);
+            authenticateRequest(cookie, messageWrapper.getMethodType());
             messageWrapper.setAdmin(isAdmin(messageWrapper.getMethodType(), cookie));
             DataRequest dataRequest = ((DataRequest) messageWrapper.getData());
             dataRequest.setCustomerId(getCustomerId(cookie));
@@ -168,6 +168,8 @@ class AuthenticationService {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         } catch (UserNotAuthorizedException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "CookieData does not belong to an authorized user.")));
+        } catch (AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
         }
     }
 
