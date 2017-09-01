@@ -6,6 +6,7 @@ import com.google.gson.JsonSyntaxException;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 import databeans.CreditCard;
 import databeans.MessageWrapper;
+import databeans.MethodType;
 import databeans.PinCard;
 import util.JSONParser;
 
@@ -77,9 +78,11 @@ public class InvalidateCard {
      */
     private static void doPinCardReplacementRequest(
             final Map<String, Object> params, final boolean newPin, final ApiBean api) {
-        String message = api.getJsonConverter().toJson(JSONParser.createMessageWrapper(false, 0, "Request", params));
+        MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request", params);
+        data.setMethodType(MethodType.INVALIDATE_CARD);
+
         api.getAuthenticationClient().putFormAsyncWith1Param("/services/authentication/invalidateCard",
-                "params", message, (code, contentType, body) -> {
+                "data", api.getJsonConverter().toJson(data), (code, contentType, body) -> {
                     if (code == HTTP_OK) {
                         MessageWrapper messageWrapper = api.getJsonConverter().fromJson(
                                 JSONParser.removeEscapeCharacters(body), MessageWrapper.class);

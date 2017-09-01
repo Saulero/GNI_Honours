@@ -1307,38 +1307,39 @@ class AuthenticationService {
      * Creates a callbackBuilder for the request so that the result can be sent back to the request source and then
      * calls the exception handler for the request. Replaces a pinCard belonging to a customer.
      * @param callback Used to send the result of the request back to the request source.
-     * @param request Parameters from the original request.
+     * @param data Parameters from the original request.
      */
     @RequestMapping(value = "/invalidateCard", method = RequestMethod.PUT)
-    public void invalidateCard(final Callback<String> callback,
-                                             @RequestParam("params") final String request) {
+    public void invalidateCard(final Callback<String> callback, @RequestParam("data") final String data) {
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         MessageWrapper messageWrapper = jsonConverter.fromJson(
-                JSONParser.removeEscapeCharacters(request), MessageWrapper.class);
+                JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
         Map<String, Object> params  = (Map) messageWrapper.getData();
         PinCard pinCard = new PinCard();
         String authToken = (String) params.get("authToken");
+        MethodType methodType = messageWrapper.getMethodType();
 
         pinCard.setAccountNumber((String) params.get("iBAN"));
         pinCard.setCardNumber(Long.parseLong((String) params.get("pinCard")));
         if ((params.get("newPin")).equals("true")) {
-            handlePinCardRemovalExceptions(pinCard, authToken, true, callbackBuilder);
+            handlePinCardRemovalExceptions(methodType, pinCard, authToken, true, callbackBuilder);
         } else {
-            handlePinCardRemovalExceptions(pinCard, authToken, false, callbackBuilder);
+            handlePinCardRemovalExceptions(methodType, pinCard, authToken, false, callbackBuilder);
         }
     }
 
     /**
      * Tries to authenticate the user that sent the request, creates a {@link PinCard} object based on the request
      * json and then forwards the request with the customerId of the user that sent the request.
+     * @param methodType Method Type
      * @param pinCard A {@link PinCard} that should be removed from the system.
      * @param authToken Cookie of the user that sent the request.
      * @param callbackBuilder Used to send the result of the request back to the request source.
      */
-    private void handlePinCardRemovalExceptions(final PinCard pinCard, final String authToken, final boolean newPin,
-                                                final CallbackBuilder callbackBuilder) {
+    private void handlePinCardRemovalExceptions(final MethodType methodType, final PinCard pinCard,
+            final String authToken, final boolean newPin, final CallbackBuilder callbackBuilder) {
         try {
-            authenticateRequest(authToken);
+            authenticateRequest(authToken, methodType);
             pinCard.setCustomerId(getCustomerId(authToken));
             doPinCardReplacementRequest(jsonConverter.toJson(pinCard), newPin, callbackBuilder);
         } catch (SQLException e) {
