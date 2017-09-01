@@ -1231,19 +1231,19 @@ class AuthenticationService {
     }
 
     @RequestMapping(value = "/savingsAccount", method = RequestMethod.PUT)
-    public void openSavingsAccount(final Callback<String> callback,
-                                   @RequestParam("authToken") final String authToken,
-                                   @RequestParam("iBAN") final String iBAN) {
+    public void openSavingsAccount(final Callback<String> callback, @RequestParam("data") final String data) {
         System.out.printf("%s Received open savings account request.\n", PREFIX);
+        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        handleOpenSavingsAccountExceptions(authToken, iBAN, callbackBuilder);
+        handleOpenSavingsAccountExceptions(messageWrapper, callbackBuilder);
     }
 
-    private void handleOpenSavingsAccountExceptions(final String authToken, final String iBAN,
-                                                    final CallbackBuilder callbackBuilder) {
+    private void handleOpenSavingsAccountExceptions(
+            final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
         try {
-            authenticateRequest(authToken);
-            doOpenSavingsAccountRequest(iBAN, callbackBuilder);
+            authenticateRequest(messageWrapper.getCookie(), messageWrapper.getMethodType());
+            doOpenSavingsAccountRequest((String) messageWrapper.getData(), callbackBuilder);
         } catch (UserNotAuthorizedException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
                     "The user is not authorized to perform this action.")));
@@ -1251,6 +1251,9 @@ class AuthenticationService {
             e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
                     "Error connecting to the authentication database.")));
+        } catch (AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
+                    "The user is not authorized to perform this action.", e.getMessage())));
         }
     }
 
