@@ -1,5 +1,6 @@
 package pin;
 
+import pin.AccountFrozenException;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import database.ConnectionPool;
@@ -143,6 +144,10 @@ class PinService {
     private void handlePinExceptions(final String pinTransactionRequestJson, final CallbackBuilder callbackBuilder) {
         try {
             PinTransaction request = jsonConverter.fromJson(pinTransactionRequestJson, PinTransaction.class);
+            if (checkIfFrozen(request.getSourceAccountNumber(), request.getDestinationAccountNumber())) {
+                throw new AccountFrozenException(
+                        "User has no authorization to do this as long as the account is frozen.");
+            }
             if (request.isATMTransaction()) {
                 getATMTransactionAuthorization(request, callbackBuilder);
             } else if (request.isCreditCardTransaction()) {
@@ -180,7 +185,30 @@ class PinService {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
                     .createMessageWrapper(true, 421, e.getMessage(),
                             "The pin card used has been permanently deactivated.")));
+        } catch (AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.
+                    createMessageWrapper(true, 419,
+                            "The user is not authorized to perform this action.", e.getMessage())));
         }
+    }
+
+    private boolean checkIfFrozen(final String srcAccNr, final String destAccNr)
+            throws SQLException, AccountFrozenException {
+        SQLConnection con = databaseConnectionPool.getConnection();
+        PreparedStatement ps = con.getConnection()
+                .prepareStatement(SQLStatements.getFrozenPinAccounts);
+        ps.setString(1, srcAccNr);
+        ps.setString(2, destAccNr);
+        ResultSet rs = ps.executeQuery();
+
+        boolean res = false;
+        if (rs.next()) {
+            res = true;
+        }
+
+        ps.close();
+        databaseConnectionPool.returnConnection(con);
+        return res;
     }
 
 
