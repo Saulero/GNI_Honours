@@ -828,14 +828,14 @@ class UsersService {
             if (getPrimaryOwner(accountNumber) == requester) {
                 // requester is owner of the account, can revoke access of other customers.
                 if (!customerId.equals(requesterId)) {
-                    removeAccountLink(accountNumber, customerId, callbackBuilder);
+                    removeAccountLink(accountNumber, customerId);
                     sendRemoveAccountLinkCallback(customerId, callbackBuilder);
                 } else {
                     callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "User is the primary owner, access can not be revoked.")));
                 }
             } else {
                 if (customerId.equals(requesterId)) {
-                    removeAccountLink(accountNumber, customerId, callbackBuilder);
+                    removeAccountLink(accountNumber, customerId);
                     sendRemoveAccountLinkCallback(customerId, callbackBuilder);
                 } else {
                     callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.")));
@@ -850,18 +850,15 @@ class UsersService {
         }
     }
 
-    private void removeAccountLink(final String accountNumber, final String customerId, final CallbackBuilder callbackBuilder) {
-        try {
-            SQLConnection databaseConnection = databaseConnectionPool.getConnection();
-            PreparedStatement removeAccountLink = databaseConnection.getConnection().prepareStatement(removeCustomerAccountLink);
-            removeAccountLink.setLong(1, Long.parseLong(customerId));
-            removeAccountLink.setString(2, accountNumber);
-            removeAccountLink.execute();
-            removeAccountLink.close();
-            databaseConnectionPool.returnConnection(databaseConnection);
-        } catch (SQLException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "No account permissions found.")));
-        }
+    private void removeAccountLink(final String accountNumber, final String customerId) throws SQLException {
+        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+        PreparedStatement removeAccountLink;
+        removeAccountLink = databaseConnection.getConnection().prepareStatement(removeCustomerAccountLink);
+        removeAccountLink.setLong(1, Long.parseLong(customerId));
+        removeAccountLink.setString(2, accountNumber);
+        removeAccountLink.executeUpdate();
+        removeAccountLink.close();
+        databaseConnectionPool.returnConnection(databaseConnection);
     }
 
     private void sendRemoveAccountLinkCallback(final String customerId, final CallbackBuilder callbackBuilder) {
@@ -1073,6 +1070,58 @@ class UsersService {
         System.out.printf("%s Account removal successful, sending callback.\n", PREFIX);
         CloseAccountReply reply = new CloseAccountReply(removedCustomer, true, "");
         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", reply)));
+    }
+
+    @RequestMapping(value = "/transferBankAccount", method = RequestMethod.PUT)
+    public void processTransferBankAccountRequest(final Callback<String> callback,
+                                          final @RequestParam("request") String accountLinkRequestJson) {
+        System.out.printf("%s Received bank account transfer request.\n", PREFIX);
+        AccountLink accountLink = jsonConverter.fromJson(accountLinkRequestJson, AccountLink.class);
+        long customerId = accountLink.getCustomerId();
+        String accountNumber = accountLink.getAccountNumber();
+        final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleTransferBankAccountExceptions(accountNumber, customerId, callbackBuilder);
+    }
+
+    private void handleTransferBankAccountExceptions(
+            final String accountNumber, final long customerId, final CallbackBuilder callbackBuilder) {
+        try {
+            Customer customer = getCustomerData(customerId);
+            customer.setAccount(new Account(accountNumber));
+            doTransferBankAccountRequest(customer, callbackBuilder);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to Users database.")));
+        } catch (CustomerDoesNotExistException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "The provided customer does not appear to exist.")));
+        }
+    }
+
+    private void doTransferBankAccountRequest(final Customer customer, final CallbackBuilder callbackBuilder) {
+        ledgerClient.putFormAsyncWith1Param("/services/ledger/transferBankAccount",
+                "customer", jsonConverter.toJson(customer), (httpStatusCode, httpContentType, jsonReply) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(jsonReply), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            try {
+                                removeAccountLink(customer.getAccount().getAccountNumber(), Long.toString(customer.getCustomerId()));
+                                sendTransferBankAccountCallback(callbackBuilder);
+                            } catch (SQLException e) {
+                                System.out.printf("%s Failed to transfer bank account, sending rejection.\n", PREFIX);
+                                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to Users database.")));
+                            }
+                        } else {
+                            callbackBuilder.build().reply(jsonReply);
+                        }
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                    }
+                });
+    }
+
+    private void sendTransferBankAccountCallback(final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Bank Account transfer successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply")));
     }
 
     /**
