@@ -81,6 +81,8 @@ public final class SQLStatements {
     public static final String transferBankAccount = "UPDATE ledger SET name = ? WHERE account_number = ?";
     public static final String revokeBankAccountAccess = "DELETE FROM accounts WHERE user_id = ? AND account_number = ? AND primary_owner = 0";
     public static final String transferBankAccountAccess = "UPDATE accounts SET user_id = ? WHERE account_number = ? AND primary_owner = 1";
+    public static final String getOutgoingTransactions = "SELECT * FROM transactions_out WHERE account_from = ? AND date BETWEEN ? AND ?";
+    public static final String getOutgoingDebitTransactions = "SELECT * FROM transactions_out WHERE date BETWEEN ? AND ? AND ( description LIKE ? OR description LIKE ? );";
 
     // Create statements used for setting up the database
     public final static String createAccountsTable = "CREATE TABLE IF NOT EXISTS `accounts` ( `user_id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL, `primary_owner` BOOLEAN NOT NULL, `frozen` BOOLEAN NOT NULL);";

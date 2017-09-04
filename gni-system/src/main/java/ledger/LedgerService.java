@@ -16,7 +16,6 @@ import databeans.RequestType;
 import io.advantageous.qbit.reactive.CallbackBuilder;
 import util.JSONParser;
 
-import javax.xml.crypto.Data;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.PreparedStatement;
@@ -60,6 +59,10 @@ class LedgerService {
     private static final double TIER_3_INTEREST_RATE = 0.20;
     /** Account number where fees are transferred to. */
     private static final String GNI_ACCOUNT = "NL52GNIB3676451168";
+    /** Indicates how much can be transferred out of a bank account each week.*/
+    private static final Double WEEKLY_SPENDING_LIMIT = 2500.0;
+    /** Indicates how much can be transferred with a debit card over the period of one day.*/
+    private static final Double DAILY_SPENDING_LIMIT = 250.0;
 
     /**
      * Constructor.
@@ -503,23 +506,24 @@ class LedgerService {
         System.out.printf("%s Received outgoing transaction request for customer %s.\n", PREFIX, customerId);
         Gson gson = new Gson();
         boolean customerIsAuthorized = getCustomerAuthorization(transaction.getSourceAccountNumber(), customerId);
-        processOutgoingTransaction(transaction, customerIsAuthorized, override, callbackBuilder);
+        processOutgoingTransaction(messageWrapper, customerIsAuthorized, override, callbackBuilder);
     }
 
     /**
      * Processes an outgoing transaction.
      * Checks if the account making the transaction is allowed to do this. (has a high enough overdraft limit)
-     * @param transaction Object representing a Transaction request.
+     * @param messageWrapper Contains the transaction request to be executed.
      * @param customerIsAuthorized boolean to signify if the outgoing transaction is allowed
      */
-    void processOutgoingTransaction(final Transaction transaction, final boolean customerIsAuthorized,
+    void processOutgoingTransaction(final MessageWrapper messageWrapper, final boolean customerIsAuthorized,
                                     final boolean override, final CallbackBuilder callbackBuilder) {
+        Transaction transaction = (Transaction) messageWrapper.getData();
         systemInformationClient.getAsync("/services/systemInfo/date", (code, contentType, body) -> {
             if (code == HTTP_OK) {
-                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
-                if (!messageWrapper.isError()) {
+                MessageWrapper responseWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                if (!responseWrapper.isError()) {
 
-                    LocalDate date = (LocalDate) messageWrapper.getData();
+                    LocalDate date = (LocalDate) responseWrapper.getData();
                     Account account;
                     String sourceAccountNumber = transaction.getSourceAccountNumber();
                     if (sourceAccountNumber.endsWith("S")) {
@@ -529,7 +533,8 @@ class LedgerService {
                     }
                     if (account != null
                             && (account.withdrawTransactionIsAllowed(transaction) || override)
-                            && (customerIsAuthorized || override)) {
+                            && (customerIsAuthorized || override)
+                            && (spendingLimitNotExceeded(messageWrapper, date) || override)) {
                         // Update the object
                         account.processWithdraw(transaction);
 
@@ -561,6 +566,79 @@ class LedgerService {
                         "There was a problem with one of the HTTP requests")));
             }
         });
+    }
+
+    private boolean spendingLimitNotExceeded(final MessageWrapper messageWrapper, final LocalDate currentDate) {
+        Transaction transaction = (Transaction) messageWrapper.getData();
+        Double weeklyAmountSpent = getAmountSpent(currentDate, 6L, transaction.getSourceAccountNumber());
+        boolean weeklyAllowed = weeklyAmountSpent < WEEKLY_SPENDING_LIMIT && weeklyAmountSpent > 0;
+        if (messageWrapper.getMethodType().equals(MethodType.PAY_FROM_ACCOUNT)) {
+            String cardNumber = getCardNumberFromDescription(transaction.getDescription());
+            if (cardNumber != null) {
+                Double debitAmountSpent = getDebitAmountSpent(currentDate, 0L, cardNumber);
+                boolean debitAllowed = debitAmountSpent > 0 && debitAmountSpent < DAILY_SPENDING_LIMIT;
+                return weeklyAllowed && debitAllowed;
+            } else {
+                System.out.printf("%s CardNumber could not be retrieved from description.", PREFIX);
+                return false;
+            }
+        } else {
+            return weeklyAllowed;
+        }
+    }
+
+    private Double getAmountSpent(final LocalDate currentDay, final Long limitDays, final String accountNumber) {
+        LocalDate startDay = currentDay.minusDays(limitDays);
+        try {
+            Double moneySpent = 0.0;
+            SQLConnection connection = db.getConnection();
+            PreparedStatement findOutgoingTransactions = connection.getConnection().prepareStatement(getOutgoingTransactions);
+            findOutgoingTransactions.setString(1, accountNumber);
+            findOutgoingTransactions.setDate(2, java.sql.Date.valueOf(startDay));
+            findOutgoingTransactions.setDate(3, java.sql.Date.valueOf(currentDay));
+            ResultSet transactionsDuringPeriod = findOutgoingTransactions.executeQuery();
+            while (transactionsDuringPeriod.next()) {
+                moneySpent += transactionsDuringPeriod.getDouble("amount");
+            }
+            findOutgoingTransactions.close();
+            db.returnConnection(connection);
+            return moneySpent;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return -1.0;
+        }
+    }
+
+    private Double getDebitAmountSpent(final LocalDate currentDay, final Long limitDays, final String cardNumber) {
+        LocalDate startDay = currentDay.minusDays(limitDays);
+        try {
+            Double moneySpent = 0.0;
+            SQLConnection connection = db.getConnection();
+            PreparedStatement findOutgoingTransactions = connection.getConnection()
+                                                                    .prepareStatement(getOutgoingDebitTransactions);
+            findOutgoingTransactions.setDate(1, java.sql.Date.valueOf(startDay));
+            findOutgoingTransactions.setDate(2, java.sql.Date.valueOf(currentDay));
+            findOutgoingTransactions.setString(3, "PIN Transaction card #" + cardNumber);
+            findOutgoingTransactions.setString(4, "ATM withdrawal card #" + cardNumber);
+            ResultSet transactionsDuringPeriod = findOutgoingTransactions.executeQuery();
+            while (transactionsDuringPeriod.next()) {
+                moneySpent += transactionsDuringPeriod.getDouble("amount");
+            }
+            findOutgoingTransactions.close();
+            db.returnConnection(connection);
+            return moneySpent;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return -1.0;
+        }
+    }
+
+    private String getCardNumberFromDescription(final String description) {
+        if (description.contains("#")) {
+            return description.substring(description.indexOf("#") + 1);
+        } else {
+            return null;
+        }
     }
 
 
