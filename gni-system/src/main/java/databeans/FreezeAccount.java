@@ -16,7 +16,7 @@ public class FreezeAccount implements Serializable {
         this.username = username;
     }
 
-    public boolean isFreeze() {
+    public boolean getFreeze() {
         return freeze;
     }
 

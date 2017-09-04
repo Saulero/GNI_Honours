@@ -1634,7 +1634,8 @@ class AuthenticationService {
         // do Auth DB update
         SQLConnection con = databaseConnectionPool.getConnection();
         PreparedStatement ps = con.getConnection().prepareStatement(setFreezeStatusAuth);
-        ps.setString(1, freezeAccount.getUsername());
+        ps.setBoolean(1, freezeAccount.getFreeze());
+        ps.setLong(2, freezeAccount.getCustomerId());
         ps.executeUpdate();
         ps.close();
         databaseConnectionPool.returnConnection(con);
