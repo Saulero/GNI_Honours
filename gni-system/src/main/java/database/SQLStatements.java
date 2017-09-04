@@ -148,6 +148,9 @@ public final class SQLStatements {
     public final static String grantOpenSavingsAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_SAVING_ACCOUNT.getId() + ");";
     public final static String grantCloseSavingsAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.CLOSE_SAVINGS_ACCOUNT.getId() + ");";
     public final static String grantInvalidateCard = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.INVALIDATE_CARD.getId() + ");";
+    public final static String grantRequestCreditCard = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.REQUEST_CREDIT_CARD.getId() + ");";
+    public final static String grantSetFreezeUserAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.SET_FREEZE_USER_ACCOUNT.getId() + ");";
+    public final static String grantTransferBankAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.TRANSFER_BANK_ACCOUNT.getId() + ");";
 
     // Query method
     public static final String getAdminPermissions = "SELECT permission_id FROM admin WHERE user_id = ?";

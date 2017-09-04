@@ -511,6 +511,7 @@ public class BasicHappyFlowTestSuite {
 
         System.out.println("-- Simulate the passing of one day so the credit card becomes active. --");
         request = SimulateTimeMethod.createRequest(admin, 1);
+        System.out.println(request);
         response = client.processRequest(request);
 
         if((parsedResponse = checkResponse(response)) != null){
@@ -544,6 +545,7 @@ public class BasicHappyFlowTestSuite {
 
         System.out.println("-- 1 month passes.. --");
         request = SimulateTimeMethod.createRequest(admin, 31);
+        System.out.println(request);
         response = client.processRequest(request);
 
         if((parsedResponse = checkResponse(response)) != null){
