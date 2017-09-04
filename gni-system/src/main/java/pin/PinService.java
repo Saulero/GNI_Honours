@@ -196,10 +196,9 @@ class PinService {
         }
     }
 
-    private boolean checkIfFrozen(final String accNr) throws SQLException, AccountFrozenException {
+    private boolean checkIfFrozen(final String accNr) throws SQLException {
         SQLConnection con = databaseConnectionPool.getConnection();
-        PreparedStatement ps = con.getConnection()
-                .prepareStatement(SQLStatements.getFrozenPinAccounts);
+        PreparedStatement ps = con.getConnection().prepareStatement(SQLStatements.getFrozenPinAccounts);
         ps.setString(1, accNr);
         ResultSet rs = ps.executeQuery();
 
@@ -1607,7 +1606,7 @@ class PinService {
     @RequestMapping(value = "/setFreezeUserAccount", method = RequestMethod.PUT)
     public void processSetFreezeUserAccountRequest(
             final Callback<String> callback, @RequestParam("request") final String dataJson) {
-        System.out.printf("%s Received refill credit cards request, refilling..\n", PREFIX);
+        System.out.printf("%s Received setFreezeUserAccount request.\n", PREFIX);
         FreezeAccount freezeAccount = jsonConverter.fromJson(dataJson, FreezeAccount.class);
 
         try {
@@ -1615,8 +1614,9 @@ class PinService {
             callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
                     false, 200, "Normal Reply")));
         } catch (SQLException e) {
+            e.printStackTrace();
             callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
-                    "Error connecting to the Pin database.")));
+                    "Error connecting to the Pin database.1")));
         }
     }
 

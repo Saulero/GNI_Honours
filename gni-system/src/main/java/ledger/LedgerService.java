@@ -523,8 +523,9 @@ class LedgerService {
                     } else {
                         account = getAccountInfo(sourceAccountNumber);
                     }
-                    if (account != null && (account.withdrawTransactionIsAllowed(transaction) || override)
-                            && customerIsAuthorized) {
+                    if (account != null
+                            && (account.withdrawTransactionIsAllowed(transaction) || override)
+                            && (customerIsAuthorized || override)) {
                         // Update the object
                         account.processWithdraw(transaction);
 

@@ -23,10 +23,11 @@ public final class SQLStatements {
     public static final String getHighestOutgoingTransactionID = "SELECT MAX(id) FROM transactions_out";
     public static final String getNextAccountID = "SELECT MAX(id) FROM ledger";
     public static final String createNewUser = "INSERT INTO users (id, initials, firstname, lastname, email, telephone_number, address, date_of_birth, social_security_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-    public static final String addAccountToUser = "INSERT INTO accounts (user_id, account_number, primary_owner) VALUES (?, ?, ?)";
+    public static final String addAccountToUser = "INSERT INTO accounts (user_id, account_number, primary_owner, frozen) VALUES (?, ?, ?, ?)";
     public static final String getUserInformation = "SELECT * FROM users WHERE id = ?";
     public static final String getAccountNumbers = "SELECT * FROM accounts where user_id = ?";
     public static final String getPrimaryAccountNumbersCount = "SELECT count(*) FROM accounts WHERE user_id = ? AND primary_owner = true";
+    public static final String checkIfFrozen = "SELECT count(*) FROM accounts WHERE account_number = ? AND frozen = 1";
     public static final String getAccountNumberCount = "SELECT count(*) FROM ledger WHERE account_number = ?";
     public static final String getUserCount = "SELECT count(*) FROM users WHERE id = ?";
     public static final String getAuthenticationData1 = "SELECT * FROM authentication WHERE username = ?";
@@ -45,7 +46,8 @@ public final class SQLStatements {
     public static final String deactivatePinCard = "UPDATE pin SET active = false WHERE account_number = ? AND user_id = ? AND card_number = ?";
     public static final String unblockPinCard = "UPDATE pin SET incorrect_attempts = 0 WHERE card_number = ?";
     public static final String setFreezeStatusPin = "UPDATE pin SET frozen = ? WHERE user_id = ?";
-    public static final String setFreezeStatusAuth = "UPDATE pin SET frozen = ? WHERE user_id = ?";
+    public static final String setFreezeStatusAuth = "UPDATE authentication SET frozen = ? WHERE user_id = ?";
+    public static final String setFreezeStatusUsers = "UPDATE accounts SET frozen = ? WHERE user_id = ? AND primary_owner = 1";
     public static final String incrementIncorrectPinCardAttempts = "UPDATE pin SET incorrect_attempts = incorrect_attempts + 1 WHERE card_number = ?";
     public static final String incrementIncorrectCreditCardAttempts = "UPDATE credit_cards SET incorrect_attempts = incorrect_attempts + 1 WHERE card_number = ?";
     public static final String removeAccountCards = "DELETE FROM pin WHERE account_number = ?";
@@ -77,10 +79,11 @@ public final class SQLStatements {
     public static final String unblockCreditCard = "UPDATE credit_cards SET incorrect_attempts = 0 WHERE card_number = ?";
     public static final String getCreditCardsWithCredit = "SELECT * FROM credit_cards WHERE NOT credit_limit <=> balance;";
     public static final String transferBankAccount = "UPDATE ledger SET name = ? WHERE account_number = ?";
-    public static final String transferBankAccountAccess = "DELETE FROM accounts WHERE user_id = ? AND account_number = ? AND primary_owner = 0; UPDATE accounts SET user_id = ? WHERE account_number = ? AND primary_owner = 1";
+    public static final String revokeBankAccountAccess = "DELETE FROM accounts WHERE user_id = ? AND account_number = ? AND primary_owner = 0";
+    public static final String transferBankAccountAccess = "UPDATE accounts SET user_id = ? WHERE account_number = ? AND primary_owner = 1";
 
     // Create statements used for setting up the database
-    public final static String createAccountsTable = "CREATE TABLE IF NOT EXISTS `accounts` ( `user_id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL, `primary_owner` BOOLEAN NOT NULL);";
+    public final static String createAccountsTable = "CREATE TABLE IF NOT EXISTS `accounts` ( `user_id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL, `primary_owner` BOOLEAN NOT NULL, `frozen` BOOLEAN NOT NULL);";
     public final static String dropAccountsTable = "DROP TABLE IF EXISTS `accounts`;";
     public final static String createLedgerTable = "CREATE TABLE IF NOT EXISTS `ledger` ( `id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL, `name` TEXT NOT NULL, `overdraft_limit` DOUBLE NOT NULL, `balance` DOUBLE NOT NULL, `savings_active` BOOLEAN NOT NULL, `savings_balance` DOUBLE NOT NULL, PRIMARY KEY (id));";
     public final static String dropLedgerTable = "DROP TABLE IF EXISTS `ledger`;";

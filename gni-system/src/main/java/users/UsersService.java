@@ -1,5 +1,6 @@
 package users;
 
+import api.methods.TransferBankAccount;
 import com.google.gson.Gson;
 import database.ConnectionPool;
 import database.SQLConnection;
@@ -440,6 +441,24 @@ class UsersService {
      */
     private void doTransactionRequest(final Transaction transactionRequest, final String customerId,
                                       final CallbackBuilder callbackBuilder) {
+        try {
+            if (checkIfFrozen(transactionRequest.getSourceAccountNumber())) {
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.
+                        createMessageWrapper(true, 419,
+                                "The user is not authorized to perform this action.", "User has no authorization to do this as long as the account is frozen.")));
+                return;
+            }
+            if (checkIfFrozen(transactionRequest.getDestinationAccountNumber())) {
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.
+                        createMessageWrapper(true, 419,
+                                "The user is not authorized to perform this action.", "The provided destination account has been frozen and can't receive transactions.")));
+                return;
+            }
+        } catch (SQLException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to Users database.")));
+            return;
+        }
+
         transactionDispatchClient.putFormAsyncWith3Params("/services/transactionDispatch/transaction",
                                                         "request", jsonConverter.toJson(transactionRequest),
                                                         "customerId", customerId,
@@ -456,6 +475,49 @@ class UsersService {
                 callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
         });
+    }
+
+    private boolean checkIfFrozen(final String accountNumber) throws SQLException {
+        SQLConnection con = databaseConnectionPool.getConnection();
+        PreparedStatement ps = con.getConnection().prepareStatement(checkIfFrozen);
+        ps.setString(1, accountNumber);
+        ResultSet rs = ps.executeQuery();
+        boolean res = true;
+        if (rs.next()) {
+            int accountCount = rs.getInt(1);
+            if (accountCount == 0) {
+                res = false;
+            }
+        }
+        ps.close();
+        databaseConnectionPool.returnConnection(con);
+        return res;
+    }
+
+    @RequestMapping(value = "/setFreezeUserAccount", method = RequestMethod.PUT)
+    public void processSetFreezeUserAccountRequest(
+            final Callback<String> callback, @RequestParam("request") final String dataJson) {
+        System.out.printf("%s Received setFreezeUserAccount request.\n", PREFIX);
+        FreezeAccount freezeAccount = jsonConverter.fromJson(dataJson, FreezeAccount.class);
+
+        try {
+            setFreezeUserAccount(freezeAccount);
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    false, 200, "Normal Reply")));
+        } catch (SQLException e) {
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to the Pin database.")));
+        }
+    }
+
+    private void setFreezeUserAccount(final FreezeAccount freezeAccount) throws SQLException {
+        SQLConnection con = databaseConnectionPool.getConnection();
+        PreparedStatement ps = con.getConnection().prepareStatement(setFreezeStatusUsers);
+        ps.setLong(2, freezeAccount.getCustomerId());
+        ps.setBoolean(1, freezeAccount.getFreeze());
+        ps.executeUpdate();
+        ps.close();
+        databaseConnectionPool.returnConnection(con);
     }
 
     /**
@@ -652,6 +714,7 @@ class UsersService {
             linkAccountToCustomer.setLong(1, customerId);
             linkAccountToCustomer.setString(2, accountNumber);
             linkAccountToCustomer.setBoolean(3, primary);
+            linkAccountToCustomer.setBoolean(4, false);
             linkAccountToCustomer.executeUpdate();
             linkAccountToCustomer.close();
             databaseConnectionPool.returnConnection(databaseConnection);
@@ -1121,14 +1184,18 @@ class UsersService {
 
     private void transferAccountAccess(final String accountNumber, final long customerId) throws SQLException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
-        PreparedStatement removeAccountLink;
-        removeAccountLink = databaseConnection.getConnection().prepareStatement(transferBankAccountAccess);
-        removeAccountLink.setLong(1, customerId);
-        removeAccountLink.setString(2, accountNumber);
-        removeAccountLink.setLong(3, customerId);
-        removeAccountLink.setString(4, accountNumber);
-        removeAccountLink.executeUpdate();
-        removeAccountLink.close();
+        PreparedStatement ps1;
+        PreparedStatement ps2;
+        ps1 = databaseConnection.getConnection().prepareStatement(revokeBankAccountAccess);
+        ps2 = databaseConnection.getConnection().prepareStatement(transferBankAccountAccess);
+        ps1.setLong(1, customerId);
+        ps1.setString(2, accountNumber);
+        ps2.setLong(1, customerId);
+        ps2.setString(2, accountNumber);
+        ps1.executeUpdate();
+        ps2.executeUpdate();
+        ps1.close();
+        ps2.close();
         databaseConnectionPool.returnConnection(databaseConnection);
     }
 

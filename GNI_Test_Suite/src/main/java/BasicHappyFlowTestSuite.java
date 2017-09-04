@@ -511,7 +511,6 @@ public class BasicHappyFlowTestSuite {
 
         System.out.println("-- Simulate the passing of one day so the credit card becomes active. --");
         request = SimulateTimeMethod.createRequest(admin, 1);
-        System.out.println(request);
         response = client.processRequest(request);
 
         if((parsedResponse = checkResponse(response)) != null){
@@ -545,7 +544,6 @@ public class BasicHappyFlowTestSuite {
 
         System.out.println("-- 1 month passes.. --");
         request = SimulateTimeMethod.createRequest(admin, 31);
-        System.out.println(request);
         response = client.processRequest(request);
 
         if((parsedResponse = checkResponse(response)) != null){
@@ -672,6 +670,121 @@ public class BasicHappyFlowTestSuite {
 
         if((parsedResponse = checkResponse(response)) != null){
             card5 = RequestCreditCardMethod.parseResponse(parsedResponse, bankAccount1, customer1);
+        }
+
+        // Admin 2 extension
+        // transferBankAccount
+        System.out.println("-- TransferBankAccount. Donald's account is transferred to Daisy. --");
+        request = TransferBankAccountMethod.createRequest(admin, bankAccount1, customer2);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            TransferBankAccountMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Donald tries to buy hot dogs. Should fail. --");
+        request = PayFromAccountMethod.createRequest(bankAccount1, bankAccount3, card1, 1);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            PayFromAccountMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Donald tries to get his transactions. Should fail. --");
+        request = GetTransactionsMethod.createRequest(customer1, bankAccount1, 25);
+        response = client.processRequest(request);
+
+        if((namedArrayResults = checkArrayResponse(response)) != null){
+            GetTransactionsMethod.parseResponse(namedArrayResults);
+        }
+
+        System.out.println("-- TransferBankAccount. Donald's account is transferred back to himself. --");
+        request = TransferBankAccountMethod.createRequest(admin, bankAccount1, customer1);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            TransferBankAccountMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Donald tries to buy hot dogs. Should work. --");
+        request = PayFromAccountMethod.createRequest(bankAccount1, bankAccount3, card1, 1);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            PayFromAccountMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Donald tries to get his transactions. Should work. --");
+        request = GetTransactionsMethod.createRequest(customer1, bankAccount1, 25);
+        response = client.processRequest(request);
+
+        if((namedArrayResults = checkArrayResponse(response)) != null){
+            GetTransactionsMethod.parseResponse(namedArrayResults);
+        }
+
+        // setFreezeUserAccount
+        System.out.println("-- SetFreezeUserAccount. Donald's account is frozen. --");
+        request = SetFreezeUserAccountMethod.createRequest(admin, true, customer1);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            SetFreezeUserAccountMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Donald tries to buy hot dogs. Should fail. --");
+        request = PayFromAccountMethod.createRequest(bankAccount1, bankAccount3, card1, 1);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            PayFromAccountMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Daisy sends money to Donald. Should fail. --");
+        request = TransferMoneyMethod.createRequest(bankAccount3, bankAccount1, customer2, (1), "Moniez");
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            TransferMoneyMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Donald tries to get his transactions. Should work. --");
+        request = GetTransactionsMethod.createRequest(customer1, bankAccount1, 25);
+        response = client.processRequest(request);
+
+        if((namedArrayResults = checkArrayResponse(response)) != null){
+            GetTransactionsMethod.parseResponse(namedArrayResults);
+        }
+
+        System.out.println("-- SetFreezeUserAccount. Donald's account is unfrozen. --");
+        request = SetFreezeUserAccountMethod.createRequest(admin, false, customer1);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            SetFreezeUserAccountMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Donald tries to buy hot dogs. Should work. --");
+        request = PayFromAccountMethod.createRequest(bankAccount1, bankAccount3, card1, 1);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            PayFromAccountMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Daisy sends money to Donald. Should work. --");
+        request = TransferMoneyMethod.createRequest(bankAccount3, bankAccount1, customer2, (1), "Moniez");
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            TransferMoneyMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Donald tries to get his transactions. Should work. --");
+        request = GetTransactionsMethod.createRequest(customer1, bankAccount1, 25);
+        response = client.processRequest(request);
+
+        if((namedArrayResults = checkArrayResponse(response)) != null){
+            GetTransactionsMethod.parseResponse(namedArrayResults);
         }
 
         ///------ TEAR DOWN TESTS.

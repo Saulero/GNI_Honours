@@ -1641,7 +1641,28 @@ class AuthenticationService {
         databaseConnectionPool.returnConnection(con);
 
         // send Pin DB update request
+        sendFreezeUserAccountPin(freezeAccount, callbackBuilder);
+    }
+
+    private void sendFreezeUserAccountPin(final FreezeAccount freezeAccount, final CallbackBuilder callbackBuilder) {
         pinClient.putFormAsyncWith1Param("/services/pin/setFreezeUserAccount", "request",
+                jsonConverter.toJson(freezeAccount), (httpStatusCode, httpContentType, removalReplyJson) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(removalReplyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            // send Users DB update request
+                            sendFreezeUserAccountUsers(freezeAccount, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(removalReplyJson);
+                        }
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                    }
+                });
+    }
+
+    private void sendFreezeUserAccountUsers(final FreezeAccount freezeAccount, final CallbackBuilder callbackBuilder) {
+        usersClient.putFormAsyncWith1Param("/services/users/setFreezeUserAccount", "request",
                 jsonConverter.toJson(freezeAccount), (httpStatusCode, httpContentType, removalReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(removalReplyJson), MessageWrapper.class);

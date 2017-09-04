@@ -22,7 +22,7 @@ public class SetFreezeUserAccount {
     public static void setFreezeUserAccount(final Map<String, Object> params, final ApiBean api) {
         String cookie = (String) params.get("authToken");
         String username = (String) params.get("username");
-        boolean freeze = Boolean.parseBoolean((String) params.get("freeze"));
+        boolean freeze = (boolean) params.get("freeze");
         MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
         data.setCookie(cookie);
         data.setMethodType(MethodType.SET_FREEZE_USER_ACCOUNT);
