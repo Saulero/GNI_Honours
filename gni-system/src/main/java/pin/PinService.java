@@ -143,10 +143,15 @@ class PinService {
     private void handlePinExceptions(final String pinTransactionRequestJson, final CallbackBuilder callbackBuilder) {
         try {
             PinTransaction request = jsonConverter.fromJson(pinTransactionRequestJson, PinTransaction.class);
-            if (checkIfFrozen(request.getSourceAccountNumber(), request.getDestinationAccountNumber())) {
+            if (checkIfFrozen(request.getSourceAccountNumber())) {
                 throw new AccountFrozenException(
                         "User has no authorization to do this as long as the account is frozen.");
             }
+            if (checkIfFrozen(request.getDestinationAccountNumber())) {
+                throw new AccountFrozenException(
+                        "The provided destination account has been frozen and can't receive transactions.");
+            }
+
             if (request.isATMTransaction()) {
                 getATMTransactionAuthorization(request, callbackBuilder);
             } else if (request.isCreditCardTransaction()) {
@@ -191,13 +196,11 @@ class PinService {
         }
     }
 
-    private boolean checkIfFrozen(final String srcAccNr, final String destAccNr)
-            throws SQLException, AccountFrozenException {
+    private boolean checkIfFrozen(final String accNr) throws SQLException, AccountFrozenException {
         SQLConnection con = databaseConnectionPool.getConnection();
         PreparedStatement ps = con.getConnection()
                 .prepareStatement(SQLStatements.getFrozenPinAccounts);
-        ps.setString(1, srcAccNr);
-        ps.setString(2, destAccNr);
+        ps.setString(1, accNr);
         ResultSet rs = ps.executeQuery();
 
         boolean res = false;

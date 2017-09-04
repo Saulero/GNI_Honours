@@ -41,7 +41,7 @@ public final class SQLStatements {
     public static final String addPinCard = "INSERT INTO pin (account_number, user_id, card_number, pin_code, expiration_date, incorrect_attempts, active, frozen) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
     public static final String getCustomerIdFromCardNumber = "SELECT user_id FROM pin WHERE card_number = ?";
     public static final String getPinCard = "SELECT * FROM pin WHERE card_number = ?";
-    public static final String getFrozenPinAccounts = "SELECT * FROM pin WHERE (account_number = ? OR account_number = ?) AND frozen = 1";
+    public static final String getFrozenPinAccounts = "SELECT * FROM pin WHERE account_number = ? AND frozen = 1";
     public static final String deactivatePinCard = "UPDATE pin SET active = false WHERE account_number = ? AND user_id = ? AND card_number = ?";
     public static final String unblockPinCard = "UPDATE pin SET incorrect_attempts = 0 WHERE card_number = ?";
     public static final String setFreezeStatusPin = "UPDATE pin SET frozen = ? WHERE user_id = ?";
