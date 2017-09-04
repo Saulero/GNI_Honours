@@ -1478,7 +1478,7 @@ class LedgerService {
 
     @RequestMapping(value = "/transferBankAccount", method = RequestMethod.PUT)
     public void processTransferBankAccountRequest(final Callback<String> callback,
-                                                  final @RequestParam("request") String data) {
+                                                  final @RequestParam("customer") String data) {
         System.out.printf("%s Received bank account transfer request.\n", PREFIX);
         Customer customer = jsonConverter.fromJson(data, Customer.class);
         final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
