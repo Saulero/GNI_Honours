@@ -1351,7 +1351,7 @@ class LedgerService {
     }
 
     /**
-     * Sends a callback for the open savings account request indicating the request was successfull.
+     * Sends a callback for the open savings account request indicating the request was successful.
      * @param callbackBuilder Used to send the response to the request source.
      */
     private void sendOpenSavingsAccountCallback(final CallbackBuilder callbackBuilder) {
@@ -1467,7 +1467,7 @@ class LedgerService {
     }
 
     /**
-     * Sends a successfull callback for a close savings account request.
+     * Sends a successful callback for a close savings account request.
      * @param callbackBuilder Used to send a reply to the request source.
      */
     private void sendCloseSavingsAccountCallback(final CallbackBuilder callbackBuilder) {

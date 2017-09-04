@@ -1489,7 +1489,7 @@ class PinService {
                         }
                     }
                 } else {
-                    System.out.printf("%s Credit card refill unsuccessfull, sending rejection.\n", PREFIX);
+                    System.out.printf("%s Credit card refill unsuccessful, sending rejection.\n", PREFIX);
                     callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
                             "Unknown error occurred, possibly not enough funds to refill the credit card.")));
                 }
@@ -1521,7 +1521,7 @@ class PinService {
                                 "Unknown error occurred.")));
                     }
                 } else {
-                    System.out.printf("%s Credit card refill unsuccessfull, sending rejection.\n", PREFIX);
+                    System.out.printf("%s Credit card refill unsuccessful, sending rejection.\n", PREFIX);
                     callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
                             "Unknown error occurred, possibly not enough funds to refill the credit card.")));
                 }
@@ -1561,7 +1561,7 @@ class PinService {
     }
 
     private void sendCreditCardBalanceCallback(final Double creditCardBalance, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Credit card balance request successfull, sending callback.\n", PREFIX);
+        System.out.printf("%s Credit card balance request successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
                 false, 200, "Normal Reply", creditCardBalance)));
     }
