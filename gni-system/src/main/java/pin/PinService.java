@@ -1608,7 +1608,7 @@ class PinService {
     public void processSetFreezeUserAccountRequest(
             final Callback<String> callback, @RequestParam("request") final String dataJson) {
         System.out.printf("%s Received refill credit cards request, refilling..\n", PREFIX);
-        FreezeAccount freezeAccount = (FreezeAccount) jsonConverter.fromJson(dataJson, FreezeAccount.class);
+        FreezeAccount freezeAccount = jsonConverter.fromJson(dataJson, FreezeAccount.class);
 
         try {
             setFreezeUserAccount(freezeAccount);
@@ -1622,7 +1622,7 @@ class PinService {
 
     private void setFreezeUserAccount(final FreezeAccount freezeAccount) throws SQLException {
         SQLConnection con = databaseConnectionPool.getConnection();
-        PreparedStatement ps = con.getConnection().prepareStatement(setFreezeStatusAuth);
+        PreparedStatement ps = con.getConnection().prepareStatement(setFreezeStatusPin);
         ps.setBoolean(1, freezeAccount.getFreeze());
         ps.setLong(2, freezeAccount.getCustomerId());
         ps.executeUpdate();
