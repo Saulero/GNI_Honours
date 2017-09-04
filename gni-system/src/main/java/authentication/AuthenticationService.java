@@ -1655,6 +1655,53 @@ class AuthenticationService {
                 });
     }
 
+    @RequestMapping(value = "/transferBankAccount", method = RequestMethod.PUT)
+    public void processTransferBankAccountRequest(final Callback<String> callback, @RequestParam("data") final String data) {
+        System.out.printf("%s Forwarding TransferBankAccount request.\n", PREFIX);
+        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleTransferBankAccountExceptions(messageWrapper, callbackBuilder);
+    }
+
+    private void handleTransferBankAccountExceptions(final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
+        try {
+            authenticateRequest(messageWrapper.getCookie(), messageWrapper.getMethodType());
+            if (!isAdmin(messageWrapper.getMethodType(), messageWrapper.getCookie())) {
+                throw new UserNotAuthorizedException("Admin rights are required for this action.");
+            }
+            AccountLink accountLink = (AccountLink) messageWrapper.getData();
+            accountLink.setCustomerId(getCustomerIdFromUsername(accountLink.getUsername()));
+            sendTransferBankAccountRequest(accountLink, callbackBuilder);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
+        } catch (UserNotAuthorizedException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
+        } catch (CustomerDoesNotExistException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "User with username does not appear to exist.")));
+        } catch (AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
+        }
+    }
+
+    private void sendTransferBankAccountRequest(final AccountLink accountLink, final CallbackBuilder callbackBuilder) {
+        usersClient.putFormAsyncWith1Param("/services/users/transferBankAccount", "request",
+                jsonConverter.toJson(accountLink), (httpStatusCode, httpContentType, data) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            System.out.printf("%s Forwarding TransferBankAccount reply.\n", PREFIX);
+                        }
+                        callbackBuilder.build().reply(data);
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                    }
+                });
+    }
+
     /**
      * Safely shuts down the AuthenticationService.
      */
