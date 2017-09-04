@@ -88,31 +88,33 @@ class TransactionReceiveService {
      * Processes transactions that come from external banks by checking if the destination is a GNIB accountNumber
      * and then executing the transaction. Reports the result back to the request source.
      * @param callback Used to send a reply back to the external bank.
-     * @param transactionRequestJson Json String representing an incoming transaction.
+     * @param requestWrapper MessageWrapper containing the transaction to be executed.
      */
     //TODO might need reworking when it is clear how external transactions will be sent
     @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
     public void processIncomingTransaction(final Callback<String> callback,
-                                           final @RequestParam("request") String transactionRequestJson) {
+                                           final @RequestParam("request") String requestWrapper) {
+        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(requestWrapper),
+                MessageWrapper.class);
         System.out.printf("%s Received incoming transaction request.\n", PREFIX);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        doIncomingTransactionRequest(transactionRequestJson, callbackBuilder);
+        doIncomingTransactionRequest(messageWrapper, callbackBuilder);
     }
 
     /**
      * Sends a transaction request to the LedgerService for executing and then processes the reply
      * and reports the result back to the request source.
-     * @param transactionRequestJson JSON String representing the transaction that needs to be sent
+     * @param messageWrapper MessageWrapper containing the transaction to be executed.
      * @param callbackBuilder Used to send the result back to the bank that requested the transaction.
      */
-    private void doIncomingTransactionRequest(final String transactionRequestJson,
+    private void doIncomingTransactionRequest(final MessageWrapper messageWrapper,
                                               final CallbackBuilder callbackBuilder) {
         ledgerClient.putFormAsyncWith1Param("/services/ledger/transaction/in", "request",
-                transactionRequestJson, (httpStatusCode, httpContentType, transactionReplyJson) -> {
+                jsonConverter.toJson(messageWrapper), (httpStatusCode, httpContentType, transactionReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson), MessageWrapper.class);
-                        if (!messageWrapper.isError()) {
-                            processIncomingTransactionReply((Transaction) messageWrapper.getData(), transactionReplyJson, callbackBuilder);
+                        MessageWrapper responseWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson), MessageWrapper.class);
+                        if (!responseWrapper.isError()) {
+                            processIncomingTransactionReply((Transaction) responseWrapper.getData(), transactionReplyJson, callbackBuilder);
                         } else {
                             callbackBuilder.build().reply(transactionReplyJson);
                         }

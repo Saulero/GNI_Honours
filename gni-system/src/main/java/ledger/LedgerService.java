@@ -414,15 +414,17 @@ class LedgerService {
     /**
      * Receives a request to process an incoming transaction.
      * @param callback Used to send a reply to the request source.
-     * @param body JSON String representing a Transaction
+     * @param requestWrapper JSON String representing a messageWrapper containing the transaction to be executed.
      */
     @RequestMapping(value = "/transaction/in", method = RequestMethod.PUT)
     public void incomingTransactionListener(final Callback<String> callback,
-                                            final @RequestParam("request") String body) {
+                                            final @RequestParam("request") String requestWrapper) {
+        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(requestWrapper),
+                MessageWrapper.class);
+        Transaction transaction = (Transaction) messageWrapper.getData();
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         System.out.printf("%s Received an incoming transaction request.\n", PREFIX);
         Gson gson = new Gson();
-        Transaction transaction = gson.fromJson(body, Transaction.class);
         processIncomingTransaction(transaction, callbackBuilder);
     }
 
@@ -486,18 +488,20 @@ class LedgerService {
     /**
      * Receives a request to process an outgoing transaction.
      * @param callback Used to send a reply to the request source.
-     * @param requestJson JSON String representing a Transaction
+     * @param requestWrapper JSON String representing a messageWrapper containing the transaction to be executed.
      * @param customerId ID of the customer makin the request, for authorization purposes
      */
     @RequestMapping(value = "/transaction/out", method = RequestMethod.PUT)
     public void outgoingTransactionListener(final Callback<String> callback,
-                                            @RequestParam("request") final String requestJson,
+                                            @RequestParam("request") final String requestWrapper,
                                             @RequestParam("customerId") final String customerId,
                                             @RequestParam("override") final Boolean override) {
+        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(requestWrapper),
+                MessageWrapper.class);
+        Transaction transaction = (Transaction) messageWrapper.getData();
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         System.out.printf("%s Received outgoing transaction request for customer %s.\n", PREFIX, customerId);
         Gson gson = new Gson();
-        Transaction transaction = gson.fromJson(requestJson, Transaction.class);
         boolean customerIsAuthorized = getCustomerAuthorization(transaction.getSourceAccountNumber(), customerId);
         processOutgoingTransaction(transaction, customerIsAuthorized, override, callbackBuilder);
     }

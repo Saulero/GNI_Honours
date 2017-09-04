@@ -89,39 +89,42 @@ class TransactionDispatchService {
     /**
      * Creates a callback builder for the transaction request, and then forwards it to the ledger.
      * @param callback Callback used to send a reply back to the origin of the request.
-     * @param transactionRequestJson Json String containing a Transaction object that should be executed
-     *                               {@link Transaction}.
+     * @param requestWrapper MessageWrapper containing the transaction to be executed.
+     * @param override Indicates if the system sent this transaction should be forcibly executed.
      * @param customerId The ID of the customer that made the transaction
      */
     @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
     public void processTransactionRequest(final Callback<String> callback,
-                                          @RequestParam("request") final String transactionRequestJson,
+                                          @RequestParam("request") final String requestWrapper,
                                           @RequestParam("customerId") final String customerId,
                                           @RequestParam("override") final Boolean override) {
-        Transaction request = jsonConverter.fromJson(transactionRequestJson, Transaction.class);
+        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(requestWrapper),
+                                                               MessageWrapper.class);
+        Transaction request = (Transaction) messageWrapper.getData();
         System.out.printf("%s Transaction received, sourceAccount: %s ,destAccount: %s, amount: %.2f, customerId %s\n",
                 PREFIX, request.getSourceAccountNumber(), request.getDestinationAccountNumber(),
                             request.getTransactionAmount(), customerId);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        doOutgoingTransactionRequest(transactionRequestJson, customerId, override, callbackBuilder);
+        doOutgoingTransactionRequest(messageWrapper, customerId, override, callbackBuilder);
     }
 
     /**
      * Forwards a transaction request to the ledger for execution, and processes the reply if successful, sends a
      * rejection to the service that sent the transaction request if the ledger request fails.
-     * @param transactionRequestJson Json String representing a transaction that the ledger should execute
-     *                               {@link Transaction}.
+     * @param messageWrapper MessageWrapper containing the transaction to be executed.
+     * @param customerId CustomerId of the customer that sent the request.
+     * @param override Indicates if the system sent this transaction should be forcibly executed.
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
-    private void doOutgoingTransactionRequest(final String transactionRequestJson, final String customerId,
+    private void doOutgoingTransactionRequest(final MessageWrapper messageWrapper, final String customerId,
                                               final boolean override, final CallbackBuilder callbackBuilder) {
         ledgerClient.putFormAsyncWith3Params("/services/ledger/transaction/out", "request",
-                transactionRequestJson, "customerId", customerId, "override", override,
-                (httpStatusCode, httpContentType, transactionReplyJson) -> {
+                jsonConverter.toJson(messageWrapper), "customerId", customerId, "override",
+                override, (httpStatusCode, httpContentType, transactionReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson), MessageWrapper.class);
-                        if (!messageWrapper.isError()) {
-                            Transaction transaction = (Transaction) messageWrapper.getData();
+                        MessageWrapper responseWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson), MessageWrapper.class);
+                        if (!responseWrapper.isError()) {
+                            Transaction transaction = (Transaction) responseWrapper.getData();
                             processOutgoingTransactionReply(transaction, transactionReplyJson, callbackBuilder);
                         } else {
                             callbackBuilder.build().reply(transactionReplyJson);

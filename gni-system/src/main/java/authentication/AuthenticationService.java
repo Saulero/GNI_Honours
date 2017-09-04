@@ -384,7 +384,7 @@ class AuthenticationService {
             final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
         try {
             authenticateRequest(messageWrapper.getCookie(), messageWrapper.getMethodType());
-            doTransactionRequest((String) messageWrapper.getData(), getCustomerId(messageWrapper.getCookie()), callbackBuilder);
+            doTransactionRequest(messageWrapper, getCustomerId(messageWrapper.getCookie()), callbackBuilder);
         } catch (SQLException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         } catch (UserNotAuthorizedException e) {
@@ -397,18 +397,18 @@ class AuthenticationService {
     /**
      * Forwards transaction request to the User service and forwards the reply or sends a rejection if the request
      * fails.
-     * @param transactionRequestJson Transaction request that should be processed.
+     * @param messageWrapper MessageWrapper containing a transaction request that should be processed.
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
-    private void doTransactionRequest(final String transactionRequestJson, final Long customerId,
+    private void doTransactionRequest(final MessageWrapper messageWrapper, final Long customerId,
                                       final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Forwarding transaction request.\n", PREFIX);
         usersClient.putFormAsyncWith2Params("/services/users/transaction", "request",
-                transactionRequestJson, "customerId", customerId.toString(),
+                jsonConverter.toJson(messageWrapper), "customerId", customerId.toString(),
                 (httpStatusCode, httpContentType, transactionReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson), MessageWrapper.class);
-                        if (!messageWrapper.isError()) {
+                        MessageWrapper responseWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson), MessageWrapper.class);
+                        if (!responseWrapper.isError()) {
                             sendTransactionRequestCallback(transactionReplyJson, callbackBuilder);
                         } else {
                             callbackBuilder.build().reply(transactionReplyJson);
