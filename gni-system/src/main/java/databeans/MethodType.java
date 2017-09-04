@@ -31,7 +31,8 @@ public enum MethodType implements Serializable {
     CLOSE_SAVINGS_ACCOUNT,
     INVALIDATE_CARD,
     REQUEST_CREDIT_CARD,
-    SET_FREEZE_USER_ACCOUNT;
+    SET_FREEZE_USER_ACCOUNT,
+    TRANSFER_BANK_ACCOUNT;
 
     public int getId() {
         switch (this) {
@@ -60,6 +61,7 @@ public enum MethodType implements Serializable {
             case INVALIDATE_CARD:           return 23;
             case REQUEST_CREDIT_CARD:       return 24;
             case SET_FREEZE_USER_ACCOUNT:   return 25;
+            case TRANSFER_BANK_ACCOUNT:     return 26;
             default:                        return -1;
         }
     }
@@ -91,6 +93,7 @@ public enum MethodType implements Serializable {
             case INVALIDATE_CARD:           return false;
             case REQUEST_CREDIT_CARD:       return false;
             case SET_FREEZE_USER_ACCOUNT:   return false;
+            case TRANSFER_BANK_ACCOUNT:     return false;
             default:                        return false;
         }
     }
