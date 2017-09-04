@@ -49,6 +49,19 @@ public class Transaction implements Serializable {
         this.successful = false;
     }
 
+    public Transaction(final double newNewBalance, final String newSourceAccountNumber) {
+        this.transactionID = 0L;
+        this.date = null;
+        this.sourceAccountNumber = newSourceAccountNumber;
+        this.destinationAccountNumber = null;
+        this.destinationAccountHolderName = null;
+        this.description = null;
+        this.transactionAmount = 0;
+        this.newBalance = newNewBalance;
+        this.processed = false;
+        this.successful = false;
+    }
+
     public Transaction() { }
 
     public long getTransactionID() {

@@ -5,6 +5,7 @@ import api.IncorrectInputException;
 import com.google.gson.JsonSyntaxException;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 import databeans.MessageWrapper;
+import databeans.MethodType;
 import databeans.Transaction;
 import util.JSONParser;
 
@@ -108,9 +109,14 @@ public class TransferMoney {
      * @param api DataBean containing everything in the ApiService
      */
     private static void doTransactionRequest(final Transaction transaction, final String cookie, final ApiBean api) {
+        MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
+        data.setCookie(cookie);
+        data.setMethodType(MethodType.TRANSFER_MONEY);
+        data.setData(api.getJsonConverter().toJson(transaction));
+
         System.out.printf("%s Forwarding transaction request.\n", PREFIX);
-        api.getAuthenticationClient().putFormAsyncWith2Params("/services/authentication/transaction",
-                "request", api.getJsonConverter().toJson(transaction), "cookie", cookie,
+        api.getAuthenticationClient().putFormAsyncWith1Param("/services/authentication/transaction",
+                "data", api.getJsonConverter().toJson(data),
                 (httpStatusCode, httpContentType, transactionReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = api.getJsonConverter().fromJson(

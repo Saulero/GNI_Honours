@@ -5,6 +5,7 @@ import api.IncorrectInputException;
 import com.google.gson.JsonSyntaxException;
 import databeans.AccountLink;
 import databeans.MessageWrapper;
+import databeans.MethodType;
 import util.JSONParser;
 
 import java.util.Map;
@@ -67,8 +68,13 @@ public class ProvideAccess {
      * @param api DataBean containing everything in the ApiService
      */
     private static void doAccountLinkRequest(final AccountLink accountLink, final String cookie, final ApiBean api) {
-        api.getAuthenticationClient().putFormAsyncWith2Params("/services/authentication/accountLink",
-                "request", api.getJsonConverter().toJson(accountLink), "cookie", cookie,
+        MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
+        data.setCookie(cookie);
+        data.setMethodType(MethodType.PROVIDE_ACCESS);
+        data.setData(accountLink);
+
+        api.getAuthenticationClient().putFormAsyncWith1Param("/services/authentication/accountLink",
+                "data", api.getJsonConverter().toJson(data),
                 ((httpStatusCode, httpContentType, accountLinkReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = api.getJsonConverter().fromJson(
@@ -97,6 +103,6 @@ public class ProvideAccess {
         System.out.printf("%s Successful account link, sending callback.\n", PREFIX);
         System.out.printf("%s Account link successful for Account Holder: %s, AccountNumber: %s\n\n\n\n",
                 PREFIX, accountLink.getCustomerId(), accountLink.getAccountNumber());
-        doNewPinCardRequest(accountLink.getAccountNumber(), accountLink.getUsername(), cookie, api, false);
+        doNewPinCardRequest(MethodType.PROVIDE_ACCESS, accountLink.getAccountNumber(), accountLink.getUsername(), cookie, api, false);
     }
 }

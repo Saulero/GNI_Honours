@@ -34,6 +34,10 @@ public class Account implements Serializable {
         this.creditCardBalance = creditCardBalance;
     }
 
+    public Account(String accountNumber) {
+        this.accountNumber = accountNumber;
+    }
+
     /** Used for Json conversions, only use if you manually fill the object afterwards. */
     public Account() {
 

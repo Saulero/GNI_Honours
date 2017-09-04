@@ -143,6 +143,15 @@ class PinService {
     private void handlePinExceptions(final String pinTransactionRequestJson, final CallbackBuilder callbackBuilder) {
         try {
             PinTransaction request = jsonConverter.fromJson(pinTransactionRequestJson, PinTransaction.class);
+            if (checkIfFrozen(request.getSourceAccountNumber())) {
+                throw new AccountFrozenException(
+                        "User has no authorization to do this as long as the account is frozen.");
+            }
+            if (checkIfFrozen(request.getDestinationAccountNumber())) {
+                throw new AccountFrozenException(
+                        "The provided destination account has been frozen and can't receive transactions.");
+            }
+
             if (request.isATMTransaction()) {
                 getATMTransactionAuthorization(request, callbackBuilder);
             } else if (request.isCreditCardTransaction()) {
@@ -180,7 +189,28 @@ class PinService {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
                     .createMessageWrapper(true, 421, e.getMessage(),
                             "The pin card used has been permanently deactivated.")));
+        } catch (AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.
+                    createMessageWrapper(true, 419,
+                            "The user is not authorized to perform this action.", e.getMessage())));
         }
+    }
+
+    private boolean checkIfFrozen(final String accNr) throws SQLException, AccountFrozenException {
+        SQLConnection con = databaseConnectionPool.getConnection();
+        PreparedStatement ps = con.getConnection()
+                .prepareStatement(SQLStatements.getFrozenPinAccounts);
+        ps.setString(1, accNr);
+        ResultSet rs = ps.executeQuery();
+
+        boolean res = false;
+        if (rs.next()) {
+            res = true;
+        }
+
+        ps.close();
+        databaseConnectionPool.returnConnection(con);
+        return res;
     }
 
 
@@ -390,10 +420,10 @@ class PinService {
         PreparedStatement incrementStatement;
         if (isCreditCard) {
             incrementStatement = databaseConnection.getConnection()
-                    .prepareStatement(SQLStatements.incrementIncorrectCreditcardAttempts);
+                    .prepareStatement(SQLStatements.incrementIncorrectCreditCardAttempts);
         } else {
             incrementStatement = databaseConnection.getConnection()
-                    .prepareStatement(SQLStatements.incrementIncorrectPincardAttempts);
+                    .prepareStatement(SQLStatements.incrementIncorrectPinCardAttempts);
         }
 
         incrementStatement.setLong(1, cardNumber);
@@ -904,6 +934,7 @@ class PinService {
         addPinCard.setDate(5, java.sql.Date.valueOf(pinCard.getExpirationDate()));
         addPinCard.setLong(6, 0L);
         addPinCard.setBoolean(7, true);
+        addPinCard.setBoolean(8, false);
         addPinCard.executeUpdate();
         addPinCard.close();
         databaseConnectionPool.returnConnection(databaseConnection);
@@ -1461,7 +1492,7 @@ class PinService {
                         }
                     }
                 } else {
-                    System.out.printf("%s Credit card refill unsuccessfull, sending rejection.\n", PREFIX);
+                    System.out.printf("%s Credit card refill unsuccessful, sending rejection.\n", PREFIX);
                     callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
                             "Unknown error occurred, possibly not enough funds to refill the credit card.")));
                 }
@@ -1493,7 +1524,7 @@ class PinService {
                                 "Unknown error occurred.")));
                     }
                 } else {
-                    System.out.printf("%s Credit card refill unsuccessfull, sending rejection.\n", PREFIX);
+                    System.out.printf("%s Credit card refill unsuccessful, sending rejection.\n", PREFIX);
                     callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
                             "Unknown error occurred, possibly not enough funds to refill the credit card.")));
                 }
@@ -1533,7 +1564,7 @@ class PinService {
     }
 
     private void sendCreditCardBalanceCallback(final Double creditCardBalance, final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Credit card balance request successfull, sending callback.\n", PREFIX);
+        System.out.printf("%s Credit card balance request successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
                 false, 200, "Normal Reply", creditCardBalance)));
     }
@@ -1541,7 +1572,7 @@ class PinService {
     @RequestMapping(value = "/refillCards", method = RequestMethod.PUT)
     public void processRefillCardsRequest(final Callback<String> callback,
                                           @RequestParam("date") final String dateJson) {
-        System.out.printf("%s Recevied refill credit cards request, refilling..\n", PREFIX);
+        System.out.printf("%s Received refill credit cards request, refilling..\n", PREFIX);
         LocalDate systemDate = (LocalDate) jsonConverter.fromJson(dateJson, LocalDate.class);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         List<CreditCard> cardsToRefill = getCreditCardsToRefill();
@@ -1571,6 +1602,32 @@ class PinService {
             e.printStackTrace();
             return new LinkedList<>();
         }
+    }
+
+    @RequestMapping(value = "/setFreezeUserAccount", method = RequestMethod.PUT)
+    public void processSetFreezeUserAccountRequest(
+            final Callback<String> callback, @RequestParam("request") final String dataJson) {
+        System.out.printf("%s Received refill credit cards request, refilling..\n", PREFIX);
+        FreezeAccount freezeAccount = jsonConverter.fromJson(dataJson, FreezeAccount.class);
+
+        try {
+            setFreezeUserAccount(freezeAccount);
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    false, 200, "Normal Reply")));
+        } catch (SQLException e) {
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to the Pin database.")));
+        }
+    }
+
+    private void setFreezeUserAccount(final FreezeAccount freezeAccount) throws SQLException {
+        SQLConnection con = databaseConnectionPool.getConnection();
+        PreparedStatement ps = con.getConnection().prepareStatement(setFreezeStatusPin);
+        ps.setBoolean(1, freezeAccount.getFreeze());
+        ps.setLong(2, freezeAccount.getCustomerId());
+        ps.executeUpdate();
+        ps.close();
+        databaseConnectionPool.returnConnection(con);
     }
 
     /**

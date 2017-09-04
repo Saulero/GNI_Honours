@@ -5,6 +5,7 @@ import api.IncorrectInputException;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 import databeans.AccountLink;
 import databeans.MessageWrapper;
+import databeans.MethodType;
 import util.JSONParser;
 
 import java.util.HashMap;
@@ -72,9 +73,14 @@ public class CloseAccount {
      */
     private static void doAccountRemovalRequest(
             final String accountNumber, final String cookie, final ApiBean api) {
+        MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
+        data.setCookie(cookie);
+        data.setMethodType(MethodType.CLOSE_ACCOUNT);
+        data.setData(accountNumber);
+
         System.out.printf("%s Forwarding account removal request.\n", PREFIX);
-        api.getAuthenticationClient().putFormAsyncWith2Params("/services/authentication/account/remove",
-                "accountNumber", accountNumber, "cookie", cookie,
+        api.getAuthenticationClient().putFormAsyncWith1Param("/services/authentication/account/remove",
+                "data", api.getJsonConverter().toJson(data),
                 (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = api.getJsonConverter().fromJson(

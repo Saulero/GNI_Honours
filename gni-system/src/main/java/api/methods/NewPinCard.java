@@ -3,7 +3,9 @@ package api.methods;
 import api.ApiBean;
 import api.IncorrectInputException;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
+import databeans.AccountLink;
 import databeans.MessageWrapper;
+import databeans.MethodType;
 import databeans.PinCard;
 import io.advantageous.qbit.reactive.CallbackBuilder;
 import util.JSONParser;
@@ -24,31 +26,35 @@ public class NewPinCard {
 
     /**
      * Performs a new pin card request for a given account number.
+     * @param methodType Method Type
      * @param accountNumber AccountNumber the new pin card should be linked to.
      * @param username Username of the user the pinCard is for.
      * @param cookie Cookie used to perform the request.
      * @param accountNrInResult Boolean indicating if the accountNumber should be in the result of the request.
      * @param api DataBean containing everything in the ApiService
      */
-    public static void doNewPinCardRequest(final String accountNumber, final String username, final String cookie,
-            final ApiBean api, final boolean accountNrInResult) {
-        handleNewPinCardExceptions(accountNumber, cookie, username, accountNrInResult, api);
+    public static void doNewPinCardRequest(
+            final MethodType methodType, final String accountNumber, final String username,
+            final String cookie, final ApiBean api, final boolean accountNrInResult) {
+        handleNewPinCardExceptions(methodType, accountNumber, cookie, username, accountNrInResult, api);
     }
 
     /**
      * Tries to verify the input of the request and then forward the new pin card request to the Authentication Service,
      * rejects the request if an exception occurs.
+     * @param methodType Method Type
      * @param accountNumber AccountNumber the pin card should be linked to.
      * @param cookie Cookie of the user that requested the pin card.
      * @param username username of the user that owns the pincard.
      * @param accountNrInResult determines whether this is an OpenAccount or Access request
      * @param api DataBean containing everything in the ApiService
      */
-    private static void handleNewPinCardExceptions(final String accountNumber, final String cookie,
+    private static void handleNewPinCardExceptions(
+            final MethodType methodType, final String accountNumber, final String cookie,
             final String username, final boolean accountNrInResult, final ApiBean api) {
         try {
             verifyNewPinCardInput(accountNumber);
-            doNewPinCardRequest(accountNumber, cookie, username, accountNrInResult, api);
+            doNewPinCardRequest(methodType, accountNumber, cookie, username, accountNrInResult, api);
         } catch (IncorrectInputException e) {
             System.out.printf("%s %s", PREFIX, e.getMessage());
             sendErrorReply(JSONParser.createMessageWrapper(true, 418,
@@ -70,16 +76,26 @@ public class NewPinCard {
     /**
      * Forwards the new pin card request to the authentication service and forwards the result of the request to
      * the service that requested it.
+     * @param methodType Method Type
      * @param accountNumber AccountNumber the pin card should be created for.
      * @param cookie Cookie of the user that sent the request.
      * @param username username of the user that owns the pincard.
      * @param accountNrInResult Boolean indicating if the accountNumber should be in the result of the request.
      * @param api DataBean containing everything in the ApiService
      */
-    private static void doNewPinCardRequest(final String accountNumber, final String cookie, final String username,
-            final boolean accountNrInResult, final ApiBean api) {
-        api.getAuthenticationClient().putFormAsyncWith3Params("/services/authentication/card", "accountNumber",
-                accountNumber, "cookie", cookie, "username", username, (code, contentType, body) -> {
+    private static void doNewPinCardRequest(
+            final MethodType methodType, final String accountNumber, final String cookie,
+            final String username, final boolean accountNrInResult, final ApiBean api) {
+        MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
+        data.setCookie(cookie);
+        data.setMethodType(methodType);
+        AccountLink accountLink = new AccountLink();
+        accountLink.setAccountNumber(accountNumber);
+        accountLink.setUsername(username);
+        data.setData(accountLink);
+
+        api.getAuthenticationClient().putFormAsyncWith1Param("/services/authentication/card",
+                "data", api.getJsonConverter().toJson(data), (code, contentType, body) -> {
                     if (code == HTTP_OK) {
                         MessageWrapper messageWrapper = api.getJsonConverter().fromJson(
                                 JSONParser.removeEscapeCharacters(body), MessageWrapper.class);

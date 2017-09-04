@@ -1351,7 +1351,7 @@ class LedgerService {
     }
 
     /**
-     * Sends a callback for the open savings account request indicating the request was successfull.
+     * Sends a callback for the open savings account request indicating the request was successful.
      * @param callbackBuilder Used to send the response to the request source.
      */
     private void sendOpenSavingsAccountCallback(final CallbackBuilder callbackBuilder) {
@@ -1467,11 +1467,42 @@ class LedgerService {
     }
 
     /**
-     * Sends a successfull callback for a close savings account request.
+     * Sends a successful callback for a close savings account request.
      * @param callbackBuilder Used to send a reply to the request source.
      */
     private void sendCloseSavingsAccountCallback(final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Close savings account request successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                false, 200, "Normal Reply")));
+    }
+
+    @RequestMapping(value = "/transferBankAccount", method = RequestMethod.PUT)
+    public void processTransferBankAccountRequest(final Callback<String> callback,
+                                                  final @RequestParam("request") String data) {
+        System.out.printf("%s Received bank account transfer request.\n", PREFIX);
+        Customer customer = jsonConverter.fromJson(data, Customer.class);
+        final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        transferBankAccount(customer, callbackBuilder);
+    }
+
+    private void transferBankAccount(final Customer customer, final CallbackBuilder callbackBuilder) {
+        try {
+            SQLConnection connection = db.getConnection();
+            PreparedStatement ps = connection.getConnection().prepareStatement(transferBankAccount);
+            ps.setString(1, customer.getInitials() + customer.getSurname());
+            ps.setString(2, customer.getAccount().getAccountNumber());
+            ps.executeUpdate();
+            ps.close();
+            db.returnConnection(connection);
+            sendTransferBankAccountCallback(callbackBuilder);
+        } catch (SQLException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 500, "Error connecting to the Ledger database.")));
+        }
+    }
+
+    private void sendTransferBankAccountCallback(final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Bank Account transfer successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
                 false, 200, "Normal Reply")));
     }

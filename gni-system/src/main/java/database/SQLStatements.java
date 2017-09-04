@@ -31,20 +31,23 @@ public final class SQLStatements {
     public static final String getUserCount = "SELECT count(*) FROM users WHERE id = ?";
     public static final String getAuthenticationData1 = "SELECT * FROM authentication WHERE username = ?";
     public static final String getAuthenticationData2 = "SELECT * FROM authentication WHERE user_id = ?";
-    public static final String createAuthenticationData = "INSERT INTO authentication (user_id, username, password) VALUES (?, ?, ?)";
+    public static final String createAuthenticationData = "INSERT INTO authentication (user_id, username, password, frozen) VALUES (?, ?, ?, 0)";
     public static final String updateToken = "UPDATE authentication SET token = ?, token_validity = ? WHERE user_id = ?";
     public static final String updateTokenValidity = "UPDATE authentication SET token_validity = ? WHERE user_id = ?";
     public static final String getAccountLinkCount = "SELECT count(*) FROM accounts WHERE user_id = ? AND account_number = ?";
     public static final String getLoginUsernameCount = "SELECT count(*) FROM authentication WHERE username = ?";
     public static final String getCustomerIdFromUsername = "SELECT user_id FROM authentication WHERE username = ?";
     public static final String getUsernameFromCustomerId = "SELECT username FROM authentication WHERE user_id = ?";
-    public static final String addPinCard = "INSERT INTO pin (account_number, user_id, card_number, pin_code, expiration_date, incorrect_attempts, active) VALUES (?, ?, ?, ?, ?, ?, ?)";
+    public static final String addPinCard = "INSERT INTO pin (account_number, user_id, card_number, pin_code, expiration_date, incorrect_attempts, active, frozen) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
     public static final String getCustomerIdFromCardNumber = "SELECT user_id FROM pin WHERE card_number = ?";
     public static final String getPinCard = "SELECT * FROM pin WHERE card_number = ?";
+    public static final String getFrozenPinAccounts = "SELECT * FROM pin WHERE account_number = ? AND frozen = 1";
     public static final String deactivatePinCard = "UPDATE pin SET active = false WHERE account_number = ? AND user_id = ? AND card_number = ?";
     public static final String unblockPinCard = "UPDATE pin SET incorrect_attempts = 0 WHERE card_number = ?";
-    public static final String incrementIncorrectPincardAttempts = "UPDATE pin SET incorrect_attempts = incorrect_attempts + 1 WHERE card_number = ?";
-    public static final String incrementIncorrectCreditcardAttempts = "UPDATE credit_cards SET incorrect_attempts = incorrect_attempts + 1 WHERE card_number = ?";
+    public static final String setFreezeStatusPin = "UPDATE pin SET frozen = ? WHERE user_id = ?";
+    public static final String setFreezeStatusAuth = "UPDATE pin SET frozen = ? WHERE user_id = ?";
+    public static final String incrementIncorrectPinCardAttempts = "UPDATE pin SET incorrect_attempts = incorrect_attempts + 1 WHERE card_number = ?";
+    public static final String incrementIncorrectCreditCardAttempts = "UPDATE credit_cards SET incorrect_attempts = incorrect_attempts + 1 WHERE card_number = ?";
     public static final String removeAccountCards = "DELETE FROM pin WHERE account_number = ?";
     public static final String removeCustomer = "DELETE FROM users WHERE id = ?";
     public static final String removeCustomerTokens = "DELETE FROM authentication WHERE user_id = ?";
@@ -73,6 +76,8 @@ public final class SQLStatements {
     public static final String deactivateCreditCard = "UPDATE credit_cards SET active = false WHERE card_number = ?";
     public static final String unblockCreditCard = "UPDATE credit_cards SET incorrect_attempts = 0 WHERE card_number = ?";
     public static final String getCreditCardsWithCredit = "SELECT * FROM credit_cards WHERE NOT credit_limit <=> balance;";
+    public static final String transferBankAccount = "UPDATE ledger SET name = ? WHERE account_number = ?";
+    public static final String transferBankAccountAccess = "DELETE FROM accounts WHERE user_id = ? AND account_number = ? AND primary_owner = 0; UPDATE accounts SET user_id = ? WHERE account_number = ? AND primary_owner = 1";
 
     // Create statements used for setting up the database
     public final static String createAccountsTable = "CREATE TABLE IF NOT EXISTS `accounts` ( `user_id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL, `primary_owner` BOOLEAN NOT NULL);";
@@ -83,13 +88,13 @@ public final class SQLStatements {
     public final static String dropCreditCardsTable = "DROP TABLE IF EXISTS `credit_cards`;";
     public final static String createCreditCardTransactionsTable = "CREATE TABLE IF NOT EXISTS `credit_card_transactions` (`id` BIGINT(20) NOT NULL, `date` DATE NOT NULL, `card_number` BIGINT(20) NOT NULL, `account_to` TEXT NOT NULL, `amount` DOUBLE NOT NULL, `new_balance` DOUBLE NOT NULL, PRIMARY KEY (id));";
     public final static String getDropCreditCardTransactionsTable = "DROP TABLE IF EXISTS `credit_card_transactions`;";
-    public final static String createPinTable = "CREATE TABLE IF NOT EXISTS `pin`( `account_number` TEXT NOT NULL, `user_id` BIGINT(20) NOT NULL, `card_number` BIGINT(20) NOT NULL, `pin_code` TEXT NOT NULL, `expiration_date` DATE NOT NULL, `incorrect_attempts` BIGINT(20) NOT NULL, `active` BOOLEAN NOT NULL, PRIMARY KEY (card_number));";
+    public final static String createPinTable = "CREATE TABLE IF NOT EXISTS `pin`( `account_number` TEXT NOT NULL, `user_id` BIGINT(20) NOT NULL, `card_number` BIGINT(20) NOT NULL, `pin_code` TEXT NOT NULL, `expiration_date` DATE NOT NULL, `incorrect_attempts` BIGINT(20) NOT NULL, `active` BOOLEAN NOT NULL, `frozen` BOOLEAN NOT NULL, PRIMARY KEY (card_number));";
     public final static String dropPinTable = "DROP TABLE IF EXISTS `pin`;";
     public final static String createTransactionsInTable = "CREATE TABLE IF NOT EXISTS `transactions_in`( `id` BIGINT(20) NOT NULL, `date` DATE NOT NULL, `account_to` TEXT NOT NULL, `account_to_name` TEXT NOT NULL, `account_from` TEXT NOT NULL, `amount` DOUBLE NOT NULL, `new_balance` DOUBLE NOT NULL, `new_savings_balance` DOUBLE NOT NULL, `description` TEXT NOT NULL, PRIMARY KEY (id));";
     public final static String dropTransactionsInTable = "DROP TABLE IF EXISTS `transactions_in`;";
     public final static String createTransactionsOutTable = "CREATE TABLE IF NOT EXISTS `transactions_out`( `id` BIGINT(20) NOT NULL, `date` DATE NOT NULL, `account_to` TEXT NOT NULL, `account_to_name` TEXT NOT NULL, `account_from` TEXT NOT NULL, `amount` DOUBLE NOT NULL, `new_balance` DOUBLE NOT NULL, `new_savings_balance` DOUBLE NOT NULL, `description` TEXT NOT NULL, PRIMARY KEY (id));";
     public final static String dropTransactionsOutTable = "DROP TABLE IF EXISTS `transactions_out`;";
-    public final static String createAuthTable = "CREATE TABLE IF NOT EXISTS `authentication`( `user_id` BIGINT(20) NOT NULL, `username` TEXT NOT NULL, `password` TEXT NOT NULL, `token` BIGINT(20), `token_validity` BIGINT(20), PRIMARY KEY (user_id));";
+    public final static String createAuthTable = "CREATE TABLE IF NOT EXISTS `authentication`( `user_id` BIGINT(20) NOT NULL, `username` TEXT NOT NULL, `password` TEXT NOT NULL, `token` BIGINT(20), `token_validity` BIGINT(20), `frozen` BOOLEAN NOT NULL, PRIMARY KEY (user_id));";
     public final static String dropAuthTable = "DROP TABLE IF EXISTS `authentication`;";
     public final static String createUsersTable = "CREATE TABLE IF NOT EXISTS `users`( `id` BIGINT(20) NOT NULL, `initials` TEXT NOT NULL, `firstname` TEXT NOT NULL, `lastname` TEXT NOT NULL, `email` TEXT NOT NULL, `telephone_number` TEXT NOT NULL, `address` TEXT NOT NULL, `date_of_birth` TEXT NOT NULL, `social_security_number` BIGINT(20) NOT NULL, PRIMARY KEY (id));";
     public final static String dropUsersTable = "DROP TABLE IF EXISTS `users`;";
@@ -117,7 +122,7 @@ public final class SQLStatements {
     // Admin methods
     // Create default admin & add authentication data
     public static final String createDefaultAdmin = "INSERT INTO users (id, initials, firstname, lastname, email, telephone_number, address, date_of_birth, social_security_number) VALUES (-1, \"A.A.\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", -1)";
-    public static final String addAdminAuthenticationData = "INSERT INTO authentication (user_id, username, password) VALUES (-1, \"admin\", \"admin\")";
+    public static final String addAdminAuthenticationData = "INSERT INTO authentication (user_id, username, password, frozen) VALUES (-1, \"admin\", \"admin\", 0)";
 
     // All grant permission statements, currently hardcoded for the default admin
     public final static String grantOpenAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";
@@ -143,6 +148,9 @@ public final class SQLStatements {
     public final static String grantOpenSavingsAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_SAVING_ACCOUNT.getId() + ");";
     public final static String grantCloseSavingsAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.CLOSE_SAVINGS_ACCOUNT.getId() + ");";
     public final static String grantInvalidateCard = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.INVALIDATE_CARD.getId() + ");";
+    public final static String grantRequestCreditCard = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.REQUEST_CREDIT_CARD.getId() + ");";
+    public final static String grantSetFreezeUserAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.SET_FREEZE_USER_ACCOUNT.getId() + ");";
+    public final static String grantTransferBankAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.TRANSFER_BANK_ACCOUNT.getId() + ");";
 
     // Query method
     public static final String getAdminPermissions = "SELECT permission_id FROM admin WHERE user_id = ?";

@@ -3,6 +3,7 @@ package api.methods;
 import api.ApiBean;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 import databeans.MessageWrapper;
+import databeans.MethodType;
 import util.JSONParser;
 
 import java.util.HashMap;
@@ -44,9 +45,13 @@ public class CloseSavingsAccount {
      * @param api DataBean containing everything in the ApiService
      */
     private static void doCloseSavingsAccountRequest(final String authToken, final String iBAN, final ApiBean api) {
-        api.getAuthenticationClient().putFormAsyncWith2Params("/services/authentication/savingsAccount/close",
-                "authToken", authToken, "iBAN",
-                iBAN, (httpStatusCode, httpContentType, replyJson) -> {
+        MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
+        data.setCookie(authToken);
+        data.setMethodType(MethodType.REVOKE_ACCESS);
+        data.setData(iBAN);
+
+        api.getAuthenticationClient().putFormAsyncWith1Param("/services/authentication/savingsAccount/close",
+                "data", api.getJsonConverter().toJson(data), (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = api.getJsonConverter().fromJson(
                                 JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);

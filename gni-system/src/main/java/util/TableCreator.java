@@ -84,7 +84,9 @@ public class TableCreator {
                 SQLStatements.grantSimulateTime,
                 SQLStatements.grantReset,
                 SQLStatements.grantGetDate,
-                SQLStatements.grantGetEventLogs});
+                SQLStatements.grantGetEventLogs,
+                SQLStatements.grantTransferBankAccount,
+                SQLStatements.grantSetFreezeUserAccount});
     }
 
     private static void createNewTables() {
