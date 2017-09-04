@@ -77,6 +77,7 @@ public final class SQLStatements {
     public static final String unblockCreditCard = "UPDATE credit_cards SET incorrect_attempts = 0 WHERE card_number = ?";
     public static final String getCreditCardsWithCredit = "SELECT * FROM credit_cards WHERE NOT credit_limit <=> balance;";
     public static final String transferBankAccount = "UPDATE ledger SET name = ? WHERE account_number = ?";
+    public static final String transferBankAccountAccess = "DELETE FROM accounts WHERE user_id = ? AND account_number = ? AND primary_owner = 0; UPDATE accounts SET user_id = ? WHERE account_number = ? AND primary_owner = 1";
 
     // Create statements used for setting up the database
     public final static String createAccountsTable = "CREATE TABLE IF NOT EXISTS `accounts` ( `user_id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL, `primary_owner` BOOLEAN NOT NULL);";

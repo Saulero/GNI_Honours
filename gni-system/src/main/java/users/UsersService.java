@@ -1104,7 +1104,7 @@ class UsersService {
                         MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(jsonReply), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
                             try {
-                                removeAccountLink(customer.getAccount().getAccountNumber(), Long.toString(customer.getCustomerId()));
+                                transferAccountAccess(customer.getAccount().getAccountNumber(), customer.getCustomerId());
                                 sendTransferBankAccountCallback(callbackBuilder);
                             } catch (SQLException e) {
                                 System.out.printf("%s Failed to transfer bank account, sending rejection.\n", PREFIX);
@@ -1117,6 +1117,19 @@ class UsersService {
                         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 });
+    }
+
+    private void transferAccountAccess(final String accountNumber, final long customerId) throws SQLException {
+        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+        PreparedStatement removeAccountLink;
+        removeAccountLink = databaseConnection.getConnection().prepareStatement(transferBankAccountAccess);
+        removeAccountLink.setLong(1, customerId);
+        removeAccountLink.setString(2, accountNumber);
+        removeAccountLink.setLong(3, customerId);
+        removeAccountLink.setString(4, accountNumber);
+        removeAccountLink.executeUpdate();
+        removeAccountLink.close();
+        databaseConnectionPool.returnConnection(databaseConnection);
     }
 
     private void sendTransferBankAccountCallback(final CallbackBuilder callbackBuilder) {
