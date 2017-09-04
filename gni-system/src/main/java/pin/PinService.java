@@ -1569,7 +1569,7 @@ class PinService {
     @RequestMapping(value = "/refillCards", method = RequestMethod.PUT)
     public void processRefillCardsRequest(final Callback<String> callback,
                                           @RequestParam("date") final String dateJson) {
-        System.out.printf("%s Recevied refill credit cards request, refilling..\n", PREFIX);
+        System.out.printf("%s Received refill credit cards request, refilling..\n", PREFIX);
         LocalDate systemDate = (LocalDate) jsonConverter.fromJson(dateJson, LocalDate.class);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         List<CreditCard> cardsToRefill = getCreditCardsToRefill();
@@ -1599,6 +1599,32 @@ class PinService {
             e.printStackTrace();
             return new LinkedList<>();
         }
+    }
+
+    @RequestMapping(value = "/setFreezeUserAccount", method = RequestMethod.PUT)
+    public void processSetFreezeUserAccountRequest(
+            final Callback<String> callback, @RequestParam("request") final String dataJson) {
+        System.out.printf("%s Received refill credit cards request, refilling..\n", PREFIX);
+        FreezeAccount freezeAccount = (FreezeAccount) jsonConverter.fromJson(dataJson, FreezeAccount.class);
+
+        try {
+            setFreezeUserAccount(freezeAccount);
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    false, 200, "Normal Reply")));
+        } catch (SQLException e) {
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to the Pin database.")));
+        }
+    }
+
+    private void setFreezeUserAccount(final FreezeAccount freezeAccount) throws SQLException {
+        SQLConnection con = databaseConnectionPool.getConnection();
+        PreparedStatement ps = con.getConnection().prepareStatement(setFreezeStatusAuth);
+        ps.setBoolean(1, freezeAccount.getFreeze());
+        ps.setLong(2, freezeAccount.getCustomerId());
+        ps.executeUpdate();
+        ps.close();
+        databaseConnectionPool.returnConnection(con);
     }
 
     /**
