@@ -555,7 +555,7 @@ class UsersService {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         long newCustomerId = databaseConnection.getNextID(getNextUserID);
         databaseConnectionPool.returnConnection(databaseConnection);
-        return newCustomerId;
+        return newCustomerId + 10;
     }
 
     /**

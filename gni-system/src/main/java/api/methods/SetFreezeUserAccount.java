@@ -34,10 +34,10 @@ public class SetFreezeUserAccount {
     private static void doSetFreezeUserAccountRequest(final MessageWrapper data, final ApiBean api) {
         api.getAuthenticationClient().putFormAsyncWith1Param("/services/authentication/setFreezeUserAccount",
                 "data", api.getJsonConverter().toJson(data),
-                ((httpStatusCode, httpContentType, accountLinkReplyJson) -> {
+                ((httpStatusCode, httpContentType, reply) -> {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = api.getJsonConverter().fromJson(
-                                JSONParser.removeEscapeCharacters(accountLinkReplyJson), MessageWrapper.class);
+                                JSONParser.removeEscapeCharacters(reply), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
                             sendSetFreezeUserAccountCallback(api);
                         } else {

@@ -206,7 +206,7 @@ class AuthenticationService {
                 authenticationData.close();
                 getAuthenticationData.close();
                 databaseConnectionPool.returnConnection(databaseConnection);
-                throw new UserNotAuthorizedException("Token not legitimate or expired.");
+                throw new UserNotAuthorizedException("Login Token not legitimate or expired.");
             }
         } else {
             authenticationData.close();
@@ -1596,6 +1596,62 @@ class AuthenticationService {
         System.out.printf("%s New credit card request successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
                 false, 200, "Normal Reply", creditCard)));
+    }
+
+    @RequestMapping(value = "/setFreezeUserAccount", method = RequestMethod.PUT)
+    public void processSetFreezeUserAccountRequest(final Callback<String> callback, @RequestParam("data") final String data) {
+        System.out.printf("%s Forwarding account link removal.\n", PREFIX);
+        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleSetFreezeUserAccountExceptions(messageWrapper, callbackBuilder);
+    }
+
+    private void handleSetFreezeUserAccountExceptions(final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
+        try {
+            authenticateRequest(messageWrapper.getCookie(), messageWrapper.getMethodType());
+            if (!isAdmin(messageWrapper.getMethodType(), messageWrapper.getCookie())) {
+                throw new UserNotAuthorizedException("Admin rights are required for this action.");
+            }
+            FreezeAccount freezeAccount = (FreezeAccount) messageWrapper.getData();
+            freezeAccount.setCustomerId(getCustomerIdFromUsername(freezeAccount.getUsername()));
+            setFreezeUserAccount(freezeAccount, callbackBuilder);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
+        } catch (UserNotAuthorizedException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
+        } catch (CustomerDoesNotExistException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "User with username does not appear to exist.")));
+        } catch (AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
+        }
+    }
+
+    private void setFreezeUserAccount(final FreezeAccount freezeAccount, final CallbackBuilder callbackBuilder) throws SQLException {
+        // do Auth DB update
+        SQLConnection con = databaseConnectionPool.getConnection();
+        PreparedStatement ps = con.getConnection().prepareStatement(setFreezeStatusAuth);
+        ps.setString(1, freezeAccount.getUsername());
+        ps.executeUpdate();
+        ps.close();
+        databaseConnectionPool.returnConnection(con);
+
+        // send Pin DB update request
+        pinClient.putFormAsyncWith1Param("/services/pin/setFreezeUserAccount", "request",
+                jsonConverter.toJson(freezeAccount), (httpStatusCode, httpContentType, removalReplyJson) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(removalReplyJson), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            System.out.printf("%s Forwarding setFreezeUserAccount reply.\n", PREFIX);
+                        }
+                        callbackBuilder.build().reply(removalReplyJson);
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                    }
+                });
     }
 
     /**
