@@ -1200,8 +1200,11 @@ class PinService {
                 pinCard.getAccountNumber(), GNI_ACCOUNT, "GNI Bank",
                 "Fees for replacement of old PIN Card #" + pinCard.getCardNumber(),
                 7.50, false, false);
+        MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
+        data.setMethodType(MethodType.PAY_FROM_ACCOUNT);
+        data.setData(request);
         transactionDispatchClient.putFormAsyncWith3Params("/services/transactionDispatch/transaction",
-                "request", jsonConverter.toJson(request), "customerId", pinCard.getCustomerId(),
+                "request", jsonConverter.toJson(data), "customerId", pinCard.getCustomerId(),
                 "override", true,
                 (code, contentType, replyBody) -> {
                     if (code == HTTP_OK) {
@@ -1463,8 +1466,11 @@ class PinService {
             transaction.setDestinationAccountHolderName("GNI BANK");
             transaction.setTransactionAmount(creditCard.getLimit() - creditCard.getBalance());
             transaction.setDescription("Refill of credit card #" + creditCard.getCreditCardNumber());
+            MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
+            data.setMethodType(MethodType.PAY_FROM_ACCOUNT);
+            data.setData(transaction);
             transactionDispatchClient.putFormAsyncWith3Params("/services/transactionDispatch/transaction",
-                    "request", jsonConverter.toJson(transaction), "customerId", customerId,
+                    "request", jsonConverter.toJson(data), "customerId", customerId,
                     "override", !closeCard, //if the card should not be closed this method is being called by an admin.
                     (code, contentType, replyBody) -> handleDispatchRefillResponse(code, replyBody, transaction,
                             creditCards, customerId, closeCard, callbackBuilder));
@@ -1482,8 +1488,11 @@ class PinService {
                 Transaction reply = (Transaction) messageWrapper.getData();
                 if (reply.isSuccessful()) {
                     if (closeCard) {
+                        MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
+                        data.setMethodType(MethodType.PAY_FROM_ACCOUNT);
+                        data.setData(transaction);
                         transactionReceiveClient.putFormAsyncWith3Params("/services/transactionReceive/transaction",
-                                "request", jsonConverter.toJson(transaction), "customerId", customerId,
+                                "request", jsonConverter.toJson(data), "customerId", customerId,
                                 "override", false, (receiveStatusCode, httpContentType, replyJson)
                                         -> handleReceiveRefillResponse(receiveStatusCode, replyJson, creditCards,
                                         callbackBuilder));
