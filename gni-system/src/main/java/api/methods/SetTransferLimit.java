@@ -4,9 +4,7 @@ import api.ApiBean;
 import api.ApiService;
 import api.IncorrectInputException;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
-import databeans.AccountLink;
 import databeans.MessageWrapper;
-import databeans.MethodType;
 import util.JSONParser;
 
 import java.util.HashMap;

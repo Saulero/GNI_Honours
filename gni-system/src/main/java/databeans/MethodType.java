@@ -95,6 +95,7 @@ public enum MethodType implements Serializable {
             case REQUEST_CREDIT_CARD:       return false;
             case SET_FREEZE_USER_ACCOUNT:   return false;
             case TRANSFER_BANK_ACCOUNT:     return false;
+            case SET_TRANSFER_LIMIT:        return false;
             default:                        return false;
         }
     }

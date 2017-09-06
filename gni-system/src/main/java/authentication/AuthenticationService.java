@@ -1723,6 +1723,46 @@ class AuthenticationService {
                 });
     }
 
+    @RequestMapping(value = "/transferLimit", method = RequestMethod.PUT)
+    public void setTransferLimit(final Callback<String> callback, @RequestParam("cookie") final String cookie,
+                                 @RequestParam("iBAN") final String iBAN,
+                                 @RequestParam("transferLimit") final Double transferLimit) {
+        System.out.printf("%s Forwarding setTransferLimit request.\n", PREFIX);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleSetTransferLimitExceptions(cookie, iBAN, transferLimit, callbackBuilder);
+    }
+
+    private void handleSetTransferLimitExceptions(final String cookie, final String iBAN, final Double transferLimit,
+                                                  final CallbackBuilder callbackBuilder) {
+        try {
+            authenticateRequest(cookie, MethodType.SET_TRANSFER_LIMIT);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
+        } catch (UserNotAuthorizedException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
+        } catch (AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
+        }
+    }
+
+    private void sendSetTransferLimitRequest(final String iBAN, final Double transferLimit,
+                                             final CallbackBuilder callbackBuilder) {
+        systemInformationClient.putFormAsyncWith2Params("/services/systemInfo/transferLimit", "iBAN",
+                iBAN, "transferLimit", transferLimit, (httpStatusCode, httpContentType, data) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            System.out.printf("%s Forwarding setTransferLimit reply.\n", PREFIX);
+                        }
+                        callbackBuilder.build().reply(data);
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                    }
+                });
+    }
+
     /**
      * Safely shuts down the AuthenticationService.
      */
