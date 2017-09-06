@@ -717,7 +717,7 @@ class PinService {
                                       final CallbackBuilder callbackBuilder) {
         MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
         data.setMethodType(MethodType.PAY_FROM_ACCOUNT);
-        data.setData(jsonConverter.toJson(request));
+        data.setData(request);
         transactionDispatchClient.putFormAsyncWith3Params("/services/transactionDispatch/transaction",
                 "request", jsonConverter.toJson(data), "customerId", customerId,
                 "override", false,
@@ -734,8 +734,11 @@ class PinService {
      * @param callbackBuilder Used to send a reply to the request source.
      */
     private void doDepositTransactionRequest(final Transaction request, final CallbackBuilder callbackBuilder) {
+        MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
+        data.setMethodType(MethodType.PAY_FROM_ACCOUNT);
+        data.setData(request);
         transactionReceiveClient.putFormAsyncWith1Param("/services/transactionReceive/transaction",
-                "request", jsonConverter.toJson(request), ((code, contentType, body) -> {
+                "request", jsonConverter.toJson(data), ((code, contentType, body) -> {
             processTransactionReceiveReply(code, body, callbackBuilder);
         }));
     }
