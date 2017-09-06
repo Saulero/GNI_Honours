@@ -501,8 +501,10 @@ class LedgerService {
                                             @RequestParam("request") final String requestWrapper,
                                             @RequestParam("customerId") final String customerId,
                                             @RequestParam("override") final Boolean override) {
+        System.out.println("ledger converting");
         MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(requestWrapper),
                 MessageWrapper.class);
+        System.out.println("ledger done");
         Transaction transaction = (Transaction) messageWrapper.getData();
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         System.out.printf("%s Received outgoing transaction request for customer %s.\n", PREFIX, customerId);

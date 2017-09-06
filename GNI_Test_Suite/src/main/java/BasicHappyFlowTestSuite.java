@@ -281,7 +281,7 @@ public class BasicHappyFlowTestSuite {
             UnblockCardMethod.parseResponse(parsedResponse);
         }
 
-        System.out.println("-- 5th attmpt. Should Work again: --");
+        System.out.println("-- 5th attempt. Should Work again: --");
         card1.setPinCode(pinCode);
 
         // Attempt 5 - Should work again.

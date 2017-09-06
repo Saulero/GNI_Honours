@@ -529,9 +529,12 @@ class UsersService {
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
     private void processTransactionDispatchReply(final Transaction transaction, final String transactionReplyJson, final CallbackBuilder callbackBuilder) {
+        MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
+        data.setMethodType(MethodType.PAY_FROM_ACCOUNT);
+        data.setData(transaction);
         if (transaction.isProcessed() && transaction.isSuccessful()) {
             transactionReceiveClient.putFormAsyncWith1Param("/services/transactionReceive/transaction",
-                    "request", jsonConverter.toJson(transaction),
+                    "request", jsonConverter.toJson(data),
                     (statusCode, httpContentType, replyBody) -> processTransactionReceiveReply(statusCode, replyBody, callbackBuilder));
             sendTransactionRequestCallback(transactionReplyJson, callbackBuilder);
         } else {

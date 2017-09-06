@@ -94,11 +94,9 @@ class TransactionReceiveService {
     @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
     public void processIncomingTransaction(final Callback<String> callback,
                                            final @RequestParam("request") String requestWrapper) {
-        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(requestWrapper),
-                MessageWrapper.class);
         System.out.printf("%s Received incoming transaction request.\n", PREFIX);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
-        doIncomingTransactionRequest(messageWrapper, callbackBuilder);
+        doIncomingTransactionRequest(requestWrapper, callbackBuilder);
     }
 
     /**
@@ -107,15 +105,17 @@ class TransactionReceiveService {
      * @param messageWrapper MessageWrapper containing the transaction to be executed.
      * @param callbackBuilder Used to send the result back to the bank that requested the transaction.
      */
-    private void doIncomingTransactionRequest(final MessageWrapper messageWrapper,
+    private void doIncomingTransactionRequest(final String messageWrapper,
                                               final CallbackBuilder callbackBuilder) {
         ledgerClient.putFormAsyncWith1Param("/services/ledger/transaction/in", "request",
-                jsonConverter.toJson(messageWrapper), (httpStatusCode, httpContentType, transactionReplyJson) -> {
+                    messageWrapper, (httpStatusCode, httpContentType, transactionReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper responseWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson), MessageWrapper.class);
                         if (!responseWrapper.isError()) {
                             processIncomingTransactionReply((Transaction) responseWrapper.getData(), transactionReplyJson, callbackBuilder);
                         } else {
+                            System.out.println("%s request failed");
+                            System.out.println(transactionReplyJson);
                             callbackBuilder.build().reply(transactionReplyJson);
                         }
                     } else {
