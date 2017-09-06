@@ -575,16 +575,12 @@ class LedgerService {
         Transaction transaction = (Transaction) messageWrapper.getData();
         Double weeklyAmountSpent = getAmountSpent(currentDate, 6L, transaction.getSourceAccountNumber());
         boolean weeklyAllowed = (weeklyAmountSpent + transaction.getTransactionAmount()) < transferLimit && weeklyAmountSpent >= 0;
-        System.out.println("weekly: " + weeklyAllowed);
         if (messageWrapper.getMethodType().equals(MethodType.PAY_FROM_ACCOUNT)) {
             String cardNumber = getCardNumberFromDescription(transaction.getDescription());
             if (cardNumber != null) {
-                System.out.println(transaction.getDescription());
-                System.out.println("cardNumber: " + cardNumber);
                 Double debitAmountSpent = getDebitAmountSpent(currentDate, 0L, cardNumber);
                 boolean debitAllowed = debitAmountSpent >= 0
                                 && (debitAmountSpent + transaction.getTransactionAmount()) < DAILY_SPENDING_LIMIT;
-                System.out.println("debit: " + debitAllowed);
                 return weeklyAllowed && debitAllowed;
             } else {
                 System.out.printf("%s CardNumber could not be retrieved from description.", PREFIX);
