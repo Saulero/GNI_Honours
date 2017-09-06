@@ -1723,10 +1723,10 @@ class AuthenticationService {
                 });
     }
 
-    @RequestMapping(value = "/transferLimit", method = RequestMethod.PUT)
+    @RequestMapping(value = "/TransferLimit", method = RequestMethod.PUT)
     public void setTransferLimit(final Callback<String> callback, @RequestParam("cookie") final String cookie,
                                  @RequestParam("iBAN") final String iBAN,
-                                 @RequestParam("transferLimit") final Double transferLimit) {
+                                 @RequestParam("TransferLimit") final Double transferLimit) {
         System.out.printf("%s Forwarding setTransferLimit request.\n", PREFIX);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         handleSetTransferLimitExceptions(cookie, iBAN, transferLimit, callbackBuilder);
@@ -1736,6 +1736,7 @@ class AuthenticationService {
                                                   final CallbackBuilder callbackBuilder) {
         try {
             authenticateRequest(cookie, MethodType.SET_TRANSFER_LIMIT);
+            sendSetTransferLimitRequest(iBAN, transferLimit, callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
@@ -1749,8 +1750,8 @@ class AuthenticationService {
 
     private void sendSetTransferLimitRequest(final String iBAN, final Double transferLimit,
                                              final CallbackBuilder callbackBuilder) {
-        systemInformationClient.putFormAsyncWith2Params("/services/systemInfo/transferLimit", "iBAN",
-                iBAN, "transferLimit", transferLimit, (httpStatusCode, httpContentType, data) -> {
+        systemInformationClient.putFormAsyncWith2Params("/services/systemInfo/TransferLimit", "iBAN",
+                iBAN, "TransferLimit", transferLimit, (httpStatusCode, httpContentType, data) -> {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
