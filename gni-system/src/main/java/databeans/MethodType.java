@@ -32,7 +32,8 @@ public enum MethodType implements Serializable {
     INVALIDATE_CARD,
     REQUEST_CREDIT_CARD,
     SET_FREEZE_USER_ACCOUNT,
-    TRANSFER_BANK_ACCOUNT;
+    TRANSFER_BANK_ACCOUNT,
+    SET_TRANSFER_LIMIT;
 
     public int getId() {
         switch (this) {
