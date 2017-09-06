@@ -159,6 +159,7 @@ class LedgerService {
             ps.setDouble(5, newAccount.getBalance());           // balance
             ps.setBoolean(6, false);                         // savings_active
             ps.setDouble(7, 0.0);                            // savings balance
+            ps.setDouble(8, WEEKLY_SPENDING_LIMIT);             // transfer_limit
 
             ps.executeUpdate();
             ps.close();
@@ -1618,8 +1619,8 @@ class LedgerService {
         SQLConnection connection = db.getConnection();
         PreparedStatement updateLimit = connection.getConnection().prepareStatement(updateTransferLimit);
         for (TransferLimit transferLimit : transferLimitList) {
-            updateLimit.setString(1, transferLimit.getIBAN());
-            updateLimit.setDouble(2, transferLimit.getTransferLimit());
+            updateLimit.setDouble(1, transferLimit.getTransferLimit());
+            updateLimit.setString(2, transferLimit.getIBAN());
             updateLimit.execute();
         }
         updateLimit.close();
