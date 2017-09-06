@@ -690,7 +690,7 @@ class PinService {
                                              final CallbackBuilder callbackBuilder) {
         MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
         data.setMethodType(MethodType.PAY_FROM_ACCOUNT);
-        data.setData(jsonConverter.toJson(transaction));
+        data.setData(transaction);
         transactionReceiveClient.putFormAsyncWith1Param("/services/transactionReceive/transaction",
                 "request", jsonConverter.toJson(data),
                 (statusCode, httpContentType, replyBody) -> {

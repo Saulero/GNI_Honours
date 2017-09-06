@@ -430,7 +430,6 @@ class LedgerService {
         Transaction transaction = (Transaction) messageWrapper.getData();
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         System.out.printf("%s Received an incoming transaction request.\n", PREFIX);
-        Gson gson = new Gson();
         processIncomingTransaction(transaction, callbackBuilder);
     }
 
