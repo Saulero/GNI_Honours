@@ -1441,7 +1441,7 @@ class PinService {
             refillCreditCards(cardList, customerId, true, callbackBuilder);
         } else {
             deactivateCreditCard(creditCard);
-            sendRemoveCreditCardCallback(callbackBuilder);
+            sendRefillCreditCardCallback(callbackBuilder, true);
         }
     }
 
@@ -1457,7 +1457,7 @@ class PinService {
     private void refillCreditCards(final List<CreditCard> creditCards, final Long customerId, final boolean closeCard,
                                   final CallbackBuilder callbackBuilder) {
         if (creditCards.size() < 1) {
-            sendRemoveCreditCardCallback(callbackBuilder);
+            sendRefillCreditCardCallback(callbackBuilder, false);
         } else {
             CreditCard creditCard = creditCards.get(0);
             Transaction transaction = new Transaction();
@@ -1534,7 +1534,7 @@ class PinService {
                 if (reply.isSuccessful()) {
                     try {
                         deactivateCreditCard(creditCards.get(0));
-                        sendRemoveCreditCardCallback(callbackBuilder);
+                        sendRefillCreditCardCallback(callbackBuilder, true);
                     } catch (SQLException e) {
                         e.printStackTrace();
                         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
@@ -1556,8 +1556,12 @@ class PinService {
         }
     }
 
-    private void sendRemoveCreditCardCallback(final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Credit card successfully removed, sending callback.\n", PREFIX);
+    private void sendRefillCreditCardCallback(final CallbackBuilder callbackBuilder, final boolean removed) {
+        if (removed) {
+            System.out.printf("%s Credit card successfully removed, sending callback.\n", PREFIX);
+        } else {
+            System.out.printf("%s Credit cards successfully refilled, sending callback.\n", PREFIX);
+        }
         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
                 false, 200, "Normal Reply")));
     }

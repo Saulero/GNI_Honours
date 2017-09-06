@@ -238,7 +238,7 @@ class SystemInformationService {
                             if (daysLeft >= ((newDaysInMonth - newDayOfTheMonth) + 1)) {
                                 doInterestProcessingRequest(daysLeft, callbackBuilder);
                             } else {
-                                sendIncrementDaysCallback(callbackBuilder);
+                                doSetTransferLimitsRequest(callbackBuilder);
                             }
                         } else {
                             callbackBuilder.build().reply(body);
