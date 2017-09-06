@@ -259,23 +259,28 @@ class SystemInformationService {
                 limitsToBeProcessed.addAll(transferLimitRequests.remove(date));
             }
         }
-        ledgerClient.putFormAsyncWith1Param("/services/ledger/transferLimit", "limitList",
-                limitsToBeProcessed, (httpStatusCode, httpContentType, body) -> {
-                    if (httpStatusCode == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(
-                                JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
-                        if (!messageWrapper.isError()) {
-                            sendIncrementDaysCallback(callbackBuilder);
+        if (limitsToBeProcessed.size() > 0) {
+            ledgerClient.putFormAsyncWith1Param("/services/ledger/transferLimit", "limitList",
+                    limitsToBeProcessed, (httpStatusCode, httpContentType, body) -> {
+                        if (httpStatusCode == HTTP_OK) {
+                            MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                    JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                            if (!messageWrapper.isError()) {
+                                sendIncrementDaysCallback(callbackBuilder);
+                            } else {
+                                callbackBuilder.build().reply(body);
+                            }
                         } else {
-                            callbackBuilder.build().reply(body);
+                            callbackBuilder.build().reply(jsonConverter.toJson(
+                                    JSONParser.createMessageWrapper(true, 500,
+                                            "An unknown error occurred.",
+                                            "There was a problem with one of the HTTP requests")));
                         }
-                    } else {
-                        callbackBuilder.build().reply(jsonConverter.toJson(
-                                JSONParser.createMessageWrapper(true, 500,
-                                        "An unknown error occurred.",
-                                        "There was a problem with one of the HTTP requests")));
-                    }
-                });
+                    });
+        } else {
+            sendIncrementDaysCallback(callbackBuilder);
+        }
+
     }
 
     private void sendIncrementDaysCallback(final CallbackBuilder callbackBuilder) {
