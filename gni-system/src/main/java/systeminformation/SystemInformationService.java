@@ -196,7 +196,7 @@ class SystemInformationService {
             doInterestProcessingRequest(days, callbackBuilder);
         } else {
             this.systemDate = this.systemDate.plusDays(days);
-            sendIncrementDaysCallback(callbackBuilder);
+            doSetTransferLimitsRequest(callbackBuilder);
         }
     }
 
@@ -250,6 +250,32 @@ class SystemInformationService {
                                         "There was a problem with one of the HTTP requests")));
                     }
         });
+    }
+
+    private void doSetTransferLimitsRequest(final CallbackBuilder callbackBuilder) {
+        LinkedList<TransferLimit> limitsToBeProcessed = new LinkedList<>();
+        for (LocalDate date : transferLimitRequests.keySet()) {
+            if (date.isBefore(systemDate)) {
+                limitsToBeProcessed.addAll(transferLimitRequests.remove(date));
+            }
+        }
+        ledgerClient.putFormAsyncWith1Param("/services/ledger/transferLimit", "limitList",
+                limitsToBeProcessed, (httpStatusCode, httpContentType, body) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendIncrementDaysCallback(callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(body);
+                        }
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(
+                                JSONParser.createMessageWrapper(true, 500,
+                                        "An unknown error occurred.",
+                                        "There was a problem with one of the HTTP requests")));
+                    }
+                });
     }
 
     private void sendIncrementDaysCallback(final CallbackBuilder callbackBuilder) {
