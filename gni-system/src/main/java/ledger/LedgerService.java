@@ -244,8 +244,10 @@ class LedgerService {
                 double balance = rs.getDouble("balance");
                 boolean savingsActive = rs.getBoolean("savings_active");
                 double savingsBalance = rs.getDouble("savings_balance");
+                Double transferLimit = rs.getDouble("transfer_limit");
                 Account account = new Account(name, overdraftLimit, balance, savingsActive, savingsBalance);
                 account.setAccountNumber(accountNumber);
+                account.setTransferLimit(transferLimit);
 
                 rs.close();
                 ps.close();
@@ -535,7 +537,7 @@ class LedgerService {
                     if (account != null
                             && (account.withdrawTransactionIsAllowed(transaction) || override)
                             && (customerIsAuthorized || override)
-                            && (spendingLimitNotExceeded(messageWrapper, date) || override)) {
+                            && (spendingLimitNotExceeded(messageWrapper, account.getTransferLimit(), date) || override)) {
                         // Update the object
                         account.processWithdraw(transaction);
 
@@ -569,10 +571,11 @@ class LedgerService {
         });
     }
 
-    private boolean spendingLimitNotExceeded(final MessageWrapper messageWrapper, final LocalDate currentDate) {
+    private boolean spendingLimitNotExceeded(final MessageWrapper messageWrapper, final Double transferLimit,
+                                             final LocalDate currentDate) {
         Transaction transaction = (Transaction) messageWrapper.getData();
         Double weeklyAmountSpent = getAmountSpent(currentDate, 6L, transaction.getSourceAccountNumber());
-        boolean weeklyAllowed = weeklyAmountSpent < WEEKLY_SPENDING_LIMIT && weeklyAmountSpent > 0;
+        boolean weeklyAllowed = weeklyAmountSpent < transferLimit && weeklyAmountSpent > 0;
         if (messageWrapper.getMethodType().equals(MethodType.PAY_FROM_ACCOUNT)) {
             String cardNumber = getCardNumberFromDescription(transaction.getDescription());
             if (cardNumber != null) {
