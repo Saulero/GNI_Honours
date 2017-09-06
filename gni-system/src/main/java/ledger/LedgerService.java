@@ -1591,6 +1591,48 @@ class LedgerService {
     }
 
     /**
+     * Processes a list of transferLimit requests that need to be set today.
+     * @param callback Used to send the result of the request back to the request source.
+     * @param transferLimitList List of transfer limits that need to be updated in the system.
+     */
+    @RequestMapping(value = "/transferLimit", method = RequestMethod.PUT)
+    public void processSetTransferLimitsRequest(final Callback<String> callback,
+                                               final @RequestParam("limitList") LinkedList<TransferLimit> transferLimitList) {
+        System.out.printf("%s Received process transferLimit request.\n", PREFIX);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleSetTransferLimitsExceptions(transferLimitList, callbackBuilder);
+    }
+
+    private void handleSetTransferLimitsExceptions(final LinkedList<TransferLimit> transferLimitList,
+                                                  final CallbackBuilder callbackBuilder) {
+        try {
+            updateTransferLimitsInDb(transferLimitList);
+            sendSetTransferLimitsCallback(callbackBuilder);
+        } catch (SQLException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 500, "Error connecting to the Ledger database.")));
+        }
+    }
+
+    private void updateTransferLimitsInDb(final LinkedList<TransferLimit> transferLimitList) throws SQLException {
+        SQLConnection connection = db.getConnection();
+        PreparedStatement updateLimit = connection.getConnection().prepareStatement(updateTransferLimit);
+        for (TransferLimit transferLimit : transferLimitList) {
+            updateLimit.setString(1, transferLimit.getIBAN());
+            updateLimit.setDouble(2, transferLimit.getTransferLimit());
+            updateLimit.execute();
+        }
+        updateLimit.close();
+        db.returnConnection(connection);
+    }
+
+    private void sendSetTransferLimitsCallback(final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Set transfer limits request successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                false, 200, "Normal Reply")));
+    }
+
+    /**
      * Safely shuts down the LedgerService.
      */
     void shutdown() {
