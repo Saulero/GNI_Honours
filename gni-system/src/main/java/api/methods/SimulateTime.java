@@ -44,7 +44,6 @@ public class SimulateTime {
                     JSONRPC2Response response = new JSONRPC2Response(result, api.getId());
                     api.getCallbackBuilder().build().reply(response.toJSONString());
                 } else {
-                    System.out.printf("%s Simulate time request unsuccessful.\n\n\n\n", PREFIX);
                     sendErrorReply(messageWrapper, api);
                 }
             } else {

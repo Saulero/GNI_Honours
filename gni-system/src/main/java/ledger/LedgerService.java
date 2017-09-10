@@ -16,7 +16,6 @@ import databeans.RequestType;
 import io.advantageous.qbit.reactive.CallbackBuilder;
 import util.JSONParser;
 
-import javax.xml.crypto.Data;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.PreparedStatement;
@@ -60,6 +59,10 @@ class LedgerService {
     private static final double TIER_3_INTEREST_RATE = 0.20;
     /** Account number where fees are transferred to. */
     private static final String GNI_ACCOUNT = "NL52GNIB3676451168";
+    /** Indicates how much can be transferred out of a bank account each week.*/
+    private static final Double WEEKLY_SPENDING_LIMIT = 2500.0;
+    /** Indicates how much can be transferred with a debit card over the period of one day.*/
+    private static final Double DAILY_SPENDING_LIMIT = 250.0;
 
     /**
      * Constructor.
@@ -156,6 +159,7 @@ class LedgerService {
             ps.setDouble(5, newAccount.getBalance());           // balance
             ps.setBoolean(6, false);                         // savings_active
             ps.setDouble(7, 0.0);                            // savings balance
+            ps.setDouble(8, WEEKLY_SPENDING_LIMIT);             // transfer_limit
 
             ps.executeUpdate();
             ps.close();
@@ -240,8 +244,10 @@ class LedgerService {
                 double balance = rs.getDouble("balance");
                 boolean savingsActive = rs.getBoolean("savings_active");
                 double savingsBalance = rs.getDouble("savings_balance");
+                Double transferLimit = rs.getDouble("transfer_limit");
                 Account account = new Account(name, overdraftLimit, balance, savingsActive, savingsBalance);
                 account.setAccountNumber(accountNumber);
+                account.setTransferLimit(transferLimit);
 
                 rs.close();
                 ps.close();
@@ -414,15 +420,16 @@ class LedgerService {
     /**
      * Receives a request to process an incoming transaction.
      * @param callback Used to send a reply to the request source.
-     * @param body JSON String representing a Transaction
+     * @param requestWrapper JSON String representing a messageWrapper containing the transaction to be executed.
      */
     @RequestMapping(value = "/transaction/in", method = RequestMethod.PUT)
     public void incomingTransactionListener(final Callback<String> callback,
-                                            final @RequestParam("request") String body) {
+                                            final @RequestParam("request") String requestWrapper) {
+        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(requestWrapper),
+                MessageWrapper.class);
+        Transaction transaction = (Transaction) messageWrapper.getData();
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         System.out.printf("%s Received an incoming transaction request.\n", PREFIX);
-        Gson gson = new Gson();
-        Transaction transaction = gson.fromJson(body, Transaction.class);
         processIncomingTransaction(transaction, callbackBuilder);
     }
 
@@ -486,36 +493,38 @@ class LedgerService {
     /**
      * Receives a request to process an outgoing transaction.
      * @param callback Used to send a reply to the request source.
-     * @param requestJson JSON String representing a Transaction
+     * @param requestWrapper JSON String representing a messageWrapper containing the transaction to be executed.
      * @param customerId ID of the customer makin the request, for authorization purposes
      */
     @RequestMapping(value = "/transaction/out", method = RequestMethod.PUT)
     public void outgoingTransactionListener(final Callback<String> callback,
-                                            @RequestParam("request") final String requestJson,
+                                            @RequestParam("request") final String requestWrapper,
                                             @RequestParam("customerId") final String customerId,
                                             @RequestParam("override") final Boolean override) {
+        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(requestWrapper),
+                MessageWrapper.class);
+        Transaction transaction = (Transaction) messageWrapper.getData();
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         System.out.printf("%s Received outgoing transaction request for customer %s.\n", PREFIX, customerId);
-        Gson gson = new Gson();
-        Transaction transaction = gson.fromJson(requestJson, Transaction.class);
         boolean customerIsAuthorized = getCustomerAuthorization(transaction.getSourceAccountNumber(), customerId);
-        processOutgoingTransaction(transaction, customerIsAuthorized, override, callbackBuilder);
+        processOutgoingTransaction(messageWrapper, customerIsAuthorized, override, callbackBuilder);
     }
 
     /**
      * Processes an outgoing transaction.
      * Checks if the account making the transaction is allowed to do this. (has a high enough overdraft limit)
-     * @param transaction Object representing a Transaction request.
+     * @param messageWrapper Contains the transaction request to be executed.
      * @param customerIsAuthorized boolean to signify if the outgoing transaction is allowed
      */
-    void processOutgoingTransaction(final Transaction transaction, final boolean customerIsAuthorized,
+    void processOutgoingTransaction(final MessageWrapper messageWrapper, final boolean customerIsAuthorized,
                                     final boolean override, final CallbackBuilder callbackBuilder) {
+        Transaction transaction = (Transaction) messageWrapper.getData();
         systemInformationClient.getAsync("/services/systemInfo/date", (code, contentType, body) -> {
             if (code == HTTP_OK) {
-                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
-                if (!messageWrapper.isError()) {
+                MessageWrapper responseWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                if (!responseWrapper.isError()) {
 
-                    LocalDate date = (LocalDate) messageWrapper.getData();
+                    LocalDate date = (LocalDate) responseWrapper.getData();
                     Account account;
                     String sourceAccountNumber = transaction.getSourceAccountNumber();
                     if (sourceAccountNumber.endsWith("S")) {
@@ -525,7 +534,8 @@ class LedgerService {
                     }
                     if (account != null
                             && (account.withdrawTransactionIsAllowed(transaction) || override)
-                            && (customerIsAuthorized || override)) {
+                            && (customerIsAuthorized || override)
+                            && (spendingLimitNotExceeded(messageWrapper, account.getTransferLimit(), date) || override)) {
                         // Update the object
                         account.processWithdraw(transaction);
 
@@ -557,6 +567,81 @@ class LedgerService {
                         "There was a problem with one of the HTTP requests")));
             }
         });
+    }
+
+    private boolean spendingLimitNotExceeded(final MessageWrapper messageWrapper, final Double transferLimit,
+                                             final LocalDate currentDate) {
+        Transaction transaction = (Transaction) messageWrapper.getData();
+        Double weeklyAmountSpent = getAmountSpent(currentDate, 6L, transaction.getSourceAccountNumber());
+        boolean weeklyAllowed = (weeklyAmountSpent + transaction.getTransactionAmount()) < transferLimit && weeklyAmountSpent >= 0;
+        if (messageWrapper.getMethodType().equals(MethodType.PAY_FROM_ACCOUNT)) {
+            String cardNumber = getCardNumberFromDescription(transaction.getDescription());
+            if (cardNumber != null) {
+                Double debitAmountSpent = getDebitAmountSpent(currentDate, 0L, cardNumber);
+                boolean debitAllowed = debitAmountSpent >= 0
+                                && (debitAmountSpent + transaction.getTransactionAmount()) < DAILY_SPENDING_LIMIT;
+                return weeklyAllowed && debitAllowed;
+            } else {
+                System.out.printf("%s CardNumber could not be retrieved from description.", PREFIX);
+                return false;
+            }
+        } else {
+            return weeklyAllowed;
+        }
+    }
+
+    private Double getAmountSpent(final LocalDate currentDay, final Long limitDays, final String accountNumber) {
+        LocalDate startDay = currentDay.minusDays(limitDays);
+        try {
+            Double moneySpent = 0.0;
+            SQLConnection connection = db.getConnection();
+            PreparedStatement findOutgoingTransactions = connection.getConnection().prepareStatement(getOutgoingTransactions);
+            findOutgoingTransactions.setString(1, accountNumber);
+            findOutgoingTransactions.setDate(2, java.sql.Date.valueOf(startDay));
+            findOutgoingTransactions.setDate(3, java.sql.Date.valueOf(currentDay));
+            ResultSet transactionsDuringPeriod = findOutgoingTransactions.executeQuery();
+            while (transactionsDuringPeriod.next()) {
+                moneySpent += transactionsDuringPeriod.getDouble("amount");
+            }
+            findOutgoingTransactions.close();
+            db.returnConnection(connection);
+            return moneySpent;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return -1.0;
+        }
+    }
+
+    private Double getDebitAmountSpent(final LocalDate currentDay, final Long limitDays, final String cardNumber) {
+        LocalDate startDay = currentDay.minusDays(limitDays);
+        try {
+            Double moneySpent = 0.0;
+            SQLConnection connection = db.getConnection();
+            PreparedStatement findOutgoingTransactions = connection.getConnection()
+                                                                    .prepareStatement(getOutgoingDebitTransactions);
+            findOutgoingTransactions.setDate(1, java.sql.Date.valueOf(startDay));
+            findOutgoingTransactions.setDate(2, java.sql.Date.valueOf(currentDay));
+            findOutgoingTransactions.setString(3, "PIN Transaction card #" + cardNumber);
+            findOutgoingTransactions.setString(4, "ATM withdrawal card #" + cardNumber);
+            ResultSet transactionsDuringPeriod = findOutgoingTransactions.executeQuery();
+            while (transactionsDuringPeriod.next()) {
+                moneySpent += transactionsDuringPeriod.getDouble("amount");
+            }
+            findOutgoingTransactions.close();
+            db.returnConnection(connection);
+            return moneySpent;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return -1.0;
+        }
+    }
+
+    private String getCardNumberFromDescription(final String description) {
+        if (description.contains("#")) {
+            return description.substring(description.indexOf("#") + 1);
+        } else {
+            return null;
+        }
     }
 
 
@@ -1504,6 +1589,51 @@ class LedgerService {
 
     private void sendTransferBankAccountCallback(final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Bank Account transfer successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                false, 200, "Normal Reply")));
+    }
+
+    /**
+     * Processes a list of transferLimit requests that need to be set today.
+     * @param callback Used to send the result of the request back to the request source.
+     * @param transferLimitListJson List of transfer limits that need to be updated in the system.
+     */
+    @RequestMapping(value = "/transferLimit", method = RequestMethod.PUT)
+    public void processSetTransferLimitsRequest(final Callback<String> callback,
+                                               final @RequestParam("limitList") String transferLimitListJson) {
+        System.out.printf("%s Received process transferLimit request.\n", PREFIX);
+        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                    JSONParser.removeEscapeCharacters(transferLimitListJson), MessageWrapper.class);
+        LinkedList<TransferLimit> transferLimitList = (LinkedList<TransferLimit>) messageWrapper.getData();
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleSetTransferLimitsExceptions(transferLimitList, callbackBuilder);
+    }
+
+    private void handleSetTransferLimitsExceptions(final LinkedList<TransferLimit> transferLimitList,
+                                                  final CallbackBuilder callbackBuilder) {
+        try {
+            updateTransferLimitsInDb(transferLimitList);
+            sendSetTransferLimitsCallback(callbackBuilder);
+        } catch (SQLException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 500, "Error connecting to the Ledger database.")));
+        }
+    }
+
+    private void updateTransferLimitsInDb(final LinkedList<TransferLimit> transferLimitList) throws SQLException {
+        SQLConnection connection = db.getConnection();
+        PreparedStatement updateLimit = connection.getConnection().prepareStatement(updateTransferLimit);
+        for (TransferLimit transferLimit : transferLimitList) {
+            updateLimit.setDouble(1, transferLimit.getTransferLimit());
+            updateLimit.setString(2, transferLimit.getIBAN());
+            updateLimit.execute();
+        }
+        updateLimit.close();
+        db.returnConnection(connection);
+    }
+
+    private void sendSetTransferLimitsCallback(final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Set transfer limits request successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
                 false, 200, "Normal Reply")));
     }
