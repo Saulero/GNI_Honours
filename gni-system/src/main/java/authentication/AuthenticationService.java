@@ -1433,9 +1433,12 @@ class AuthenticationService {
                 if (!messageWrapper.isError()) {
                     sendSimulateTimeCallback(callbackBuilder, body);
                 } else {
+                    System.out.printf("%s, %s", PREFIX, body);
                     callbackBuilder.build().reply(body);
                 }
             } else {
+                System.out.println("Problem with http in auth");
+                System.out.println(body);
                 callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
                         "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
@@ -1723,10 +1726,10 @@ class AuthenticationService {
                 });
     }
 
-    @RequestMapping(value = "/TransferLimit", method = RequestMethod.PUT)
+    @RequestMapping(value = "/transferLimit", method = RequestMethod.PUT)
     public void setTransferLimit(final Callback<String> callback, @RequestParam("cookie") final String cookie,
                                  @RequestParam("iBAN") final String iBAN,
-                                 @RequestParam("TransferLimit") final Double transferLimit) {
+                                 @RequestParam("transferLimit") final Double transferLimit) {
         System.out.printf("%s Forwarding setTransferLimit request.\n", PREFIX);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         handleSetTransferLimitExceptions(cookie, iBAN, transferLimit, callbackBuilder);
@@ -1750,8 +1753,8 @@ class AuthenticationService {
 
     private void sendSetTransferLimitRequest(final String iBAN, final Double transferLimit,
                                              final CallbackBuilder callbackBuilder) {
-        systemInformationClient.putFormAsyncWith2Params("/services/systemInfo/TransferLimit", "iBAN",
-                iBAN, "TransferLimit", transferLimit, (httpStatusCode, httpContentType, data) -> {
+        systemInformationClient.putFormAsyncWith2Params("/services/systemInfo/transferLimit", "iBAN",
+                iBAN, "transferLimit", transferLimit, (httpStatusCode, httpContentType, data) -> {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
                         if (!messageWrapper.isError()) {

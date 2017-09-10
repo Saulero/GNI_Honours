@@ -530,7 +530,7 @@ class UsersService {
      */
     private void processTransactionDispatchReply(final Transaction transaction, final String transactionReplyJson, final CallbackBuilder callbackBuilder) {
         MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
-        data.setMethodType(MethodType.PAY_FROM_ACCOUNT);
+        data.setMethodType(MethodType.TRANSFER_MONEY);
         data.setData(transaction);
         if (transaction.isProcessed() && transaction.isSuccessful()) {
             transactionReceiveClient.putFormAsyncWith1Param("/services/transactionReceive/transaction",

@@ -27,6 +27,7 @@ public class SetTransferLimit {
     private static void handleTransferLimitExceptions(final Map<String, Object> params, final ApiBean api) {
         try {
             verifySetTransferLimitInput(params);
+            doSetTransferLimitRequest(params, api);
         } catch (IncorrectInputException e) {
             e.printStackTrace();
             sendErrorReply(JSONParser.createMessageWrapper(true, 418,
@@ -43,16 +44,16 @@ public class SetTransferLimit {
         if (iBAN == null || iBAN.length() > MAX_ACCOUNT_NUMBER_LENGTH) {
             throw new IncorrectInputException("iBAN incorrectly specified.");
         }
-        Double transferLimit = (Double) params.get("TransferLimit");
+        Double transferLimit = (Double) params.get("transferLimit");
         if (transferLimit == null) {
             throw new IncorrectInputException("TransferLimit not specified.");
         }
     }
 
     private static void doSetTransferLimitRequest(final Map<String, Object> params, final ApiBean api) {
-        api.getAuthenticationClient().putFormAsyncWith3Params("/services/authentication/TransferLimit",
+        api.getAuthenticationClient().putFormAsyncWith3Params("/services/authentication/transferLimit",
                 "cookie", params.get("authToken"), "iBAN", params.get("iBAN"),
-                "TransferLimit", params.get("TransferLimit"),
+                "transferLimit", params.get("transferLimit"),
                 (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = api.getJsonConverter().fromJson(

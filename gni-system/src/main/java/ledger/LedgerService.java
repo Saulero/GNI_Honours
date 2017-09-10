@@ -501,14 +501,11 @@ class LedgerService {
                                             @RequestParam("request") final String requestWrapper,
                                             @RequestParam("customerId") final String customerId,
                                             @RequestParam("override") final Boolean override) {
-        System.out.println("ledger converting");
         MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(requestWrapper),
                 MessageWrapper.class);
-        System.out.println("ledger done");
         Transaction transaction = (Transaction) messageWrapper.getData();
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         System.out.printf("%s Received outgoing transaction request for customer %s.\n", PREFIX, customerId);
-        Gson gson = new Gson();
         boolean customerIsAuthorized = getCustomerAuthorization(transaction.getSourceAccountNumber(), customerId);
         processOutgoingTransaction(messageWrapper, customerIsAuthorized, override, callbackBuilder);
     }
@@ -1599,12 +1596,15 @@ class LedgerService {
     /**
      * Processes a list of transferLimit requests that need to be set today.
      * @param callback Used to send the result of the request back to the request source.
-     * @param transferLimitList List of transfer limits that need to be updated in the system.
+     * @param transferLimitListJson List of transfer limits that need to be updated in the system.
      */
     @RequestMapping(value = "/transferLimit", method = RequestMethod.PUT)
     public void processSetTransferLimitsRequest(final Callback<String> callback,
-                                               final @RequestParam("limitList") LinkedList<TransferLimit> transferLimitList) {
+                                               final @RequestParam("limitList") String transferLimitListJson) {
         System.out.printf("%s Received process transferLimit request.\n", PREFIX);
+        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                    JSONParser.removeEscapeCharacters(transferLimitListJson), MessageWrapper.class);
+        LinkedList<TransferLimit> transferLimitList = (LinkedList<TransferLimit>) messageWrapper.getData();
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         handleSetTransferLimitsExceptions(transferLimitList, callbackBuilder);
     }

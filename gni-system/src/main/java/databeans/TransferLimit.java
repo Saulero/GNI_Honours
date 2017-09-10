@@ -1,9 +1,11 @@
 package databeans;
 
+import java.io.Serializable;
+
 /**
  * @author Noel
  */
-public class TransferLimit {
+public class TransferLimit implements Serializable {
     private String iBAN;
     private Double transferLimit;
 

@@ -199,6 +199,8 @@ public class ApiService {
                 break;
             case "transferBankAccount":     TransferBankAccount.transferBankAccount(params, api);
                 break;
+            case "setTransferLimit":        SetTransferLimit.setTransferLimit(params, api);
+                break;
             default:
                 System.out.println(request.getMethod());
                 callback.reply(new JSONRPC2Response(JSONRPC2Error.METHOD_NOT_FOUND, request.getID()).toJSONString());

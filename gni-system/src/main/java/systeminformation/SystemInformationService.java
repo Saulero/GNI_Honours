@@ -255,22 +255,30 @@ class SystemInformationService {
     private void doSetTransferLimitsRequest(final CallbackBuilder callbackBuilder) {
         LinkedList<TransferLimit> limitsToBeProcessed = new LinkedList<>();
         for (LocalDate date : transferLimitRequests.keySet()) {
-            if (date.isBefore(systemDate)) {
+            if (!date.isAfter(systemDate)) {
                 limitsToBeProcessed.addAll(transferLimitRequests.remove(date));
             }
         }
         if (limitsToBeProcessed.size() > 0) {
+            MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
+            data.setData(limitsToBeProcessed);
             ledgerClient.putFormAsyncWith1Param("/services/ledger/transferLimit", "limitList",
-                    limitsToBeProcessed, (httpStatusCode, httpContentType, body) -> {
+                    jsonConverter.toJson(data), (httpStatusCode, httpContentType, body) -> {
                         if (httpStatusCode == HTTP_OK) {
                             MessageWrapper messageWrapper = jsonConverter.fromJson(
                                     JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
                             if (!messageWrapper.isError()) {
                                 sendIncrementDaysCallback(callbackBuilder);
                             } else {
+                                System.out.println("error in messagewrapper");
+                                System.out.println(messageWrapper.getData());
+                                System.out.println(messageWrapper.getMessage());
                                 callbackBuilder.build().reply(body);
                             }
                         } else {
+                            System.out.println("error with http");
+                            System.out.println(httpStatusCode);
+                            System.out.println(body);
                             callbackBuilder.build().reply(jsonConverter.toJson(
                                     JSONParser.createMessageWrapper(true, 500,
                                             "An unknown error occurred.",
@@ -498,9 +506,9 @@ class SystemInformationService {
      * @param iBAN iBAN of the account the TransferLimit should be set for.
      * @param transferLimit TransferLimit that should be set.
      */
-    @RequestMapping(value = "/TransferLimit", method = RequestMethod.PUT)
+    @RequestMapping(value = "/transferLimit", method = RequestMethod.PUT)
     void setTransferLimit(final Callback<String> callback, final @RequestParam("iBAN") String iBAN,
-                      final @RequestParam("TransferLimit") Double transferLimit) {
+                      final @RequestParam("transferLimit") Double transferLimit) {
         System.out.printf("%s Received set transfer limit request.\n", PREFIX);
         LocalDate dayOfExecution = systemDate.plusDays(1L);
         LinkedList<TransferLimit> requestsOnDay = transferLimitRequests.get(dayOfExecution);

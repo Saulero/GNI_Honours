@@ -415,7 +415,6 @@ public class BasicHappyFlowTestSuite {
             GetBalanceMethod.parseResponse(parsedResponse);
         }
 
-        // Extension 5 - Overdrafting Limit
         System.out.println("-- Extension 6: Savings Account --");
         System.out.println("-- OpenSavingsAccount --");
         request = OpenSavingsAccountMethod.createRequest(customer2, bankAccount3);
@@ -787,12 +786,154 @@ public class BasicHappyFlowTestSuite {
             GetTransactionsMethod.parseResponse(namedArrayResults);
         }
 
+        //Extension 9
+        System.out.println("-- Transfer limit extension --");
+        System.out.println("-- Donald tries to buy something expensive. Should fail. --");
+        request = PayFromAccountMethod.createRequest(bankAccount1, bankAccount3, card1, 300);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            PayFromAccountMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Donald tries to buy something worth 200. Should work. --");
+        request = PayFromAccountMethod.createRequest(bankAccount1, bankAccount3, card1, 200);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            PayFromAccountMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Donald tries to buy something worth 200 again. Should fail. --");
+        request = PayFromAccountMethod.createRequest(bankAccount1, bankAccount3, card1, 200);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            PayFromAccountMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Donald tries to transfer more than the standard limit. Should fail. --");
+        request = TransferMoneyMethod.createRequest(bankAccount1, bankAccount3, customer1, (3000), "Moniez");
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            TransferMoneyMethod.parseResponse(parsedResponse);
+        }
+
+
+        System.out.println("-- Daisy wants to set her overdraft limit to 3000. --");
+
+        request = SetOverdraftLimitMethod.createRequest(customer2, bankAccount3, 3000f);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            SetOverdraftLimitMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Daisy transfers 2000 to donald. Should pass. --");
+        request = TransferMoneyMethod.createRequest(bankAccount3, bankAccount1, customer2, (2000), "Moniez");
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            TransferMoneyMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Donald tries to transfer a little under the standard limit. Should pass. --");
+        request = TransferMoneyMethod.createRequest(bankAccount1, bankAccount3, customer1, (1500), "Moniez");
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            TransferMoneyMethod.parseResponse(parsedResponse);
+        }
+
+        // ObtainBalance
+        System.out.println("-- Donald wants to obtain his balance. --");
+
+        request = GetBalanceMethod.createRequest(customer1, bankAccount1);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            GetBalanceMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Donald tries to transfer a little under the standard limit again. Should fail. --");
+        request = TransferMoneyMethod.createRequest(bankAccount1, bankAccount3, customer1, (1500), "Moniez");
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            TransferMoneyMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Donald increases his transferLimit to 5000");
+        request = SetTransferLimitMethod.createRequest(customer1, bankAccount1, (5000));
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            SetTransferLimitMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Donald tries to transfer a little under the standard limit again. Should fail. --");
+        request = TransferMoneyMethod.createRequest(bankAccount1, bankAccount3, customer1, (1500), "Moniez");
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            TransferMoneyMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Simulate the passing of one day so the new transfer limit becomes active. --");
+        request = SimulateTimeMethod.createRequest(admin, 1);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            SimulateTimeMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Donald tries to transfer again. Should pass. --");
+        request = TransferMoneyMethod.createRequest(bankAccount1, bankAccount3, customer1, (500), "Moniez");
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            TransferMoneyMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Donald lowers his transferLimit to 1000");
+        request = SetTransferLimitMethod.createRequest(customer1, bankAccount1, (1000));
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            SetTransferLimitMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Simulate the passing of one day so the new transfer limit becomes active. --");
+        request = SimulateTimeMethod.createRequest(admin, 1);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            SimulateTimeMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Donald tries to transfer a little under the standard limit again. Should fail. --");
+        request = TransferMoneyMethod.createRequest(bankAccount1, bankAccount3, customer1, (500), "Moniez");
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            TransferMoneyMethod.parseResponse(parsedResponse);
+        }
+
+
         ///------ TEAR DOWN TESTS.
 
         // First we progress time 2000 days. All cards should be expired.
         System.out.println("-- SimulateTime 2000 days to make sure all cards are expired --");
 
-        request = SimulateTimeMethod.createRequest(admin, 2000);
+        request = SimulateTimeMethod.createRequest(admin, 1000);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            SimulateTimeMethod.parseResponse(parsedResponse);
+        }
+
+        request = SimulateTimeMethod.createRequest(admin, 1000);
         response = client.processRequest(request);
 
         if((parsedResponse = checkResponse(response)) != null){
