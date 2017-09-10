@@ -688,8 +688,11 @@ class PinService {
 
     private void doTransactionReceiveRequest(final Transaction transaction,
                                              final CallbackBuilder callbackBuilder) {
+        MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
+        data.setMethodType(MethodType.PAY_FROM_ACCOUNT);
+        data.setData(transaction);
         transactionReceiveClient.putFormAsyncWith1Param("/services/transactionReceive/transaction",
-                "request", jsonConverter.toJson(transaction),
+                "request", jsonConverter.toJson(data),
                 (statusCode, httpContentType, replyBody) -> {
                     processTransactionReceiveReply(statusCode, replyBody, callbackBuilder);
                 });
@@ -712,8 +715,11 @@ class PinService {
      */
     private void doTransactionRequest(final Transaction request, final Long customerId,
                                       final CallbackBuilder callbackBuilder) {
+        MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
+        data.setMethodType(MethodType.PAY_FROM_ACCOUNT);
+        data.setData(request);
         transactionDispatchClient.putFormAsyncWith3Params("/services/transactionDispatch/transaction",
-                "request", jsonConverter.toJson(request), "customerId", customerId,
+                "request", jsonConverter.toJson(data), "customerId", customerId,
                 "override", false,
         (code, contentType, replyBody) -> {
             processTransactionDispatchReply(code, replyBody, callbackBuilder);
@@ -728,8 +734,11 @@ class PinService {
      * @param callbackBuilder Used to send a reply to the request source.
      */
     private void doDepositTransactionRequest(final Transaction request, final CallbackBuilder callbackBuilder) {
+        MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
+        data.setMethodType(MethodType.PAY_FROM_ACCOUNT);
+        data.setData(request);
         transactionReceiveClient.putFormAsyncWith1Param("/services/transactionReceive/transaction",
-                "request", jsonConverter.toJson(request), ((code, contentType, body) -> {
+                "request", jsonConverter.toJson(data), ((code, contentType, body) -> {
             processTransactionReceiveReply(code, body, callbackBuilder);
         }));
     }
@@ -1191,8 +1200,11 @@ class PinService {
                 pinCard.getAccountNumber(), GNI_ACCOUNT, "GNI Bank",
                 "Fees for replacement of old PIN Card #" + pinCard.getCardNumber(),
                 7.50, false, false);
+        MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
+        data.setMethodType(MethodType.PAY_FROM_ACCOUNT);
+        data.setData(request);
         transactionDispatchClient.putFormAsyncWith3Params("/services/transactionDispatch/transaction",
-                "request", jsonConverter.toJson(request), "customerId", pinCard.getCustomerId(),
+                "request", jsonConverter.toJson(data), "customerId", pinCard.getCustomerId(),
                 "override", true,
                 (code, contentType, replyBody) -> {
                     if (code == HTTP_OK) {
@@ -1429,7 +1441,7 @@ class PinService {
             refillCreditCards(cardList, customerId, true, callbackBuilder);
         } else {
             deactivateCreditCard(creditCard);
-            sendRemoveCreditCardCallback(callbackBuilder);
+            sendRefillCreditCardCallback(callbackBuilder, true);
         }
     }
 
@@ -1445,7 +1457,7 @@ class PinService {
     private void refillCreditCards(final List<CreditCard> creditCards, final Long customerId, final boolean closeCard,
                                   final CallbackBuilder callbackBuilder) {
         if (creditCards.size() < 1) {
-            sendRemoveCreditCardCallback(callbackBuilder);
+            sendRefillCreditCardCallback(callbackBuilder, false);
         } else {
             CreditCard creditCard = creditCards.get(0);
             Transaction transaction = new Transaction();
@@ -1454,8 +1466,11 @@ class PinService {
             transaction.setDestinationAccountHolderName("GNI BANK");
             transaction.setTransactionAmount(creditCard.getLimit() - creditCard.getBalance());
             transaction.setDescription("Refill of credit card #" + creditCard.getCreditCardNumber());
+            MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
+            data.setMethodType(MethodType.PAY_FROM_ACCOUNT);
+            data.setData(transaction);
             transactionDispatchClient.putFormAsyncWith3Params("/services/transactionDispatch/transaction",
-                    "request", jsonConverter.toJson(transaction), "customerId", customerId,
+                    "request", jsonConverter.toJson(data), "customerId", customerId,
                     "override", !closeCard, //if the card should not be closed this method is being called by an admin.
                     (code, contentType, replyBody) -> handleDispatchRefillResponse(code, replyBody, transaction,
                             creditCards, customerId, closeCard, callbackBuilder));
@@ -1473,8 +1488,11 @@ class PinService {
                 Transaction reply = (Transaction) messageWrapper.getData();
                 if (reply.isSuccessful()) {
                     if (closeCard) {
+                        MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
+                        data.setMethodType(MethodType.PAY_FROM_ACCOUNT);
+                        data.setData(transaction);
                         transactionReceiveClient.putFormAsyncWith3Params("/services/transactionReceive/transaction",
-                                "request", jsonConverter.toJson(transaction), "customerId", customerId,
+                                "request", jsonConverter.toJson(data), "customerId", customerId,
                                 "override", false, (receiveStatusCode, httpContentType, replyJson)
                                         -> handleReceiveRefillResponse(receiveStatusCode, replyJson, creditCards,
                                         callbackBuilder));
@@ -1516,7 +1534,7 @@ class PinService {
                 if (reply.isSuccessful()) {
                     try {
                         deactivateCreditCard(creditCards.get(0));
-                        sendRemoveCreditCardCallback(callbackBuilder);
+                        sendRefillCreditCardCallback(callbackBuilder, true);
                     } catch (SQLException e) {
                         e.printStackTrace();
                         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
@@ -1538,8 +1556,12 @@ class PinService {
         }
     }
 
-    private void sendRemoveCreditCardCallback(final CallbackBuilder callbackBuilder) {
-        System.out.printf("%s Credit card successfully removed, sending callback.\n", PREFIX);
+    private void sendRefillCreditCardCallback(final CallbackBuilder callbackBuilder, final boolean removed) {
+        if (removed) {
+            System.out.printf("%s Credit card successfully removed, sending callback.\n", PREFIX);
+        } else {
+            System.out.printf("%s Credit cards successfully refilled, sending callback.\n", PREFIX);
+        }
         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
                 false, 200, "Normal Reply")));
     }

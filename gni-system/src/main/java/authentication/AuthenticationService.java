@@ -384,7 +384,7 @@ class AuthenticationService {
             final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
         try {
             authenticateRequest(messageWrapper.getCookie(), messageWrapper.getMethodType());
-            doTransactionRequest((String) messageWrapper.getData(), getCustomerId(messageWrapper.getCookie()), callbackBuilder);
+            doTransactionRequest(messageWrapper, getCustomerId(messageWrapper.getCookie()), callbackBuilder);
         } catch (SQLException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         } catch (UserNotAuthorizedException e) {
@@ -397,18 +397,18 @@ class AuthenticationService {
     /**
      * Forwards transaction request to the User service and forwards the reply or sends a rejection if the request
      * fails.
-     * @param transactionRequestJson Transaction request that should be processed.
+     * @param messageWrapper MessageWrapper containing a transaction request that should be processed.
      * @param callbackBuilder Used to send the received reply back to the source of the request.
      */
-    private void doTransactionRequest(final String transactionRequestJson, final Long customerId,
+    private void doTransactionRequest(final MessageWrapper messageWrapper, final Long customerId,
                                       final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Forwarding transaction request.\n", PREFIX);
         usersClient.putFormAsyncWith2Params("/services/users/transaction", "request",
-                transactionRequestJson, "customerId", customerId.toString(),
+                jsonConverter.toJson(messageWrapper), "customerId", customerId.toString(),
                 (httpStatusCode, httpContentType, transactionReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson), MessageWrapper.class);
-                        if (!messageWrapper.isError()) {
+                        MessageWrapper responseWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson), MessageWrapper.class);
+                        if (!responseWrapper.isError()) {
                             sendTransactionRequestCallback(transactionReplyJson, callbackBuilder);
                         } else {
                             callbackBuilder.build().reply(transactionReplyJson);
@@ -1433,9 +1433,12 @@ class AuthenticationService {
                 if (!messageWrapper.isError()) {
                     sendSimulateTimeCallback(callbackBuilder, body);
                 } else {
+                    System.out.printf("%s, %s", PREFIX, body);
                     callbackBuilder.build().reply(body);
                 }
             } else {
+                System.out.println("Problem with http in auth");
+                System.out.println(body);
                 callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
                         "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
@@ -1715,6 +1718,47 @@ class AuthenticationService {
                         MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
                             System.out.printf("%s Forwarding TransferBankAccount reply.\n", PREFIX);
+                        }
+                        callbackBuilder.build().reply(data);
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                    }
+                });
+    }
+
+    @RequestMapping(value = "/transferLimit", method = RequestMethod.PUT)
+    public void setTransferLimit(final Callback<String> callback, @RequestParam("cookie") final String cookie,
+                                 @RequestParam("iBAN") final String iBAN,
+                                 @RequestParam("transferLimit") final Double transferLimit) {
+        System.out.printf("%s Forwarding setTransferLimit request.\n", PREFIX);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleSetTransferLimitExceptions(cookie, iBAN, transferLimit, callbackBuilder);
+    }
+
+    private void handleSetTransferLimitExceptions(final String cookie, final String iBAN, final Double transferLimit,
+                                                  final CallbackBuilder callbackBuilder) {
+        try {
+            authenticateRequest(cookie, MethodType.SET_TRANSFER_LIMIT);
+            sendSetTransferLimitRequest(iBAN, transferLimit, callbackBuilder);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
+        } catch (UserNotAuthorizedException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
+        } catch (AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
+        }
+    }
+
+    private void sendSetTransferLimitRequest(final String iBAN, final Double transferLimit,
+                                             final CallbackBuilder callbackBuilder) {
+        systemInformationClient.putFormAsyncWith2Params("/services/systemInfo/transferLimit", "iBAN",
+                iBAN, "transferLimit", transferLimit, (httpStatusCode, httpContentType, data) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            System.out.printf("%s Forwarding setTransferLimit reply.\n", PREFIX);
                         }
                         callbackBuilder.build().reply(data);
                     } else {

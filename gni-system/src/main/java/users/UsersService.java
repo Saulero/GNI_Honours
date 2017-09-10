@@ -422,16 +422,18 @@ class UsersService {
     /**
      * Processes a transaction request by forwarding it to the TransactionDispatch service.
      * @param callback Used to send the result back to the calling service.
-     * @param transactionRequestJson Json String containing a Transaction object representing a transaction request.
+     * @param requestWrapper Json representation of a messageWrapper containing a transaction request.
      */
     @RequestMapping(value = "/transaction", method = RequestMethod.PUT)
     public void processTransaction(final Callback<String> callback,
-                                   final @RequestParam("request") String transactionRequestJson,
+                                   final @RequestParam("request") String requestWrapper,
                                    final @RequestParam("customerId") String customerId) {
-        Transaction transactionRequest = jsonConverter.fromJson(transactionRequestJson, Transaction.class);
+        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(requestWrapper),
+                                                                MessageWrapper.class);
+        Transaction transactionRequest = (Transaction) messageWrapper.getData();
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         System.out.printf("%s Sending transaction to TransactionDispatch.\n", PREFIX);
-        doTransactionRequest(transactionRequest, customerId, callbackBuilder);
+        doTransactionRequest(transactionRequest, customerId, messageWrapper, callbackBuilder);
     }
 
     /**
@@ -440,7 +442,7 @@ class UsersService {
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
     private void doTransactionRequest(final Transaction transactionRequest, final String customerId,
-                                      final CallbackBuilder callbackBuilder) {
+                                      final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
         try {
             if (checkIfFrozen(transactionRequest.getSourceAccountNumber())) {
                 callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.
@@ -460,14 +462,14 @@ class UsersService {
         }
 
         transactionDispatchClient.putFormAsyncWith3Params("/services/transactionDispatch/transaction",
-                                                        "request", jsonConverter.toJson(transactionRequest),
+                                                        "request", jsonConverter.toJson(messageWrapper),
                                                         "customerId", customerId,
                                                         "override", false,
                                                         (httpStatusCode, httpContentType, transactionReplyJson) -> {
             if (httpStatusCode == HTTP_OK) {
-                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson), MessageWrapper.class);
-                if (!messageWrapper.isError()) {
-                    processTransactionDispatchReply((Transaction) messageWrapper.getData(), transactionReplyJson, callbackBuilder);
+                MessageWrapper responseWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson), MessageWrapper.class);
+                if (!responseWrapper.isError()) {
+                    processTransactionDispatchReply((Transaction) responseWrapper.getData(), transactionReplyJson, callbackBuilder);
                 } else {
                     callbackBuilder.build().reply(transactionReplyJson);
                 }
@@ -527,9 +529,12 @@ class UsersService {
      * @param callbackBuilder Used to send a reply back to the service that sent the request.
      */
     private void processTransactionDispatchReply(final Transaction transaction, final String transactionReplyJson, final CallbackBuilder callbackBuilder) {
+        MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
+        data.setMethodType(MethodType.TRANSFER_MONEY);
+        data.setData(transaction);
         if (transaction.isProcessed() && transaction.isSuccessful()) {
             transactionReceiveClient.putFormAsyncWith1Param("/services/transactionReceive/transaction",
-                    "request", jsonConverter.toJson(transaction),
+                    "request", jsonConverter.toJson(data),
                     (statusCode, httpContentType, replyBody) -> processTransactionReceiveReply(statusCode, replyBody, callbackBuilder));
             sendTransactionRequestCallback(transactionReplyJson, callbackBuilder);
         } else {

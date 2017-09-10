@@ -7,10 +7,7 @@ import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 import database.ConnectionPool;
 import database.SQLConnection;
 import database.SQLStatements;
-import databeans.MessageWrapper;
-import databeans.MetaMethodData;
-import databeans.ServiceInformation;
-import databeans.SystemInformation;
+import databeans.*;
 import io.advantageous.qbit.annotation.RequestMapping;
 import io.advantageous.qbit.annotation.RequestMethod;
 import io.advantageous.qbit.annotation.RequestParam;
@@ -66,6 +63,8 @@ class SystemInformationService {
     private ConnectionPool databaseConnectionPool;
     /** Prefix used when printing to indicate the message is coming from the SystemInformation Service. */
     private static final String PREFIX = "[SYSINFO]             :";
+    /** Map containing dates mapping to lists of transferLimits that need to be set. */
+    private Map<LocalDate, LinkedList<TransferLimit>> transferLimitRequests;
 
     /**
      * Constructor to start the service. This will set the systemDate to the date of the day the method is ran.
@@ -81,6 +80,7 @@ class SystemInformationService {
         this.systemInformation = new SystemInformation();
         this.jsonConverter = new Gson();
         this.databaseConnectionPool = new ConnectionPool();
+        this.transferLimitRequests = new HashMap<>();
     }
 
     @RequestMapping(value = "/newServiceInfo", method = RequestMethod.PUT)
@@ -196,7 +196,7 @@ class SystemInformationService {
             doInterestProcessingRequest(days, callbackBuilder);
         } else {
             this.systemDate = this.systemDate.plusDays(days);
-            sendIncrementDaysCallback(callbackBuilder);
+            doSetTransferLimitsRequest(callbackBuilder);
         }
     }
 
@@ -238,7 +238,7 @@ class SystemInformationService {
                             if (daysLeft >= ((newDaysInMonth - newDayOfTheMonth) + 1)) {
                                 doInterestProcessingRequest(daysLeft, callbackBuilder);
                             } else {
-                                sendIncrementDaysCallback(callbackBuilder);
+                                doSetTransferLimitsRequest(callbackBuilder);
                             }
                         } else {
                             callbackBuilder.build().reply(body);
@@ -250,6 +250,45 @@ class SystemInformationService {
                                         "There was a problem with one of the HTTP requests")));
                     }
         });
+    }
+
+    private void doSetTransferLimitsRequest(final CallbackBuilder callbackBuilder) {
+        LinkedList<TransferLimit> limitsToBeProcessed = new LinkedList<>();
+        for (LocalDate date : transferLimitRequests.keySet()) {
+            if (!date.isAfter(systemDate)) {
+                limitsToBeProcessed.addAll(transferLimitRequests.remove(date));
+            }
+        }
+        if (limitsToBeProcessed.size() > 0) {
+            MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
+            data.setData(limitsToBeProcessed);
+            ledgerClient.putFormAsyncWith1Param("/services/ledger/transferLimit", "limitList",
+                    jsonConverter.toJson(data), (httpStatusCode, httpContentType, body) -> {
+                        if (httpStatusCode == HTTP_OK) {
+                            MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                    JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                            if (!messageWrapper.isError()) {
+                                sendIncrementDaysCallback(callbackBuilder);
+                            } else {
+                                System.out.println("error in messagewrapper");
+                                System.out.println(messageWrapper.getData());
+                                System.out.println(messageWrapper.getMessage());
+                                callbackBuilder.build().reply(body);
+                            }
+                        } else {
+                            System.out.println("error with http");
+                            System.out.println(httpStatusCode);
+                            System.out.println(body);
+                            callbackBuilder.build().reply(jsonConverter.toJson(
+                                    JSONParser.createMessageWrapper(true, 500,
+                                            "An unknown error occurred.",
+                                            "There was a problem with one of the HTTP requests")));
+                        }
+                    });
+        } else {
+            sendIncrementDaysCallback(callbackBuilder);
+        }
+
     }
 
     private void sendIncrementDaysCallback(final CallbackBuilder callbackBuilder) {
@@ -459,6 +498,28 @@ class SystemInformationService {
             logs.add(requestMap);
         }
         return logs;
+    }
+
+    /**
+     * Adds a TransferLimit to the list of TransferLimit requests, and sets it to be executed in 1 day.
+     * @param callback Used to send the result of the request back to the request source.
+     * @param iBAN iBAN of the account the TransferLimit should be set for.
+     * @param transferLimit TransferLimit that should be set.
+     */
+    @RequestMapping(value = "/transferLimit", method = RequestMethod.PUT)
+    void setTransferLimit(final Callback<String> callback, final @RequestParam("iBAN") String iBAN,
+                      final @RequestParam("transferLimit") Double transferLimit) {
+        System.out.printf("%s Received set transfer limit request.\n", PREFIX);
+        LocalDate dayOfExecution = systemDate.plusDays(1L);
+        LinkedList<TransferLimit> requestsOnDay = transferLimitRequests.get(dayOfExecution);
+        if (requestsOnDay == null) {
+            requestsOnDay = new LinkedList<>();
+        }
+        requestsOnDay.add(new TransferLimit(iBAN, transferLimit));
+        transferLimitRequests.put(dayOfExecution, requestsOnDay);
+        System.out.printf("%s Successfully added set transfer limit request to queue.\n", PREFIX);
+        callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200,
+                "Normal Reply")));
     }
 
     /**

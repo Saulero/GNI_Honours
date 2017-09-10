@@ -112,7 +112,7 @@ public class TransferMoney {
         MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
         data.setCookie(cookie);
         data.setMethodType(MethodType.TRANSFER_MONEY);
-        data.setData(api.getJsonConverter().toJson(transaction));
+        data.setData(transaction);
 
         System.out.printf("%s Forwarding transaction request.\n", PREFIX);
         api.getAuthenticationClient().putFormAsyncWith1Param("/services/authentication/transaction",

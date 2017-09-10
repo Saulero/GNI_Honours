@@ -14,6 +14,7 @@ public class Account implements Serializable {
     private boolean savingsActive;
     private double savingsBalance;
     private Double creditCardBalance;
+    private Double transferLimit;
 
     public Account(final String newAccountHolderName, final double newOverdraftLimit, final double newBalance,
                    final boolean savingsActive, final double savingsBalance) {
@@ -141,6 +142,22 @@ public class Account implements Serializable {
 
     public void setCreditCardBalance(final double newCreditCardBalance) {
         creditCardBalance = newCreditCardBalance;
+    }
+
+    public void setSavingsBalance(final double newSavingsBalance) {
+        savingsBalance = newSavingsBalance;
+    }
+
+    public void setCreditCardBalance(final Double newCreditCardBalance) {
+        creditCardBalance = newCreditCardBalance;
+    }
+
+    public Double getTransferLimit() {
+        return transferLimit;
+    }
+
+    public void setTransferLimit(final Double newTransferLimit) {
+        transferLimit = newTransferLimit;
     }
 
     @Override
