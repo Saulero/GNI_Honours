@@ -7,7 +7,7 @@ import databeans.MethodType;
  */
 public final class SQLStatements {
 
-    public static final String createNewAccount = "INSERT INTO ledger (id, account_number, name, overdraft_limit, balance, savings_active, savings_balance, transfer_limit) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+    public static final String createNewAccount = "INSERT INTO ledger (id, account_number, name, overdraft_limit, balance, savings_active, savings_balance, transfer_limit, child) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
     public static final String updateSavingsStatus = "UPDATE ledger SET savings_active = ? WHERE account_number = ?";
     public static final String removeAccount = "DELETE FROM ledger WHERE id = ? AND account_number = ?";
     public static final String getAccountInformation = "SELECT * FROM ledger WHERE account_number = ?";
@@ -88,7 +88,7 @@ public final class SQLStatements {
     // Create statements used for setting up the database
     public final static String createAccountsTable = "CREATE TABLE IF NOT EXISTS `accounts` ( `user_id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL, `primary_owner` BOOLEAN NOT NULL, `frozen` BOOLEAN NOT NULL);";
     public final static String dropAccountsTable = "DROP TABLE IF EXISTS `accounts`;";
-    public final static String createLedgerTable = "CREATE TABLE IF NOT EXISTS `ledger` ( `id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL, `name` TEXT NOT NULL, `overdraft_limit` DOUBLE NOT NULL, `balance` DOUBLE NOT NULL, `savings_active` BOOLEAN NOT NULL, `savings_balance` DOUBLE NOT NULL, `transfer_limit` DOUBLE NOT NULL, PRIMARY KEY (id));";
+    public final static String createLedgerTable = "CREATE TABLE IF NOT EXISTS `ledger` ( `id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL, `name` TEXT NOT NULL, `overdraft_limit` DOUBLE NOT NULL, `balance` DOUBLE NOT NULL, `savings_active` BOOLEAN NOT NULL, `savings_balance` DOUBLE NOT NULL, `transfer_limit` DOUBLE NOT NULL, `child` BOOLEAN NOT NULL, PRIMARY KEY (id));";
     public final static String dropLedgerTable = "DROP TABLE IF EXISTS `ledger`;";
     public final static String createCreditCardsTable = "CREATE TABLE IF NOT EXISTS `credit_cards` (`card_number` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL, `pin_code` TEXT NOT NULL, `incorrect_attempts` BIGINT(20) NOT NULL, `credit_limit` DOUBLE NOT NULL, `balance` DOUBLE NOT NULL, `card_fee` DOUBLE NOT NULL, `active_from` DATE NOT NULL, `active` BOOLEAN NOT NULL, PRIMARY KEY (card_number));";
     public final static String dropCreditCardsTable = "DROP TABLE IF EXISTS `credit_cards`;";

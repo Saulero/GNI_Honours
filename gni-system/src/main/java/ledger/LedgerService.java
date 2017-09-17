@@ -124,17 +124,17 @@ class LedgerService {
     @RequestMapping(value = "/account", method = RequestMethod.PUT)
     public void newAccountListener(final Callback<String> callback, final @RequestParam("body") String body) {
         Gson gson = new Gson();
-        Account newAccount = gson.fromJson(body, Account.class);
+        Customer newAccount = gson.fromJson(body, Customer.class);
         System.out.printf("%s Received account creation request for customer with name: %s\n", PREFIX,
-                newAccount.getAccountHolderName());
+                newAccount.getAccount().getAccountHolderName());
 
         // Method call
-        newAccount = createNewAccount(newAccount);
+        Account createdAccount = createNewAccount(newAccount);
 
-        if (newAccount != null) {
+        if (createdAccount != null) {
             System.out.printf("%s Added user %s with accountNumber %s to ledger, sending callback.\n", PREFIX,
-                    newAccount.getAccountHolderName(), newAccount.getAccountNumber());
-            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", newAccount)));
+                    createdAccount.getAccountHolderName(), createdAccount.getAccountNumber());
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", createdAccount)));
         } else {
             callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to ledger database.")));
         }
@@ -143,10 +143,11 @@ class LedgerService {
     /**
      * Creates a new account for a customer and sends the data back to UserService,
      * so that the new account may be properly linked to the customer.
-     * @param newAccount Object representing customer information
+     * @param data Object representing customer information
      * @return account number that was generated
      */
-    Account createNewAccount(final Account newAccount) {
+    Account createNewAccount(final Customer data) {
+        Account newAccount = data.getAccount();
         newAccount.setAccountNumber(generateNewAccountNumber(newAccount));
         try {
             SQLConnection connection = db.getConnection();
@@ -160,6 +161,7 @@ class LedgerService {
             ps.setBoolean(6, false);                         // savings_active
             ps.setDouble(7, 0.0);                            // savings balance
             ps.setDouble(8, WEEKLY_SPENDING_LIMIT);             // transfer_limit
+            ps.setBoolean(9, data.isChild());
 
             ps.executeUpdate();
             ps.close();

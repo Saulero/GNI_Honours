@@ -696,7 +696,7 @@ class UsersService {
      */
     private void doNewAccountRequest(final Customer accountOwner, final CallbackBuilder callbackBuilder) {
         ledgerClient.putFormAsyncWith1Param("/services/ledger/account", "body",
-                                            jsonConverter.toJson(accountOwner.getAccount()),
+                                            jsonConverter.toJson(accountOwner),
                                             (httpStatusCode, httpContentType, replyAccountJson) -> {
             if (httpStatusCode == HTTP_OK) {
                 MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyAccountJson), MessageWrapper.class);
