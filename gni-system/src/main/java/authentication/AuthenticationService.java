@@ -547,6 +547,7 @@ class AuthenticationService {
         createCustomerLogin.setLong(1, customerToEnroll.getCustomerId());       // id
         createCustomerLogin.setString(2, customerToEnroll.getUsername());    // username
         createCustomerLogin.setString(3, customerToEnroll.getPassword());    // password
+        createCustomerLogin.setBoolean(4, customerToEnroll.isChild());
         createCustomerLogin.executeUpdate();
         createCustomerLogin.close();
         databaseConnectionPool.returnConnection(databaseConnection);
