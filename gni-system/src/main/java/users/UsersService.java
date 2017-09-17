@@ -211,7 +211,7 @@ class UsersService {
             customerData.setEmail(retrievedCustomerData.getString("email"));
             customerData.setTelephoneNumber(retrievedCustomerData.getString("telephone_number"));
             customerData.setAddress(retrievedCustomerData.getString("address"));
-            customerData.setDob(retrievedCustomerData.getString("date_of_birth"));
+            customerData.setDob(retrievedCustomerData.getDate("date_of_birth").toLocalDate());
             customerData.setSsn(retrievedCustomerData.getLong("social_security_number"));
             getCustomerDataFromDb.close();
             databaseConnectionPool.returnConnection(databaseConnection);
@@ -672,15 +672,15 @@ class UsersService {
     void enrollCustomer(final Customer customer) throws SQLException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement createNewCustomer = databaseConnection.getConnection().prepareStatement(createNewUser);
-        createNewCustomer.setLong(1, customer.getCustomerId());        // id
-        createNewCustomer.setString(2, customer.getInitials());        // initials
-        createNewCustomer.setString(3, customer.getName());            // firstname
-        createNewCustomer.setString(4, customer.getSurname());         // lastname
-        createNewCustomer.setString(5, customer.getEmail());           // email
-        createNewCustomer.setString(6, customer.getTelephoneNumber()); //telephone_number
-        createNewCustomer.setString(7, customer.getAddress());         //address
-        createNewCustomer.setString(8, customer.getDob());             //date_of_birth
-        createNewCustomer.setLong(9, customer.getSsn());               //social_security_number
+        createNewCustomer.setLong(1, customer.getCustomerId());                 // id
+        createNewCustomer.setString(2, customer.getInitials());                 // initials
+        createNewCustomer.setString(3, customer.getName());                     // firstname
+        createNewCustomer.setString(4, customer.getSurname());                  // lastname
+        createNewCustomer.setString(5, customer.getEmail());                    // email
+        createNewCustomer.setString(6, customer.getTelephoneNumber());          //telephone_number
+        createNewCustomer.setString(7, customer.getAddress());                  //address
+        createNewCustomer.setDate(8, java.sql.Date.valueOf(customer.getDob())); //date_of_birth
+        createNewCustomer.setLong(9, customer.getSsn());                        //social_security_number
         createNewCustomer.setBoolean(10, customer.isChild());
         createNewCustomer.executeUpdate();
         createNewCustomer.close();

@@ -49,6 +49,7 @@ public final class SQLStatements {
     public static final String setFreezeStatusPin = "UPDATE pin SET frozen = ? WHERE user_id = ?";
     public static final String setFreezeStatusAuth = "UPDATE authentication SET frozen = ? WHERE user_id = ?";
     public static final String setFreezeStatusUsers = "UPDATE accounts SET frozen = ? WHERE user_id = ? AND primary_owner = 1";
+    public static final String setChildStatusUsers = "UPDATE users SET child = ? WHERE id = ?";
     public static final String incrementIncorrectPinCardAttempts = "UPDATE pin SET incorrect_attempts = incorrect_attempts + 1 WHERE card_number = ?";
     public static final String incrementIncorrectCreditCardAttempts = "UPDATE credit_cards SET incorrect_attempts = incorrect_attempts + 1 WHERE card_number = ?";
     public static final String removeAccountCards = "DELETE FROM pin WHERE account_number = ?";

@@ -23,7 +23,7 @@ public class Customer implements Serializable {
     /** Address of the customer. */
     private String address;
     /** Date of birth of the customer. */
-    private String dob;
+    private LocalDate dob;
     /** Social security number of the customer. */
     private long ssn;
     /** Username for logging into the account. */
@@ -51,7 +51,7 @@ public class Customer implements Serializable {
      * @param newPassword Password of the customers new account.
      * */
     public Customer(final String newInitials, final String newName, final String newSurname, final String newEmail,
-                    final String newTelephoneNumber, final String newAddress, final String newDob, final long newSsn,
+                    final String newTelephoneNumber, final String newAddress, final LocalDate newDob, final long newSsn,
                     final String newUsername, final String newPassword) {
         this.initials = newInitials;
         this.name = newName;
@@ -80,7 +80,7 @@ public class Customer implements Serializable {
      * @param newId customerID
      * */
     public Customer(final String newInitials, final String newName, final String newSurname, final String newEmail,
-                    final String newTelephoneNumber, final String newAddress, final String newDob, final long newSsn,
+                    final String newTelephoneNumber, final String newAddress, final LocalDate newDob, final long newSsn,
                     final double newOverdraftLimit, final double newBalance, final long newId) {
         this.initials = newInitials;
         this.name = newName;
@@ -157,11 +157,11 @@ public class Customer implements Serializable {
         this.address = newAddress;
     }
 
-    public String getDob() {
+    public LocalDate getDob() {
         return dob;
     }
 
-    public void setDob(final String newDob) {
+    public void setDob(final LocalDate newDob) {
         this.dob = newDob;
     }
 
@@ -253,23 +253,5 @@ public class Customer implements Serializable {
         result = 31 * result + (account != null ? account.hashCode() : 0);
         result = 31 * result + (int) (customerId ^ (customerId >>> 32));
         return result;
-    }
-
-    @Override
-    public String toString() {
-        return "Customer{" +
-                "initials='" + initials + '\'' +
-                ", name='" + name + '\'' +
-                ", surname='" + surname + '\'' +
-                ", email='" + email + '\'' +
-                ", telephoneNumber='" + telephoneNumber + '\'' +
-                ", address='" + address + '\'' +
-                ", dob='" + dob + '\'' +
-                ", ssn=" + ssn +
-                ", username='" + username + '\'' +
-                ", password='" + password + '\'' +
-                ", account=" + account +
-                ", customerId=" + customerId +
-                '}';
     }
 }

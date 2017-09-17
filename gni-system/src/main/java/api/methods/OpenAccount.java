@@ -31,9 +31,12 @@ public class OpenAccount {
      * @param api DataBean containing everything in the ApiService
      */
     public static void openAccount(final Map<String, Object> params, final ApiBean api) {
+        String date = (String) params.get("dob");
+        String[] dobData = date.split("-");
+        LocalDate dob = LocalDate.of(Integer.parseInt(dobData[0]), Integer.parseInt(dobData[1]), Integer.parseInt(dobData[2]));
         Customer customer = new Customer((String) params.get("initials"), (String) params.get("name"),
                 (String) params.get("surname"), (String) params.get("email"), (String) params.get("telephoneNumber"),
-                (String) params.get("address"), (String) params.get("dob"), Long.parseLong((String) params.get("ssn")),
+                (String) params.get("address"), dob, Long.parseLong((String) params.get("ssn")),
                 (String) params.get("username"), (String) params.get("password"));
         String type = (String) params.get("type");
         if (type != null && type.equals("child")) {
@@ -83,7 +86,7 @@ public class OpenAccount {
         final String email = newCustomer.getEmail();
         final String telephoneNumber = newCustomer.getTelephoneNumber();
         final String address = newCustomer.getAddress();
-        final String dob = newCustomer.getDob();
+        final LocalDate dob = newCustomer.getDob();
         final Long ssn = newCustomer.getSsn();
         final String username = newCustomer.getUsername();
         final String password = newCustomer.getPassword();
@@ -100,7 +103,7 @@ public class OpenAccount {
             throw new IncorrectInputException("The following variable was incorrectly specified: telephoneNumber.");
         } else if (address == null || !valueHasCorrectLength(address)) {
             throw new IncorrectInputException("The following variable was incorrectly specified: address.");
-        } else if (dob == null || !valueHasCorrectLength(dob)) {
+        } else if (dob == null) {
             throw new IncorrectInputException("The following variable was incorrectly specified: dob.");
         } else if (ssn < 0) {
             throw new IncorrectInputException("The following variable was incorrectly specified: ssn.");
@@ -119,24 +122,16 @@ public class OpenAccount {
     }
 
     private static void verifyAgeInput(final ApiBean api, final Customer newCustomer) {
-        String dob = newCustomer.getDob();
-        String[] dobData = dob.split("-");
+        LocalDate dob = newCustomer.getDob();
         api.getSystemInformationClient().getAsync("/services/systemInfo/date", (code, contentType, body) -> {
             if (code == HTTP_OK) {
                 MessageWrapper messageWrapper = api.getJsonConverter().fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
                 if (!messageWrapper.isError()) {
                     LocalDate date = (LocalDate) messageWrapper.getData();
                     boolean res = true;
-                    if (date.getYear() < (Integer.parseInt(dobData[0]) + 18)) {
+                    LocalDate adjustedDob = dob.plusYears(18);
+                    if (date.isAfter(adjustedDob)) {
                         res = false;
-                    } else if (date.getYear() == (Integer.parseInt(dobData[0]) + 18)) {
-                        if (date.getMonthValue() < (Integer.parseInt(dobData[1]))) {
-                            res = false;
-                        } else if (date.getMonthValue() == (Integer.parseInt(dobData[1]))) {
-                            if (date.getDayOfMonth() < (Integer.parseInt(dobData[2]))) {
-                                res = false;
-                            }
-                        }
                     }
                     if ((newCustomer.isChild() && !res) || (!newCustomer.isChild() && res)) {
                         doNewCustomerRequest(newCustomer, api);
