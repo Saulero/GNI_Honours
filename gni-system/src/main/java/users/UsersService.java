@@ -17,6 +17,7 @@ import util.JSONParser;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -604,13 +605,48 @@ class UsersService {
     private void handleNewCustomerRequestExceptions(final Customer customerToEnroll,
                                                     final CallbackBuilder callbackBuilder) {
         try {
+            if (customerToEnroll.isChild()) {
+                checkGuardians(customerToEnroll);
+            }
             customerToEnroll.setCustomerId(getNewCustomerId());
             enrollCustomer(customerToEnroll);
             doNewAccountRequest(customerToEnroll, callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 500, "Error connecting to authentication database.")));
+        } catch (UserNotAuthorizedException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 419, "The user is not authorized to perform this action.", e.getMessage())));
+        } catch (CustomerDoesNotExistException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "Customer with the given customerId does not appear to exist.")));
         }
+    }
+
+    private void checkGuardians(final Customer customer) throws  UserNotAuthorizedException, SQLException, CustomerDoesNotExistException {
+        for (Long id : customer.getGuardianIds()) {
+            if (!is18(id, customer.getDate())) {
+                throw new UserNotAuthorizedException("One of the guardians is not over 18 years of age.");
+            }
+        }
+    }
+
+    private boolean is18(final Long id, final LocalDate date) throws SQLException, CustomerDoesNotExistException {
+        String dob = getCustomerData(id).getDob();
+        String[] dobData = dob.split("-");
+
+        if (date.getYear() < (Integer.parseInt(dobData[0]) + 18)) {
+            return false;
+        } else if (date.getYear() == (Integer.parseInt(dobData[0]) + 18)) {
+            if (date.getMonthValue() < (Integer.parseInt(dobData[1]))) {
+                return false;
+            } else if (date.getMonthValue() == (Integer.parseInt(dobData[1]))) {
+                if (date.getDayOfMonth() < (Integer.parseInt(dobData[2]))) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     /**
