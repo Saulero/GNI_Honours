@@ -701,7 +701,7 @@ class UsersService {
             if (httpStatusCode == HTTP_OK) {
                 MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyAccountJson), MessageWrapper.class);
                 if (!messageWrapper.isError()) {
-                    processNewAccountReply((Account) messageWrapper.getData(), accountOwner, callbackBuilder);
+                    handleNewAccountLinkExceptions((Customer) messageWrapper.getData(), callbackBuilder);
                 } else {
                     callbackBuilder.build().reply(replyAccountJson);
                 }
@@ -709,18 +709,6 @@ class UsersService {
                 callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
         });
-    }
-
-    /**
-     * Processes a reply from the ledger containing a new account which is to be linked to a customer.
-     * @param replyAccount Account that should be linked to a {@link Customer}.
-     * @param accountOwner The customer that the account should be linked to.
-     * @param callbackBuilder Used to send a reply back to the service that sent the request.
-     */
-    private void processNewAccountReply(final Account replyAccount, final Customer accountOwner,
-                                        final CallbackBuilder callbackBuilder) {
-        accountOwner.setAccount(replyAccount);
-        handleNewAccountLinkExceptions(accountOwner, callbackBuilder);
     }
 
     /**
@@ -732,6 +720,11 @@ class UsersService {
     private void handleNewAccountLinkExceptions(final Customer accountOwner, final CallbackBuilder callbackBuilder) {
         try {
             linkAccountToCustomer(accountOwner.getAccount().getAccountNumber(), accountOwner.getCustomerId(), true);
+            if (accountOwner.isChild()) {
+                for (Long id : accountOwner.getGuardianIds()) {
+                    linkAccountToCustomer(accountOwner.getAccount().getAccountNumber(), id, false);
+                }
+            }
             sendNewAccountLinkCallback(accountOwner, callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();

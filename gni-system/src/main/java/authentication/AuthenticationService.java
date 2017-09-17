@@ -165,11 +165,11 @@ class AuthenticationService {
             messageWrapper.setData(dataRequest);
             doDataRequest(messageWrapper, callbackBuilder);
         } catch (SQLException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
-        } catch (UserNotAuthorizedException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "CookieData does not belong to an authorized user.")));
-        } catch (AccountFrozenException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to authentication database.")));
+        } catch (UserNotAuthorizedException | AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
+                    "The user is not authorized to perform this action.", e.getMessage())));
         }
     }
 
@@ -198,7 +198,7 @@ class AuthenticationService {
                         "User has no authorization to do this as long as the account is frozen.");
             }
             if (authenticationData.getBoolean("child") && !methodType.isAllowedWhenChild()) {
-                throw new AccountFrozenException(
+                throw new UserNotAuthorizedException(
                         "User has no authorization to do this action with a children's account.");
             }
 
@@ -291,22 +291,27 @@ class AuthenticationService {
                                 callbackBuilder.build().reply(replyJson);
                             }
                         } else {
-                            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
-                                    "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                                    true, 500,
+                                    "An unknown error occurred.",
+                                    "There was a problem with one of the HTTP requests")));
                         }
                     });
         } else {
             usersClient.getAsyncWith1Param("/services/users/data", "data",
                     jsonConverter.toJson(dataRequest), (httpStatusCode, httpContentType, dataReplyJson) -> {
                         if (httpStatusCode == HTTP_OK) {
-                            MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(dataReplyJson), MessageWrapper.class);
+                            MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                    JSONParser.removeEscapeCharacters(dataReplyJson), MessageWrapper.class);
                             if (!messageWrapper.isError()) {
                                 handleDataReply((DataReply) messageWrapper.getData(), callbackBuilder);
                             } else {
                                 callbackBuilder.build().reply(dataReplyJson);
                             }
                         } else {
-                            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                                    true, 500, "An unknown error occurred.",
+                                    "There was a problem with one of the HTTP requests")));
                         }
                     });
         }
@@ -331,9 +336,11 @@ class AuthenticationService {
             }
             sendDataRequestCallback(dataReply, callbackBuilder);
         } catch (CustomerDoesNotExistException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "The provided customer does not seem to exist.")));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418,
+                    "One of the parameters has an invalid value.", "The provided customer does not seem to exist.")));
         } catch (SQLException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to authentication database.")));
         }
     }
 
@@ -361,7 +368,8 @@ class AuthenticationService {
      */
     private void sendDataRequestCallback(final DataReply dataReply, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Data request successful, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", dataReply)));
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                false, 200, "Normal Reply", dataReply)));
     }
 
     /**
@@ -390,11 +398,11 @@ class AuthenticationService {
             authenticateRequest(messageWrapper.getCookie(), messageWrapper.getMethodType());
             doTransactionRequest(messageWrapper, getCustomerId(messageWrapper.getCookie()), callbackBuilder);
         } catch (SQLException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
-        } catch (UserNotAuthorizedException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "CookieData does not belong to an authorized user.")));
-        } catch (AccountFrozenException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 500, "Error connecting to authentication database.")));
+        } catch (UserNotAuthorizedException | AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 419, "The user is not authorized to perform this action.", e.getMessage())));
         }
     }
 
@@ -411,14 +419,17 @@ class AuthenticationService {
                 jsonConverter.toJson(messageWrapper), "customerId", customerId.toString(),
                 (httpStatusCode, httpContentType, transactionReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        MessageWrapper responseWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson), MessageWrapper.class);
+                        MessageWrapper responseWrapper = jsonConverter.fromJson(
+                                JSONParser.removeEscapeCharacters(transactionReplyJson), MessageWrapper.class);
                         if (!responseWrapper.isError()) {
                             sendTransactionRequestCallback(transactionReplyJson, callbackBuilder);
                         } else {
                             callbackBuilder.build().reply(transactionReplyJson);
                         }
                     } else {
-                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                                true, 500, "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
@@ -468,11 +479,16 @@ class AuthenticationService {
             }
             doNewCustomerRequest(newCustomerRequestJson, callbackBuilder);
         } catch (SQLException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 500, "Error connecting to authentication database.")));
         } catch (UsernameTakenException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "Username taken, please choose a different username.")));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 418, "One of the parameters has an invalid value.",
+                    "Username taken, please choose a different username.")));
         } catch (CustomerDoesNotExistException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "One of the guardians does not exist.")));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 418, "One of the parameters has an invalid value.",
+                    "One of the guardians does not exist.")));
         }
     }
 
@@ -509,14 +525,17 @@ class AuthenticationService {
         usersClient.putFormAsyncWith1Param("/services/users/customer", "customer", newCustomerRequestJson,
                 (httpStatusCode, httpContentType, newCustomerReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(newCustomerReplyJson), MessageWrapper.class);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                JSONParser.removeEscapeCharacters(newCustomerReplyJson), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
                             handleLoginCreationExceptions((Customer) messageWrapper.getData(), callbackBuilder);
                         } else {
                             callbackBuilder.build().reply(newCustomerReplyJson);
                         }
                     } else {
-                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                                true, 500, "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
@@ -535,7 +554,8 @@ class AuthenticationService {
         } catch (SQLException e) {
             //todo revert customer creation in users database.
             e.printStackTrace();
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 500, "Error connecting to authentication database.")));
         }
     }
 
@@ -564,7 +584,8 @@ class AuthenticationService {
      */
     private void sendNewCustomerRequestCallback(final Customer newCustomer, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Customer creation successful, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", newCustomer)));
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                false, 200, "Normal Reply", newCustomer)));
     }
 
     /**
@@ -590,24 +611,31 @@ class AuthenticationService {
                         setNewToken(userId, newToken);
                         System.out.printf("%s Successful login for user %s, sending callback.\n", PREFIX,
                                           authData.getUsername());
-                        callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", new Authentication(encodeCookie(userId, newToken), AuthenticationType.REPLY))));
+                        callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                                false, 200, "Normal Reply",
+                                new Authentication(encodeCookie(userId, newToken), AuthenticationType.REPLY))));
                     } else {
                         // Illegitimate info
-                        callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 422, "The user could not be authenticated, a wrong combination of credentials was provided.")));
+                        callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 422,
+                                "The user could not be authenticated, a wrong combination of credentials was provided.")));
                     }
                 } else {
                     // username not found
-                    callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "The username does not seem to exist.")));
+                    callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418,
+                            "One of the parameters has an invalid value.",
+                            "The username does not seem to exist.")));
                 }
                 rs.close();
                 ps.close();
                 databaseConnectionPool.returnConnection(connection);
             } catch (SQLException e) {
                 e.printStackTrace();
-                callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to the authentication database.")));
+                callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                        "Error connecting to the authentication database.")));
             }
         } else {
-            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Unknown error occurred.")));
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 500, "Unknown error occurred.")));
         }
     }
 
@@ -662,23 +690,26 @@ class AuthenticationService {
      * @param messageWrapper MessageWrapper containing Account Link that should be executed & cookie.
      * @param callbackBuilder Used to send the reply back to the requesting service.
      */
-    private void handleAccountLinkExceptions(final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
+    private void handleAccountLinkExceptions(
+            final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
         try {
             authenticateRequest(messageWrapper.getCookie(), messageWrapper.getMethodType());
             AccountLink accountLinkRequest = (AccountLink) messageWrapper.getData();
             accountLinkRequest.setCustomerId(getCustomerIdFromUsername(accountLinkRequest.getUsername()));
-            doAccountLinkRequest(jsonConverter.toJson(accountLinkRequest), getCustomerId(messageWrapper.getCookie()), callbackBuilder);
+            doAccountLinkRequest(jsonConverter.toJson(accountLinkRequest),
+                    getCustomerId(messageWrapper.getCookie()), callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
-        } catch (UserNotAuthorizedException e) {
-            e.printStackTrace();
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.")));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 500, "Error connecting to authentication database.")));
         } catch (CustomerDoesNotExistException e) {
             e.printStackTrace();
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "User with username does not appear to exist.")));
-        } catch (AccountFrozenException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 418, "One of the parameters has an invalid value.",
+                    "User with username does not appear to exist.")));
+        } catch (UserNotAuthorizedException | AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 419, "The user is not authorized to perform this action.", e.getMessage())));
         }
     }
 
@@ -686,15 +717,15 @@ class AuthenticationService {
     private Long getCustomerIdFromUsername(final String username) throws SQLException, CustomerDoesNotExistException {
         Long customerId;
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
-        PreparedStatement getCustomerId = databaseConnection.getConnection().prepareStatement(getCustomerIdFromUsername);
-        getCustomerId.setString(1, username);
-        ResultSet customerIdSet = getCustomerId.executeQuery();
+        PreparedStatement ps = databaseConnection.getConnection().prepareStatement(getCustomerIdFromUsername);
+        ps.setString(1, username);
+        ResultSet customerIdSet = ps.executeQuery();
         if (customerIdSet.next()) {
             customerId = customerIdSet.getLong("user_id");
         } else {
             throw new CustomerDoesNotExistException("username not found");
         }
-        getCustomerId.close();
+        ps.close();
         databaseConnectionPool.returnConnection(databaseConnection);
         return customerId;
     }
@@ -711,7 +742,8 @@ class AuthenticationService {
                 accountLinkRequestJson, "requesterId", requesterId,
                 ((httpStatusCode, httpContentType, accountLinkReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(accountLinkReplyJson), MessageWrapper.class);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                JSONParser.removeEscapeCharacters(accountLinkReplyJson), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
                             sendAccountLinkRequestCallback(accountLinkReplyJson, callbackBuilder);
                         } else {
@@ -731,7 +763,8 @@ class AuthenticationService {
      * @param accountLinkReplyJson Json String representing the result of an account link request.
      * @param callbackBuilder Used to send the result of the request back to the source of the request.
      */
-    private void sendAccountLinkRequestCallback(final String accountLinkReplyJson, final CallbackBuilder callbackBuilder) {
+    private void sendAccountLinkRequestCallback(
+            final String accountLinkReplyJson, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Successful account link, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(accountLinkReplyJson);
     }
@@ -750,7 +783,8 @@ class AuthenticationService {
      * @param messageWrapper MessageWrapper with Account Link that should be removed & cookie.
      * @param callbackBuilder Used to send the reply back to the requesting service.
      */
-    private void handleAccountLinkRemovalExceptions(final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
+    private void handleAccountLinkRemovalExceptions(
+            final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
         try {
             authenticateRequest(messageWrapper.getCookie(), messageWrapper.getMethodType());
             AccountLink accountLink = (AccountLink) messageWrapper.getData();
@@ -758,15 +792,15 @@ class AuthenticationService {
             doAccountLinkRemoval(accountLink, "" + getCustomerId(messageWrapper.getCookie()), callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
-        } catch (UserNotAuthorizedException e) {
-            e.printStackTrace();
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "User does not appear to be logged in.")));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to authentication database.")));
         } catch (CustomerDoesNotExistException e) {
             e.printStackTrace();
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "User with username does not appear to exist.")));
-        } catch (AccountFrozenException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418,
+                    "One of the parameters has an invalid value.", "User with username does not appear to exist.")));
+        } catch (UserNotAuthorizedException | AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
+                    "The user is not authorized to perform this action.", e.getMessage())));
         }
     }
 
@@ -776,13 +810,15 @@ class AuthenticationService {
                                             jsonConverter.toJson(accountLink), "requesterId", requesterId,
                                             (httpStatusCode, httpContentType, removalReplyJson) -> {
             if (httpStatusCode == HTTP_OK) {
-                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(removalReplyJson), MessageWrapper.class);
+                MessageWrapper messageWrapper = jsonConverter.fromJson(
+                        JSONParser.removeEscapeCharacters(removalReplyJson), MessageWrapper.class);
                 if (!messageWrapper.isError()) {
                     System.out.printf("%s Forwarding accountLink removal reply.\n", PREFIX);
                 }
                 callbackBuilder.build().reply(removalReplyJson);
             } else {
-                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                        "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
         });
     }
@@ -808,16 +844,17 @@ class AuthenticationService {
      * @param messageWrapper Cookie of the customer making the request.
      * @param callbackBuilder Used to send the reply back to the requesting service.
      */
-    private void handleNewAccountExceptions(final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
+    private void handleNewAccountExceptions(
+            final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
         try {
             authenticateRequest(messageWrapper.getCookie(), messageWrapper.getMethodType());
             doNewAccountRequest(getCustomerId(messageWrapper.getCookie()), callbackBuilder);
         } catch (SQLException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to the authentication database.")));
-        } catch (UserNotAuthorizedException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "The does not appear to be logged in.")));
-        } catch (AccountFrozenException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to the authentication database.")));
+        } catch (UserNotAuthorizedException | AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
+                    "The user is not authorized to perform this action.", e.getMessage())));
         }
     }
 
@@ -831,14 +868,17 @@ class AuthenticationService {
         usersClient.putFormAsyncWith1Param("/services/users/account/new", "customerId", customerId,
                 (httpStatusCode, httpContentType, newAccountReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(newAccountReplyJson), MessageWrapper.class);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                JSONParser.removeEscapeCharacters(newAccountReplyJson), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
                             sendNewAccountRequestCallback(newAccountReplyJson, callbackBuilder);
                         } else {
                             callbackBuilder.build().reply(newAccountReplyJson);
                         }
                     } else {
-                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                                true, 500, "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
@@ -876,7 +916,8 @@ class AuthenticationService {
      * @param messageWrapper MessageWrapper containing AccountNumber that should be removed from the system & cookie.
      * @param callbackBuilder Used to send the result of the request to the request source.
      */
-    private void handleAccountRemovalExceptions(final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
+    private void handleAccountRemovalExceptions(
+            final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
         String cookie = messageWrapper.getCookie();
         String accountNumber = (String) messageWrapper.getData();
 
@@ -891,11 +932,11 @@ class AuthenticationService {
                 doAccountRemovalRequest(accountNumber, Long.toString(getCustomerId(cookie)), callbackBuilder);
             }
         } catch (SQLException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to the authentication database.")));
-        } catch (UserNotAuthorizedException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.")));
-        } catch (AccountFrozenException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 500, "Error connecting to the authentication database.")));
+        } catch (UserNotAuthorizedException | AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 419, "The user is not authorized to perform this action.", e.getMessage())));
         }
     }
 
@@ -912,7 +953,8 @@ class AuthenticationService {
                 "accountNumber", accountNumber, "customerId", customerId,
                 (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
                             CloseAccountReply reply = (CloseAccountReply) messageWrapper.getData();
                             if (!reply.isSuccessful()) {
@@ -927,7 +969,9 @@ class AuthenticationService {
                             callbackBuilder.build().reply(replyJson);
                         }
                     } else {
-                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                                true, 500, "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
@@ -952,14 +996,17 @@ class AuthenticationService {
                 accountNumber, "customerId", customerId,
                 (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
                             sendCloseCreditCardCallback(replyJson, callbackBuilder);
                         } else {
                             callbackBuilder.build().reply(replyJson);
                         }
                     } else {
-                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                                true, 500, "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
@@ -978,14 +1025,17 @@ class AuthenticationService {
         pinClient.putFormAsyncWith1Param("/services/pin/account/remove", "accountNumber",
                                         accountNumber, (httpStatusCode, httpContentType, replyJson) -> {
             if (httpStatusCode == HTTP_OK) {
-                MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
+                MessageWrapper messageWrapper = jsonConverter.fromJson(
+                        JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
                 if (!messageWrapper.isError()) {
                     sendAccountRemovalCallback(replyJson, callbackBuilder);
                 } else {
                     callbackBuilder.build().reply(replyJson);
                 }
             } else {
-                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                        true, 500, "An unknown error occurred.",
+                        "There was a problem with one of the HTTP requests")));
             }
         });
     }
@@ -1016,7 +1066,8 @@ class AuthenticationService {
      * @param messageWrapper MessageWrapper containing all the required data.
      * @param callbackBuilder Used to send the result of the request to the request source.
      */
-    private void handleNewPinCardExceptions(final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
+    private void handleNewPinCardExceptions(
+            final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
         AccountLink data = (AccountLink) messageWrapper.getData();
         String cookie = messageWrapper.getCookie();
         String username = data.getUsername();
@@ -1035,16 +1086,17 @@ class AuthenticationService {
                 doNewPinCardRequest(accountNumber, Long.toString(requesterId), Long.toString(ownerId), callbackBuilder);
             } else {
                 System.out.printf("%s Rejecting, OwnerId could not be found. Username does not exist.\n", PREFIX);
-                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "The username does not seem to exist.")));
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                        true, 418, "One of the parameters has an invalid value.",
+                        "The username does not seem to exist.")));
             }
         } catch (SQLException e) {
             System.out.printf("%s Rejecting, Error connecting to authentication database.\n", PREFIX);
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
-        } catch (UserNotAuthorizedException e) {
-            System.out.printf("%s Rejecting, User not authorized, please login.\n", PREFIX);
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.")));
-        } catch (AccountFrozenException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 500, "Error connecting to authentication database.")));
+        } catch (UserNotAuthorizedException | AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 419, "The user is not authorized to perform this action.", e.getMessage())));
         }
 
     }
@@ -1086,14 +1138,17 @@ class AuthenticationService {
                 "ownerId", ownerId, "accountNumber", accountNumber,
                 (httpStatusCode, httpContentType, newAccountReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(newAccountReplyJson), MessageWrapper.class);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                JSONParser.removeEscapeCharacters(newAccountReplyJson), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
                             sendNewPinCardCallback(newAccountReplyJson, callbackBuilder);
                         } else {
                             callbackBuilder.build().reply(newAccountReplyJson);
                         }
                     } else {
-                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                                true, 500, "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
@@ -1122,18 +1177,18 @@ class AuthenticationService {
      * @param messageWrapper PinCard that should be unblocked & cookie.
      * @param callbackBuilder Used to send the reply back to the requesting service.
      */
-    private void handlePinCardUnblockExceptions(final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
+    private void handlePinCardUnblockExceptions(
+            final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
         try {
             authenticateRequest(messageWrapper.getCookie(), messageWrapper.getMethodType());
             doPinCardUnblockRequest(jsonConverter.toJson(messageWrapper.getData()), callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
-        } catch (UserNotAuthorizedException e) {
-            e.printStackTrace();
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.")));
-        } catch (AccountFrozenException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 500, "Error connecting to authentication database.")));
+        } catch (UserNotAuthorizedException | AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 419, "The user is not authorized to perform this action.", e.getMessage())));
         }
     }
 
@@ -1147,14 +1202,17 @@ class AuthenticationService {
         pinClient.putFormAsyncWith1Param("/services/pin/unblockCard", "pinCard",
                 requestJson, ((httpStatusCode, httpContentType, body) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
                             sendPinCardUnblockCallback(body, callbackBuilder);
                         } else {
                             callbackBuilder.build().reply(body);
                         }
                     } else {
-                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                                true, 500, "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests")));
                     }
                 }));
     }
@@ -1199,11 +1257,7 @@ class AuthenticationService {
             e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
                     "Error connecting to the authentication database.")));
-        } catch (UserNotAuthorizedException e) {
-            e.printStackTrace();
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
-                    "The user is not authorized to perform this action.")));
-        } catch (AccountFrozenException e) {
+        } catch (UserNotAuthorizedException | AccountFrozenException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
                     "The user is not authorized to perform this action.", e.getMessage())));
         }
@@ -1260,14 +1314,11 @@ class AuthenticationService {
         try {
             authenticateRequest(messageWrapper.getCookie(), messageWrapper.getMethodType());
             doOpenSavingsAccountRequest((String) messageWrapper.getData(), callbackBuilder);
-        } catch (UserNotAuthorizedException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
-                    "The user is not authorized to perform this action.")));
         } catch (SQLException e) {
             e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
                     "Error connecting to the authentication database.")));
-        } catch (AccountFrozenException e) {
+        } catch (UserNotAuthorizedException | AccountFrozenException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
                     "The user is not authorized to perform this action.", e.getMessage())));
         }
@@ -1359,11 +1410,11 @@ class AuthenticationService {
             pinCard.setCustomerId(getCustomerId(authToken));
             doPinCardReplacementRequest(jsonConverter.toJson(pinCard), newPin, callbackBuilder);
         } catch (SQLException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
-        } catch (UserNotAuthorizedException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "User does not appear to be logged in.")));
-        } catch (AccountFrozenException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to authentication database.")));
+        } catch (UserNotAuthorizedException | AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
+                    "The user is not authorized to perform this action.", e.getMessage())));
         }
     }
 
@@ -1542,19 +1593,19 @@ class AuthenticationService {
         handleNewCreditCardExceptions(messageWrapper, callbackBuilder);
     }
 
-    private void handleNewCreditCardExceptions(final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
+    private void handleNewCreditCardExceptions(
+            final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
         try {
             authenticateRequest(messageWrapper.getCookie(), messageWrapper.getMethodType());
             Long customerId = getCustomerId(messageWrapper.getCookie());
             doNewCreditCardRequest(customerId, (String) messageWrapper.getData(), callbackBuilder);
         } catch (SQLException e) {
             System.out.printf("%s Sql exception, Sending callback.\n", PREFIX);
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
-        } catch (UserNotAuthorizedException e) {
-            System.out.printf("%s User not authorized, Sending callback.\n", PREFIX);
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "User does not appear to be logged in.")));
-        } catch (AccountFrozenException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to authentication database.")));
+        } catch (UserNotAuthorizedException | AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
+                    "The user is not authorized to perform this action.", e.getMessage())));
         }
     }
 
@@ -1564,7 +1615,8 @@ class AuthenticationService {
         pinClient.putFormAsyncWith1Param("/services/pin/creditCard", "accountNumber",
                 accountNumber, (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
                             CreditCard creditCard = (CreditCard) messageWrapper.getData();
                             try {
@@ -1580,7 +1632,9 @@ class AuthenticationService {
                         System.out.println(httpContentType);
                         System.out.println(httpStatusCode);
                         System.out.println(replyJson);
-                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                                true, 500, "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
@@ -1594,22 +1648,20 @@ class AuthenticationService {
         handleCloseSavingsAccountExceptions(messageWrapper, callbackBuilder);
      }
 
-     private void handleCloseSavingsAccountExceptions(final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
-     try {
-             authenticateRequest(messageWrapper.getCookie(), messageWrapper.getMethodType());
-             doCloseSavingsAccountRequest((String) messageWrapper.getData(), callbackBuilder);
-         } catch (UserNotAuthorizedException e) {
-             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
-                             "The user is not authorized to perform this action.")));
-         } catch (SQLException e) {
-             e.printStackTrace();
-             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
-                             "Error connecting to the authentication database.")));
-         } catch (AccountFrozenException e) {
-         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
-                 "The user is not authorized to perform this action.", e.getMessage())));
-     }
-     }
+    private void handleCloseSavingsAccountExceptions(
+            final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
+        try {
+            authenticateRequest(messageWrapper.getCookie(), messageWrapper.getMethodType());
+            doCloseSavingsAccountRequest((String) messageWrapper.getData(), callbackBuilder);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to the authentication database.")));
+        } catch (UserNotAuthorizedException | AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
+                    "The user is not authorized to perform this action.", e.getMessage())));
+        }
+    }
 
     private void sendNewCreditCardCallback(final CreditCard creditCard, final CallbackBuilder callbackBuilder) {
         System.out.printf("%s New credit card request successful, sending callback.\n", PREFIX);
@@ -1618,7 +1670,8 @@ class AuthenticationService {
     }
 
     @RequestMapping(value = "/setFreezeUserAccount", method = RequestMethod.PUT)
-    public void processSetFreezeUserAccountRequest(final Callback<String> callback, @RequestParam("data") final String data) {
+    public void processSetFreezeUserAccountRequest(
+            final Callback<String> callback, @RequestParam("data") final String data) {
         System.out.printf("%s Forwarding account link removal.\n", PREFIX);
         MessageWrapper messageWrapper = jsonConverter.fromJson(
                 JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
@@ -1626,7 +1679,8 @@ class AuthenticationService {
         handleSetFreezeUserAccountExceptions(messageWrapper, callbackBuilder);
     }
 
-    private void handleSetFreezeUserAccountExceptions(final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
+    private void handleSetFreezeUserAccountExceptions(
+            final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
         try {
             authenticateRequest(messageWrapper.getCookie(), messageWrapper.getMethodType());
             if (!isAdmin(messageWrapper.getMethodType(), messageWrapper.getCookie())) {
@@ -1637,19 +1691,20 @@ class AuthenticationService {
             setFreezeUserAccount(freezeAccount, callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
-        } catch (UserNotAuthorizedException e) {
-            e.printStackTrace();
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to authentication database.")));
         } catch (CustomerDoesNotExistException e) {
             e.printStackTrace();
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "User with username does not appear to exist.")));
-        } catch (AccountFrozenException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418,
+                    "One of the parameters has an invalid value.", "User with username does not appear to exist.")));
+        } catch (UserNotAuthorizedException | AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
+                    "The user is not authorized to perform this action.", e.getMessage())));
         }
     }
 
-    private void setFreezeUserAccount(final FreezeAccount freezeAccount, final CallbackBuilder callbackBuilder) throws SQLException {
+    private void setFreezeUserAccount(final FreezeAccount freezeAccount, final CallbackBuilder callbackBuilder)
+            throws SQLException {
         // do Auth DB update
         SQLConnection con = databaseConnectionPool.getConnection();
         PreparedStatement ps = con.getConnection().prepareStatement(setFreezeStatusAuth);
@@ -1667,7 +1722,8 @@ class AuthenticationService {
         pinClient.putFormAsyncWith1Param("/services/pin/setFreezeUserAccount", "request",
                 jsonConverter.toJson(freezeAccount), (httpStatusCode, httpContentType, removalReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(removalReplyJson), MessageWrapper.class);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                JSONParser.removeEscapeCharacters(removalReplyJson), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
                             // send Users DB update request
                             sendFreezeUserAccountUsers(freezeAccount, callbackBuilder);
@@ -1675,7 +1731,9 @@ class AuthenticationService {
                             callbackBuilder.build().reply(removalReplyJson);
                         }
                     } else {
-                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                                true, 500, "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
@@ -1684,19 +1742,23 @@ class AuthenticationService {
         usersClient.putFormAsyncWith1Param("/services/users/setFreezeUserAccount", "request",
                 jsonConverter.toJson(freezeAccount), (httpStatusCode, httpContentType, removalReplyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(removalReplyJson), MessageWrapper.class);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                JSONParser.removeEscapeCharacters(removalReplyJson), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
                             System.out.printf("%s Forwarding setFreezeUserAccount reply.\n", PREFIX);
                         }
                         callbackBuilder.build().reply(removalReplyJson);
                     } else {
-                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                                true, 500, "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
 
     @RequestMapping(value = "/transferBankAccount", method = RequestMethod.PUT)
-    public void processTransferBankAccountRequest(final Callback<String> callback, @RequestParam("data") final String data) {
+    public void processTransferBankAccountRequest(
+            final Callback<String> callback, @RequestParam("data") final String data) {
         System.out.printf("%s Forwarding TransferBankAccount request.\n", PREFIX);
         MessageWrapper messageWrapper = jsonConverter.fromJson(
                 JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
@@ -1704,7 +1766,8 @@ class AuthenticationService {
         handleTransferBankAccountExceptions(messageWrapper, callbackBuilder);
     }
 
-    private void handleTransferBankAccountExceptions(final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
+    private void handleTransferBankAccountExceptions(
+            final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
         try {
             authenticateRequest(messageWrapper.getCookie(), messageWrapper.getMethodType());
             if (!isAdmin(messageWrapper.getMethodType(), messageWrapper.getCookie())) {
@@ -1715,15 +1778,15 @@ class AuthenticationService {
             sendTransferBankAccountRequest(accountLink, callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
-        } catch (UserNotAuthorizedException e) {
-            e.printStackTrace();
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to authentication database.")));
         } catch (CustomerDoesNotExistException e) {
             e.printStackTrace();
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "User with username does not appear to exist.")));
-        } catch (AccountFrozenException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418,
+                    "One of the parameters has an invalid value.", "User with username does not appear to exist.")));
+        } catch (UserNotAuthorizedException | AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
+                    "The user is not authorized to perform this action.", e.getMessage())));
         }
     }
 
@@ -1731,13 +1794,16 @@ class AuthenticationService {
         usersClient.putFormAsyncWith1Param("/services/users/transferBankAccount", "request",
                 jsonConverter.toJson(accountLink), (httpStatusCode, httpContentType, data) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
                             System.out.printf("%s Forwarding TransferBankAccount reply.\n", PREFIX);
                         }
                         callbackBuilder.build().reply(data);
                     } else {
-                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                                true, 500, "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests")));
                     }
                 });
     }
@@ -1758,12 +1824,11 @@ class AuthenticationService {
             sendSetTransferLimitRequest(iBAN, transferLimit, callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
-        } catch (UserNotAuthorizedException e) {
-            e.printStackTrace();
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
-        } catch (AccountFrozenException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "Error connecting to authentication database.")));
+        } catch (UserNotAuthorizedException | AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
+                    "The user is not authorized to perform this action.", e.getMessage())));
         }
     }
 
@@ -1772,13 +1837,16 @@ class AuthenticationService {
         systemInformationClient.putFormAsyncWith2Params("/services/systemInfo/transferLimit", "iBAN",
                 iBAN, "transferLimit", transferLimit, (httpStatusCode, httpContentType, data) -> {
                     if (httpStatusCode == HTTP_OK) {
-                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
                             System.out.printf("%s Forwarding setTransferLimit reply.\n", PREFIX);
                         }
                         callbackBuilder.build().reply(data);
                     } else {
-                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                                true, 500, "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests")));
                     }
                 });
     }

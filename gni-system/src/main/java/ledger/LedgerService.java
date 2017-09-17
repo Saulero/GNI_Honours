@@ -135,10 +135,11 @@ class LedgerService {
         // Method call
         Account createdAccount = createNewAccount(newAccount);
 
+        newAccount.setAccount(createdAccount);
         if (createdAccount != null) {
             System.out.printf("%s Added user %s with accountNumber %s to ledger, sending callback.\n", PREFIX,
                     createdAccount.getAccountHolderName(), createdAccount.getAccountNumber());
-            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", createdAccount)));
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", newAccount)));
         } else {
             callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to ledger database.")));
         }
