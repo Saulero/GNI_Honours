@@ -37,7 +37,6 @@ public class Customer implements Serializable {
     private String[] guardians;
     private Long[] guardianIds;
     private boolean child;
-    private LocalDate date;
 
     /** Initializes customer object and assigns its variables.
      * @param newInitials initials of the customer.
@@ -217,14 +216,6 @@ public class Customer implements Serializable {
 
     public void setGuardianIds(Long[] guardianIds) {
         this.guardianIds = guardianIds;
-    }
-
-    public LocalDate getDate() {
-        return date;
-    }
-
-    public void setDate(LocalDate date) {
-        this.date = date;
     }
 
     public boolean minimalEquals(Object o) {

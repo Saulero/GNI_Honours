@@ -625,28 +625,29 @@ class UsersService {
 
     private void checkGuardians(final Customer customer) throws  UserNotAuthorizedException, SQLException, CustomerDoesNotExistException {
         for (Long id : customer.getGuardianIds()) {
-            if (!is18(id, customer.getDate())) {
+            if (!isChild(id)) {
                 throw new UserNotAuthorizedException("One of the guardians is not over 18 years of age.");
             }
         }
     }
 
-    private boolean is18(final Long id, final LocalDate date) throws SQLException, CustomerDoesNotExistException {
-        String dob = getCustomerData(id).getDob();
-        String[] dobData = dob.split("-");
-
-        if (date.getYear() < (Integer.parseInt(dobData[0]) + 18)) {
-            return false;
-        } else if (date.getYear() == (Integer.parseInt(dobData[0]) + 18)) {
-            if (date.getMonthValue() < (Integer.parseInt(dobData[1]))) {
-                return false;
-            } else if (date.getMonthValue() == (Integer.parseInt(dobData[1]))) {
-                if (date.getDayOfMonth() < (Integer.parseInt(dobData[2]))) {
-                    return false;
-                }
-            }
+    private boolean isChild(final Long id) throws SQLException, CustomerDoesNotExistException {
+        SQLConnection con = databaseConnectionPool.getConnection();
+        PreparedStatement ps = con.getConnection().prepareStatement(isChild);
+        ps.setLong(1, id);
+        ResultSet rs = ps.executeQuery();
+        if (rs.next()) {
+            boolean res = rs.getBoolean("child");
+            rs.close();
+            ps.close();
+            databaseConnectionPool.returnConnection(con);
+            return res;
+        } else {
+            rs.close();
+            ps.close();
+            databaseConnectionPool.returnConnection(con);
+            throw new CustomerDoesNotExistException("Customer not found in database.");
         }
-        return true;
     }
 
     /**
@@ -680,6 +681,7 @@ class UsersService {
         createNewCustomer.setString(7, customer.getAddress());         //address
         createNewCustomer.setString(8, customer.getDob());             //date_of_birth
         createNewCustomer.setLong(9, customer.getSsn());               //social_security_number
+        createNewCustomer.setBoolean(10, customer.isChild());
         createNewCustomer.executeUpdate();
         createNewCustomer.close();
         databaseConnectionPool.returnConnection(databaseConnection);

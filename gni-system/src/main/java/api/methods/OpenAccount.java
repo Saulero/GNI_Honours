@@ -139,7 +139,6 @@ public class OpenAccount {
                         }
                     }
                     if ((newCustomer.isChild() && !res) || (!newCustomer.isChild() && res)) {
-                        newCustomer.setDate(date);
                         doNewCustomerRequest(newCustomer, api);
                     } else {
                         System.out.printf("%s One of the parameters has an invalid value, sending error.", PREFIX);
