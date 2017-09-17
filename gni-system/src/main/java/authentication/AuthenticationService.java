@@ -197,6 +197,10 @@ class AuthenticationService {
                 throw new AccountFrozenException(
                         "User has no authorization to do this as long as the account is frozen.");
             }
+            if (authenticationData.getBoolean("child") && !methodType.isAllowedWhenChild()) {
+                throw new AccountFrozenException(
+                        "User has no authorization to do this action with a children's account.");
+            }
 
             long customerToken = authenticationData.getLong("token");
             long tokenValidity = authenticationData.getLong("token_validity");
