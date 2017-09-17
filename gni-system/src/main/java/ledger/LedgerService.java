@@ -57,6 +57,10 @@ class LedgerService {
     private static final int TIER_2_CAP = 75000;
     /** Interest rate for a savings balance of more than tier 2 cap. */
     private static final double TIER_3_INTEREST_RATE = 0.20;
+    /** Interest rate for a children's account. */
+    private static final double CHILD_INTEREST_RATE = 2.017;
+    /** Cap of the children's account interest rate. */
+    private static final int CHILD_CAP = 2500;
     /** Account number where fees are transferred to. */
     private static final String GNI_ACCOUNT = "NL52GNIB3676451168";
     /** Indicates how much can be transferred out of a bank account each week.*/
@@ -942,12 +946,19 @@ class LedgerService {
             withdrawOverdraftInterest(overdraftInterestMap, localDate);
             // If jan 1 do savings interest processing for last year.
             if (localDate.getDayOfYear() == 1) {
+                // normal savings accounts
                 firstProcessDay = localDate.minusYears(1);
                 lastProcessDay = localDate.minusDays(1);
                 List<String> savingsAccounts = findSavingsAccounts(firstProcessDay, lastProcessDay);
                 Map<String, Double> savingsInterestMap = calculateSavingsInterest(savingsAccounts, firstProcessDay,
-                                                                                    lastProcessDay);
+                        lastProcessDay, false);
                 depositSavingsInterest(savingsInterestMap, localDate);
+
+                // children's accounts
+                List<String> childAccounts = findChildAccounts(firstProcessDay, lastProcessDay);
+                Map<String, Double> childInterestMap = calculateSavingsInterest(childAccounts, firstProcessDay,
+                        lastProcessDay, true);
+                depositSavingsInterest(childInterestMap, localDate);
             }
             sendInterestCallback(localDate, callbackBuilder);
         } catch (SQLException e) {
@@ -1007,6 +1018,24 @@ class LedgerService {
         return savingsAccounts;
     }
 
+    private List<String> findChildAccounts(final LocalDate firstProcessDay, final LocalDate lastProcessDay)
+            throws SQLException {
+        SQLConnection con = db.getConnection();
+        PreparedStatement ps = con.getConnection().prepareStatement(SQLStatements.getChildAccounts);
+        ps.setDate(1, java.sql.Date.valueOf(firstProcessDay));
+        ps.setDate(2, java.sql.Date.valueOf(lastProcessDay));
+        ps.setDate(3, java.sql.Date.valueOf(firstProcessDay));
+        ps.setDate(4, java.sql.Date.valueOf(lastProcessDay));
+        ResultSet rs = ps.executeQuery();
+        List<String> childAccounts = new LinkedList<>();
+        while (rs.next()) {
+            childAccounts.add(rs.getString(1));
+        }
+        rs.close();
+        ps.close();
+        db.returnConnection(con);
+        return childAccounts;
+    }
     /**
      * Calculates the interest for a list of accounts that went overdraft, for a given time period.
      * Time period MUST be smaller than one year.
@@ -1044,7 +1073,8 @@ class LedgerService {
 
     private Map<String, Double> calculateSavingsInterest(final List<String> savingsAccounts,
                                                          final LocalDate firstProcessDay,
-                                                         final LocalDate lastProcessDay) throws SQLException {
+                                                         final LocalDate lastProcessDay,
+                                                         final boolean child) throws SQLException {
         Map<String, Double> interestMap = new HashMap<>();
         for (String accountNumber : savingsAccounts) {
             List<Transaction> savingsTransactions = findSavingsTransactions(accountNumber, firstProcessDay,
@@ -1053,28 +1083,36 @@ class LedgerService {
                 Account accountInfo = getAccountInfo(accountNumber);
                 Double savingsBalance = accountInfo.getSavingsBalance();
                 if (savingsBalance > 0) {
-                    interestMap.put(accountNumber, calculateSavingsInterest(savingsBalance));
+                    interestMap.put(accountNumber, calculateSavingsInterest(savingsBalance, child));
                 }
             } else {
-                interestMap.put(accountNumber, doDailySavingsInterestCalculation(accountNumber, savingsTransactions,
-                                                                                 firstProcessDay, lastProcessDay));
+                interestMap.put(accountNumber, doDailySavingsInterestCalculation(
+                        accountNumber, savingsTransactions, firstProcessDay, lastProcessDay, child));
             }
         }
         return  interestMap;
     }
 
-    private Double calculateSavingsInterest(final Double averageBalance) {
+    private Double calculateSavingsInterest(final Double averageBalance, final boolean child) {
         Double interest;
-        if (averageBalance > TIER_1_CAP) {
-            interest = TIER_1_CAP * TIER_1_INTEREST_RATE;
-            if (averageBalance > TIER_2_CAP) {
-                interest += (TIER_2_CAP - TIER_1_CAP) * TIER_2_INTEREST_RATE;
-                interest += (averageBalance - TIER_2_CAP) * TIER_3_INTEREST_RATE;
+        if (child) {
+            if (averageBalance > CHILD_CAP) {
+                interest = CHILD_CAP * CHILD_INTEREST_RATE;
             } else {
-                interest += (averageBalance - TIER_1_CAP) * TIER_2_INTEREST_RATE;
+                interest = averageBalance * CHILD_INTEREST_RATE;
             }
         } else {
-            interest = averageBalance * TIER_1_INTEREST_RATE;
+            if (averageBalance > TIER_1_CAP) {
+                interest = TIER_1_CAP * TIER_1_INTEREST_RATE;
+                if (averageBalance > TIER_2_CAP) {
+                    interest += (TIER_2_CAP - TIER_1_CAP) * TIER_2_INTEREST_RATE;
+                    interest += (averageBalance - TIER_2_CAP) * TIER_3_INTEREST_RATE;
+                } else {
+                    interest += (averageBalance - TIER_1_CAP) * TIER_2_INTEREST_RATE;
+                }
+            } else {
+                interest = averageBalance * TIER_1_INTEREST_RATE;
+            }
         }
         return interest;
     }
@@ -1129,7 +1167,8 @@ class LedgerService {
     private Double doDailySavingsInterestCalculation(final String accountNumber,
                                                      final List<Transaction> savingsTransactions,
                                                      final LocalDate firstProcessDay,
-                                                     final LocalDate lastProcessDay) {
+                                                     final LocalDate lastProcessDay,
+                                                     final boolean child) {
         Double averageBalance = 0.0;
         LocalDate currentProcessDay = firstProcessDay;
         Double currentBalance;
@@ -1157,7 +1196,7 @@ class LedgerService {
             averageBalance += (1.00 / (lastProcessDay.getDayOfYear() - firstProcessDay.getDayOfYear() + 1)) * (lowestBalance);
             currentProcessDay = currentProcessDay.plusDays(1);
         }
-        return calculateSavingsInterest(averageBalance);
+        return calculateSavingsInterest(averageBalance, child);
     }
 
     /**

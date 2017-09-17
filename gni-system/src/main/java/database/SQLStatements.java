@@ -62,6 +62,7 @@ public final class SQLStatements {
     public static final String getPrimaryAccountOwner = "SELECT user_id FROM accounts WHERE account_number = ? AND primary_owner = true";
     public static final String getOverdraftAccounts = "SELECT DISTINCT account_to FROM transactions_in WHERE new_balance < amount AND date BETWEEN ? AND ? UNION SELECT DISTINCT account_from FROM transactions_out WHERE new_balance < 0 AND date BETWEEN ? AND ? UNION SELECT DISTINCT account_number FROM ledger where balance < 0";
     public static final String getSavingsAccounts = "SELECT DISTINCT account_to FROM transactions_in WHERE new_savings_balance > 0 AND date BETWEEN ? AND ? UNION SELECT DISTINCT account_from FROM transactions_out WHERE new_savings_balance > 0 AND date BETWEEN ? AND ? UNION SELECT DISTINCT account_number FROM ledger where savings_balance > 0";
+    public static final String getChildAccounts = "SELECT DISTINCT account_to FROM transactions_in WHERE new_savings_balance > 0 AND date BETWEEN ? AND ? UNION SELECT DISTINCT account_from FROM transactions_out WHERE new_savings_balance > 0 AND date BETWEEN ? AND ? UNION SELECT DISTINCT account_number FROM ledger where child = true";
     public static final String getAccountOverdraftTransactions = "SELECT * FROM transactions_in WHERE account_to = ? AND new_balance < amount AND date BETWEEN ? AND ? UNION SELECT * FROM transactions_out WHERE account_from = ? AND new_balance < 0 AND date BETWEEN ? AND ?";
     public static final String getAccountSavingsTransactions = "SELECT * FROM transactions_in WHERE account_to = ? AND new_savings_balance > 0 AND date BETWEEN ? AND ? UNION SELECT * FROM transactions_out WHERE account_from = ? AND new_savings_balance > 0 AND date BETWEEN ? AND ?";
     public static final String addRequestLog = "INSERT INTO request_logs (request_id, method, params, date, time) VALUES (?, ?, ?, ?, ?)";
@@ -128,7 +129,7 @@ public final class SQLStatements {
     // Admin methods
     // Create default admin & add authentication data
     public static final String createDefaultAdmin = "INSERT INTO users (id, initials, firstname, lastname, email, telephone_number, address, date_of_birth, social_security_number) VALUES (-1, \"A.A.\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", -1)";
-    public static final String addAdminAuthenticationData = "INSERT INTO authentication (user_id, username, password, frozen) VALUES (-1, \"admin\", \"admin\", 0)";
+    public static final String addAdminAuthenticationData = "INSERT INTO authentication (user_id, username, password, frozen, child) VALUES (-1, \"admin\", \"admin\", 0, 0)";
 
     // All grant permission statements, currently hardcoded for the default admin
     public final static String grantOpenAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";
