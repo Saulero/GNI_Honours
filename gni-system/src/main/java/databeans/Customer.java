@@ -34,6 +34,7 @@ public class Customer implements Serializable {
     /** Id of the customer. */
     private long customerId;
     private String[] guardians;
+    private Long[] guardianIds;
     private boolean child;
 
     /** Initializes customer object and assigns its variables.
@@ -206,6 +207,14 @@ public class Customer implements Serializable {
 
     public boolean isChild() {
         return child;
+    }
+
+    public Long[] getGuardianIds() {
+        return guardianIds;
+    }
+
+    public void setGuardianIds(Long[] guardianIds) {
+        this.guardianIds = guardianIds;
     }
 
     public boolean minimalEquals(Object o) {

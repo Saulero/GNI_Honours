@@ -452,12 +452,23 @@ class AuthenticationService {
     private void handleUsernameValidationExceptions(final String newCustomerRequestJson,
                                                     final CallbackBuilder callbackBuilder) {
         try {
-            validateUsername(jsonConverter.fromJson(newCustomerRequestJson, Customer.class));
+            Customer customer = jsonConverter.fromJson(newCustomerRequestJson, Customer.class);
+            validateUsername(customer);
+            if (customer.isChild()) {
+                String[] guardians = customer.getGuardians();
+                Long[] res = new Long[guardians.length];
+                for (int i = 0; i < guardians.length; i++) {
+                    res[i] = getCustomerIdFromUsername(guardians[i]);
+                }
+                customer.setGuardianIds(res);
+            }
             doNewCustomerRequest(newCustomerRequestJson, callbackBuilder);
         } catch (SQLException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
         } catch (UsernameTakenException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "Username taken, please choose a different username.")));
+        } catch (CustomerDoesNotExistException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "One of the guardians does not exist.")));
         }
     }
 
