@@ -3,11 +3,13 @@ package api.methods;
 import api.ApiBean;
 import api.IncorrectInputException;
 import com.google.gson.JsonSyntaxException;
+import databeans.Account;
 import databeans.Authentication;
 import databeans.Customer;
 import databeans.MessageWrapper;
 import util.JSONParser;
 
+import java.time.LocalDate;
 import java.util.Map;
 
 import static api.ApiService.PREFIX;
@@ -33,7 +35,12 @@ public class OpenAccount {
                 (String) params.get("surname"), (String) params.get("email"), (String) params.get("telephoneNumber"),
                 (String) params.get("address"), (String) params.get("dob"), Long.parseLong((String) params.get("ssn")),
                 (String) params.get("username"), (String) params.get("password"));
-        handleNewCustomerExceptions(customer, api);
+        String type = (String) params.get("type");
+        if (type != null && type.equals("child")) {
+            customer.setGuardians((String[]) params.get("guardians"));
+        } else {
+            handleNewCustomerExceptions(customer, api);
+        }
     }
 
     /**
@@ -45,11 +52,12 @@ public class OpenAccount {
     private static void handleNewCustomerExceptions(final Customer newCustomer, final ApiBean api) {
         try {
             verifyNewCustomerInput(newCustomer);
+            verifyAgeInput(api, newCustomer);
             doNewCustomerRequest(newCustomer, api);
         } catch (IncorrectInputException e) {
             System.out.printf("%s One of the parameters has an invalid value, sending error.", PREFIX);
             sendErrorReply(JSONParser.createMessageWrapper(true, 418,
-                    "One of the parameters has an invalid value."), api);
+                    "One of the parameters has an invalid value.", e.getMessage()), api);
         } catch (JsonSyntaxException e) {
             System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
             sendErrorReply(JSONParser.createMessageWrapper(true, 418, "Syntax error when parsing json."), api);
@@ -105,7 +113,48 @@ public class OpenAccount {
         } else if (password == null || !valueHasCorrectLength(password)) {
             //todo specify more formal password requirements
             throw new IncorrectInputException("The following variable was incorrectly specified: password.");
+        } else if (newCustomer.isChild() && (newCustomer.getGuardians() == null || newCustomer.getGuardians().length < 1)) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: guardians.");
         }
+    }
+
+    private static void verifyAgeInput(final ApiBean api, final Customer newCustomer) {
+        String dob = newCustomer.getDob();
+        String[] dobData = dob.split("-");
+        api.getSystemInformationClient().getAsync("/services/systemInfo/date", (code, contentType, body) -> {
+            if (code == HTTP_OK) {
+                MessageWrapper messageWrapper = api.getJsonConverter().fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    LocalDate date = (LocalDate) messageWrapper.getData();
+                    boolean res = true;
+                    if (date.getYear() < (Integer.parseInt(dobData[0]) + 18)) {
+                        res = false;
+                    } else if (date.getYear() == (Integer.parseInt(dobData[0]) + 18)) {
+                        if (date.getMonthValue() < (Integer.parseInt(dobData[1]))) {
+                            res = false;
+                        } else if (date.getMonthValue() == (Integer.parseInt(dobData[1]))) {
+                            if (date.getDayOfMonth() < (Integer.parseInt(dobData[2]))) {
+                                res = false;
+                            }
+                        }
+                    }
+                    if ((newCustomer.isChild() && !res) || (!newCustomer.isChild() && res)) {
+                        doNewCustomerRequest(newCustomer, api);
+                    } else {
+                        System.out.printf("%s One of the parameters has an invalid value, sending error.", PREFIX);
+                        sendErrorReply(JSONParser.createMessageWrapper(true, 418,
+                                "One of the parameters has an invalid value.",
+                                "Primary account holder needs to be 18 for a child account, and over 18 for a normal account."), api);
+                    }
+                } else {
+                    api.getCallbackBuilder().build().reply(body);
+                }
+            } else {
+                api.getCallbackBuilder().build().reply(api.getJsonConverter().toJson(JSONParser.createMessageWrapper(true,
+                        500, "An unknown error occurred.",
+                        "There was a problem with one of the HTTP requests")));
+            }
+        });
     }
 
     /**

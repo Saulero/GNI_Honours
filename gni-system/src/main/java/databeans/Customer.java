@@ -1,6 +1,7 @@
 package databeans;
 
 import java.io.Serializable;
+import java.util.Arrays;
 
 /**
  * @author Noel
@@ -32,6 +33,8 @@ public class Customer implements Serializable {
     private Account account;
     /** Id of the customer. */
     private long customerId;
+    private String[] guardians;
+    private boolean child;
 
     /** Initializes customer object and assigns its variables.
      * @param newInitials initials of the customer.
@@ -192,26 +195,17 @@ public class Customer implements Serializable {
         password = newPassword;
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+    public String[] getGuardians() {
+        return guardians;
+    }
 
-        Customer customer = (Customer) o;
+    public void setGuardians(String[] guardians) {
+        this.guardians = guardians;
+        this.child = true;
+    }
 
-        if (ssn != customer.ssn) return false;
-        if (customerId != customer.customerId) return false;
-        if (initials != null ? !initials.equals(customer.initials) : customer.initials != null) return false;
-        if (name != null ? !name.equals(customer.name) : customer.name != null) return false;
-        if (surname != null ? !surname.equals(customer.surname) : customer.surname != null) return false;
-        if (email != null ? !email.equals(customer.email) : customer.email != null) return false;
-        if (telephoneNumber != null ? !telephoneNumber.equals(customer.telephoneNumber) : customer.telephoneNumber != null)
-            return false;
-        if (address != null ? !address.equals(customer.address) : customer.address != null) return false;
-        if (dob != null ? !dob.equals(customer.dob) : customer.dob != null) return false;
-        if (username != null ? !username.equals(customer.username) : customer.username != null) return false;
-        if (password != null ? !password.equals(customer.password) : customer.password != null) return false;
-        return account != null ? account.equals(customer.account) : customer.account == null;
+    public boolean isChild() {
+        return child;
     }
 
     public boolean minimalEquals(Object o) {
