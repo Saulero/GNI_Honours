@@ -29,6 +29,7 @@ import models.BankAccount;
 import models.CustomerAccount;
 import models.PinCard;
 
+import java.time.LocalDate;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -43,13 +44,13 @@ public class BasicHappyFlowTestSuite {
 //        IClient client = new SocketClient();
 
         // Create CustomerAccount.
-        CustomerAccount customer1 = new CustomerAccount("Duck", "Donald", "D", new Date().toString(),
+        CustomerAccount customer1 = new CustomerAccount("Duck", "Donald", "D", "1980-01-01",
                 "571376046", "1313 Webfoot Walk, Duckburg",  "+316 12345678", "donald@gmail.com",
                 "duckd", "kwikkwekkwak");
-        CustomerAccount customer2 = new CustomerAccount("Duck", "Daisy", "D", new Date().toString(),
+        CustomerAccount customer2 = new CustomerAccount("Duck", "Daisy", "D", "1980-01-01",
                 "571376047", "1313 Webfoot Walk, Duckburg",  "+316 12345679", "daisy@gmail.com",
                 "daisyduck", "donald");
-        CustomerAccount admin = new CustomerAccount("Admin", "Admin", "A.A.", "Admin",
+        CustomerAccount admin = new CustomerAccount("Admin", "Admin", "A.A.", "1970-01-01",
                 "Admin", "Admin", "Admin", "Admin", "admin", "admin");
 
         BankAccount bankAccount1 = null;

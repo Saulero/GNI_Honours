@@ -503,12 +503,14 @@ class AuthenticationService {
         PreparedStatement getUsernameCount = databaseConnection.getConnection()
                 .prepareStatement(getLoginUsernameCount);
         getUsernameCount.setString(1, customerToEnroll.getUsername());
-        ResultSet userNameOccurences = getUsernameCount.executeQuery();
-        if (userNameOccurences.next() && userNameOccurences.getLong(1) > 0) {
+        ResultSet userNameOccurrences = getUsernameCount.executeQuery();
+        if (userNameOccurrences.next() && userNameOccurrences.getLong(1) > 0) {
+            userNameOccurrences.close();
             getUsernameCount.close();
             databaseConnectionPool.returnConnection(databaseConnection);
             throw new UsernameTakenException("Username already exists in database.");
         }
+        userNameOccurrences.close();
         getUsernameCount.close();
         databaseConnectionPool.returnConnection(databaseConnection);
     }

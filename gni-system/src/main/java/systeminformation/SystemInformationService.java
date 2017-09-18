@@ -195,7 +195,6 @@ class SystemInformationService {
         if (days >= ((daysInMonth - dayOfTheMonth) + 1)) {
             doInterestProcessingRequest(days, callbackBuilder);
         } else {
-            //checkChildAccounts();
             this.systemDate = this.systemDate.plusDays(days);
             doSetTransferLimitsRequest(callbackBuilder);
         }

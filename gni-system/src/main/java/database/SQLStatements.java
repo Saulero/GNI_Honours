@@ -105,7 +105,7 @@ public final class SQLStatements {
     public final static String dropTransactionsOutTable = "DROP TABLE IF EXISTS `transactions_out`;";
     public final static String createAuthTable = "CREATE TABLE IF NOT EXISTS `authentication`( `user_id` BIGINT(20) NOT NULL, `username` TEXT NOT NULL, `password` TEXT NOT NULL, `token` BIGINT(20), `token_validity` BIGINT(20), `frozen` BOOLEAN NOT NULL, `child` BOOLEAN NOT NULL, PRIMARY KEY (user_id));";
     public final static String dropAuthTable = "DROP TABLE IF EXISTS `authentication`;";
-    public final static String createUsersTable = "CREATE TABLE IF NOT EXISTS `users`( `id` BIGINT(20) NOT NULL, `initials` TEXT NOT NULL, `firstname` TEXT NOT NULL, `lastname` TEXT NOT NULL, `email` TEXT NOT NULL, `telephone_number` TEXT NOT NULL, `address` TEXT NOT NULL, `date_of_birth` TEXT NOT NULL, `social_security_number` BIGINT(20) NOT NULL, `child` BOOLEAN NOT NULL, PRIMARY KEY (id));";
+    public final static String createUsersTable = "CREATE TABLE IF NOT EXISTS `users`( `id` BIGINT(20) NOT NULL, `initials` TEXT NOT NULL, `firstname` TEXT NOT NULL, `lastname` TEXT NOT NULL, `email` TEXT NOT NULL, `telephone_number` TEXT NOT NULL, `address` TEXT NOT NULL, `date_of_birth` DATE NOT NULL, `social_security_number` BIGINT(20) NOT NULL, `child` BOOLEAN NOT NULL, PRIMARY KEY (id));";
     public final static String dropUsersTable = "DROP TABLE IF EXISTS `users`;";
     public final static String createRequestLogTable = "CREATE TABLE IF NOT EXISTS `request_logs`(`request_id` TEXT NOT NULL, `method` TEXT NOT NULL, `params` TEXT NOT NULL, `date` DATE NOT NULL, `time` TEXT NOT NULL);";
     public final static String dropRequestLogTable = "DROP TABLE IF EXISTS `request_logs`;";
@@ -130,7 +130,7 @@ public final class SQLStatements {
 
     // Admin methods
     // Create default admin & add authentication data
-    public static final String createDefaultAdmin = "INSERT INTO users (id, initials, firstname, lastname, email, telephone_number, address, date_of_birth, social_security_number, child) VALUES (-1, \"A.A.\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", -1, 0)";
+    public static final String createDefaultAdmin = "INSERT INTO users (id, initials, firstname, lastname, email, telephone_number, address, date_of_birth, social_security_number, child) VALUES (-1, \"A.A.\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", \"1970-01-01\", -1, 0)";
     public static final String addAdminAuthenticationData = "INSERT INTO authentication (user_id, username, password, frozen, child) VALUES (-1, \"admin\", \"admin\", 0, 0)";
 
     // All grant permission statements, currently hardcoded for the default admin

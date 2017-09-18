@@ -56,7 +56,6 @@ public class OpenAccount {
         try {
             verifyNewCustomerInput(newCustomer);
             verifyAgeInput(api, newCustomer);
-            doNewCustomerRequest(newCustomer, api);
         } catch (IncorrectInputException e) {
             System.out.printf("%s One of the parameters has an invalid value, sending error.", PREFIX);
             sendErrorReply(JSONParser.createMessageWrapper(true, 418,
@@ -128,12 +127,12 @@ public class OpenAccount {
                 MessageWrapper messageWrapper = api.getJsonConverter().fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
                 if (!messageWrapper.isError()) {
                     LocalDate date = (LocalDate) messageWrapper.getData();
-                    boolean res = true;
+                    boolean is18 = false;
                     LocalDate adjustedDob = dob.plusYears(18);
                     if (date.isAfter(adjustedDob)) {
-                        res = false;
+                        is18 = true;
                     }
-                    if ((newCustomer.isChild() && !res) || (!newCustomer.isChild() && res)) {
+                    if ((newCustomer.isChild() && !is18) || (!newCustomer.isChild() && is18)) {
                         doNewCustomerRequest(newCustomer, api);
                     } else {
                         System.out.printf("%s One of the parameters has an invalid value, sending error.", PREFIX);
