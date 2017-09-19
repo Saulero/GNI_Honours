@@ -40,10 +40,10 @@ public class OpenAccount {
                 (String) params.get("username"), (String) params.get("password"));
         String type = (String) params.get("type");
         if (type != null && type.equals("child")) {
+            // sets both the Child flag to true, and adds the guardians
             customer.setGuardians((String[]) params.get("guardians"));
-        } else {
-            handleNewCustomerExceptions(customer, api);
         }
+        handleNewCustomerExceptions(customer, api);
     }
 
     /**
