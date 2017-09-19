@@ -1,8 +1,6 @@
 package authentication;
 
 import com.google.gson.Gson;
-import com.thetransactioncompany.jsonrpc2.JSONRPC2Error;
-import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 import database.ConnectionPool;
 import database.SQLConnection;
 import database.SQLStatements;
@@ -478,7 +476,7 @@ class AuthenticationService {
                 }
                 customer.setGuardianIds(res);
             }
-            doNewCustomerRequest(newCustomerRequestJson, callbackBuilder);
+            doNewCustomerRequest(jsonConverter.toJson(customer), callbackBuilder);
         } catch (SQLException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
                     true, 500, "Error connecting to authentication database.")));
@@ -1503,12 +1501,9 @@ class AuthenticationService {
                 if (!messageWrapper.isError()) {
                     sendSimulateTimeCallback(callbackBuilder, body);
                 } else {
-                    System.out.printf("%s, %s", PREFIX, body);
                     callbackBuilder.build().reply(body);
                 }
             } else {
-                System.out.println("Problem with http in auth");
-                System.out.println(body);
                 callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
                         "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
@@ -1877,8 +1872,7 @@ class AuthenticationService {
     private void updateStatusChildAccounts(final List<BirthdayInterestPayment> accounts) throws SQLException {
         SQLConnection con = databaseConnectionPool.getConnection();
         for (BirthdayInterestPayment account : accounts) {
-            PreparedStatement ps = con.getConnection().prepareStatement(setChildStatusAuth);
-            ps.setBoolean(1, false);
+            PreparedStatement ps = con.getConnection().prepareStatement(setAdultStatusAuth);
             ps.setLong(1, account.getUserId());
             ps.executeUpdate();
             ps.close();

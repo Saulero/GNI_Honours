@@ -201,8 +201,8 @@ public class Customer implements Serializable {
         return guardians;
     }
 
-    public void setGuardians(String[] guardians) {
-        this.guardians = guardians;
+    public void setGuardians(final String[] newGuardians) {
+        this.guardians = newGuardians;
         this.child = true;
     }
 
@@ -214,8 +214,8 @@ public class Customer implements Serializable {
         return guardianIds;
     }
 
-    public void setGuardianIds(Long[] guardianIds) {
-        this.guardianIds = guardianIds;
+    public void setGuardianIds(final Long[] newGuardianIds) {
+        this.guardianIds = newGuardianIds;
     }
 
     public boolean minimalEquals(Object o) {

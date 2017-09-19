@@ -32,7 +32,7 @@ public class RequestCreditCard {
             verifyNewCreditCardInput(cookie, accountNumber);
             doNewCreditCardRequest(cookie, accountNumber, api);
         } catch (IncorrectInputException e) {
-            System.out.printf("%s One of the parameters has an invalid value, sending error.", PREFIX);
+            System.out.printf("%s One of the parameters has an invalid value, sending error.\n", PREFIX);
             sendErrorReply(JSONParser.createMessageWrapper(true, 418,
                     "One of the parameters has an invalid value."), api);
         }

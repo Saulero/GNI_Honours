@@ -14,7 +14,6 @@ import databeans.DataReply;
 import databeans.DataRequest;
 import databeans.RequestType;
 import io.advantageous.qbit.reactive.CallbackBuilder;
-import sun.plugin2.message.Message;
 import util.JSONParser;
 
 import java.security.MessageDigest;
@@ -59,7 +58,7 @@ class LedgerService {
     /** Interest rate for a savings balance of more than tier 2 cap. */
     private static final double TIER_3_INTEREST_RATE = 0.20;
     /** Interest rate for a children's account. */
-    private static final double CHILD_INTEREST_RATE = 2.017;
+    private static final double CHILD_INTEREST_RATE = 0.02017;
     /** Cap of the children's account interest rate. */
     private static final int CHILD_CAP = 2500;
     /** Account number where fees are transferred to. */
@@ -1023,10 +1022,6 @@ class LedgerService {
             throws SQLException {
         SQLConnection con = db.getConnection();
         PreparedStatement ps = con.getConnection().prepareStatement(SQLStatements.getChildAccounts);
-        ps.setDate(1, java.sql.Date.valueOf(firstProcessDay));
-        ps.setDate(2, java.sql.Date.valueOf(lastProcessDay));
-        ps.setDate(3, java.sql.Date.valueOf(firstProcessDay));
-        ps.setDate(4, java.sql.Date.valueOf(lastProcessDay));
         ResultSet rs = ps.executeQuery();
         List<String> childAccounts = new LinkedList<>();
         while (rs.next()) {
@@ -1771,9 +1766,8 @@ class LedgerService {
     private void setLedgerChildAccountStatus(final List<BirthdayInterestPayment> accounts) throws SQLException {
         SQLConnection con = db.getConnection();
         for (BirthdayInterestPayment i : accounts) {
-            PreparedStatement ps = con.getConnection().prepareStatement(setChildStatusLedger);
-            ps.setBoolean(1, false);
-            ps.setString(2, i.getAccountNumber());
+            PreparedStatement ps = con.getConnection().prepareStatement(setAdultStatusLedger);
+            ps.setString(1, i.getAccountNumber());
             ps.executeUpdate();
             ps.close();
         }

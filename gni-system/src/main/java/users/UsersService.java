@@ -631,7 +631,7 @@ class UsersService {
 
     private void checkGuardians(final Customer customer) throws  UserNotAuthorizedException, SQLException, CustomerDoesNotExistException {
         for (Long id : customer.getGuardianIds()) {
-            if (!isChild(id)) {
+            if (isChild(id)) {
                 throw new UserNotAuthorizedException("One of the guardians is not over 18 years of age.");
             }
         }
@@ -1318,10 +1318,9 @@ class UsersService {
         SQLConnection con = databaseConnectionPool.getConnection();
         for (BirthdayInterestPayment i : accounts) {
             PreparedStatement ps1 = con.getConnection().prepareStatement(removeGuardianAccountLinks);
-            PreparedStatement ps2 = con.getConnection().prepareStatement(setChildStatusUsers);
+            PreparedStatement ps2 = con.getConnection().prepareStatement(setAdultStatusUsers);
             ps1.setString(1, i.getAccountNumber());
-            ps2.setBoolean(1, false);
-            ps2.setLong(2, i.getUserId());
+            ps2.setLong(1, i.getUserId());
             ps1.executeUpdate();
             ps2.executeUpdate();
             ps1.close();

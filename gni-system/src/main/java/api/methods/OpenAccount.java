@@ -3,7 +3,6 @@ package api.methods;
 import api.ApiBean;
 import api.IncorrectInputException;
 import com.google.gson.JsonSyntaxException;
-import databeans.Account;
 import databeans.Authentication;
 import databeans.Customer;
 import databeans.MessageWrapper;
@@ -31,6 +30,7 @@ public class OpenAccount {
      * @param api DataBean containing everything in the ApiService
      */
     public static void openAccount(final Map<String, Object> params, final ApiBean api) {
+        System.out.printf("%s Received OpenAccount request.\n", PREFIX);
         String date = (String) params.get("dob");
         String[] dobData = date.split("-");
         LocalDate dob = LocalDate.of(Integer.parseInt(dobData[0]), Integer.parseInt(dobData[1]), Integer.parseInt(dobData[2]));
@@ -41,7 +41,13 @@ public class OpenAccount {
         String type = (String) params.get("type");
         if (type != null && type.equals("child")) {
             // sets both the Child flag to true, and adds the guardians
-            customer.setGuardians((String[]) params.get("guardians"));
+            // TODO Fix this into the real deal, both in the test suite and here
+            String guardians = (String) params.get("guardians");
+            String[] guardiansArray = guardians.substring(1, guardians.length() - 1).split(", ");
+            for (int i = 0; i < guardiansArray.length; i++) {
+                guardiansArray[i] = guardiansArray[i].substring(1, guardiansArray[i].length() - 1);
+            }
+            customer.setGuardians(guardiansArray);
         }
         handleNewCustomerExceptions(customer, api);
     }
@@ -57,7 +63,7 @@ public class OpenAccount {
             verifyNewCustomerInput(newCustomer);
             verifyAgeInput(api, newCustomer);
         } catch (IncorrectInputException e) {
-            System.out.printf("%s One of the parameters has an invalid value, sending error.", PREFIX);
+            System.out.printf("%s One of the parameters has an invalid value, sending error.\n", PREFIX);
             sendErrorReply(JSONParser.createMessageWrapper(true, 418,
                     "One of the parameters has an invalid value.", e.getMessage()), api);
         } catch (JsonSyntaxException e) {
@@ -135,7 +141,7 @@ public class OpenAccount {
                     if ((newCustomer.isChild() && !is18) || (!newCustomer.isChild() && is18)) {
                         doNewCustomerRequest(newCustomer, api);
                     } else {
-                        System.out.printf("%s One of the parameters has an invalid value, sending error.", PREFIX);
+                        System.out.printf("%s One of the parameters has an invalid value, sending error.\n", PREFIX);
                         sendErrorReply(JSONParser.createMessageWrapper(true, 418,
                                 "One of the parameters has an invalid value.",
                                 "Primary account holder needs to be 18 for a child account, and over 18 for a normal account."), api);
