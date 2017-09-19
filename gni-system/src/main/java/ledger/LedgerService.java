@@ -14,6 +14,7 @@ import databeans.DataReply;
 import databeans.DataRequest;
 import databeans.RequestType;
 import io.advantageous.qbit.reactive.CallbackBuilder;
+import sun.plugin2.message.Message;
 import util.JSONParser;
 
 import java.security.MessageDigest;
@@ -967,7 +968,6 @@ class LedgerService {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
                                                                 "Error connecting to the Ledger database.")));
         }
-        sendInterestCallback(localDate, callbackBuilder);
     }
 
     /**
@@ -1078,8 +1078,8 @@ class LedgerService {
                                                          final boolean child) throws SQLException {
         Map<String, Double> interestMap = new HashMap<>();
         for (String accountNumber : savingsAccounts) {
-            List<Transaction> savingsTransactions = findSavingsTransactions(accountNumber, firstProcessDay,
-                                                                            lastProcessDay);
+            List<Transaction> savingsTransactions = findSavingsTransactions(
+                    accountNumber, firstProcessDay, lastProcessDay, child);
             if (savingsTransactions.isEmpty()) {
                 Account accountInfo = getAccountInfo(accountNumber);
                 Double savingsBalance = accountInfo.getSavingsBalance();
@@ -1176,25 +1176,44 @@ class LedgerService {
         // sort transactions from earliest to latest.
         savingsTransactions.sort(Comparator.comparing(Transaction::getDate));
         Transaction firstTransaction = savingsTransactions.get(0);
-        if (firstTransaction.getSourceAccountNumber().equals(accountNumber + "S")) {
-            currentBalance = firstTransaction.getNewSavingsBalance()
-                    + firstTransaction.getTransactionAmount();
+
+        if (child) {
+            if (firstTransaction.getSourceAccountNumber().equals(accountNumber)) {
+                currentBalance = firstTransaction.getNewBalance()
+                        + firstTransaction.getTransactionAmount();
+            } else {
+                currentBalance = firstTransaction.getNewBalance()
+                        - firstTransaction.getTransactionAmount();
+            }
         } else {
-            currentBalance = firstTransaction.getNewSavingsBalance()
-                    - firstTransaction.getTransactionAmount();
+            if (firstTransaction.getSourceAccountNumber().equals(accountNumber + "S")) {
+                currentBalance = firstTransaction.getNewSavingsBalance()
+                        + firstTransaction.getTransactionAmount();
+            } else {
+                currentBalance = firstTransaction.getNewSavingsBalance()
+                        - firstTransaction.getTransactionAmount();
+            }
         }
+
         while (currentProcessDay.isBefore(lastProcessDay) || currentProcessDay.isEqual(lastProcessDay)) {
             // process transactions of this day and find the lowest balance.
             Double lowestBalance = currentBalance;
             while (!savingsTransactions.isEmpty()
                     && savingsTransactions.get(0).getDate().equals(currentProcessDay)) {
                 Transaction transactionToProcess = savingsTransactions.remove(0);
-                currentBalance = transactionToProcess.getNewSavingsBalance();
+
+                if (child) {
+                    currentBalance = transactionToProcess.getNewBalance();
+                } else {
+                    currentBalance = transactionToProcess.getNewSavingsBalance();
+                }
+
                 if (currentBalance < lowestBalance) {
                     lowestBalance = currentBalance;
                 }
             }
-            averageBalance += (1.00 / (lastProcessDay.getDayOfYear() - firstProcessDay.getDayOfYear() + 1)) * (lowestBalance);
+            averageBalance +=
+                    (1.00 / (lastProcessDay.getDayOfYear() - firstProcessDay.getDayOfYear() + 1)) * (lowestBalance);
             currentProcessDay = currentProcessDay.plusDays(1);
         }
         return calculateSavingsInterest(averageBalance, child);
@@ -1243,10 +1262,18 @@ class LedgerService {
 
     private List<Transaction> findSavingsTransactions(final String accountNumber,
                                                       final LocalDate firstProcessDay,
-                                                      final LocalDate lastProcessDay) throws SQLException {
+                                                      final LocalDate lastProcessDay,
+                                                      final boolean child) throws SQLException {
         SQLConnection connection = db.getConnection();
-        PreparedStatement getSavingsTransactions = connection.getConnection()
-                                                        .prepareStatement(SQLStatements.getAccountSavingsTransactions);
+        PreparedStatement getSavingsTransactions;
+        if (child) {
+            getSavingsTransactions =
+                    connection.getConnection().prepareStatement(SQLStatements.getChildAccountSavingsTransactions);
+        } else {
+            getSavingsTransactions =
+                    connection.getConnection().prepareStatement(SQLStatements.getAccountSavingsTransactions);
+        }
+
         getSavingsTransactions.setString(1, accountNumber);
         getSavingsTransactions.setDate(2, java.sql.Date.valueOf(firstProcessDay));
         getSavingsTransactions.setDate(3, java.sql.Date.valueOf(lastProcessDay));
@@ -1270,6 +1297,7 @@ class LedgerService {
             transaction.setNewSavingsBalance(newSavingsBalance);
             savingsTransactions.add(transaction);
         }
+        savingsTransactionSet.close();
         getSavingsTransactions.close();
         db.returnConnection(connection);
         return savingsTransactions;
@@ -1307,7 +1335,7 @@ class LedgerService {
     }
 
     private void depositSavingsInterest(final Map<String, Double> interestMap, final LocalDate currentDate) {
-        final String firstDayOfInterest = currentDate.minusMonths(1).toString();
+        final String firstDayOfInterest = currentDate.minusYears(1).toString();
         final String lastDayOfInterest = currentDate.minusDays(1).toString();
         for (String accountNumber : interestMap.keySet()) {
             Transaction transaction = new Transaction();
@@ -1676,6 +1704,84 @@ class LedgerService {
 
     private void sendSetTransferLimitsCallback(final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Set transfer limits request successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                false, 200, "Normal Reply")));
+    }
+
+    @RequestMapping(value = "/childBirthdays", method = RequestMethod.POST)
+    public void incomingChildBirthdaysListener(final Callback<String> callback,
+                                               final @RequestParam("data") String data) {
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
+        System.out.printf("%s Received a request for processing child 18th birthdays interest payments.\n", PREFIX);
+        handleChildBirthdayExceptions(messageWrapper, callbackBuilder);
+    }
+
+    private void handleChildBirthdayExceptions(final MessageWrapper list, final CallbackBuilder callbackBuilder) {
+        try {
+            processBirthdayInterestPayments(list);
+            setLedgerChildAccountStatus((List<BirthdayInterestPayment>) list.getData());
+            sendChildBirthdaysCallback(callbackBuilder);
+        } catch (SQLException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 500, "Error connecting to Users database.")));
+        }
+    }
+
+    private void processBirthdayInterestPayments(final MessageWrapper list) throws SQLException {
+        List<BirthdayInterestPayment> accounts = (List<BirthdayInterestPayment>) list.getData();
+        LocalDate firstProcessDay;
+        LocalDate lastProcessDay;
+        for (BirthdayInterestPayment account : accounts) {
+            if (account.getInterestDate().getDayOfYear() == 1) {
+                firstProcessDay = account.getInterestDate().minusYears(1);
+            } else {
+                firstProcessDay = LocalDate.of(account.getAdjustedDob().getYear(), 1, 1);
+            }
+            lastProcessDay = account.getAdjustedDob();
+
+            List<String> singleAccount = new ArrayList<>(1);
+            singleAccount.add(account.getAccountNumber());
+            Map<String, Double> childInterestMap = calculateSavingsInterest(singleAccount, firstProcessDay,
+                    lastProcessDay, true);
+
+            Transaction transaction = new Transaction();
+            transaction.setSourceAccountNumber(GNI_ACCOUNT);
+            transaction.setTransactionAmount(childInterestMap.get(account.getAccountNumber()));
+            transaction.setDestinationAccountNumber(account.getAccountNumber());
+            transaction.setDestinationAccountHolderName("GNI Bank");
+            transaction.setDescription(String.format("Savings interest %s until %s", firstProcessDay,
+                    lastProcessDay));
+            Account accountInfo = getAccountInfo(account.getAccountNumber());
+            // Update the object
+            accountInfo.processSavingsInterest(transaction);
+
+            // Update the database
+            updateSavingsBalance(accountInfo);
+            transaction.setNewSavingsBalance(accountInfo.getSavingsBalance());
+
+            /// Update Transaction log
+            transaction.setTransactionID(getHighestTransactionID());
+            transaction.setDate(lastProcessDay);
+            addTransaction(transaction, true);
+        }
+    }
+
+    private void setLedgerChildAccountStatus(final List<BirthdayInterestPayment> accounts) throws SQLException {
+        SQLConnection con = db.getConnection();
+        for (BirthdayInterestPayment i : accounts) {
+            PreparedStatement ps = con.getConnection().prepareStatement(setChildStatusLedger);
+            ps.setBoolean(1, false);
+            ps.setString(2, i.getAccountNumber());
+            ps.executeUpdate();
+            ps.close();
+        }
+        db.returnConnection(con);
+    }
+
+    private void sendChildBirthdaysCallback(final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Children's birthday interest processing complete, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
                 false, 200, "Normal Reply")));
     }
