@@ -25,7 +25,7 @@ public final class SQLStatements {
     public static final String createNewUser = "INSERT INTO users (id, initials, firstname, lastname, email, telephone_number, address, date_of_birth, social_security_number, child) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     public static final String addAccountToUser = "INSERT INTO accounts (user_id, account_number, primary_owner, frozen) VALUES (?, ?, ?, ?)";
     public static final String getUserInformation = "SELECT * FROM users WHERE id = ?";
-    public static final String isChild = "SELECT child FROM users WHERE id = ?";
+    public static final String isChildUsers = "SELECT child FROM users WHERE id = ?";
     public static final String getAccountNumbers = "SELECT * FROM accounts where user_id = ?";
     public static final String getPrimaryAccountNumbersCount = "SELECT count(*) FROM accounts WHERE user_id = ? AND primary_owner = true";
     public static final String checkIfFrozen = "SELECT count(*) FROM accounts WHERE account_number = ? AND frozen = 1";
@@ -50,6 +50,9 @@ public final class SQLStatements {
     public static final String setFreezeStatusAuth = "UPDATE authentication SET frozen = ? WHERE user_id = ?";
     public static final String setFreezeStatusUsers = "UPDATE accounts SET frozen = ? WHERE user_id = ? AND primary_owner = 1";
     public static final String setChildStatusUsers = "UPDATE users SET child = ? WHERE id = ?";
+    public static final String setChildStatusAuth = "UPDATE authentication SET child = ? WHERE user_id = ?";
+    public static final String setChildStatusLedger = "UPDATE ledger SET child = ? WHERE account_number = ?";
+    public static final String getAllChildrenUsers = "SELECT * FROM users WHERE child = 1";
     public static final String incrementIncorrectPinCardAttempts = "UPDATE pin SET incorrect_attempts = incorrect_attempts + 1 WHERE card_number = ?";
     public static final String incrementIncorrectCreditCardAttempts = "UPDATE credit_cards SET incorrect_attempts = incorrect_attempts + 1 WHERE card_number = ?";
     public static final String removeAccountCards = "DELETE FROM pin WHERE account_number = ?";
@@ -57,14 +60,15 @@ public final class SQLStatements {
     public static final String removeCustomerTokens = "DELETE FROM authentication WHERE user_id = ?";
     public static final String removeCustomerLinks = "DELETE FROM accounts WHERE user_id = ?";
     public static final String removeCustomerAccountLink = "DELETE FROM accounts WHERE user_id = ? AND account_number = ?";
+    public static final String removeGuardianAccountLinks = "DELETE FROM accounts WHERE account_number = ? AND primary_owner = 0";
     public static final String getHighestCardNumber = "SELECT MAX(card_number) FROM pin";
     public static final String removeAccountLinks = "DELETE FROM accounts WHERE account_number = ?";
     public static final String getAccountNumberUsingCardNumber = "SELECT account_number FROM pin WHERE card_number = ?";
     public static final String getAccountAccessList = "SELECT user_id FROM accounts WHERE account_number = ?";
     public static final String getPrimaryAccountOwner = "SELECT user_id FROM accounts WHERE account_number = ? AND primary_owner = true";
     public static final String getOverdraftAccounts = "SELECT DISTINCT account_to FROM transactions_in WHERE new_balance < amount AND date BETWEEN ? AND ? UNION SELECT DISTINCT account_from FROM transactions_out WHERE new_balance < 0 AND date BETWEEN ? AND ? UNION SELECT DISTINCT account_number FROM ledger where balance < 0";
-    public static final String getSavingsAccounts = "SELECT DISTINCT account_to FROM transactions_in WHERE new_savings_balance > 0 AND date BETWEEN ? AND ? UNION SELECT DISTINCT account_from FROM transactions_out WHERE new_savings_balance > 0 AND date BETWEEN ? AND ? UNION SELECT DISTINCT account_number FROM ledger where savings_balance > 0";
-    public static final String getChildAccounts = "SELECT DISTINCT account_to FROM transactions_in WHERE new_savings_balance > 0 AND date BETWEEN ? AND ? UNION SELECT DISTINCT account_from FROM transactions_out WHERE new_savings_balance > 0 AND date BETWEEN ? AND ? UNION SELECT DISTINCT account_number FROM ledger where child = true";
+    public static final String getSavingsAccounts = "SELECT DISTINCT account_to FROM transactions_in WHERE new_savings_balance > 0 AND date BETWEEN ? AND ? UNION SELECT DISTINCT account_from FROM transactions_out WHERE new_savings_balance > 0 AND date BETWEEN ? AND ? UNION SELECT DISTINCT account_number FROM ledger where savings_balance > 0 AND child = 0";
+    public static final String getChildAccounts = "SELECT DISTINCT account_to FROM transactions_in WHERE new_savings_balance > 0 AND date BETWEEN ? AND ? UNION SELECT DISTINCT account_from FROM transactions_out WHERE new_savings_balance > 0 AND date BETWEEN ? AND ? UNION SELECT DISTINCT account_number FROM ledger where child = 1";
     public static final String getAccountOverdraftTransactions = "SELECT * FROM transactions_in WHERE account_to = ? AND new_balance < amount AND date BETWEEN ? AND ? UNION SELECT * FROM transactions_out WHERE account_from = ? AND new_balance < 0 AND date BETWEEN ? AND ?";
     public static final String getAccountSavingsTransactions = "SELECT * FROM transactions_in WHERE account_to = ? AND new_savings_balance > 0 AND date BETWEEN ? AND ? UNION SELECT * FROM transactions_out WHERE account_from = ? AND new_savings_balance > 0 AND date BETWEEN ? AND ?";
     public static final String addRequestLog = "INSERT INTO request_logs (request_id, method, params, date, time) VALUES (?, ?, ?, ?, ?)";
