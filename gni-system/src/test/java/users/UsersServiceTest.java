@@ -18,7 +18,7 @@ import static org.junit.Assert.*;
  * @author Saul
  */
 public class UsersServiceTest {
-
+/*
     private UsersService users;
 
     @Before
@@ -31,7 +31,7 @@ public class UsersServiceTest {
         users.shutdown();
     }
 
-/*    @Test
+    @Test
     public void accountLinkMethods() throws Exception {
         SQLConnection con = new SQLConnection();
 
@@ -79,7 +79,7 @@ public class UsersServiceTest {
         ps1.close();
         ps2.close();
         con.close();
-    }*/
+    }
 
     @Test
     public void getCustomerData() throws Exception {
@@ -188,5 +188,5 @@ public class UsersServiceTest {
         con.close();
 
         assertFalse(users.getCustomerExistence(c1.getCustomerId()));
-    }
+    }*/
 }

@@ -7,7 +7,7 @@ import databeans.MethodType;
  */
 public final class SQLStatements {
 
-    public static final String createNewAccount = "INSERT INTO ledger (id, account_number, name, overdraft_limit, balance, savings_active, savings_balance, transfer_limit) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+    public static final String createNewAccount = "INSERT INTO ledger (id, account_number, name, overdraft_limit, balance, savings_active, savings_balance, transfer_limit, child) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
     public static final String updateSavingsStatus = "UPDATE ledger SET savings_active = ? WHERE account_number = ?";
     public static final String removeAccount = "DELETE FROM ledger WHERE id = ? AND account_number = ?";
     public static final String getAccountInformation = "SELECT * FROM ledger WHERE account_number = ?";
@@ -22,9 +22,10 @@ public final class SQLStatements {
     public static final String getHighestIncomingTransactionID = "SELECT MAX(id) FROM transactions_in";
     public static final String getHighestOutgoingTransactionID = "SELECT MAX(id) FROM transactions_out";
     public static final String getNextAccountID = "SELECT MAX(id) FROM ledger";
-    public static final String createNewUser = "INSERT INTO users (id, initials, firstname, lastname, email, telephone_number, address, date_of_birth, social_security_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    public static final String createNewUser = "INSERT INTO users (id, initials, firstname, lastname, email, telephone_number, address, date_of_birth, social_security_number, child) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     public static final String addAccountToUser = "INSERT INTO accounts (user_id, account_number, primary_owner, frozen) VALUES (?, ?, ?, ?)";
     public static final String getUserInformation = "SELECT * FROM users WHERE id = ?";
+    public static final String isChildUsers = "SELECT child FROM users WHERE id = ?";
     public static final String getAccountNumbers = "SELECT * FROM accounts where user_id = ?";
     public static final String getPrimaryAccountNumbersCount = "SELECT count(*) FROM accounts WHERE user_id = ? AND primary_owner = true";
     public static final String checkIfFrozen = "SELECT count(*) FROM accounts WHERE account_number = ? AND frozen = 1";
@@ -32,7 +33,7 @@ public final class SQLStatements {
     public static final String getUserCount = "SELECT count(*) FROM users WHERE id = ?";
     public static final String getAuthenticationData1 = "SELECT * FROM authentication WHERE username = ?";
     public static final String getAuthenticationData2 = "SELECT * FROM authentication WHERE user_id = ?";
-    public static final String createAuthenticationData = "INSERT INTO authentication (user_id, username, password, frozen) VALUES (?, ?, ?, 0)";
+    public static final String createAuthenticationData = "INSERT INTO authentication (user_id, username, password, frozen, child) VALUES (?, ?, ?, 0, ?)";
     public static final String updateToken = "UPDATE authentication SET token = ?, token_validity = ? WHERE user_id = ?";
     public static final String updateTokenValidity = "UPDATE authentication SET token_validity = ? WHERE user_id = ?";
     public static final String getAccountLinkCount = "SELECT count(*) FROM accounts WHERE user_id = ? AND account_number = ?";
@@ -48,6 +49,10 @@ public final class SQLStatements {
     public static final String setFreezeStatusPin = "UPDATE pin SET frozen = ? WHERE user_id = ?";
     public static final String setFreezeStatusAuth = "UPDATE authentication SET frozen = ? WHERE user_id = ?";
     public static final String setFreezeStatusUsers = "UPDATE accounts SET frozen = ? WHERE user_id = ? AND primary_owner = 1";
+    public static final String setAdultStatusUsers = "UPDATE users SET child = 0 WHERE id = ?";
+    public static final String setAdultStatusAuth = "UPDATE authentication SET child = 0 WHERE user_id = ?";
+    public static final String setAdultStatusLedger = "UPDATE ledger SET child = 0 WHERE account_number = ?";
+    public static final String getAllChildrenUsers = "SELECT * FROM users WHERE child = 1";
     public static final String incrementIncorrectPinCardAttempts = "UPDATE pin SET incorrect_attempts = incorrect_attempts + 1 WHERE card_number = ?";
     public static final String incrementIncorrectCreditCardAttempts = "UPDATE credit_cards SET incorrect_attempts = incorrect_attempts + 1 WHERE card_number = ?";
     public static final String removeAccountCards = "DELETE FROM pin WHERE account_number = ?";
@@ -55,15 +60,18 @@ public final class SQLStatements {
     public static final String removeCustomerTokens = "DELETE FROM authentication WHERE user_id = ?";
     public static final String removeCustomerLinks = "DELETE FROM accounts WHERE user_id = ?";
     public static final String removeCustomerAccountLink = "DELETE FROM accounts WHERE user_id = ? AND account_number = ?";
+    public static final String removeGuardianAccountLinks = "DELETE FROM accounts WHERE account_number = ? AND primary_owner = 0";
     public static final String getHighestCardNumber = "SELECT MAX(card_number) FROM pin";
     public static final String removeAccountLinks = "DELETE FROM accounts WHERE account_number = ?";
     public static final String getAccountNumberUsingCardNumber = "SELECT account_number FROM pin WHERE card_number = ?";
     public static final String getAccountAccessList = "SELECT user_id FROM accounts WHERE account_number = ?";
     public static final String getPrimaryAccountOwner = "SELECT user_id FROM accounts WHERE account_number = ? AND primary_owner = true";
-    public static final String getOverdraftAccounts = "SELECT DISTINCT account_to FROM transactions_in WHERE new_balance < amount AND date BETWEEN ? AND ? UNION SELECT DISTINCT account_from FROM transactions_out WHERE new_balance < 0 AND date BETWEEN ? AND ? UNION SELECT DISTINCT account_number FROM ledger where balance < 0";
-    public static final String getSavingsAccounts = "SELECT DISTINCT account_to FROM transactions_in WHERE new_savings_balance > 0 AND date BETWEEN ? AND ? UNION SELECT DISTINCT account_from FROM transactions_out WHERE new_savings_balance > 0 AND date BETWEEN ? AND ? UNION SELECT DISTINCT account_number FROM ledger where savings_balance > 0";
+    public static final String getOverdraftAccounts = "SELECT DISTINCT account_to FROM transactions_in WHERE new_balance < 0 AND date BETWEEN ? AND ? UNION SELECT DISTINCT account_from FROM transactions_out WHERE new_balance < 0 AND date BETWEEN ? AND ? UNION SELECT DISTINCT account_number FROM ledger WHERE balance < 0";
+    public static final String getSavingsAccounts = "SELECT DISTINCT account_to FROM transactions_in WHERE new_savings_balance > 0 AND date BETWEEN ? AND ? UNION SELECT DISTINCT account_from FROM transactions_out WHERE new_savings_balance > 0 AND date BETWEEN ? AND ? UNION SELECT DISTINCT account_number FROM ledger WHERE savings_balance > 0 AND child = 0";
+    public static final String getChildAccounts = "SELECT account_number FROM ledger WHERE child = 1";
     public static final String getAccountOverdraftTransactions = "SELECT * FROM transactions_in WHERE account_to = ? AND new_balance < amount AND date BETWEEN ? AND ? UNION SELECT * FROM transactions_out WHERE account_from = ? AND new_balance < 0 AND date BETWEEN ? AND ?";
     public static final String getAccountSavingsTransactions = "SELECT * FROM transactions_in WHERE account_to = ? AND new_savings_balance > 0 AND date BETWEEN ? AND ? UNION SELECT * FROM transactions_out WHERE account_from = ? AND new_savings_balance > 0 AND date BETWEEN ? AND ?";
+    public static final String getChildAccountSavingsTransactions = "SELECT * FROM transactions_in WHERE account_to = ? AND new_balance > 0 AND date BETWEEN ? AND ? UNION SELECT * FROM transactions_out WHERE account_from = ? AND new_balance > 0 AND date BETWEEN ? AND ?";
     public static final String addRequestLog = "INSERT INTO request_logs (request_id, method, params, date, time) VALUES (?, ?, ?, ?, ?)";
     public static final String addErrorLog = "INSERT INTO error_logs (request_id, error_code, date, time, message, data) VALUES (?, ?, ?, ?, ?, ?)";
     public static final String getRequestLogs = "SELECT * FROM request_logs WHERE date BETWEEN ? AND ?";
@@ -88,7 +96,7 @@ public final class SQLStatements {
     // Create statements used for setting up the database
     public final static String createAccountsTable = "CREATE TABLE IF NOT EXISTS `accounts` ( `user_id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL, `primary_owner` BOOLEAN NOT NULL, `frozen` BOOLEAN NOT NULL);";
     public final static String dropAccountsTable = "DROP TABLE IF EXISTS `accounts`;";
-    public final static String createLedgerTable = "CREATE TABLE IF NOT EXISTS `ledger` ( `id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL, `name` TEXT NOT NULL, `overdraft_limit` DOUBLE NOT NULL, `balance` DOUBLE NOT NULL, `savings_active` BOOLEAN NOT NULL, `savings_balance` DOUBLE NOT NULL, `transfer_limit` DOUBLE NOT NULL, PRIMARY KEY (id));";
+    public final static String createLedgerTable = "CREATE TABLE IF NOT EXISTS `ledger` ( `id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL, `name` TEXT NOT NULL, `overdraft_limit` DOUBLE NOT NULL, `balance` DOUBLE NOT NULL, `savings_active` BOOLEAN NOT NULL, `savings_balance` DOUBLE NOT NULL, `transfer_limit` DOUBLE NOT NULL, `child` BOOLEAN NOT NULL, PRIMARY KEY (id));";
     public final static String dropLedgerTable = "DROP TABLE IF EXISTS `ledger`;";
     public final static String createCreditCardsTable = "CREATE TABLE IF NOT EXISTS `credit_cards` (`card_number` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL, `pin_code` TEXT NOT NULL, `incorrect_attempts` BIGINT(20) NOT NULL, `credit_limit` DOUBLE NOT NULL, `balance` DOUBLE NOT NULL, `card_fee` DOUBLE NOT NULL, `active_from` DATE NOT NULL, `active` BOOLEAN NOT NULL, PRIMARY KEY (card_number));";
     public final static String dropCreditCardsTable = "DROP TABLE IF EXISTS `credit_cards`;";
@@ -100,9 +108,9 @@ public final class SQLStatements {
     public final static String dropTransactionsInTable = "DROP TABLE IF EXISTS `transactions_in`;";
     public final static String createTransactionsOutTable = "CREATE TABLE IF NOT EXISTS `transactions_out`( `id` BIGINT(20) NOT NULL, `date` DATE NOT NULL, `account_to` TEXT NOT NULL, `account_to_name` TEXT NOT NULL, `account_from` TEXT NOT NULL, `amount` DOUBLE NOT NULL, `new_balance` DOUBLE NOT NULL, `new_savings_balance` DOUBLE NOT NULL, `description` TEXT NOT NULL, PRIMARY KEY (id));";
     public final static String dropTransactionsOutTable = "DROP TABLE IF EXISTS `transactions_out`;";
-    public final static String createAuthTable = "CREATE TABLE IF NOT EXISTS `authentication`( `user_id` BIGINT(20) NOT NULL, `username` TEXT NOT NULL, `password` TEXT NOT NULL, `token` BIGINT(20), `token_validity` BIGINT(20), `frozen` BOOLEAN NOT NULL, PRIMARY KEY (user_id));";
+    public final static String createAuthTable = "CREATE TABLE IF NOT EXISTS `authentication`( `user_id` BIGINT(20) NOT NULL, `username` TEXT NOT NULL, `password` TEXT NOT NULL, `token` BIGINT(20), `token_validity` BIGINT(20), `frozen` BOOLEAN NOT NULL, `child` BOOLEAN NOT NULL, PRIMARY KEY (user_id));";
     public final static String dropAuthTable = "DROP TABLE IF EXISTS `authentication`;";
-    public final static String createUsersTable = "CREATE TABLE IF NOT EXISTS `users`( `id` BIGINT(20) NOT NULL, `initials` TEXT NOT NULL, `firstname` TEXT NOT NULL, `lastname` TEXT NOT NULL, `email` TEXT NOT NULL, `telephone_number` TEXT NOT NULL, `address` TEXT NOT NULL, `date_of_birth` TEXT NOT NULL, `social_security_number` BIGINT(20) NOT NULL, PRIMARY KEY (id));";
+    public final static String createUsersTable = "CREATE TABLE IF NOT EXISTS `users`( `id` BIGINT(20) NOT NULL, `initials` TEXT NOT NULL, `firstname` TEXT NOT NULL, `lastname` TEXT NOT NULL, `email` TEXT NOT NULL, `telephone_number` TEXT NOT NULL, `address` TEXT NOT NULL, `date_of_birth` DATE NOT NULL, `social_security_number` BIGINT(20) NOT NULL, `child` BOOLEAN NOT NULL, PRIMARY KEY (id));";
     public final static String dropUsersTable = "DROP TABLE IF EXISTS `users`;";
     public final static String createRequestLogTable = "CREATE TABLE IF NOT EXISTS `request_logs`(`request_id` TEXT NOT NULL, `method` TEXT NOT NULL, `params` TEXT NOT NULL, `date` DATE NOT NULL, `time` TEXT NOT NULL);";
     public final static String dropRequestLogTable = "DROP TABLE IF EXISTS `request_logs`;";
@@ -127,8 +135,8 @@ public final class SQLStatements {
 
     // Admin methods
     // Create default admin & add authentication data
-    public static final String createDefaultAdmin = "INSERT INTO users (id, initials, firstname, lastname, email, telephone_number, address, date_of_birth, social_security_number) VALUES (-1, \"A.A.\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", -1)";
-    public static final String addAdminAuthenticationData = "INSERT INTO authentication (user_id, username, password, frozen) VALUES (-1, \"admin\", \"admin\", 0)";
+    public static final String createDefaultAdmin = "INSERT INTO users (id, initials, firstname, lastname, email, telephone_number, address, date_of_birth, social_security_number, child) VALUES (-1, \"A.A.\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", \"Admin\", \"1970-01-01\", -1, 0)";
+    public static final String addAdminAuthenticationData = "INSERT INTO authentication (user_id, username, password, frozen, child) VALUES (-1, \"admin\", \"admin\", 0, 0)";
 
     // All grant permission statements, currently hardcoded for the default admin
     public final static String grantOpenAccount = "INSERT INTO admin (user_id, permission_id) VALUES (-1, " + MethodType.OPEN_ACCOUNT.getId() + ");";

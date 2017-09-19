@@ -29,6 +29,7 @@ import models.BankAccount;
 import models.CustomerAccount;
 import models.PinCard;
 
+import java.time.LocalDate;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -43,24 +44,30 @@ public class BasicHappyFlowTestSuite {
 //        IClient client = new SocketClient();
 
         // Create CustomerAccount.
-        CustomerAccount customer1 = new CustomerAccount("Duck", "Donald", "D", new Date().toString(),
+        CustomerAccount customer1 = new CustomerAccount("Duck", "Donald", "D", "1980-11-14",
                 "571376046", "1313 Webfoot Walk, Duckburg",  "+316 12345678", "donald@gmail.com",
                 "duckd", "kwikkwekkwak");
-        CustomerAccount customer2 = new CustomerAccount("Duck", "Daisy", "D", new Date().toString(),
+        CustomerAccount customer2 = new CustomerAccount("Duck", "Daisy", "D", "1980-06-21",
                 "571376047", "1313 Webfoot Walk, Duckburg",  "+316 12345679", "daisy@gmail.com",
                 "daisyduck", "donald");
-        CustomerAccount admin = new CustomerAccount("Admin", "Admin", "A.A.", "Admin",
+        CustomerAccount customer3 = new CustomerAccount("Duck", "Huey", "H", "2002-02-07",
+                "571376048", "1313 Webfoot Walk, Duckburg",  "+316 12345680", "huey@gmail.com",
+                "hueyduck", "I_dunno_man");
+        CustomerAccount admin = new CustomerAccount("Admin", "Admin", "A.A.", "1970-01-01",
                 "Admin", "Admin", "Admin", "Admin", "admin", "admin");
 
         BankAccount bankAccount1 = null;
         BankAccount bankAccount2 = null;
         BankAccount bankAccount3 = null;
+        BankAccount bankAccount4 = null;
 
         PinCard card1 = null;
         PinCard card2 = null;
         PinCard card3 = null;
         PinCard card4 = null;
         PinCard card5 = null;
+        PinCard card6 = null;
+        PinCard card7 = null;
 
         AccountCardTuple tuple = null;
 
@@ -81,7 +88,7 @@ public class BasicHappyFlowTestSuite {
         // Method 1. OpenAccount.
         System.out.println("-- OpenAccountMethod. Donald opens an account --");
 
-        request = OpenAccountMethod.createRequest(customer1);
+        request = OpenAccountMethod.createRequest(customer1, null);
         response = client.processRequest(request);
 
         if((parsedResponse = checkResponse(response)) != null){
@@ -113,11 +120,10 @@ public class BasicHappyFlowTestSuite {
         }
 
 
-
         // Access Module
         System.out.println("--Open Account Method for Daisy--");
 
-        request = OpenAccountMethod.createRequest(customer2);
+        request = OpenAccountMethod.createRequest(customer2, null);
         response = client.processRequest(request);
 
         if((parsedResponse = checkResponse(response)) != null){
@@ -138,11 +144,50 @@ public class BasicHappyFlowTestSuite {
         // ProvideAccessMethod
         System.out.println("-- ProvideAccessMethod. Donald shares access with Daisy--");
 
-        request = ProvideAccessMethod.createRequest(customer1,bankAccount1,customer2);
+        request = ProvideAccessMethod.createRequest(customer1, bankAccount1, customer2);
         response = client.processRequest(request);
 
         if((parsedResponse = checkResponse(response)) != null){
-            card4 = ProvideAccessMethod.parseResponse(parsedResponse,bankAccount1, customer2);
+            card4 = ProvideAccessMethod.parseResponse(parsedResponse, bankAccount1, customer2);
+        }
+
+
+        // OpenAccount.
+        System.out.println("-- OpenAccountMethod. Huey opens an account --");
+
+        request = OpenAccountMethod.createRequest(customer3, new String[] {"duckd", "daisyduck"});
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            tuple = OpenAccountMethod.parseResponse(parsedResponse, customer3);
+            bankAccount4 = tuple.getAccount();
+            card6 = tuple.getCard();
+        }
+
+        System.out.println("-- getAccountAuth Method. Huey logs in. --");
+        request = GetAuthTokenMethod.createRequest(customer3);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            GetAuthTokenMethod.parseResponse(parsedResponse, customer3);
+        }
+
+        // DepositIntoAccount
+        System.out.println("-- DepositIntoAccount. Huey deposits his savings--");
+
+        request = DepositIntoAccountMethod.createRequest(bankAccount4, card6, 500);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            DepositIntoAccountMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Huey requests a credit card. Should fail. --");
+        request = RequestCreditCardMethod.createRequest(customer3, bankAccount4);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            card7 = RequestCreditCardMethod.parseResponse(parsedResponse, bankAccount4, customer3);
         }
 
         // DepositIntoAccount
@@ -920,7 +965,6 @@ public class BasicHappyFlowTestSuite {
             TransferMoneyMethod.parseResponse(parsedResponse);
         }
 
-
         ///------ TEAR DOWN TESTS.
 
         // First we progress time 2000 days. All cards should be expired.
@@ -948,6 +992,22 @@ public class BasicHappyFlowTestSuite {
 
         if((parsedResponse = checkResponse(response)) != null){
             PayFromAccountMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Huey wants to get transaction overview --");
+        request = GetTransactionsMethod.createRequest(customer3, bankAccount4, 25);
+        response = client.processRequest(request);
+
+        if((namedArrayResults = checkArrayResponse(response)) != null){
+            GetTransactionsMethod.parseResponse(namedArrayResults);
+        }
+
+        System.out.println("-- Huey requests a credit card. Should work. --");
+        request = RequestCreditCardMethod.createRequest(customer3, bankAccount4);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            card7 = RequestCreditCardMethod.parseResponse(parsedResponse, bankAccount4, customer3);
         }
 
         // TEAR DOWN TESTS PART 2

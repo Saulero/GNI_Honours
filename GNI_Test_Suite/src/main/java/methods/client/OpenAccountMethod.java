@@ -1,6 +1,5 @@
 package methods.client;
 
-import com.thetransactioncompany.jsonrpc2.JSONRPC2ParseException;
 import com.thetransactioncompany.jsonrpc2.JSONRPC2Request;
 import models.AccountCardTuple;
 import models.BankAccount;
@@ -15,7 +14,7 @@ import java.util.Map;
 
 public class OpenAccountMethod {
 
-    public static JSONRPC2Request createRequest(CustomerAccount customerAccount){
+    public static JSONRPC2Request createRequest(CustomerAccount customerAccount, String[] guardians){
         // The remote method to call
         String method = "openAccount";
 
@@ -31,6 +30,22 @@ public class OpenAccountMethod {
         params.put("email", customerAccount.getEmail());
         params.put("username", customerAccount.getUsername());
         params.put("password", customerAccount.getPassword());
+
+        if (guardians != null) {
+            params.put("type", "child");
+            StringBuilder sb = new StringBuilder();
+            sb.append("[\"");
+            sb.append(guardians[0]);
+            sb.append("\"");
+            for (int i = 1; i < guardians.length; i++) {
+                sb.append(", ");
+                sb.append("\"");
+                sb.append(guardians[i]);
+                sb.append("\"");
+            }
+            sb.append("]");
+            params.put("guardians", sb.toString());
+        }
 
         // The mandatory request ID
         String id = "req-001";

@@ -99,4 +99,37 @@ public enum MethodType implements Serializable {
             default:                        return false;
         }
     }
+
+    public boolean isAllowedWhenChild() {
+        switch (this) {
+            case OPEN_ACCOUNT:              return true;
+            case OPEN_ADDITIONAL_ACCOUNT:   return false;
+            case CLOSE_ACCOUNT:             return true;
+            case PROVIDE_ACCESS:            return false;
+            case REVOKE_ACCESS:             return false;
+            case DEPOSIT_INTO_ACCOUNT:      return true;
+            case PAY_FROM_ACCOUNT:          return true;
+            case TRANSFER_MONEY:            return true;
+            case GET_AUTH_TOKEN:            return true;
+            case GET_BALANCE:               return true;
+            case GET_TRANSACTION_OVERVIEW:  return true;
+            case GET_USER_ACCESS:           return true;
+            case GET_BANK_ACCOUNT_ACCESS:   return true;
+            case UNBLOCK_CARD:              return true;
+            case SIMULATE_TIME:             return true;
+            case RESET:                     return true;
+            case GET_DATE:                  return true;
+            case SET_OVERDRAFT_LIMIT:       return false;
+            case GET_OVERDRAFT_LIMIT:       return true;
+            case GET_EVENT_LOGS:            return true;
+            case OPEN_SAVING_ACCOUNT:       return false;
+            case CLOSE_SAVINGS_ACCOUNT:     return false;
+            case INVALIDATE_CARD:           return true;
+            case REQUEST_CREDIT_CARD:       return false;
+            case SET_FREEZE_USER_ACCOUNT:   return true;
+            case TRANSFER_BANK_ACCOUNT:     return true;
+            case SET_TRANSFER_LIMIT:        return true;
+            default:                        return false;
+        }
+    }
 }
