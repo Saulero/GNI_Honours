@@ -1,6 +1,5 @@
 package users;
 
-import api.methods.TransferBankAccount;
 import com.google.gson.Gson;
 import database.ConnectionPool;
 import database.SQLConnection;
@@ -14,6 +13,7 @@ import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
 import util.JSONParser;
 
+import java.security.InvalidParameterException;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -633,7 +633,7 @@ class UsersService {
 
     private boolean isChild(final Long id) throws SQLException, CustomerDoesNotExistException {
         SQLConnection con = databaseConnectionPool.getConnection();
-        PreparedStatement ps = con.getConnection().prepareStatement(isChild);
+        PreparedStatement ps = con.getConnection().prepareStatement(isChildUsers);
         ps.setLong(1, id);
         ResultSet rs = ps.executeQuery();
         if (rs.next()) {
@@ -1238,6 +1238,95 @@ class UsersService {
     private void sendTransferBankAccountCallback(final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Bank Account transfer successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply")));
+    }
+
+    @RequestMapping(value = "/childBirthdays", method = RequestMethod.POST)
+    public void incomingChildBirthdaysListener(final Callback<String> callback,
+                                                final @RequestParam("request") String body) {
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        LocalDate localDate = jsonConverter.fromJson(body, LocalDate.class);
+        System.out.printf("%s Received a request for checking child birthdays.\n", PREFIX);
+        handleChildBirthdayExceptions(localDate, callbackBuilder);
+    }
+
+    private void handleChildBirthdayExceptions(final LocalDate date, final CallbackBuilder callbackBuilder) {
+        try {
+            checkChildBirthdays(date, callbackBuilder);
+        } catch (SQLException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to Users database.")));
+        } catch (InvalidParameterException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", e.getMessage())));
+        }
+    }
+
+    private void checkChildBirthdays(final LocalDate date, final CallbackBuilder callbackBuilder) throws SQLException {
+        List<BirthdayInterestPayment> res = new LinkedList<>();
+
+        // get all child accounts
+        SQLConnection con = databaseConnectionPool.getConnection();
+        PreparedStatement ps = con.getConnection().prepareStatement(getAllChildrenUsers);
+        ResultSet rs = ps.executeQuery();
+
+        // check em
+        while (rs.next()) {
+            List<String> accounts = getCustomerAccounts(rs.getLong("id"));
+            if (accounts.size() != 1) {
+                throw new InvalidParameterException("Child somehow has more than one account, this should not be possible.");
+            } else {
+                // check birthday
+                LocalDate dob = rs.getDate("date_of_birth").toLocalDate();
+                LocalDate adjustedDob = dob.plusYears(18);
+                if (date.isAfter(adjustedDob)) {
+                    res.add(new BirthdayInterestPayment(rs.getLong("id"), date, adjustedDob, accounts.get(0)));
+                }
+            }
+        }
+
+        rs.close();
+        ps.close();
+        databaseConnectionPool.returnConnection(con);
+
+        MessageWrapper request = JSONParser.createMessageWrapper(false, 0, "Request", res);
+        ledgerClient.postFormAsyncWith1Param("/services/ledger/childBirthdays",
+                "data", jsonConverter.toJson(request), (httpStatusCode, httpContentType, jsonReply) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(jsonReply), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            try {
+                                revokeGuardianAccess(res);
+                                sendChildBirthdaysCallback(request, callbackBuilder);
+                            } catch (SQLException e) {
+                                System.out.printf("%s Failed to transfer bank account, sending rejection.\n", PREFIX);
+                                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to Users database.")));
+                            }
+                        } else {
+                            callbackBuilder.build().reply(jsonReply);
+                        }
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                    }
+                });
+    }
+
+    private void revokeGuardianAccess(final List<BirthdayInterestPayment> accounts) throws SQLException {
+        SQLConnection con = databaseConnectionPool.getConnection();
+        for (BirthdayInterestPayment i : accounts) {
+            PreparedStatement ps1 = con.getConnection().prepareStatement(removeGuardianAccountLinks);
+            PreparedStatement ps2 = con.getConnection().prepareStatement(setChildStatusUsers);
+            ps1.setString(1, i.getAccountNumber());
+            ps2.setBoolean(1, false);
+            ps2.setLong(2, i.getUserId());
+            ps1.executeUpdate();
+            ps2.executeUpdate();
+            ps1.close();
+            ps2.close();
+        }
+        databaseConnectionPool.returnConnection(con);
+    }
+
+    private void sendChildBirthdaysCallback(final MessageWrapper data, final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Children's birthday check complete, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", data)));
     }
 
     /**
