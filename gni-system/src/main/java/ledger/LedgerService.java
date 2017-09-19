@@ -953,13 +953,13 @@ class LedgerService {
                 List<String> savingsAccounts = findSavingsAccounts(firstProcessDay, lastProcessDay);
                 Map<String, Double> savingsInterestMap = calculateSavingsInterest(savingsAccounts, firstProcessDay,
                         lastProcessDay, false);
-                depositSavingsInterest(savingsInterestMap, localDate);
+                depositSavingsInterest(savingsInterestMap, localDate, false);
 
                 // children's accounts
                 List<String> childAccounts = findChildAccounts(firstProcessDay, lastProcessDay);
                 Map<String, Double> childInterestMap = calculateSavingsInterest(childAccounts, firstProcessDay,
                         lastProcessDay, true);
-                depositSavingsInterest(childInterestMap, localDate);
+                depositSavingsInterest(childInterestMap, localDate, true);
             }
             sendInterestCallback(localDate, callbackBuilder);
         } catch (SQLException e) {
@@ -1329,7 +1329,8 @@ class LedgerService {
         }
     }
 
-    private void depositSavingsInterest(final Map<String, Double> interestMap, final LocalDate currentDate) {
+    private void depositSavingsInterest(
+            final Map<String, Double> interestMap, final LocalDate currentDate, final boolean child) {
         final String firstDayOfInterest = currentDate.minusYears(1).toString();
         final String lastDayOfInterest = currentDate.minusDays(1).toString();
         for (String accountNumber : interestMap.keySet()) {
@@ -1341,12 +1342,22 @@ class LedgerService {
             transaction.setDescription(String.format("Savings interest %s until %s", firstDayOfInterest,
                     lastDayOfInterest));
             Account account = getAccountInfo(accountNumber);
-            // Update the object
-            account.processSavingsInterest(transaction);
 
-            // Update the database
-            updateSavingsBalance(account);
-            transaction.setNewSavingsBalance(account.getSavingsBalance());
+            if (child) {
+                // Update the object
+                account.processDeposit(transaction);
+
+                // Update the database
+                updateBalance(account);
+                transaction.setNewBalance(account.getBalance());
+            } else {
+                // Update the object
+                account.processSavingsInterest(transaction);
+
+                // Update the database
+                updateSavingsBalance(account);
+                transaction.setNewSavingsBalance(account.getSavingsBalance());
+            }
 
             /// Update Transaction log
             transaction.setTransactionID(getHighestTransactionID());
@@ -1750,11 +1761,11 @@ class LedgerService {
                     lastProcessDay));
             Account accountInfo = getAccountInfo(account.getAccountNumber());
             // Update the object
-            accountInfo.processSavingsInterest(transaction);
+            accountInfo.processDeposit(transaction);
 
             // Update the database
-            updateSavingsBalance(accountInfo);
-            transaction.setNewSavingsBalance(accountInfo.getSavingsBalance());
+            updateBalance(accountInfo);
+            transaction.setNewBalance(accountInfo.getBalance());
 
             /// Update Transaction log
             transaction.setTransactionID(getHighestTransactionID());
