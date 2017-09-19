@@ -21,6 +21,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 
 import static database.SQLStatements.*;
@@ -1851,6 +1852,44 @@ class AuthenticationService {
                                 "There was a problem with one of the HTTP requests")));
                     }
                 });
+    }
+
+    @RequestMapping(value = "/childBirthdays", method = RequestMethod.POST)
+    public void incomingChildBirthdaysListener(final Callback<String> callback,
+                                          @RequestParam("data") final String data) {
+        System.out.printf("%s Updating all applicable child accounts.\n", PREFIX);
+        final CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
+        handleChildStatusUpdateExceptions(messageWrapper, callbackBuilder);
+    }
+
+    private void handleChildStatusUpdateExceptions(final MessageWrapper data, final CallbackBuilder callbackBuilder) {
+        try {
+            List<BirthdayInterestPayment> list = (List<BirthdayInterestPayment>) data.getData();
+            updateStatusChildAccounts(list);
+            sendChildBirthdaysCallback(callbackBuilder);
+        } catch (SQLException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 500, "Error connecting to authentication database.")));
+        }
+    }
+
+    private void updateStatusChildAccounts(final List<BirthdayInterestPayment> accounts) throws SQLException {
+        SQLConnection con = databaseConnectionPool.getConnection();
+        for (BirthdayInterestPayment account : accounts) {
+            PreparedStatement ps = con.getConnection().prepareStatement(setChildStatusAuth);
+            ps.setBoolean(1, false);
+            ps.setLong(1, account.getUserId());
+            ps.executeUpdate();
+            ps.close();
+        }
+        databaseConnectionPool.returnConnection(con);
+    }
+
+    private void sendChildBirthdaysCallback(final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Updated child accounts successfully, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                false, 200, "Normal Reply")));
     }
 
     /**

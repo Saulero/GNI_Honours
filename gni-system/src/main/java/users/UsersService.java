@@ -42,6 +42,8 @@ class UsersService {
     private HttpClient pinClient;
     /** Connection to the SystemInformation service. */
     private HttpClient systemInformationClient;
+    /** Connection to the authentication service. */
+    private HttpClient authenticationClient;
     /** Connection pool with database connections for the User Service. */
     private ConnectionPool databaseConnectionPool;
     /** Gson object used to convert objects to/from json. */
@@ -98,6 +100,7 @@ class UsersService {
         ServiceInformation transactionDispatch = sysInfo.getTransactionDispatchServiceInformation();
         ServiceInformation transactionReceive = sysInfo.getTransactionReceiveServiceInformation();
         ServiceInformation pin = sysInfo.getPinServiceInformation();
+        ServiceInformation authentication = sysInfo.getAuthenticationServiceInformation();
 
         this.ledgerClient = httpClientBuilder().setHost(ledger.getServiceHost())
                 .setPort(ledger.getServicePort()).buildAndStart();
@@ -105,7 +108,10 @@ class UsersService {
                 .setPort(transactionDispatch.getServicePort()).buildAndStart();
         this.transactionReceiveClient = httpClientBuilder().setHost(transactionReceive.getServiceHost())
                 .setPort(transactionReceive.getServicePort()).buildAndStart();
-        this.pinClient = httpClientBuilder().setHost(pin.getServiceHost()).setPort(pin.getServicePort()).buildAndStart();
+        this.pinClient = httpClientBuilder().setHost(pin.getServiceHost())
+                .setPort(pin.getServicePort()).buildAndStart();
+        this.authenticationClient = httpClientBuilder().setHost(authentication.getServiceHost())
+                .setPort(authentication.getServicePort()).buildAndStart();
 
         System.out.printf("%s Initialization of Users service connections complete.\n", PREFIX);
         callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply")));
@@ -1294,9 +1300,9 @@ class UsersService {
                         if (!messageWrapper.isError()) {
                             try {
                                 revokeGuardianAccess(res);
-                                sendChildBirthdaysCallback(request, callbackBuilder);
+                                sendAuthenticationUpdateMessage(request, callbackBuilder);
                             } catch (SQLException e) {
-                                System.out.printf("%s Failed to transfer bank account, sending rejection.\n", PREFIX);
+                                System.out.printf("%s Failed to revoke guardian access, sending rejection.\n", PREFIX);
                                 callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to Users database.")));
                             }
                         } else {
@@ -1324,9 +1330,25 @@ class UsersService {
         databaseConnectionPool.returnConnection(con);
     }
 
-    private void sendChildBirthdaysCallback(final MessageWrapper data, final CallbackBuilder callbackBuilder) {
+    private void sendAuthenticationUpdateMessage(final MessageWrapper data, final CallbackBuilder callbackBuilder) {
+        authenticationClient.postFormAsyncWith1Param("/services/authentication/childBirthdays",
+                "data", jsonConverter.toJson(data), (httpStatusCode, httpContentType, jsonReply) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(jsonReply), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendChildBirthdaysCallback(callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(jsonReply);
+                        }
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                    }
+                });
+    }
+
+    private void sendChildBirthdaysCallback(final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Children's birthday check complete, sending callback.\n", PREFIX);
-        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply", data)));
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply")));
     }
 
     /**
