@@ -38,4 +38,17 @@ public enum SetValueKey {
                 throw new IncorrectInputException("Key not recognized.");
         }
     }
+
+    public boolean isLedgerKey() {
+        switch (this) {
+            case MAX_OVERDRAFT_LIMIT:       return true;
+            case INTEREST_RATE_1:           return true;
+            case INTEREST_RATE_2:           return true;
+            case INTEREST_RATE_3:           return true;
+            case OVERDRAFT_INTEREST_RATE:   return true;
+            case DAILY_WITHDRAW_LIMIT:      return true;
+            case WEEKLY_TRANSFER_LIMIT:     return true;
+            default:                        return false;
+        }
+    }
 }
