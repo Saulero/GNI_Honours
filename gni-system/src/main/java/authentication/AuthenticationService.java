@@ -1785,12 +1785,7 @@ class AuthenticationService {
         try {
             authenticateRequest(messageWrapper.getCookie(), messageWrapper.getMethodType());
             if (isAdmin(messageWrapper.getMethodType(), messageWrapper.getCookie())) {
-                SetValueRequest request = (SetValueRequest) messageWrapper.getData();
-                if (request.getKey().isLedgerKey()) {
-                    doSetValueRequest(request, true, callbackBuilder);
-                } else {
-                    doSetValueRequest(request, false, callbackBuilder);
-                }
+                doSetValueRequest((SetValueRequest) messageWrapper.getData(), callbackBuilder);
             } else {
                 callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
                         "The user is not authorized to perform this action.",
@@ -1800,26 +1795,17 @@ class AuthenticationService {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
                     "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
         } catch (UserNotAuthorizedException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", "User does not appear to be logged in.")));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
+                    "The user is not authorized to perform this action.", "User does not appear to be logged in.")));
         } catch (AccountFrozenException e) {
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419, "The user is not authorized to perform this action.", e.getMessage())));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
+                    "The user is not authorized to perform this action.", e.getMessage())));
         }
     }
 
-    private void doSetValueRequest(
-            final SetValueRequest request, final boolean isLedgerRequest, final CallbackBuilder callbackBuilder) {
-        HttpClient client;
-        String uri = "/services";
-        if (isLedgerRequest) {
-            client = ledgerClient;
-            uri += "/ledger";
-        } else {
-            client = pinClient;
-            uri += "/pin";
-        }
-        uri += "/setValue";
-
-        client.putFormAsyncWith1Param(uri, "data", jsonConverter.toJson(request), (code, contentType, body) -> {
+    private void doSetValueRequest(final SetValueRequest request, final CallbackBuilder callbackBuilder) {
+        systemInformationClient.putFormAsyncWith1Param("/services/systemInfo/setValue",
+                "data", jsonConverter.toJson(request), (code, contentType, body) -> {
                     if (code == HTTP_OK) {
                         MessageWrapper messageWrapper = jsonConverter.fromJson(
                                 JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
@@ -1836,7 +1822,7 @@ class AuthenticationService {
     }
 
     private void sendSetValueCallback(final CallbackBuilder callbackBuilder, final String body) {
-        System.out.printf("%s Simulate time request successful, sending callback.\n", PREFIX);
+        System.out.printf("%s SetValue request successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(body);
     }
 

@@ -1609,7 +1609,7 @@ class LedgerService {
      */
     @RequestMapping(value = "/transferLimit", method = RequestMethod.PUT)
     public void processSetTransferLimitsRequest(final Callback<String> callback,
-                                               final @RequestParam("limitList") String transferLimitListJson) {
+                                               final @RequestParam("data") String transferLimitListJson) {
         System.out.printf("%s Received process transferLimit request.\n", PREFIX);
         MessageWrapper messageWrapper = jsonConverter.fromJson(
                                     JSONParser.removeEscapeCharacters(transferLimitListJson), MessageWrapper.class);
