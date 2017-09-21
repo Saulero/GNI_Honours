@@ -16,6 +16,7 @@ import databeans.RequestType;
 import io.advantageous.qbit.reactive.CallbackBuilder;
 import util.JSONParser;
 
+import java.security.InvalidParameterException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.PreparedStatement;
@@ -63,6 +64,8 @@ class LedgerService {
     private static final Double WEEKLY_SPENDING_LIMIT = 2500.0;
     /** Indicates how much can be transferred with a debit card over the period of one day.*/
     private static final Double DAILY_SPENDING_LIMIT = 250.0;
+    /** Maximum allowed overdraft limit. */
+    private static double MAX_OVERDRAFT_LIMIT = 5000.0;
 
     /**
      * Constructor.
@@ -1324,10 +1327,14 @@ class LedgerService {
      * @param callbackBuilder Used to send the result of the request to the request source.
      */
     private void handleSetOverdraftLimitExceptions(
-            final String accountNumber, final Double overdraftLimit, final CallbackBuilder callbackBuilder) {
+            final String accountNumber, final double overdraftLimit, final CallbackBuilder callbackBuilder) {
         try {
             Account account = getAccountInfo(accountNumber);
             if (account != null) {
+                if (overdraftLimit < 0 || overdraftLimit > MAX_OVERDRAFT_LIMIT) {
+                    throw new IllegalArgumentException(
+                            "The new limit is not >0 and below the allowed overdraft limit (default = 5000)");
+                }
                 account.setOverdraftLimit(overdraftLimit);
                 updateOverdraftLimit(account);
                 sendSetOverdraftLimitCallback(callbackBuilder);
@@ -1338,6 +1345,9 @@ class LedgerService {
             e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
                     "Error connecting to the ledger database.")));
+        } catch (IllegalArgumentException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418,
+                    "One of the parameters has an invalid value.", "The new limit is not >0 and <5000")));
         }
     }
 
