@@ -19,7 +19,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Noel
  */
-public class RequestCreditCard {
+public abstract class RequestCreditCard {
 
     public static void requestCreditCard(final Map<String, Object> params, final ApiBean api) {
         String cookie = (String) params.get("authToken");

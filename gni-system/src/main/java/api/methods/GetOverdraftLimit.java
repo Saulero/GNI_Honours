@@ -19,7 +19,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Saul
  */
-public class GetOverdraftLimit {
+public abstract class GetOverdraftLimit {
 
     /**
      * Gets current overdraft limit for a certain account.

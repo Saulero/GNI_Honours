@@ -19,7 +19,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Saul
  */
-public class ProvideAccess {
+public abstract class ProvideAccess {
 
     /**
      * Links an account to the user with the username specified in params. Then creates a new pin card for the user

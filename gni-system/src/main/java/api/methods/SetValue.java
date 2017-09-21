@@ -20,7 +20,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Saul
  */
-public class SetValue {
+public abstract class SetValue {
 
     public static void setValue(final Map<String, Object> params, final ApiBean api) {
         String cookie = (String) params.get("authToken");

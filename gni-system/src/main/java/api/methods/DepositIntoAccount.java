@@ -19,7 +19,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Saul
  */
-public class DepositIntoAccount {
+public abstract class DepositIntoAccount {
 
     /**
      * Makes a deposit into an account using a pincard.

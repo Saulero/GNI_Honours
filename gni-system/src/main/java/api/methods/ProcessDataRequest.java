@@ -25,7 +25,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Saul
  */
-public class ProcessDataRequest {
+public abstract class ProcessDataRequest {
 
     /**
      * Handles the exceptions that occur when verifying the input of the data request, and sends a rejection

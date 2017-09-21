@@ -20,7 +20,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Saul
  */
-public class RevokeAccess {
+public abstract class RevokeAccess {
 
     /**
      * Removes a users access to an account based on the username specified.

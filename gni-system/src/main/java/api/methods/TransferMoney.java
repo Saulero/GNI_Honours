@@ -22,7 +22,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Saul
  */
-public class TransferMoney {
+public abstract class TransferMoney {
 
     /**
      * Transfer money between accounts, the authToken needs to belong to a user that is authorized to make transactions

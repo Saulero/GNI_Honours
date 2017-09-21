@@ -16,7 +16,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Noel
  */
-public class OpenSavingsAccount {
+public abstract class OpenSavingsAccount {
     /**
      * Opens a savings account that is linked to an already existing account in the system.
      * @param params Map containing the parameters for the request, must contain the authToken and iBAN parameters.

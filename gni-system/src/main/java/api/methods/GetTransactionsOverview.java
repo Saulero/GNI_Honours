@@ -15,7 +15,7 @@ import static api.methods.ProcessDataRequest.handleDataRequestExceptions;
 /**
  * @author Saul
  */
-public class GetTransactionsOverview {
+public abstract class GetTransactionsOverview {
 
     /**
      * Fetches the transaction history of an account, the authToken needs to belong to a user that is authorized to view

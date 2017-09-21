@@ -22,7 +22,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Saul
  */
-public class GetAuthToken {
+public abstract class GetAuthToken {
 
     /**
      * Logs a user into the system and sends the user an authToken to authorize himself.

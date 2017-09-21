@@ -16,7 +16,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Saul
  */
-public class OpenAdditionalAccount {
+public abstract class OpenAdditionalAccount {
 
     /**
      * Opens an additional account for a customer.

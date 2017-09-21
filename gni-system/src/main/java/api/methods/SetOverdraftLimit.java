@@ -17,7 +17,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Saul
  */
-public class SetOverdraftLimit {
+public abstract class SetOverdraftLimit {
 
     /**
      * Sets new overdraft limit for a certain account.

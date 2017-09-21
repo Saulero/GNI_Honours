@@ -18,7 +18,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Saul
  */
-public class Reset {
+public abstract class Reset {
 
     /**
      * Resets the system's Database and system time.

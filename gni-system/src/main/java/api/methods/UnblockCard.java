@@ -20,7 +20,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Saul
  */
-public class UnblockCard {
+public abstract class UnblockCard {
 
     /**
      * Unblocks a blocked pin card, requires logging in.
