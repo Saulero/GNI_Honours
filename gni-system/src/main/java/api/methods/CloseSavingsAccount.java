@@ -16,7 +16,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Noel
  */
-public class CloseSavingsAccount {
+public abstract class CloseSavingsAccount {
     /**
      * Closes a savings account that is linked to an account in the system.
      * @param params Map containing the parameters for the request, must contain the authToken and iBAN parameters.

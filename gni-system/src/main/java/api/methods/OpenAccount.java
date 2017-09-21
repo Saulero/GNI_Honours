@@ -20,7 +20,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Saul
  */
-public class OpenAccount {
+public abstract class OpenAccount {
 
     /**
      * Creates a customer object that represents the customer an account should be created for. This method will create

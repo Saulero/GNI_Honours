@@ -21,7 +21,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Noel
  */
-public class GetEventLogs {
+public abstract class GetEventLogs {
     /**
      * Requests the current system date.
      * @param params Parameters of the request(authToken, beingDate, endDate).

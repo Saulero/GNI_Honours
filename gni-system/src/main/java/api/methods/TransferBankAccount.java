@@ -20,7 +20,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Saul
  */
-public class TransferBankAccount {
+public abstract class TransferBankAccount {
 
     public static void transferBankAccount(final Map<String, Object> params, final ApiBean api) {
         String accountNumber = (String) params.get("iBAN");

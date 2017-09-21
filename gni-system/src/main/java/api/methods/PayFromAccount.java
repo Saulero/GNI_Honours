@@ -18,7 +18,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Saul
  */
-public class PayFromAccount {
+public abstract class PayFromAccount {
 
     /**
      * A money transfer between accounts by use of a pinCard, the user doing the transaction needs to use a pinCard

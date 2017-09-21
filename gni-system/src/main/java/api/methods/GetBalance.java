@@ -15,7 +15,7 @@ import static api.methods.ProcessDataRequest.handleDataRequestExceptions;
 /**
  * @author Saul
  */
-public class GetBalance {
+public abstract class GetBalance {
 
     /**
      * Fetches the balance for a bank account, the authToken needs to belong to a user that is authorized to view

@@ -9,11 +9,13 @@ import io.advantageous.qbit.annotation.RequestMapping;
 import io.advantageous.qbit.annotation.RequestMethod;
 import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.http.client.HttpClient;
+import io.advantageous.qbit.http.request.HttpTextReceiver;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
 import users.CustomerDoesNotExistException;
 import util.JSONParser;
 
+import java.net.HttpURLConnection;
 import java.security.SecureRandom;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -1461,6 +1463,7 @@ class AuthenticationService {
         MessageWrapper messageWrapper = jsonConverter.fromJson(
                 JSONParser.removeEscapeCharacters(request), MessageWrapper.class);
         try {
+            authenticateRequest(messageWrapper.getCookie(), messageWrapper.getMethodType());
             if (isAdmin(messageWrapper.getMethodType(), messageWrapper.getCookie())) {
                 switch (messageWrapper.getMethodType()) {
                     case SIMULATE_TIME:
@@ -1488,6 +1491,12 @@ class AuthenticationService {
         } catch (SQLException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
                     "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+        } catch (UserNotAuthorizedException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
+                    "The user is not authorized to perform this action.", "User does not appear to be logged in.")));
+        } catch (AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
+                    "The user is not authorized to perform this action.", e.getMessage())));
         }
     }
 
@@ -1847,6 +1856,56 @@ class AuthenticationService {
                                 "There was a problem with one of the HTTP requests")));
                     }
                 });
+    }
+
+    @RequestMapping(value = "/setValue", method = RequestMethod.PUT)
+    public void processSetValueRequest(final Callback<String> callback, @RequestParam("data") final String data) {
+        System.out.printf("%s Received setValue request.\n", PREFIX);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(data), MessageWrapper.class);
+        try {
+            authenticateRequest(messageWrapper.getCookie(), messageWrapper.getMethodType());
+            if (isAdmin(messageWrapper.getMethodType(), messageWrapper.getCookie())) {
+                doSetValueRequest((SetValueRequest) messageWrapper.getData(), callbackBuilder);
+            } else {
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
+                        "The user is not authorized to perform this action.",
+                        "This user does not seem to have appropriate admin rights.")));
+            }
+        } catch (SQLException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                    "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+        } catch (UserNotAuthorizedException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
+                    "The user is not authorized to perform this action.", "User does not appear to be logged in.")));
+        } catch (AccountFrozenException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
+                    "The user is not authorized to perform this action.", e.getMessage())));
+        }
+    }
+
+    private void doSetValueRequest(final SetValueRequest request, final CallbackBuilder callbackBuilder) {
+        systemInformationClient.putFormAsyncWith1Param("/services/systemInfo/setValue",
+                "data", jsonConverter.toJson(request), (code, contentType, body) -> {
+                    if (code == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendSetValueCallback(callbackBuilder, body);
+                        } else {
+                            callbackBuilder.build().reply(body);
+                        }
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                                "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                    }
+                });
+    }
+
+    private void sendSetValueCallback(final CallbackBuilder callbackBuilder, final String body) {
+        System.out.printf("%s SetValue request successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(body);
     }
 
     @RequestMapping(value = "/childBirthdays", method = RequestMethod.POST)

@@ -21,7 +21,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Saul
  */
-public class InvalidateCard {
+public abstract class InvalidateCard {
 
     /**
      * Invalidates a pin card and creates a new one.

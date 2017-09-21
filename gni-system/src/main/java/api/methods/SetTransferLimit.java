@@ -18,7 +18,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Noel
  */
-public class SetTransferLimit {
+public abstract class SetTransferLimit {
     public static void setTransferLimit(final Map<String, Object> params, final ApiBean api) {
         System.out.printf("%s sending set transfer limit request.\n", ApiService.PREFIX);
         handleTransferLimitExceptions(params, api);

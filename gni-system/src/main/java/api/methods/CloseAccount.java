@@ -19,7 +19,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Saul
  */
-public class CloseAccount {
+public abstract class CloseAccount {
 
     /**
      * Removes an account from the system.

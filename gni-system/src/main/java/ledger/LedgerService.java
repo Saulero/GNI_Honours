@@ -46,17 +46,17 @@ class LedgerService {
     /** Prefix used when printing to indicate the message is coming from the Ledger Service. */
     private static final String PREFIX = "[Ledger]              :";
     /** Interest rate that the bank charges every month to customers that are overdraft. */
-    private static final double MONTHLY_OVERDRAFT_RATE = 0.00797;
+    private double OVERDRAFT_INTEREST_RATE = 0.00797;
     /** Interest rate for a savings balance of up to the tier 1 cap. */
-    private static final double TIER_1_INTEREST_RATE = 0.15;
+    private double INTEREST_RATE_1 = 0.15;
     /** Cap of the tier 1 interest rate. */
-    private static final int TIER_1_CAP = 25000;
+    private final int TIER_1_CAP = 25000;
     /** Interest rate for a savings balance from tier 1 cap until tier 2 cap. */
-    private static final double TIER_2_INTEREST_RATE = 0.15;
+    private double INTEREST_RATE_2 = 0.15;
     /** Cap of the tier 2 interest rate. */
     private static final int TIER_2_CAP = 75000;
     /** Interest rate for a savings balance of more than tier 2 cap. */
-    private static final double TIER_3_INTEREST_RATE = 0.20;
+    private double INTEREST_RATE_3 = 0.20;
     /** Interest rate for a children's account. */
     private static final double CHILD_INTEREST_RATE = 0.02017;
     /** Cap of the children's account interest rate. */
@@ -64,9 +64,11 @@ class LedgerService {
     /** Account number where fees are transferred to. */
     private static final String GNI_ACCOUNT = "NL52GNIB3676451168";
     /** Indicates how much can be transferred out of a bank account each week.*/
-    private static final Double WEEKLY_SPENDING_LIMIT = 2500.0;
+    private Double WEEKLY_TRANSFER_LIMIT = 2500.0;
     /** Indicates how much can be transferred with a debit card over the period of one day.*/
-    private static final Double DAILY_SPENDING_LIMIT = 250.0;
+    private Double DAILY_WITHDRAW_LIMIT = 250.0;
+    /** Maximum allowed overdraft limit. */
+    private double MAX_OVERDRAFT_LIMIT = 5000.0;
 
     /**
      * Constructor.
@@ -165,7 +167,7 @@ class LedgerService {
             ps.setDouble(5, newAccount.getBalance());           // balance
             ps.setBoolean(6, false);                         // savings_active
             ps.setDouble(7, 0.0);                            // savings balance
-            ps.setDouble(8, WEEKLY_SPENDING_LIMIT);             // transfer_limit
+            ps.setDouble(8, WEEKLY_TRANSFER_LIMIT);             // transfer_limit
             ps.setBoolean(9, data.isChild());
 
             ps.executeUpdate();
@@ -586,7 +588,7 @@ class LedgerService {
             if (cardNumber != null) {
                 Double debitAmountSpent = getDebitAmountSpent(currentDate, 0L, cardNumber);
                 boolean debitAllowed = debitAmountSpent >= 0
-                                && (debitAmountSpent + transaction.getTransactionAmount()) < DAILY_SPENDING_LIMIT;
+                                && (debitAmountSpent + transaction.getTransactionAmount()) < DAILY_WITHDRAW_LIMIT;
                 return weeklyAllowed && debitAllowed;
             } else {
                 System.out.printf("%s CardNumber could not be retrieved from description.", PREFIX);
@@ -1045,7 +1047,7 @@ class LedgerService {
                                                            final LocalDate firstProcessDay,
                                                            final LocalDate lastProcessDay) throws SQLException {
         Map<String, Double> interestMap = new HashMap<>();
-        double dailyInterestRate = MONTHLY_OVERDRAFT_RATE / firstProcessDay.getMonth()
+        double dailyInterestRate = OVERDRAFT_INTEREST_RATE / firstProcessDay.getMonth()
                                                                             .length(firstProcessDay.isLeapYear());
         for (String accountNumber : overdraftAccounts) {
             List<Transaction> overdraftTransactions = findOverdraftTransactions(accountNumber, firstProcessDay,
@@ -1099,15 +1101,15 @@ class LedgerService {
             }
         } else {
             if (averageBalance > TIER_1_CAP) {
-                interest = TIER_1_CAP * TIER_1_INTEREST_RATE;
+                interest = TIER_1_CAP * INTEREST_RATE_1;
                 if (averageBalance > TIER_2_CAP) {
-                    interest += (TIER_2_CAP - TIER_1_CAP) * TIER_2_INTEREST_RATE;
-                    interest += (averageBalance - TIER_2_CAP) * TIER_3_INTEREST_RATE;
+                    interest += (TIER_2_CAP - TIER_1_CAP) * INTEREST_RATE_2;
+                    interest += (averageBalance - TIER_2_CAP) * INTEREST_RATE_3;
                 } else {
-                    interest += (averageBalance - TIER_1_CAP) * TIER_2_INTEREST_RATE;
+                    interest += (averageBalance - TIER_1_CAP) * INTEREST_RATE_2;
                 }
             } else {
-                interest = averageBalance * TIER_1_INTEREST_RATE;
+                interest = averageBalance * INTEREST_RATE_1;
             }
         }
         return interest;
@@ -1400,10 +1402,14 @@ class LedgerService {
      * @param callbackBuilder Used to send the result of the request to the request source.
      */
     private void handleSetOverdraftLimitExceptions(
-            final String accountNumber, final Double overdraftLimit, final CallbackBuilder callbackBuilder) {
+            final String accountNumber, final double overdraftLimit, final CallbackBuilder callbackBuilder) {
         try {
             Account account = getAccountInfo(accountNumber);
             if (account != null) {
+                if (overdraftLimit < 0 || overdraftLimit > MAX_OVERDRAFT_LIMIT) {
+                    throw new IllegalArgumentException(
+                            "The new limit is not >0 and below the allowed overdraft limit (default = 5000)");
+                }
                 account.setOverdraftLimit(overdraftLimit);
                 updateOverdraftLimit(account);
                 sendSetOverdraftLimitCallback(callbackBuilder);
@@ -1414,6 +1420,9 @@ class LedgerService {
             e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
                     "Error connecting to the ledger database.")));
+        } catch (IllegalArgumentException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418,
+                    "One of the parameters has an invalid value.", e.getMessage())));
         }
     }
 
@@ -1676,7 +1685,7 @@ class LedgerService {
      */
     @RequestMapping(value = "/transferLimit", method = RequestMethod.PUT)
     public void processSetTransferLimitsRequest(final Callback<String> callback,
-                                               final @RequestParam("limitList") String transferLimitListJson) {
+                                               final @RequestParam("data") String transferLimitListJson) {
         System.out.printf("%s Received process transferLimit request.\n", PREFIX);
         MessageWrapper messageWrapper = jsonConverter.fromJson(
                                     JSONParser.removeEscapeCharacters(transferLimitListJson), MessageWrapper.class);
@@ -1710,6 +1719,47 @@ class LedgerService {
 
     private void sendSetTransferLimitsCallback(final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Set transfer limits request successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                false, 200, "Normal Reply")));
+    }
+
+    @RequestMapping(value = "/setValue", method = RequestMethod.PUT)
+    public void processSetValueRequest(final Callback<String> callback,
+                                                final @RequestParam("data") String data) {
+        System.out.printf("%s Received setValue request.\n", PREFIX);
+        SetValueRequest setValueRequest = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(data), SetValueRequest.class);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleSetValueExceptions(setValueRequest, callbackBuilder);
+    }
+
+    private void handleSetValueExceptions(
+            final SetValueRequest setValueRequest, final CallbackBuilder callbackBuilder) {
+        switch (setValueRequest.getKey()) {
+            case MAX_OVERDRAFT_LIMIT:       MAX_OVERDRAFT_LIMIT = setValueRequest.getValue();
+                break;
+            case INTEREST_RATE_1:           INTEREST_RATE_1 = setValueRequest.getValue();
+                break;
+            case INTEREST_RATE_2:           INTEREST_RATE_2 = setValueRequest.getValue();
+                break;
+            case INTEREST_RATE_3:           INTEREST_RATE_3 = setValueRequest.getValue();
+                break;
+            case OVERDRAFT_INTEREST_RATE:   OVERDRAFT_INTEREST_RATE = setValueRequest.getValue();
+                break;
+            case DAILY_WITHDRAW_LIMIT:      DAILY_WITHDRAW_LIMIT = setValueRequest.getValue();
+                break;
+            case WEEKLY_TRANSFER_LIMIT:     WEEKLY_TRANSFER_LIMIT = setValueRequest.getValue();
+                break;
+            default:
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                        true, 500, "Internal System Error.")));
+                break;
+        }
+        sendSetValueCallback(callbackBuilder);
+    }
+
+    private void sendSetValueCallback(final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s SetValue request successful, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
                 false, 200, "Normal Reply")));
     }

@@ -17,7 +17,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Saul
  */
-public class SetOverdraftLimit {
+public abstract class SetOverdraftLimit {
 
     /**
      * Sets new overdraft limit for a certain account.
@@ -26,25 +26,9 @@ public class SetOverdraftLimit {
      */
     public static void setOverdraftLimit(final Map<String, Object> params, final ApiBean api) {
         System.out.printf("%s Sending set overdraft limit request.\n", PREFIX);
-        verifyOverdraftInput((String) params.get("iBAN"),
+        doSetOverdraftRequest((String) params.get("iBAN"),
                 (String) params.get("authToken"),
                 (Double) params.get("overdraftLimit"), api);
-    }
-
-    /**
-     * Tries to verify the input of setOverdraftLimit request and then forward the request.
-     * @param accountNumber AccountNumber of the account for which the new limit has to be set.
-     * @param cookie Cookie of the User that sent the request.
-     * @param overdraftLimit The new overdraft limit
-     * @param api DataBean containing everything in the ApiService
-     */
-    private static void verifyOverdraftInput(
-            final String accountNumber, final String cookie, final Double overdraftLimit, final ApiBean api) {
-        if (overdraftLimit < 0 || overdraftLimit > 5000) {
-            sendErrorReply(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "The new limit is not >0 and <5000"), api);
-        } else {
-            doSetOverdraftRequest(accountNumber, cookie, overdraftLimit, api);
-        }
     }
 
     /**

@@ -22,7 +22,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Saul
  */
-public class NewPinCard {
+public abstract class NewPinCard {
 
     /**
      * Performs a new pin card request for a given account number.

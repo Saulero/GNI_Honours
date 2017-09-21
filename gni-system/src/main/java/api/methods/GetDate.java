@@ -19,7 +19,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Saul
  */
-public class GetDate {
+public abstract class GetDate {
 
     /**
      * Requests the current system date.

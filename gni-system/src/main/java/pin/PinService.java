@@ -50,7 +50,7 @@ class PinService {
     /** Prefix used when printing to indicate the message is coming from the PIN Service. */
     private static final String PREFIX = "[PIN]                 :";
     /** Used to set how long a pin card is valid. */
-    private static final int VALID_CARD_DURATION = 5;
+    private int CARD_EXPIRATION_LENGTH = 5;
     /** Used to check if a transaction without a pincode is authorized. */
     private static final int CONTACTLESS_TRANSACTION_LIMIT = 25;
     /** Used to check if accountNumber are of the correct length. */
@@ -58,9 +58,14 @@ class PinService {
     /** Account number where fees are transferred to. */
     private static final String GNI_ACCOUNT = "NL52GNIB3676451168";
     /** Credit card fee. */
-    private static final double MONTHLY_CREDIT_CARD_FEE = 5.00;
+    private double CREDIT_CARD_MONTHLY_FEE = 5.00;
     /** Credit card limit. */
-    private static final double CREDIT_CARD_LIMIT = 1000;
+    private double CREDIT_CARD_DEFAULT_CREDIT = 1000;
+    /** Fee for a new card. */
+    private double NEW_CARD_COST = 7.50;
+    /** Amount of allowed failed attempts */
+    private int CARD_USAGE_ATTEMPTS = 3;
+
 
     /**
      * Constructor.
@@ -293,7 +298,7 @@ class PinService {
             if (accountNumberLinkedToCard.equals(pinTransaction.getDestinationAccountNumber())
                     || accountNumberLinkedToCard.equals(pinTransaction.getSourceAccountNumber())) {
                 if (!pinTransaction.getSourceAccountNumber().equals(pinTransaction.getDestinationAccountNumber())) {
-                    if (incorrectAttempts < 3) {
+                    if (incorrectAttempts < CARD_USAGE_ATTEMPTS) {
                         checkPinValidity(pinCard, pinTransaction, true, callbackBuilder);
                     }  else {
                         throw new CardBlockedException("The card used is blocked.");
@@ -493,7 +498,7 @@ class PinService {
                     cardInfo.getDate("expiration_date").toLocalDate(),
                     cardInfo.getBoolean("active"));
             if (pinTransaction.getSourceAccountNumber().equals(accountNumberLinkedToCard)) {
-                if (incorrectAttempts < 3) {
+                if (incorrectAttempts < CARD_USAGE_ATTEMPTS) {
                     if (pinCodeUsed == null) {
                         if (pinTransaction.getTransactionAmount() < CONTACTLESS_TRANSACTION_LIMIT) {
                             checkPinValidity(pinCard, pinTransaction, false, callbackBuilder);
@@ -574,7 +579,7 @@ class PinService {
                                         "The card used is not active.",
                                         "The credit card used is not active yet or expired.")));
                     } else if (creditCard.getIncorrect_attempts() > 2) {
-                        System.out.printf("%s Card is blocked sending callback./n", PREFIX);
+                        System.out.printf("%s Card is blocked sending callback.\n", PREFIX);
                         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
                                 .createMessageWrapper(true, 419, "The card used is currently blocked.",
                                         "The pin card used does not have the authorization to perform this request.")));
@@ -833,7 +838,7 @@ class PinService {
                         MessageWrapper.class);
                 if (!messageWrapper.isError()) {
                     LocalDate systemDate = (LocalDate) messageWrapper.getData();
-                    LocalDate expirationDate = systemDate.plusYears(VALID_CARD_DURATION);
+                    LocalDate expirationDate = systemDate.plusYears(CARD_EXPIRATION_LENGTH);
                     handleNewPinCardExceptions(expirationDate, requesterId,
                             ownerId, accountNumber, newPinCode, callbackBuilder);
                 } else {
@@ -1068,7 +1073,7 @@ class PinService {
                 getCard.setLong(1, cardNumber);
                 getCard.executeUpdate();
 
-                if (attempts < 3) {
+                if (attempts < CARD_USAGE_ATTEMPTS) {
                     throw new NoEffectException("The card was not blocked in the first place, "
                             + "but the attempts count has been reset none the less");
                 }
@@ -1190,7 +1195,7 @@ class PinService {
     }
 
     /**
-     * Withdraws 7.50 from a customers account as payment for a replacement PIN Card.
+     * Withdraws the fee from a customers account as payment for a replacement PIN Card.
      * @param pinCard A {@link PinCard} with the account of the customer.
      * @param callbackBuilder Used to send the result of the request to the request source.
      */
@@ -1199,7 +1204,7 @@ class PinService {
         Transaction request = JSONParser.createJsonTransaction(-1,
                 pinCard.getAccountNumber(), GNI_ACCOUNT, "GNI Bank",
                 "Fees for replacement of old PIN Card #" + pinCard.getCardNumber(),
-                7.50, false, false);
+                NEW_CARD_COST, false, false);
         MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
         data.setMethodType(MethodType.PAY_FROM_ACCOUNT);
         data.setData(request);
@@ -1303,10 +1308,10 @@ class PinService {
         try {
             CreditCard creditCard = new CreditCard();
             creditCard.setAccountNumber(accountNumber);
-            creditCard.setLimit(CREDIT_CARD_LIMIT);
-            creditCard.setBalance(CREDIT_CARD_LIMIT);
+            creditCard.setLimit(CREDIT_CARD_DEFAULT_CREDIT);
+            creditCard.setBalance(CREDIT_CARD_DEFAULT_CREDIT);
             creditCard.setIncorrect_attempts(0L);
-            creditCard.setFee(MONTHLY_CREDIT_CARD_FEE);
+            creditCard.setFee(CREDIT_CARD_MONTHLY_FEE);
             creditCard.setPinCode(pinCode);
             creditCard = addNewCreditCardToDb(creditCard, currentDate);
             sendNewCreditCardCallback(creditCard, callbackBuilder);
@@ -1650,6 +1655,44 @@ class PinService {
         ps.executeUpdate();
         ps.close();
         databaseConnectionPool.returnConnection(con);
+    }
+
+    @RequestMapping(value = "/setValue", method = RequestMethod.PUT)
+    public void processSetValueRequest(final Callback<String> callback,
+                                       final @RequestParam("data") String data) {
+        System.out.printf("%s Received setValue request.\n", PREFIX);
+        SetValueRequest setValueRequest = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(data), SetValueRequest.class);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleSetValueExceptions(setValueRequest, callbackBuilder);
+    }
+
+    private void handleSetValueExceptions(
+            final SetValueRequest setValueRequest, final CallbackBuilder callbackBuilder) {
+        switch (setValueRequest.getKey()) {
+
+            case CREDIT_CARD_MONTHLY_FEE:       CREDIT_CARD_MONTHLY_FEE = setValueRequest.getValue();
+                break;
+            case CREDIT_CARD_DEFAULT_CREDIT:    CREDIT_CARD_DEFAULT_CREDIT = setValueRequest.getValue();
+                break;
+            case CARD_EXPIRATION_LENGTH:        CARD_EXPIRATION_LENGTH = (new Double(setValueRequest.getValue())).intValue();
+                break;
+            case NEW_CARD_COST:                 NEW_CARD_COST = setValueRequest.getValue();
+                break;
+            case CARD_USAGE_ATTEMPTS:           CARD_USAGE_ATTEMPTS = (new Double(setValueRequest.getValue())).intValue();
+                break;
+            default:
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                        true, 500, "Internal System Error.")));
+                break;
+        }
+        sendSetValueCallback(callbackBuilder);
+    }
+
+    private void sendSetValueCallback(final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s SetValue request successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                false, 200, "Normal Reply")));
     }
 
     /**

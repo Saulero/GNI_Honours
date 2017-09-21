@@ -15,7 +15,7 @@ import static api.methods.ProcessDataRequest.handleDataRequestExceptions;
 /**
  * @author Saul
  */
-public class GetUserAccess {
+public abstract class GetUserAccess {
 
     /**
      * Fetches a list of all the accounts that a user has access to.

@@ -23,7 +23,6 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static io.advantageous.qbit.http.client.HttpClientBuilder.httpClientBuilder;
@@ -65,6 +64,8 @@ class SystemInformationService {
     private static final String PREFIX = "[SYSINFO]             :";
     /** Map containing dates mapping to lists of transferLimits that need to be set. */
     private Map<LocalDate, LinkedList<TransferLimit>> transferLimitRequests;
+    /** Map containing dates mapping to lists of setValue requests that need to be processed. */
+    private Map<LocalDate, LinkedList<SetValueRequest>> setValueRequests;
 
     /**
      * Constructor to start the service. This will set the systemDate to the date of the day the method is ran.
@@ -81,6 +82,7 @@ class SystemInformationService {
         this.jsonConverter = new Gson();
         this.databaseConnectionPool = new ConnectionPool();
         this.transferLimitRequests = new HashMap<>();
+        this.setValueRequests = new HashMap<>();
     }
 
     @RequestMapping(value = "/newServiceInfo", method = RequestMethod.PUT)
@@ -281,35 +283,89 @@ class SystemInformationService {
             }
         }
         if (limitsToBeProcessed.size() > 0) {
-            MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
-            data.setData(limitsToBeProcessed);
-            ledgerClient.putFormAsyncWith1Param("/services/ledger/transferLimit", "limitList",
-                    jsonConverter.toJson(data), (httpStatusCode, httpContentType, body) -> {
-                        if (httpStatusCode == HTTP_OK) {
-                            MessageWrapper messageWrapper = jsonConverter.fromJson(
-                                    JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
-                            if (!messageWrapper.isError()) {
-                                sendIncrementDaysCallback(callbackBuilder);
-                            } else {
-                                System.out.println("error in messagewrapper");
-                                System.out.println(messageWrapper.getData());
-                                System.out.println(messageWrapper.getMessage());
-                                callbackBuilder.build().reply(body);
-                            }
+            MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request", limitsToBeProcessed);
+            ledgerClient.putFormAsyncWith1Param("/services/ledger/transferLimit",
+                    "data", jsonConverter.toJson(data), (code, contentType, body) -> {
+                if (code == HTTP_OK) {
+                    MessageWrapper messageWrapper = jsonConverter.fromJson(
+                            JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                    if (!messageWrapper.isError()) {
+                        doSetValueRequests(callbackBuilder);
+                    } else {
+                        callbackBuilder.build().reply(body);
+                    }
+                } else {
+                    callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                            "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                }
+            });
+        } else {
+            doSetValueRequests(callbackBuilder);
+        }
+    }
+
+    private void doSetValueRequests(final CallbackBuilder callbackBuilder) {
+        LinkedList<SetValueRequest> ledgerSetValueRequests = new LinkedList<>();
+        LinkedList<SetValueRequest> pinSetValueRequests = new LinkedList<>();
+        for (LocalDate date : setValueRequests.keySet()) {
+            if (!date.isAfter(systemDate)) {
+                for (SetValueRequest i : setValueRequests.remove(date)) {
+                    if (i.getKey().isLedgerKey()) {
+                        ledgerSetValueRequests.add(i);
+                    } else {
+                        pinSetValueRequests.add(i);
+                    }
+                }
+            }
+        }
+        sendLedgerSetValueRequests(ledgerSetValueRequests, pinSetValueRequests, callbackBuilder);
+    }
+
+    private void sendLedgerSetValueRequests(final LinkedList<SetValueRequest> ledgerRequests,
+                                            final LinkedList<SetValueRequest> pinRequests,
+                                            final CallbackBuilder callbackBuilder) {
+        if (ledgerRequests.size() > 0) {
+            ledgerClient.putFormAsyncWith1Param("/services/ledger/setValue",
+                "data", jsonConverter.toJson(ledgerRequests), (code, contentType, body) -> {
+                    if (code == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendPinSetValueRequests(pinRequests, callbackBuilder);
                         } else {
-                            System.out.println("error with http");
-                            System.out.println(httpStatusCode);
-                            System.out.println(body);
-                            callbackBuilder.build().reply(jsonConverter.toJson(
-                                    JSONParser.createMessageWrapper(true, 500,
-                                            "An unknown error occurred.",
-                                            "There was a problem with one of the HTTP requests")));
+                            callbackBuilder.build().reply(body);
                         }
-                    });
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                                "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                    }
+                });
+        } else {
+            sendPinSetValueRequests(pinRequests, callbackBuilder);
+        }
+    }
+
+    private void sendPinSetValueRequests(
+            final LinkedList<SetValueRequest> requests, final CallbackBuilder callbackBuilder) {
+        if (requests.size() > 0) {
+            pinClient.putFormAsyncWith1Param("/services/pin/setValue",
+                    "data", jsonConverter.toJson(requests), (code, contentType, body) -> {
+                if (code == HTTP_OK) {
+                    MessageWrapper messageWrapper = jsonConverter.fromJson(
+                            JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                    if (!messageWrapper.isError()) {
+                        sendIncrementDaysCallback(callbackBuilder);
+                    } else {
+                        callbackBuilder.build().reply(body);
+                    }
+                } else {
+                    callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                            "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                }
+            });
         } else {
             sendIncrementDaysCallback(callbackBuilder);
         }
-
     }
 
     private void sendIncrementDaysCallback(final CallbackBuilder callbackBuilder) {
@@ -528,8 +584,9 @@ class SystemInformationService {
      * @param transferLimit TransferLimit that should be set.
      */
     @RequestMapping(value = "/transferLimit", method = RequestMethod.PUT)
-    void setTransferLimit(final Callback<String> callback, final @RequestParam("iBAN") String iBAN,
-                      final @RequestParam("transferLimit") Double transferLimit) {
+    public void setTransferLimit(final Callback<String> callback,
+                                 final @RequestParam("iBAN") String iBAN,
+                                 final @RequestParam("transferLimit") Double transferLimit) {
         System.out.printf("%s Received set transfer limit request.\n", PREFIX);
         LocalDate dayOfExecution = systemDate.plusDays(1L);
         LinkedList<TransferLimit> requestsOnDay = transferLimitRequests.get(dayOfExecution);
@@ -539,6 +596,28 @@ class SystemInformationService {
         requestsOnDay.add(new TransferLimit(iBAN, transferLimit));
         transferLimitRequests.put(dayOfExecution, requestsOnDay);
         System.out.printf("%s Successfully added set transfer limit request to queue.\n", PREFIX);
+        callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200,
+                "Normal Reply")));
+    }
+
+    /**
+     * Adds a SetValueRequest to the list of SetValue requests, and sets it to be executed on the correct day.
+     * @param callback Used to send the result of the request back to the request source.
+     * @param request SetValueRequest bean containing all the information of the request.
+     */
+    @RequestMapping(value = "/setValue", method = RequestMethod.PUT)
+    public void setValue(final Callback<String> callback, final @RequestParam("data") String request) {
+        System.out.printf("%s Received setValue request.\n", PREFIX);
+        SetValueRequest setValueRequest = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(request), SetValueRequest.class);
+        LocalDate dayOfExecution = setValueRequest.getDate();
+        LinkedList<SetValueRequest> requestsOnDay = setValueRequests.get(dayOfExecution);
+        if (requestsOnDay == null) {
+            requestsOnDay = new LinkedList<>();
+        }
+        requestsOnDay.add(setValueRequest);
+        setValueRequests.put(dayOfExecution, requestsOnDay);
+        System.out.printf("%s Successfully added setValue request to queue.\n", PREFIX);
         callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200,
                 "Normal Reply")));
     }

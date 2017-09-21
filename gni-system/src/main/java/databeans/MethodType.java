@@ -33,7 +33,8 @@ public enum MethodType implements Serializable {
     REQUEST_CREDIT_CARD,
     SET_FREEZE_USER_ACCOUNT,
     TRANSFER_BANK_ACCOUNT,
-    SET_TRANSFER_LIMIT;
+    SET_TRANSFER_LIMIT,
+    SET_VALUE;
 
     public int getId() {
         switch (this) {
@@ -63,6 +64,8 @@ public enum MethodType implements Serializable {
             case REQUEST_CREDIT_CARD:       return 24;
             case SET_FREEZE_USER_ACCOUNT:   return 25;
             case TRANSFER_BANK_ACCOUNT:     return 26;
+            case SET_TRANSFER_LIMIT:        return 27;
+            case SET_VALUE:                 return 28;
             default:                        return -1;
         }
     }
@@ -83,8 +86,8 @@ public enum MethodType implements Serializable {
             case GET_USER_ACCESS:           return true;
             case GET_BANK_ACCOUNT_ACCESS:   return true;
             case UNBLOCK_CARD:              return false;
-            case SIMULATE_TIME:             return true;
-            case RESET:                     return true;
+            case SIMULATE_TIME:             return false;
+            case RESET:                     return false;
             case GET_DATE:                  return true;
             case SET_OVERDRAFT_LIMIT:       return false;
             case GET_OVERDRAFT_LIMIT:       return true;
@@ -96,6 +99,7 @@ public enum MethodType implements Serializable {
             case SET_FREEZE_USER_ACCOUNT:   return false;
             case TRANSFER_BANK_ACCOUNT:     return false;
             case SET_TRANSFER_LIMIT:        return false;
+            case SET_VALUE:                 return false;
             default:                        return false;
         }
     }

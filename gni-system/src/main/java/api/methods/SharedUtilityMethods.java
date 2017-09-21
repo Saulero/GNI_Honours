@@ -16,7 +16,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Saul
  */
-public class SharedUtilityMethods {
+public abstract class SharedUtilityMethods {
 
     /**
      * Checks if a the value of a field is larger than 0 and smaller than a preset character limit.

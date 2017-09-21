@@ -15,7 +15,7 @@ import static api.methods.ProcessDataRequest.handleDataRequestExceptions;
 /**
  * @author Saul
  */
-public class GetBankAccountAccess {
+public abstract class GetBankAccountAccess {
 
     /**
      * Fetches a list of all users that have access to a specific bankAccount.

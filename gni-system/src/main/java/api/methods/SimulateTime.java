@@ -18,7 +18,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 /**
  * @author Saul
  */
-public class SimulateTime {
+public abstract class SimulateTime {
 
     /**
      * Process passing of time withint the system.
