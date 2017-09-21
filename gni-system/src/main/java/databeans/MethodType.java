@@ -33,7 +33,8 @@ public enum MethodType implements Serializable {
     REQUEST_CREDIT_CARD,
     SET_FREEZE_USER_ACCOUNT,
     TRANSFER_BANK_ACCOUNT,
-    SET_TRANSFER_LIMIT;
+    SET_TRANSFER_LIMIT,
+    SET_VALUE;
 
     public int getId() {
         switch (this) {
@@ -63,6 +64,7 @@ public enum MethodType implements Serializable {
             case REQUEST_CREDIT_CARD:       return 24;
             case SET_FREEZE_USER_ACCOUNT:   return 25;
             case TRANSFER_BANK_ACCOUNT:     return 26;
+            case SET_VALUE:                 return 27;
             default:                        return -1;
         }
     }
