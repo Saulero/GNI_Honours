@@ -50,7 +50,7 @@ class PinService {
     /** Prefix used when printing to indicate the message is coming from the PIN Service. */
     private static final String PREFIX = "[PIN]                 :";
     /** Used to set how long a pin card is valid. */
-    private static final int VALID_CARD_DURATION = 5;
+    private static final int CARD_EXPIRATION_LENGTH = 5;
     /** Used to check if a transaction without a pincode is authorized. */
     private static final int CONTACTLESS_TRANSACTION_LIMIT = 25;
     /** Used to check if accountNumber are of the correct length. */
@@ -58,9 +58,14 @@ class PinService {
     /** Account number where fees are transferred to. */
     private static final String GNI_ACCOUNT = "NL52GNIB3676451168";
     /** Credit card fee. */
-    private static final double MONTHLY_CREDIT_CARD_FEE = 5.00;
+    private static double CREDIT_CARD_MONTHLY_FEE = 5.00;
     /** Credit card limit. */
-    private static final double CREDIT_CARD_LIMIT = 1000;
+    private static double CREDIT_CARD_DEFAULT_CREDIT = 1000;
+    /** Fee for a new card. */
+    private static double NEW_CARD_COST = 7.50;
+    /** Amount of allowed failed attempts */
+    private static int CARD_USAGE_ATTEMPTS = 3;
+
 
     /**
      * Constructor.
@@ -293,7 +298,7 @@ class PinService {
             if (accountNumberLinkedToCard.equals(pinTransaction.getDestinationAccountNumber())
                     || accountNumberLinkedToCard.equals(pinTransaction.getSourceAccountNumber())) {
                 if (!pinTransaction.getSourceAccountNumber().equals(pinTransaction.getDestinationAccountNumber())) {
-                    if (incorrectAttempts < 3) {
+                    if (incorrectAttempts < CARD_USAGE_ATTEMPTS) {
                         checkPinValidity(pinCard, pinTransaction, true, callbackBuilder);
                     }  else {
                         throw new CardBlockedException("The card used is blocked.");
@@ -493,7 +498,7 @@ class PinService {
                     cardInfo.getDate("expiration_date").toLocalDate(),
                     cardInfo.getBoolean("active"));
             if (pinTransaction.getSourceAccountNumber().equals(accountNumberLinkedToCard)) {
-                if (incorrectAttempts < 3) {
+                if (incorrectAttempts < CARD_USAGE_ATTEMPTS) {
                     if (pinCodeUsed == null) {
                         if (pinTransaction.getTransactionAmount() < CONTACTLESS_TRANSACTION_LIMIT) {
                             checkPinValidity(pinCard, pinTransaction, false, callbackBuilder);
@@ -833,7 +838,7 @@ class PinService {
                         MessageWrapper.class);
                 if (!messageWrapper.isError()) {
                     LocalDate systemDate = (LocalDate) messageWrapper.getData();
-                    LocalDate expirationDate = systemDate.plusYears(VALID_CARD_DURATION);
+                    LocalDate expirationDate = systemDate.plusYears(CARD_EXPIRATION_LENGTH);
                     handleNewPinCardExceptions(expirationDate, requesterId,
                             ownerId, accountNumber, newPinCode, callbackBuilder);
                 } else {
@@ -1068,7 +1073,7 @@ class PinService {
                 getCard.setLong(1, cardNumber);
                 getCard.executeUpdate();
 
-                if (attempts < 3) {
+                if (attempts < CARD_USAGE_ATTEMPTS) {
                     throw new NoEffectException("The card was not blocked in the first place, "
                             + "but the attempts count has been reset none the less");
                 }
@@ -1190,7 +1195,7 @@ class PinService {
     }
 
     /**
-     * Withdraws 7.50 from a customers account as payment for a replacement PIN Card.
+     * Withdraws the fee from a customers account as payment for a replacement PIN Card.
      * @param pinCard A {@link PinCard} with the account of the customer.
      * @param callbackBuilder Used to send the result of the request to the request source.
      */
@@ -1199,7 +1204,7 @@ class PinService {
         Transaction request = JSONParser.createJsonTransaction(-1,
                 pinCard.getAccountNumber(), GNI_ACCOUNT, "GNI Bank",
                 "Fees for replacement of old PIN Card #" + pinCard.getCardNumber(),
-                7.50, false, false);
+                NEW_CARD_COST, false, false);
         MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
         data.setMethodType(MethodType.PAY_FROM_ACCOUNT);
         data.setData(request);
@@ -1303,10 +1308,10 @@ class PinService {
         try {
             CreditCard creditCard = new CreditCard();
             creditCard.setAccountNumber(accountNumber);
-            creditCard.setLimit(CREDIT_CARD_LIMIT);
-            creditCard.setBalance(CREDIT_CARD_LIMIT);
+            creditCard.setLimit(CREDIT_CARD_DEFAULT_CREDIT);
+            creditCard.setBalance(CREDIT_CARD_DEFAULT_CREDIT);
             creditCard.setIncorrect_attempts(0L);
-            creditCard.setFee(MONTHLY_CREDIT_CARD_FEE);
+            creditCard.setFee(CREDIT_CARD_MONTHLY_FEE);
             creditCard.setPinCode(pinCode);
             creditCard = addNewCreditCardToDb(creditCard, currentDate);
             sendNewCreditCardCallback(creditCard, callbackBuilder);
