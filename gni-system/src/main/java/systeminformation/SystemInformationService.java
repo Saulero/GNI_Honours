@@ -240,7 +240,7 @@ class SystemInformationService {
                             if (daysLeft >= ((newDaysInMonth - newDayOfTheMonth) + 1)) {
                                 doInterestProcessingRequest(daysLeft, callbackBuilder);
                             } else {
-                                checkScheduledTasks(callbackBuilder);
+                                doSetTransferLimitsRequest(callbackBuilder);
                             }
                         } else {
                             callbackBuilder.build().reply(body);
@@ -254,12 +254,6 @@ class SystemInformationService {
         });
     }
 
-    private void checkScheduledTasks(final CallbackBuilder callbackBuilder) {
-        doSetTransferLimitsRequest(callbackBuilder);
-        doSetValueRequests(callbackBuilder);
-        sendIncrementDaysCallback(callbackBuilder);
-    }
-
     private void doSetTransferLimitsRequest(final CallbackBuilder callbackBuilder) {
         LinkedList<TransferLimit> limitsToBeProcessed = new LinkedList<>();
         for (LocalDate date : transferLimitRequests.keySet()) {
@@ -269,7 +263,23 @@ class SystemInformationService {
         }
         if (limitsToBeProcessed.size() > 0) {
             MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request", limitsToBeProcessed);
-            sendRequest(ledgerClient, "/services/ledger/transferLimit", data, callbackBuilder);
+            ledgerClient.putFormAsyncWith1Param("/services/ledger/transferLimit",
+                    "data", jsonConverter.toJson(data), (code, contentType, body) -> {
+                if (code == HTTP_OK) {
+                    MessageWrapper messageWrapper = jsonConverter.fromJson(
+                            JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                    if (!messageWrapper.isError()) {
+                        doSetValueRequests(callbackBuilder);
+                    } else {
+                        callbackBuilder.build().reply(body);
+                    }
+                } else {
+                    callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                            "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                }
+            });
+        } else {
+            sendIncrementDaysCallback(callbackBuilder);
         }
     }
 
@@ -287,30 +297,54 @@ class SystemInformationService {
                 }
             }
         }
+        sendLedgerSetValueRequests(ledgerSetValueRequests, pinSetValueRequests, callbackBuilder);
+    }
 
-        for (SetValueRequest i : ledgerSetValueRequests) {
-            sendRequest(ledgerClient, "/services/ledger/setValue", i, callbackBuilder);
-        }
-
-        for (SetValueRequest i : pinSetValueRequests) {
-            sendRequest(pinClient, "/services/pin/setValue", i, callbackBuilder);
+    private void sendLedgerSetValueRequests(final LinkedList<SetValueRequest> ledgerRequests,
+                                            final LinkedList<SetValueRequest> pinRequests,
+                                            final CallbackBuilder callbackBuilder) {
+        if (ledgerRequests.size() > 0) {
+            ledgerClient.putFormAsyncWith1Param("/services/ledger/setValue",
+                "data", jsonConverter.toJson(ledgerRequests), (code, contentType, body) -> {
+                    if (code == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendPinSetValueRequests(pinRequests, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(body);
+                        }
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                                "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                    }
+                });
+        } else {
+            sendIncrementDaysCallback(callbackBuilder);
         }
     }
 
-    private void sendRequest(final HttpClient client, final String uri,
-                                      final Object request, final CallbackBuilder callbackBuilder) {
-        client.putFormAsyncWith1Param(uri, "data", jsonConverter.toJson(request), (code, contentType, body) -> {
-            if (code == HTTP_OK) {
-                MessageWrapper messageWrapper = jsonConverter.fromJson(
-                        JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
-                if (messageWrapper.isError()) {
-                    callbackBuilder.build().reply(body);
+    private void sendPinSetValueRequests(
+            final LinkedList<SetValueRequest> requests, final CallbackBuilder callbackBuilder) {
+        if (requests.size() > 0) {
+            pinClient.putFormAsyncWith1Param("/services/pin/setValue",
+                    "data", jsonConverter.toJson(requests), (code, contentType, body) -> {
+                if (code == HTTP_OK) {
+                    MessageWrapper messageWrapper = jsonConverter.fromJson(
+                            JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                    if (!messageWrapper.isError()) {
+                        sendIncrementDaysCallback(callbackBuilder);
+                    } else {
+                        callbackBuilder.build().reply(body);
+                    }
+                } else {
+                    callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                            "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                 }
-            } else {
-                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
-                        "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
-            }
-        });
+            });
+        } else {
+            sendIncrementDaysCallback(callbackBuilder);
+        }
     }
 
     private void sendIncrementDaysCallback(final CallbackBuilder callbackBuilder) {

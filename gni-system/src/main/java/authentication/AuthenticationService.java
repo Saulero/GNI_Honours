@@ -1446,8 +1446,6 @@ class AuthenticationService {
                     callbackBuilder.build().reply(body);
                 }
             } else {
-                System.out.println("Problem with http in auth");
-                System.out.println(body);
                 callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
                         "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
