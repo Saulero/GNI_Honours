@@ -50,7 +50,7 @@ class PinService {
     /** Prefix used when printing to indicate the message is coming from the PIN Service. */
     private static final String PREFIX = "[PIN]                 :";
     /** Used to set how long a pin card is valid. */
-    private static final int CARD_EXPIRATION_LENGTH = 5;
+    private static int CARD_EXPIRATION_LENGTH = 5;
     /** Used to check if a transaction without a pincode is authorized. */
     private static final int CONTACTLESS_TRANSACTION_LIMIT = 25;
     /** Used to check if accountNumber are of the correct length. */
@@ -1655,6 +1655,44 @@ class PinService {
         ps.executeUpdate();
         ps.close();
         databaseConnectionPool.returnConnection(con);
+    }
+
+    @RequestMapping(value = "/setValue", method = RequestMethod.PUT)
+    public void processSetValueRequest(final Callback<String> callback,
+                                       final @RequestParam("data") String data) {
+        System.out.printf("%s Received setValue request.\n", PREFIX);
+        SetValueRequest setValueRequest = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(data), SetValueRequest.class);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleSetValueExceptions(setValueRequest, callbackBuilder);
+    }
+
+    private void handleSetValueExceptions(
+            final SetValueRequest setValueRequest, final CallbackBuilder callbackBuilder) {
+        switch (setValueRequest.getKey()) {
+
+            case CREDIT_CARD_MONTHLY_FEE:       CREDIT_CARD_MONTHLY_FEE = setValueRequest.getValue();
+                break;
+            case CREDIT_CARD_DEFAULT_CREDIT:    CREDIT_CARD_DEFAULT_CREDIT = setValueRequest.getValue();
+                break;
+            case CARD_EXPIRATION_LENGTH:        CARD_EXPIRATION_LENGTH = (new Double(setValueRequest.getValue())).intValue();
+                break;
+            case NEW_CARD_COST:                 NEW_CARD_COST = setValueRequest.getValue();
+                break;
+            case CARD_USAGE_ATTEMPTS:           CARD_USAGE_ATTEMPTS = (new Double(setValueRequest.getValue())).intValue();
+                break;
+            default:
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                        true, 500, "Internal System Error.")));
+                break;
+        }
+        sendSetValueCallback(callbackBuilder);
+    }
+
+    private void sendSetValueCallback(final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s SetValue request successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                false, 200, "Normal Reply")));
     }
 
     /**
