@@ -195,20 +195,41 @@ class SystemInformationService {
         int dayOfTheMonth = systemDate.getDayOfMonth();
         syncCalendar();
         if (days >= ((daysInMonth - dayOfTheMonth) + 1)) {
-            doInterestProcessingRequest(days, callbackBuilder);
+            checkChildBirthdays(days, callbackBuilder);
         } else {
             this.systemDate = this.systemDate.plusDays(days);
             doSetTransferLimitsRequest(callbackBuilder);
         }
     }
 
-    private void doInterestProcessingRequest(final long days, final CallbackBuilder callbackBuilder) {
+    private void checkChildBirthdays(final long days, final CallbackBuilder callbackBuilder) {
         syncCalendar();
         int daysInMonth = myCal.getActualMaximum(Calendar.DAY_OF_MONTH);
         int dayOfTheMonth = systemDate.getDayOfMonth();
         int firstDayNextMonth = (daysInMonth - dayOfTheMonth) + 1;
         this.systemDate = this.systemDate.plusDays(firstDayNextMonth);
         Long daysLeft = days - firstDayNextMonth;
+
+        usersClient.postFormAsyncWith1Param("/services/users/childBirthdays", "request",
+                jsonConverter.toJson(systemDate), (httpStatusCode, httpContentType, body) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            doInterestProcessingRequest(daysLeft, callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(body);
+                        }
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(
+                                JSONParser.createMessageWrapper(true, 500,
+                                        "An unknown error occurred.",
+                                        "There was a problem with one of the HTTP requests")));
+                    }
+                });
+    }
+
+    private void doInterestProcessingRequest(final long daysLeft, final CallbackBuilder callbackBuilder) {
         ledgerClient.postFormAsyncWith1Param("/services/ledger/interest", "request",
                 jsonConverter.toJson(systemDate), (httpStatusCode, httpContentType, body) -> {
                     if (httpStatusCode == HTTP_OK) {
@@ -238,7 +259,7 @@ class SystemInformationService {
                             int newDaysInMonth = myCal.getActualMaximum(Calendar.DAY_OF_MONTH);
                             int newDayOfTheMonth = systemDate.getDayOfMonth();
                             if (daysLeft >= ((newDaysInMonth - newDayOfTheMonth) + 1)) {
-                                doInterestProcessingRequest(daysLeft, callbackBuilder);
+                                checkChildBirthdays(daysLeft, callbackBuilder);
                             } else {
                                 doSetTransferLimitsRequest(callbackBuilder);
                             }

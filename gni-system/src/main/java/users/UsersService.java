@@ -1,6 +1,5 @@
 package users;
 
-import api.methods.TransferBankAccount;
 import com.google.gson.Gson;
 import database.ConnectionPool;
 import database.SQLConnection;
@@ -14,9 +13,11 @@ import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
 import util.JSONParser;
 
+import java.security.InvalidParameterException;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -41,6 +42,8 @@ class UsersService {
     private HttpClient pinClient;
     /** Connection to the SystemInformation service. */
     private HttpClient systemInformationClient;
+    /** Connection to the authentication service. */
+    private HttpClient authenticationClient;
     /** Connection pool with database connections for the User Service. */
     private ConnectionPool databaseConnectionPool;
     /** Gson object used to convert objects to/from json. */
@@ -97,6 +100,7 @@ class UsersService {
         ServiceInformation transactionDispatch = sysInfo.getTransactionDispatchServiceInformation();
         ServiceInformation transactionReceive = sysInfo.getTransactionReceiveServiceInformation();
         ServiceInformation pin = sysInfo.getPinServiceInformation();
+        ServiceInformation authentication = sysInfo.getAuthenticationServiceInformation();
 
         this.ledgerClient = httpClientBuilder().setHost(ledger.getServiceHost())
                 .setPort(ledger.getServicePort()).buildAndStart();
@@ -104,7 +108,10 @@ class UsersService {
                 .setPort(transactionDispatch.getServicePort()).buildAndStart();
         this.transactionReceiveClient = httpClientBuilder().setHost(transactionReceive.getServiceHost())
                 .setPort(transactionReceive.getServicePort()).buildAndStart();
-        this.pinClient = httpClientBuilder().setHost(pin.getServiceHost()).setPort(pin.getServicePort()).buildAndStart();
+        this.pinClient = httpClientBuilder().setHost(pin.getServiceHost())
+                .setPort(pin.getServicePort()).buildAndStart();
+        this.authenticationClient = httpClientBuilder().setHost(authentication.getServiceHost())
+                .setPort(authentication.getServicePort()).buildAndStart();
 
         System.out.printf("%s Initialization of Users service connections complete.\n", PREFIX);
         callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply")));
@@ -210,7 +217,7 @@ class UsersService {
             customerData.setEmail(retrievedCustomerData.getString("email"));
             customerData.setTelephoneNumber(retrievedCustomerData.getString("telephone_number"));
             customerData.setAddress(retrievedCustomerData.getString("address"));
-            customerData.setDob(retrievedCustomerData.getString("date_of_birth"));
+            customerData.setDob(retrievedCustomerData.getDate("date_of_birth").toLocalDate());
             customerData.setSsn(retrievedCustomerData.getLong("social_security_number"));
             getCustomerDataFromDb.close();
             databaseConnectionPool.returnConnection(databaseConnection);
@@ -604,12 +611,48 @@ class UsersService {
     private void handleNewCustomerRequestExceptions(final Customer customerToEnroll,
                                                     final CallbackBuilder callbackBuilder) {
         try {
+            if (customerToEnroll.isChild()) {
+                checkGuardians(customerToEnroll);
+            }
             customerToEnroll.setCustomerId(getNewCustomerId());
             enrollCustomer(customerToEnroll);
             doNewAccountRequest(customerToEnroll, callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to authentication database.")));
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 500, "Error connecting to authentication database.")));
+        } catch (UserNotAuthorizedException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 419, "The user is not authorized to perform this action.", e.getMessage())));
+        } catch (CustomerDoesNotExistException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "Customer with the given customerId does not appear to exist.")));
+        }
+    }
+
+    private void checkGuardians(final Customer customer) throws  UserNotAuthorizedException, SQLException, CustomerDoesNotExistException {
+        for (Long id : customer.getGuardianIds()) {
+            if (isChild(id)) {
+                throw new UserNotAuthorizedException("One of the guardians is not over 18 years of age.");
+            }
+        }
+    }
+
+    private boolean isChild(final Long id) throws SQLException, CustomerDoesNotExistException {
+        SQLConnection con = databaseConnectionPool.getConnection();
+        PreparedStatement ps = con.getConnection().prepareStatement(isChildUsers);
+        ps.setLong(1, id);
+        ResultSet rs = ps.executeQuery();
+        if (rs.next()) {
+            boolean res = rs.getBoolean("child");
+            rs.close();
+            ps.close();
+            databaseConnectionPool.returnConnection(con);
+            return res;
+        } else {
+            rs.close();
+            ps.close();
+            databaseConnectionPool.returnConnection(con);
+            throw new CustomerDoesNotExistException("Customer not found in database.");
         }
     }
 
@@ -635,15 +678,16 @@ class UsersService {
     void enrollCustomer(final Customer customer) throws SQLException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
         PreparedStatement createNewCustomer = databaseConnection.getConnection().prepareStatement(createNewUser);
-        createNewCustomer.setLong(1, customer.getCustomerId());        // id
-        createNewCustomer.setString(2, customer.getInitials());        // initials
-        createNewCustomer.setString(3, customer.getName());            // firstname
-        createNewCustomer.setString(4, customer.getSurname());         // lastname
-        createNewCustomer.setString(5, customer.getEmail());           // email
-        createNewCustomer.setString(6, customer.getTelephoneNumber()); //telephone_number
-        createNewCustomer.setString(7, customer.getAddress());         //address
-        createNewCustomer.setString(8, customer.getDob());             //date_of_birth
-        createNewCustomer.setLong(9, customer.getSsn());               //social_security_number
+        createNewCustomer.setLong(1, customer.getCustomerId());                 // id
+        createNewCustomer.setString(2, customer.getInitials());                 // initials
+        createNewCustomer.setString(3, customer.getName());                     // firstname
+        createNewCustomer.setString(4, customer.getSurname());                  // lastname
+        createNewCustomer.setString(5, customer.getEmail());                    // email
+        createNewCustomer.setString(6, customer.getTelephoneNumber());          //telephone_number
+        createNewCustomer.setString(7, customer.getAddress());                  //address
+        createNewCustomer.setDate(8, java.sql.Date.valueOf(customer.getDob())); //date_of_birth
+        createNewCustomer.setLong(9, customer.getSsn());                        //social_security_number
+        createNewCustomer.setBoolean(10, customer.isChild());
         createNewCustomer.executeUpdate();
         createNewCustomer.close();
         databaseConnectionPool.returnConnection(databaseConnection);
@@ -660,12 +704,12 @@ class UsersService {
      */
     private void doNewAccountRequest(final Customer accountOwner, final CallbackBuilder callbackBuilder) {
         ledgerClient.putFormAsyncWith1Param("/services/ledger/account", "body",
-                                            jsonConverter.toJson(accountOwner.getAccount()),
+                                            jsonConverter.toJson(accountOwner),
                                             (httpStatusCode, httpContentType, replyAccountJson) -> {
             if (httpStatusCode == HTTP_OK) {
                 MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyAccountJson), MessageWrapper.class);
                 if (!messageWrapper.isError()) {
-                    processNewAccountReply((Account) messageWrapper.getData(), accountOwner, callbackBuilder);
+                    handleNewAccountLinkExceptions((Customer) messageWrapper.getData(), callbackBuilder);
                 } else {
                     callbackBuilder.build().reply(replyAccountJson);
                 }
@@ -673,18 +717,6 @@ class UsersService {
                 callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
             }
         });
-    }
-
-    /**
-     * Processes a reply from the ledger containing a new account which is to be linked to a customer.
-     * @param replyAccount Account that should be linked to a {@link Customer}.
-     * @param accountOwner The customer that the account should be linked to.
-     * @param callbackBuilder Used to send a reply back to the service that sent the request.
-     */
-    private void processNewAccountReply(final Account replyAccount, final Customer accountOwner,
-                                        final CallbackBuilder callbackBuilder) {
-        accountOwner.setAccount(replyAccount);
-        handleNewAccountLinkExceptions(accountOwner, callbackBuilder);
     }
 
     /**
@@ -696,6 +728,11 @@ class UsersService {
     private void handleNewAccountLinkExceptions(final Customer accountOwner, final CallbackBuilder callbackBuilder) {
         try {
             linkAccountToCustomer(accountOwner.getAccount().getAccountNumber(), accountOwner.getCustomerId(), true);
+            if (accountOwner.isChild()) {
+                for (Long id : accountOwner.getGuardianIds()) {
+                    linkAccountToCustomer(accountOwner.getAccount().getAccountNumber(), id, false);
+                }
+            }
             sendNewAccountLinkCallback(accountOwner, callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
@@ -1206,6 +1243,110 @@ class UsersService {
 
     private void sendTransferBankAccountCallback(final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Bank Account transfer successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply")));
+    }
+
+    @RequestMapping(value = "/childBirthdays", method = RequestMethod.POST)
+    public void incomingChildBirthdaysListener(final Callback<String> callback,
+                                                final @RequestParam("request") String body) {
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        LocalDate localDate = jsonConverter.fromJson(body, LocalDate.class);
+        System.out.printf("%s Received a request for checking child birthdays.\n", PREFIX);
+        handleChildBirthdayExceptions(localDate, callbackBuilder);
+    }
+
+    private void handleChildBirthdayExceptions(final LocalDate date, final CallbackBuilder callbackBuilder) {
+        try {
+            checkChildBirthdays(date, callbackBuilder);
+        } catch (SQLException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to Users database.")));
+        } catch (InvalidParameterException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", e.getMessage())));
+        }
+    }
+
+    private void checkChildBirthdays(final LocalDate date, final CallbackBuilder callbackBuilder) throws SQLException {
+        List<BirthdayInterestPayment> res = new LinkedList<>();
+
+        // get all child accounts
+        SQLConnection con = databaseConnectionPool.getConnection();
+        PreparedStatement ps = con.getConnection().prepareStatement(getAllChildrenUsers);
+        ResultSet rs = ps.executeQuery();
+
+        // check em
+        while (rs.next()) {
+            List<String> accounts = getCustomerAccounts(rs.getLong("id"));
+            if (accounts.size() != 1) {
+                throw new InvalidParameterException("Child somehow has more than one account, this should not be possible.");
+            } else {
+                // check birthday
+                LocalDate dob = rs.getDate("date_of_birth").toLocalDate();
+                LocalDate adjustedDob = dob.plusYears(18);
+                if (date.isAfter(adjustedDob)) {
+                    res.add(new BirthdayInterestPayment(rs.getLong("id"), date, adjustedDob, accounts.get(0)));
+                }
+            }
+        }
+
+        rs.close();
+        ps.close();
+        databaseConnectionPool.returnConnection(con);
+
+        MessageWrapper request = JSONParser.createMessageWrapper(false, 0, "Request", res);
+        ledgerClient.postFormAsyncWith1Param("/services/ledger/childBirthdays",
+                "data", jsonConverter.toJson(request), (httpStatusCode, httpContentType, jsonReply) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(jsonReply), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            try {
+                                revokeGuardianAccess(res);
+                                sendAuthenticationUpdateMessage(request, callbackBuilder);
+                            } catch (SQLException e) {
+                                System.out.printf("%s Failed to revoke guardian access, sending rejection.\n", PREFIX);
+                                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to Users database.")));
+                            }
+                        } else {
+                            callbackBuilder.build().reply(jsonReply);
+                        }
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                    }
+                });
+    }
+
+    private void revokeGuardianAccess(final List<BirthdayInterestPayment> accounts) throws SQLException {
+        SQLConnection con = databaseConnectionPool.getConnection();
+        for (BirthdayInterestPayment i : accounts) {
+            PreparedStatement ps1 = con.getConnection().prepareStatement(removeGuardianAccountLinks);
+            PreparedStatement ps2 = con.getConnection().prepareStatement(setAdultStatusUsers);
+            ps1.setString(1, i.getAccountNumber());
+            ps2.setLong(1, i.getUserId());
+            ps1.executeUpdate();
+            ps2.executeUpdate();
+            ps1.close();
+            ps2.close();
+        }
+        databaseConnectionPool.returnConnection(con);
+    }
+
+    private void sendAuthenticationUpdateMessage(final MessageWrapper data, final CallbackBuilder callbackBuilder) {
+        authenticationClient.postFormAsyncWith1Param("/services/authentication/childBirthdays",
+                "data", jsonConverter.toJson(data), (httpStatusCode, httpContentType, jsonReply) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(jsonReply), MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            sendChildBirthdaysCallback(callbackBuilder);
+                        } else {
+                            callbackBuilder.build().reply(jsonReply);
+                        }
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
+                    }
+                });
+    }
+
+    private void sendChildBirthdaysCallback(final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s Children's birthday check complete, sending callback.\n", PREFIX);
         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200, "Normal Reply")));
     }
 

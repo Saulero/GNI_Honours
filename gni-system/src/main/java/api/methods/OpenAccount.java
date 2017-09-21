@@ -8,6 +8,7 @@ import databeans.Customer;
 import databeans.MessageWrapper;
 import util.JSONParser;
 
+import java.time.LocalDate;
 import java.util.Map;
 
 import static api.ApiService.PREFIX;
@@ -29,10 +30,25 @@ public abstract class OpenAccount {
      * @param api DataBean containing everything in the ApiService
      */
     public static void openAccount(final Map<String, Object> params, final ApiBean api) {
+        System.out.printf("%s Received OpenAccount request.\n", PREFIX);
+        String date = (String) params.get("dob");
+        String[] dobData = date.split("-");
+        LocalDate dob = LocalDate.of(Integer.parseInt(dobData[0]), Integer.parseInt(dobData[1]), Integer.parseInt(dobData[2]));
         Customer customer = new Customer((String) params.get("initials"), (String) params.get("name"),
                 (String) params.get("surname"), (String) params.get("email"), (String) params.get("telephoneNumber"),
-                (String) params.get("address"), (String) params.get("dob"), Long.parseLong((String) params.get("ssn")),
+                (String) params.get("address"), dob, Long.parseLong((String) params.get("ssn")),
                 (String) params.get("username"), (String) params.get("password"));
+        String type = (String) params.get("type");
+        if (type != null && type.equals("child")) {
+            // sets both the Child flag to true, and adds the guardians
+            // TODO Fix this into the real deal, both in the test suite and here
+            String guardians = (String) params.get("guardians");
+            String[] guardiansArray = guardians.substring(1, guardians.length() - 1).split(", ");
+            for (int i = 0; i < guardiansArray.length; i++) {
+                guardiansArray[i] = guardiansArray[i].substring(1, guardiansArray[i].length() - 1);
+            }
+            customer.setGuardians(guardiansArray);
+        }
         handleNewCustomerExceptions(customer, api);
     }
 
@@ -45,11 +61,11 @@ public abstract class OpenAccount {
     private static void handleNewCustomerExceptions(final Customer newCustomer, final ApiBean api) {
         try {
             verifyNewCustomerInput(newCustomer);
-            doNewCustomerRequest(newCustomer, api);
+            verifyAgeInput(api, newCustomer);
         } catch (IncorrectInputException e) {
-            System.out.printf("%s One of the parameters has an invalid value, sending error.", PREFIX);
+            System.out.printf("%s One of the parameters has an invalid value, sending error.\n", PREFIX);
             sendErrorReply(JSONParser.createMessageWrapper(true, 418,
-                    "One of the parameters has an invalid value."), api);
+                    "One of the parameters has an invalid value.", e.getMessage()), api);
         } catch (JsonSyntaxException e) {
             System.out.printf("%s The json received contained incorrect syntax, sending rejection.\n", PREFIX);
             sendErrorReply(JSONParser.createMessageWrapper(true, 418, "Syntax error when parsing json."), api);
@@ -75,7 +91,7 @@ public abstract class OpenAccount {
         final String email = newCustomer.getEmail();
         final String telephoneNumber = newCustomer.getTelephoneNumber();
         final String address = newCustomer.getAddress();
-        final String dob = newCustomer.getDob();
+        final LocalDate dob = newCustomer.getDob();
         final Long ssn = newCustomer.getSsn();
         final String username = newCustomer.getUsername();
         final String password = newCustomer.getPassword();
@@ -92,7 +108,7 @@ public abstract class OpenAccount {
             throw new IncorrectInputException("The following variable was incorrectly specified: telephoneNumber.");
         } else if (address == null || !valueHasCorrectLength(address)) {
             throw new IncorrectInputException("The following variable was incorrectly specified: address.");
-        } else if (dob == null || !valueHasCorrectLength(dob)) {
+        } else if (dob == null) {
             throw new IncorrectInputException("The following variable was incorrectly specified: dob.");
         } else if (ssn < 0) {
             throw new IncorrectInputException("The following variable was incorrectly specified: ssn.");
@@ -105,7 +121,40 @@ public abstract class OpenAccount {
         } else if (password == null || !valueHasCorrectLength(password)) {
             //todo specify more formal password requirements
             throw new IncorrectInputException("The following variable was incorrectly specified: password.");
+        } else if (newCustomer.isChild() && (newCustomer.getGuardians() == null || newCustomer.getGuardians().length < 1)) {
+            throw new IncorrectInputException("The following variable was incorrectly specified: guardians.");
         }
+    }
+
+    private static void verifyAgeInput(final ApiBean api, final Customer newCustomer) {
+        LocalDate dob = newCustomer.getDob();
+        api.getSystemInformationClient().getAsync("/services/systemInfo/date", (code, contentType, body) -> {
+            if (code == HTTP_OK) {
+                MessageWrapper messageWrapper = api.getJsonConverter().fromJson(JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
+                if (!messageWrapper.isError()) {
+                    LocalDate date = (LocalDate) messageWrapper.getData();
+                    boolean is18 = false;
+                    LocalDate adjustedDob = dob.plusYears(18);
+                    if (date.isAfter(adjustedDob)) {
+                        is18 = true;
+                    }
+                    if ((newCustomer.isChild() && !is18) || (!newCustomer.isChild() && is18)) {
+                        doNewCustomerRequest(newCustomer, api);
+                    } else {
+                        System.out.printf("%s One of the parameters has an invalid value, sending error.\n", PREFIX);
+                        sendErrorReply(JSONParser.createMessageWrapper(true, 418,
+                                "One of the parameters has an invalid value.",
+                                "Primary account holder needs to be 18 for a child account, and over 18 for a normal account."), api);
+                    }
+                } else {
+                    api.getCallbackBuilder().build().reply(body);
+                }
+            } else {
+                api.getCallbackBuilder().build().reply(api.getJsonConverter().toJson(JSONParser.createMessageWrapper(true,
+                        500, "An unknown error occurred.",
+                        "There was a problem with one of the HTTP requests")));
+            }
+        });
     }
 
     /**
