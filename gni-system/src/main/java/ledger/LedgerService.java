@@ -1647,6 +1647,47 @@ class LedgerService {
                 false, 200, "Normal Reply")));
     }
 
+    @RequestMapping(value = "/setValue", method = RequestMethod.PUT)
+    public void processSetValueRequest(final Callback<String> callback,
+                                                final @RequestParam("data") String data) {
+        System.out.printf("%s Received setValue request.\n", PREFIX);
+        SetValueRequest setValueRequest = jsonConverter.fromJson(
+                JSONParser.removeEscapeCharacters(data), SetValueRequest.class);
+        CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+        handleSetValueExceptions(setValueRequest, callbackBuilder);
+    }
+
+    private void handleSetValueExceptions(
+            final SetValueRequest setValueRequest, final CallbackBuilder callbackBuilder) {
+        switch (setValueRequest.getKey()) {
+            case MAX_OVERDRAFT_LIMIT:       MAX_OVERDRAFT_LIMIT = setValueRequest.getValue();
+                break;
+            case INTEREST_RATE_1:           INTEREST_RATE_1 = setValueRequest.getValue();
+                break;
+            case INTEREST_RATE_2:           INTEREST_RATE_2 = setValueRequest.getValue();
+                break;
+            case INTEREST_RATE_3:           INTEREST_RATE_3 = setValueRequest.getValue();
+                break;
+            case OVERDRAFT_INTEREST_RATE:   OVERDRAFT_INTEREST_RATE = setValueRequest.getValue();
+                break;
+            case DAILY_WITHDRAW_LIMIT:      DAILY_WITHDRAW_LIMIT = setValueRequest.getValue();
+                break;
+            case WEEKLY_TRANSFER_LIMIT:     WEEKLY_TRANSFER_LIMIT = setValueRequest.getValue();
+                break;
+            default:
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                        true, 500, "Internal System Error.")));
+                break;
+        }
+        sendSetValueCallback(callbackBuilder);
+    }
+
+    private void sendSetValueCallback(final CallbackBuilder callbackBuilder) {
+        System.out.printf("%s SetValue request successful, sending callback.\n", PREFIX);
+        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                false, 200, "Normal Reply")));
+    }
+
     /**
      * Safely shuts down the LedgerService.
      */

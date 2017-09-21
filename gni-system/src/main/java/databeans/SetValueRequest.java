@@ -1,11 +1,12 @@
 package databeans;
 
+import java.io.Serializable;
 import java.time.LocalDate;
 
 /**
  * @author Saul
  */
-public class SetValueRequest {
+public class SetValueRequest implements Serializable {
 
     private SetValueKey key;
     private double value;

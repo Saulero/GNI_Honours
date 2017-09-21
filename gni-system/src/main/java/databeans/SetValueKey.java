@@ -2,10 +2,12 @@ package databeans;
 
 import api.IncorrectInputException;
 
+import java.io.Serializable;
+
 /**
  * @author Saul
  */
-public enum SetValueKey {
+public enum SetValueKey implements Serializable {
 
     CREDIT_CARD_MONTHLY_FEE,
     CREDIT_CARD_DEFAULT_CREDIT,
