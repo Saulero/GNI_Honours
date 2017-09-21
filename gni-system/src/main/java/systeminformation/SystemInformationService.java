@@ -279,7 +279,7 @@ class SystemInformationService {
                 }
             });
         } else {
-            sendIncrementDaysCallback(callbackBuilder);
+            doSetValueRequests(callbackBuilder);
         }
     }
 
@@ -320,7 +320,7 @@ class SystemInformationService {
                     }
                 });
         } else {
-            sendIncrementDaysCallback(callbackBuilder);
+            sendPinSetValueRequests(pinRequests, callbackBuilder);
         }
     }
 
@@ -596,7 +596,7 @@ class SystemInformationService {
         }
         requestsOnDay.add(setValueRequest);
         setValueRequests.put(dayOfExecution, requestsOnDay);
-        System.out.printf("%s Successfully setValue request to queue.\n", PREFIX);
+        System.out.printf("%s Successfully added setValue request to queue.\n", PREFIX);
         callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200,
                 "Normal Reply")));
     }

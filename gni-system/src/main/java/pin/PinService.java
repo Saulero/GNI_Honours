@@ -50,7 +50,7 @@ class PinService {
     /** Prefix used when printing to indicate the message is coming from the PIN Service. */
     private static final String PREFIX = "[PIN]                 :";
     /** Used to set how long a pin card is valid. */
-    private static int CARD_EXPIRATION_LENGTH = 5;
+    private int CARD_EXPIRATION_LENGTH = 5;
     /** Used to check if a transaction without a pincode is authorized. */
     private static final int CONTACTLESS_TRANSACTION_LIMIT = 25;
     /** Used to check if accountNumber are of the correct length. */
@@ -58,13 +58,13 @@ class PinService {
     /** Account number where fees are transferred to. */
     private static final String GNI_ACCOUNT = "NL52GNIB3676451168";
     /** Credit card fee. */
-    private static double CREDIT_CARD_MONTHLY_FEE = 5.00;
+    private double CREDIT_CARD_MONTHLY_FEE = 5.00;
     /** Credit card limit. */
-    private static double CREDIT_CARD_DEFAULT_CREDIT = 1000;
+    private double CREDIT_CARD_DEFAULT_CREDIT = 1000;
     /** Fee for a new card. */
-    private static double NEW_CARD_COST = 7.50;
+    private double NEW_CARD_COST = 7.50;
     /** Amount of allowed failed attempts */
-    private static int CARD_USAGE_ATTEMPTS = 3;
+    private int CARD_USAGE_ATTEMPTS = 3;
 
 
     /**
@@ -579,7 +579,7 @@ class PinService {
                                         "The card used is not active.",
                                         "The credit card used is not active yet or expired.")));
                     } else if (creditCard.getIncorrect_attempts() > 2) {
-                        System.out.printf("%s Card is blocked sending callback./n", PREFIX);
+                        System.out.printf("%s Card is blocked sending callback.\n", PREFIX);
                         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
                                 .createMessageWrapper(true, 419, "The card used is currently blocked.",
                                         "The pin card used does not have the authorization to perform this request.")));

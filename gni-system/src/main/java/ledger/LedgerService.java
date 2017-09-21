@@ -46,25 +46,25 @@ class LedgerService {
     /** Prefix used when printing to indicate the message is coming from the Ledger Service. */
     private static final String PREFIX = "[Ledger]              :";
     /** Interest rate that the bank charges every month to customers that are overdraft. */
-    private static double OVERDRAFT_INTEREST_RATE = 0.00797;
+    private double OVERDRAFT_INTEREST_RATE = 0.00797;
     /** Interest rate for a savings balance of up to the tier 1 cap. */
-    private static double INTEREST_RATE_1 = 0.15;
+    private double INTEREST_RATE_1 = 0.15;
     /** Cap of the tier 1 interest rate. */
-    private static final int TIER_1_CAP = 25000;
+    private final int TIER_1_CAP = 25000;
     /** Interest rate for a savings balance from tier 1 cap until tier 2 cap. */
-    private static double INTEREST_RATE_2 = 0.15;
+    private double INTEREST_RATE_2 = 0.15;
     /** Cap of the tier 2 interest rate. */
     private static final int TIER_2_CAP = 75000;
     /** Interest rate for a savings balance of more than tier 2 cap. */
-    private static double INTEREST_RATE_3 = 0.20;
+    private double INTEREST_RATE_3 = 0.20;
     /** Account number where fees are transferred to. */
     private static final String GNI_ACCOUNT = "NL52GNIB3676451168";
     /** Indicates how much can be transferred out of a bank account each week.*/
-    private static Double WEEKLY_TRANSFER_LIMIT = 2500.0;
+    private Double WEEKLY_TRANSFER_LIMIT = 2500.0;
     /** Indicates how much can be transferred with a debit card over the period of one day.*/
-    private static Double DAILY_WITHDRAW_LIMIT = 250.0;
+    private Double DAILY_WITHDRAW_LIMIT = 250.0;
     /** Maximum allowed overdraft limit. */
-    private static double MAX_OVERDRAFT_LIMIT = 5000.0;
+    private double MAX_OVERDRAFT_LIMIT = 5000.0;
 
     /**
      * Constructor.

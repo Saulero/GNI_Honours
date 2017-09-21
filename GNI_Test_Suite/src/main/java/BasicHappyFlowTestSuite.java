@@ -939,7 +939,7 @@ public class BasicHappyFlowTestSuite {
         }
 
         System.out.println("-- Set max overdraft limit, should work. --");
-        request = SetValueMethod.createRequest(admin, "MAX_OVERDRAFT_LIMIT", 10000, LocalDate.now().plusYears(1).toString());
+        request = SetValueMethod.createRequest(admin, "MAX_OVERDRAFT_LIMIT", 10000, LocalDate.now().plusYears(3).toString());
         response = client.processRequest(request);
 
         if((parsedResponse = checkResponse(response)) != null){

@@ -41,4 +41,13 @@ public class SetValueRequest implements Serializable {
     public void setDate(final LocalDate newDate) {
         this.date = newDate;
     }
+
+    @Override
+    public String toString() {
+        return "SetValueRequest{" +
+                "key=" + key +
+                ", value=" + value +
+                ", date=" + date +
+                '}';
+    }
 }
