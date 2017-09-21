@@ -29,6 +29,7 @@ import models.BankAccount;
 import models.CustomerAccount;
 import models.PinCard;
 
+import java.time.LocalDate;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -920,6 +921,39 @@ public class BasicHappyFlowTestSuite {
             TransferMoneyMethod.parseResponse(parsedResponse);
         }
 
+        // SetValue method
+        System.out.println("-- Set max overdraft limit, wrong key, should fail. --");
+        request = SetValueMethod.createRequest(admin, "UNKNOWN_KEY", 10000, LocalDate.now().plusYears(1).toString());
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            SetValueMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Set max overdraft limit, wrong value, should fail. --");
+        request = SetValueMethod.createRequest(admin, "MAX_OVERDRAFT_LIMIT", 1234.5678, LocalDate.now().plusYears(1).toString());
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            SetValueMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Set max overdraft limit, should work. --");
+        request = SetValueMethod.createRequest(admin, "MAX_OVERDRAFT_LIMIT", 10000, LocalDate.now().plusYears(1).toString());
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            SetValueMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Daisy wants to set her overdraft limit to 8000, new limit not yet active, should fail. --");
+        request = SetOverdraftLimitMethod.createRequest(customer2, bankAccount3, 8000f);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            SetOverdraftLimitMethod.parseResponse(parsedResponse);
+        }
+
 
         ///------ TEAR DOWN TESTS.
 
@@ -940,6 +974,22 @@ public class BasicHappyFlowTestSuite {
             SimulateTimeMethod.parseResponse(parsedResponse);
         }
 
+        System.out.println("-- Daisy logs in. --");
+        request = GetAuthTokenMethod.createRequest(customer2);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            GetAuthTokenMethod.parseResponse(parsedResponse, customer2);
+        }
+
+        System.out.println("-- Daisy wants to set her overdraft limit to 8000, new limit now active, should work. --");
+        request = SetOverdraftLimitMethod.createRequest(customer2, bankAccount3, 8000f);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            SetOverdraftLimitMethod.parseResponse(parsedResponse);
+        }
+
         System.out.println("-- Attempt to use pincard after expiration date. Should Fail--");
         card1.setPinCardNumber(newPinCard);
 
@@ -951,15 +1001,22 @@ public class BasicHappyFlowTestSuite {
         }
 
         // TEAR DOWN TESTS PART 2
+        System.out.println("-- Donald logs in. --");
+        request = GetAuthTokenMethod.createRequest(customer1);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            GetAuthTokenMethod.parseResponse(parsedResponse, customer1);
+        }
 
         // RevokeAccessMethod
         System.out.println("-- RevokeAccessMethod. Donald revokes Daisy's access--");
 
-        request = RevokeAccessMethod.createRequest(customer1,bankAccount1,customer2);
+        request = RevokeAccessMethod.createRequest(customer1, bankAccount1, customer2);
         response = client.processRequest(request);
 
         if((parsedResponse = checkResponse(response)) != null){
-            RevokeAccessMethod.parseResponse(parsedResponse,bankAccount1, customer2);
+            RevokeAccessMethod.parseResponse(parsedResponse, bankAccount1, customer2);
         }
 
         // Method 3. Close both accounts.
@@ -974,9 +1031,17 @@ public class BasicHappyFlowTestSuite {
             }
         }
 
-        System.out.println("-- Extra methods --");
+        System.out.println("-- Extra Methods --");
         System.out.println("-- Admin GetDate --");
         request = GetDateMethod.createRequest(admin);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            GetDateMethod.parseResponse(parsedResponse);
+        }
+
+        System.out.println("-- Non-Admin GetDate - Should Fail --");
+        request = GetDateMethod.createRequest(customer1);
         response = client.processRequest(request);
 
         if((parsedResponse = checkResponse(response)) != null){
@@ -991,7 +1056,7 @@ public class BasicHappyFlowTestSuite {
             ResetMethod.parseResponse(parsedResponse);
         }
 
-        System.out.println("-- Admin GetDate --");
+        System.out.println("-- Admin GetDate, admin token has expired, should fail. --");
         request = GetDateMethod.createRequest(admin);
         response = client.processRequest(request);
 
@@ -999,8 +1064,16 @@ public class BasicHappyFlowTestSuite {
             GetDateMethod.parseResponse(parsedResponse);
         }
 
-        System.out.println("-- Non-Admin GetDate - Should Fail --");
-        request = GetDateMethod.createRequest(customer2);
+        System.out.println("-- Get Admin Auth Token --");
+        request = GetAuthTokenMethod.createRequest(admin);
+        response = client.processRequest(request);
+
+        if((parsedResponse = checkResponse(response)) != null){
+            GetAuthTokenMethod.parseResponse(parsedResponse, admin);
+        }
+
+        System.out.println("-- Admin GetDate --");
+        request = GetDateMethod.createRequest(admin);
         response = client.processRequest(request);
 
         if((parsedResponse = checkResponse(response)) != null){
