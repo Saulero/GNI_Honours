@@ -1346,7 +1346,7 @@ class LedgerService {
                     "Error connecting to the ledger database.")));
         } catch (IllegalArgumentException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418,
-                    "One of the parameters has an invalid value.", "The new limit is not >0 and <5000")));
+                    "One of the parameters has an invalid value.", e.getMessage())));
         }
     }
 

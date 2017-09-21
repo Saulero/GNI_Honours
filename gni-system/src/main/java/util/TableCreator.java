@@ -86,7 +86,8 @@ public class TableCreator {
                 SQLStatements.grantGetDate,
                 SQLStatements.grantGetEventLogs,
                 SQLStatements.grantTransferBankAccount,
-                SQLStatements.grantSetFreezeUserAccount});
+                SQLStatements.grantSetFreezeUserAccount,
+                SQLStatements.grantSetValue});
     }
 
     private static void createNewTables() {
