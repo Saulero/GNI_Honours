@@ -16,7 +16,6 @@ import databeans.RequestType;
 import io.advantageous.qbit.reactive.CallbackBuilder;
 import util.JSONParser;
 
-import java.security.InvalidParameterException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.PreparedStatement;
@@ -47,23 +46,23 @@ class LedgerService {
     /** Prefix used when printing to indicate the message is coming from the Ledger Service. */
     private static final String PREFIX = "[Ledger]              :";
     /** Interest rate that the bank charges every month to customers that are overdraft. */
-    private static final double MONTHLY_OVERDRAFT_RATE = 0.00797;
+    private static double OVERDRAFT_INTEREST_RATE = 0.00797;
     /** Interest rate for a savings balance of up to the tier 1 cap. */
-    private static final double TIER_1_INTEREST_RATE = 0.15;
+    private static double INTEREST_RATE_1 = 0.15;
     /** Cap of the tier 1 interest rate. */
     private static final int TIER_1_CAP = 25000;
     /** Interest rate for a savings balance from tier 1 cap until tier 2 cap. */
-    private static final double TIER_2_INTEREST_RATE = 0.15;
+    private static double INTEREST_RATE_2 = 0.15;
     /** Cap of the tier 2 interest rate. */
     private static final int TIER_2_CAP = 75000;
     /** Interest rate for a savings balance of more than tier 2 cap. */
-    private static final double TIER_3_INTEREST_RATE = 0.20;
+    private static double INTEREST_RATE_3 = 0.20;
     /** Account number where fees are transferred to. */
     private static final String GNI_ACCOUNT = "NL52GNIB3676451168";
     /** Indicates how much can be transferred out of a bank account each week.*/
-    private static final Double WEEKLY_SPENDING_LIMIT = 2500.0;
+    private static Double WEEKLY_TRANSFER_LIMIT = 2500.0;
     /** Indicates how much can be transferred with a debit card over the period of one day.*/
-    private static final Double DAILY_SPENDING_LIMIT = 250.0;
+    private static Double DAILY_WITHDRAW_LIMIT = 250.0;
     /** Maximum allowed overdraft limit. */
     private static double MAX_OVERDRAFT_LIMIT = 5000.0;
 
@@ -162,7 +161,7 @@ class LedgerService {
             ps.setDouble(5, newAccount.getBalance());           // balance
             ps.setBoolean(6, false);                         // savings_active
             ps.setDouble(7, 0.0);                            // savings balance
-            ps.setDouble(8, WEEKLY_SPENDING_LIMIT);             // transfer_limit
+            ps.setDouble(8, WEEKLY_TRANSFER_LIMIT);             // transfer_limit
 
             ps.executeUpdate();
             ps.close();
@@ -582,7 +581,7 @@ class LedgerService {
             if (cardNumber != null) {
                 Double debitAmountSpent = getDebitAmountSpent(currentDate, 0L, cardNumber);
                 boolean debitAllowed = debitAmountSpent >= 0
-                                && (debitAmountSpent + transaction.getTransactionAmount()) < DAILY_SPENDING_LIMIT;
+                                && (debitAmountSpent + transaction.getTransactionAmount()) < DAILY_WITHDRAW_LIMIT;
                 return weeklyAllowed && debitAllowed;
             } else {
                 System.out.printf("%s CardNumber could not be retrieved from description.", PREFIX);
@@ -1021,7 +1020,7 @@ class LedgerService {
                                                            final LocalDate firstProcessDay,
                                                            final LocalDate lastProcessDay) throws SQLException {
         Map<String, Double> interestMap = new HashMap<>();
-        double dailyInterestRate = MONTHLY_OVERDRAFT_RATE / firstProcessDay.getMonth()
+        double dailyInterestRate = OVERDRAFT_INTEREST_RATE / firstProcessDay.getMonth()
                                                                             .length(firstProcessDay.isLeapYear());
         for (String accountNumber : overdraftAccounts) {
             List<Transaction> overdraftTransactions = findOverdraftTransactions(accountNumber, firstProcessDay,
@@ -1067,15 +1066,15 @@ class LedgerService {
     private Double calculateSavingsInterest(final Double averageBalance) {
         Double interest;
         if (averageBalance > TIER_1_CAP) {
-            interest = TIER_1_CAP * TIER_1_INTEREST_RATE;
+            interest = TIER_1_CAP * INTEREST_RATE_1;
             if (averageBalance > TIER_2_CAP) {
-                interest += (TIER_2_CAP - TIER_1_CAP) * TIER_2_INTEREST_RATE;
-                interest += (averageBalance - TIER_2_CAP) * TIER_3_INTEREST_RATE;
+                interest += (TIER_2_CAP - TIER_1_CAP) * INTEREST_RATE_2;
+                interest += (averageBalance - TIER_2_CAP) * INTEREST_RATE_3;
             } else {
-                interest += (averageBalance - TIER_1_CAP) * TIER_2_INTEREST_RATE;
+                interest += (averageBalance - TIER_1_CAP) * INTEREST_RATE_2;
             }
         } else {
-            interest = averageBalance * TIER_1_INTEREST_RATE;
+            interest = averageBalance * INTEREST_RATE_1;
         }
         return interest;
     }
