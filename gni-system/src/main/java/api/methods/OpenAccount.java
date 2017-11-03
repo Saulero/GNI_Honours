@@ -136,7 +136,7 @@ public abstract class OpenAccount {
                     LocalDate date = (LocalDate) messageWrapper.getData();
                     boolean is18 = false;
                     LocalDate adjustedDob = dob.plusYears(18);
-                    if (date.isAfter(adjustedDob)) {
+                    if (date.isAfter(adjustedDob) || date.equals(adjustedDob)) {
                         is18 = true;
                     }
                     if ((newCustomer.isChild() && !is18) || (!newCustomer.isChild() && is18)) {
