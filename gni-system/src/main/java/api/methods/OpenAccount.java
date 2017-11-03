@@ -2,10 +2,12 @@ package api.methods;
 
 import api.ApiBean;
 import api.IncorrectInputException;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonSyntaxException;
 import databeans.Authentication;
 import databeans.Customer;
 import databeans.MessageWrapper;
+import net.minidev.json.JSONArray;
 import util.JSONParser;
 
 import java.time.LocalDate;
@@ -30,7 +32,6 @@ public abstract class OpenAccount {
      * @param api DataBean containing everything in the ApiService
      */
     public static void openAccount(final Map<String, Object> params, final ApiBean api) {
-        System.out.printf("%s Received OpenAccount request.\n", PREFIX);
         String date = (String) params.get("dob");
         String[] dobData = date.split("-");
         LocalDate dob = LocalDate.of(Integer.parseInt(dobData[0]), Integer.parseInt(dobData[1]), Integer.parseInt(dobData[2]));
@@ -42,10 +43,10 @@ public abstract class OpenAccount {
         if (type != null && type.equals("child")) {
             // sets both the Child flag to true, and adds the guardians
             // TODO Fix this into the real deal, both in the test suite and here
-            String guardians = (String) params.get("guardians");
-            String[] guardiansArray = guardians.substring(1, guardians.length() - 1).split(", ");
-            for (int i = 0; i < guardiansArray.length; i++) {
-                guardiansArray[i] = guardiansArray[i].substring(1, guardiansArray[i].length() - 1);
+            JSONArray guardians = (JSONArray) params.get("guardians");
+            String[] guardiansArray = new String[guardians.size()];
+            for (int i = 0; i < guardians.size(); i++) {
+                guardiansArray[i] = guardians.get(i).toString();
             }
             customer.setGuardians(guardiansArray);
         }

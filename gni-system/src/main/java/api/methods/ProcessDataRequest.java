@@ -119,7 +119,7 @@ public abstract class ProcessDataRequest {
                 Double savingBalance = dataReply.getAccountData().getSavingsBalance();
                 System.out.printf("%s Balance request successful, sending callback.\n\n\n\n", PREFIX);
                 Map<String, Object> balanceResult = new HashMap<>();
-                balanceResult.put("balance", balance.toString());
+                balanceResult.put("balance", balance);
                 balanceResult.put("savingAccountBalance", savingBalance);
                 Double creditCardBalance = dataReply.getAccountData().getCreditCardBalance();
                 if (creditCardBalance != null) {

@@ -75,7 +75,7 @@ public abstract class RequestCreditCard {
     private static void sendRequestCreditCardCallback(final CreditCard creditCard, final ApiBean api) {
         System.out.printf("%s Successfully created credit card, creating pin card for this credit card.\n", PREFIX);
         Map<String, Object> result = new HashMap<>();
-        result.put("pinCard", creditCard.getCreditCardNumber());
+        result.put("pinCard", Long.toString(creditCard.getCreditCardNumber()));
         result.put("pinCode", creditCard.getPinCode());
         JSONRPC2Response response = new JSONRPC2Response(result, api.getId());
         api.getCallbackBuilder().build().reply(response.toJSONString());

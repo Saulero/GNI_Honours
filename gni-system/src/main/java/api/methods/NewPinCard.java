@@ -148,7 +148,7 @@ public abstract class NewPinCard {
                                                 final LocalDate expirationDate, final Object id) {
         Map<String, Object> result = new HashMap<>();
         result.put("iBAN", accountNumber);
-        result.put("pinCard", cardNumber);
+        result.put("pinCard", Long.toString(cardNumber));
         result.put("pinCode", pinCode);
         result.put("expirationDate", expirationDate.toString());
         JSONRPC2Response response = new JSONRPC2Response(result, id);
@@ -167,7 +167,7 @@ public abstract class NewPinCard {
                                                   final String pinCode, final LocalDate expirationDate,
                                                   final Object id) {
         Map<String, Object> result = new HashMap<>();
-        result.put("pinCard", cardNumber);
+        result.put("pinCard", Long.toString(cardNumber));
         result.put("pinCode", pinCode);
         result.put("expirationDate", expirationDate.toString());
         JSONRPC2Response response = new JSONRPC2Response(result, id);
