@@ -373,7 +373,11 @@ class SystemInformationService {
                 }
             });
         } else {
-            sendIncrementDaysCallback(callbackBuilder);
+            if (sendCallBack) {
+                sendIncrementDaysCallback(callbackBuilder);
+            } else {
+                doInterestProcessingRequest(daysLeft, callbackBuilder);
+            }
         }
     }
 

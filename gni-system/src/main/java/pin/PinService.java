@@ -1559,7 +1559,6 @@ class PinService {
     private void withdrawCreditCardFee(final List<CreditCard> activeCards, final Long customerId,
                                        final CallbackBuilder callbackBuilder) {
         if (activeCards.size() < 1) {
-            System.out.println("Didnt find any creditCards to withdraw for");
             sendRefillCreditCardCallback(callbackBuilder, false);
         } else {
             System.out.println("\n\n\nwithdrawing fee for card \n\n\n\n\n");
