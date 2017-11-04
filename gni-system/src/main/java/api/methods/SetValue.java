@@ -7,6 +7,7 @@ import com.thetransactioncompany.jsonrpc2.JSONRPC2Response;
 import databeans.*;
 import util.JSONParser;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.HashMap;
@@ -25,7 +26,8 @@ public abstract class SetValue {
     public static void setValue(final Map<String, Object> params, final ApiBean api) {
         String cookie = (String) params.get("authToken");
         String key = (String) params.get("key");
-        double value = (Double) params.get("value");
+        BigDecimal valueParam = (BigDecimal) params.get("value");
+        double value = valueParam.doubleValue();
         String date = (String) params.get("date");
 
         System.out.printf("%s Checking parameters...\n", PREFIX);

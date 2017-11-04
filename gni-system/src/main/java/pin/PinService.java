@@ -1462,7 +1462,7 @@ class PinService {
     private void refillCreditCards(final List<CreditCard> creditCards, final Long customerId, final boolean closeCard,
                                   final CallbackBuilder callbackBuilder) {
         if (creditCards.size() < 1) {
-            sendRefillCreditCardCallback(callbackBuilder, false);
+            findCreditCardsToWithdrawFee(customerId, callbackBuilder);
         } else {
             CreditCard creditCard = creditCards.get(0);
             Transaction transaction = new Transaction();
@@ -1508,10 +1508,93 @@ class PinService {
                         if (creditCards.size() > 0) {
                             refillCreditCards(creditCards, 0L, false, callbackBuilder);
                         } else {
-                            System.out.printf("%s Credit cards successfully refilled, sending callback.\n", PREFIX);
-                            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
-                                    false, 200, "Normal Reply")));
+                            findCreditCardsToWithdrawFee(customerId, callbackBuilder);
                         }
+                    }
+                } else {
+                    System.out.printf("%s Credit card refill unsuccessful, sending rejection.\n", PREFIX);
+                    callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                            "Unknown error occurred, possibly not enough funds to refill the credit card.")));
+                }
+            } else {
+                callbackBuilder.build().reply(replyBody);
+            }
+        } else {
+            System.out.printf("%s Credit card refill request failed, sending rejection.\n", PREFIX);
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true,
+                    500, "An unknown error occurred.",
+                    "There was a problem with one of the HTTP requests")));
+        }
+    }
+
+    private void findCreditCardsToWithdrawFee(final Long customerId, final CallbackBuilder callbackBuilder) {
+        try {
+            SQLConnection connection = databaseConnectionPool.getConnection();
+            PreparedStatement getCards = connection.getConnection().prepareStatement(getActiveCreditCards);
+            ResultSet cardResult = getCards.executeQuery();
+            List<CreditCard> activeCards = new LinkedList<>();
+            while (cardResult.next()) {
+                CreditCard card = new CreditCard();
+                card.setCreditCardNumber(cardResult.getLong("card_number"));
+                card.setAccountNumber(cardResult.getString("account_number"));
+                card.setPinCode(cardResult.getString("pin_code"));
+                card.setIncorrect_attempts(cardResult.getLong("incorrect_attempts"));
+                card.setLimit(cardResult.getDouble("credit_limit"));
+                card.setBalance(cardResult.getDouble("balance"));
+                card.setFee(cardResult.getDouble("card_fee"));
+                card.setActivationDate(cardResult.getDate("active_from").toLocalDate());
+                card.setActive(cardResult.getBoolean("active"));
+                activeCards.add(card);
+            }
+            getCards.close();
+            databaseConnectionPool.returnConnection(connection);
+            withdrawCreditCardFee(activeCards, customerId, callbackBuilder);
+        } catch (SQLException e) {
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true,
+                    500, "An unknown error occurred.",
+                    "There was a problem with one of the database requests")));
+        }
+    }
+
+    private void withdrawCreditCardFee(final List<CreditCard> activeCards, final Long customerId,
+                                       final CallbackBuilder callbackBuilder) {
+        if (activeCards.size() < 1) {
+            System.out.println("Didnt find any creditCards to withdraw for");
+            sendRefillCreditCardCallback(callbackBuilder, false);
+        } else {
+            System.out.println("\n\n\nwithdrawing fee for card \n\n\n\n\n");
+            CreditCard creditCard = activeCards.get(0);
+            Transaction transaction = new Transaction();
+            transaction.setSourceAccountNumber(creditCard.getAccountNumber());
+            transaction.setDestinationAccountNumber(GNI_ACCOUNT);
+            transaction.setDestinationAccountHolderName("GNI BANK");
+            transaction.setTransactionAmount(creditCard.getFee());
+            transaction.setDescription("Monthly card fee for credit card #" + creditCard.getCreditCardNumber());
+            MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
+            data.setMethodType(MethodType.PAY_FROM_ACCOUNT);
+            data.setData(transaction);
+            transactionDispatchClient.putFormAsyncWith3Params("/services/transactionDispatch/transaction",
+                    "request", jsonConverter.toJson(data), "customerId", customerId,
+                    "override", true, //if the card should not be closed this method is being called by an admin.
+                    (code, contentType, replyBody) -> handleDispatchFeeResponse(code, replyBody, transaction,
+                            activeCards, customerId,  callbackBuilder));
+        }
+    }
+
+    private void handleDispatchFeeResponse(final int code, final String replyBody, final Transaction transaction,
+                                   final List<CreditCard> creditCards, final Long customerId,
+                                   final CallbackBuilder callbackBuilder) {
+        if (code == HTTP_OK) {
+            MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyBody),
+                    MessageWrapper.class);
+            if (!messageWrapper.isError()) {
+                Transaction reply = (Transaction) messageWrapper.getData();
+                if (reply.isSuccessful()) {
+                    creditCards.remove(0); // remove card that has been processed
+                    if (creditCards.size() > 0) {
+                        withdrawCreditCardFee(creditCards, 0L, callbackBuilder);
+                    } else {
+                        sendRefillCreditCardCallback(callbackBuilder, false);
                     }
                 } else {
                     System.out.printf("%s Credit card refill unsuccessful, sending rejection.\n", PREFIX);

@@ -24,7 +24,7 @@ public enum SetValueKey implements Serializable {
 
     public static SetValueKey getValue(final String s) throws IncorrectInputException {
         switch (s) {
-            case "CREDIT_CARD_MONTHLY_FEE":         return SetValueKey.CARD_EXPIRATION_LENGTH;
+            case "CREDIT_CARD_MONTHLY_FEE":         return SetValueKey.CREDIT_CARD_MONTHLY_FEE;
             case "CREDIT_CARD_DEFAULT_CREDIT":      return SetValueKey.CREDIT_CARD_DEFAULT_CREDIT;
             case "CARD_EXPIRATION_LENGTH":          return SetValueKey.CARD_EXPIRATION_LENGTH;
             case "NEW_CARD_COST":                   return SetValueKey.NEW_CARD_COST;
