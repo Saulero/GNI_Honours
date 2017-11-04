@@ -198,7 +198,7 @@ class SystemInformationService {
             checkChildBirthdays(days, callbackBuilder);
         } else {
             this.systemDate = this.systemDate.plusDays(days);
-            doSetTransferLimitsRequest(callbackBuilder);
+            doSetTransferLimitsRequest(0L, true, callbackBuilder);
         }
     }
 
@@ -216,7 +216,7 @@ class SystemInformationService {
                         MessageWrapper messageWrapper = jsonConverter.fromJson(
                                 JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
-                            doInterestProcessingRequest(daysLeft, callbackBuilder);
+                            doSetTransferLimitsRequest(daysLeft, false, callbackBuilder);
                         } else {
                             callbackBuilder.build().reply(body);
                         }
@@ -261,7 +261,8 @@ class SystemInformationService {
                             if (daysLeft >= ((newDaysInMonth - newDayOfTheMonth) + 1)) {
                                 checkChildBirthdays(daysLeft, callbackBuilder);
                             } else {
-                                doSetTransferLimitsRequest(callbackBuilder);
+                                this.systemDate = this.systemDate.plusDays(daysLeft);
+                                doSetTransferLimitsRequest(daysLeft, true, callbackBuilder);
                             }
                         } else {
                             callbackBuilder.build().reply(body);
@@ -275,7 +276,8 @@ class SystemInformationService {
         });
     }
 
-    private void doSetTransferLimitsRequest(final CallbackBuilder callbackBuilder) {
+    private void doSetTransferLimitsRequest(final Long daysLeft, final boolean sendCallback,
+                                            final CallbackBuilder callbackBuilder) {
         LinkedList<TransferLimit> limitsToBeProcessed = new LinkedList<>();
         for (LocalDate date : transferLimitRequests.keySet()) {
             if (!date.isAfter(systemDate)) {
@@ -290,7 +292,7 @@ class SystemInformationService {
                     MessageWrapper messageWrapper = jsonConverter.fromJson(
                             JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
                     if (!messageWrapper.isError()) {
-                        doSetValueRequests(callbackBuilder);
+                        doSetValueRequests(daysLeft, sendCallback, callbackBuilder);
                     } else {
                         callbackBuilder.build().reply(body);
                     }
@@ -300,11 +302,12 @@ class SystemInformationService {
                 }
             });
         } else {
-            doSetValueRequests(callbackBuilder);
+            doSetValueRequests(daysLeft, sendCallback, callbackBuilder);
         }
     }
 
-    private void doSetValueRequests(final CallbackBuilder callbackBuilder) {
+    private void doSetValueRequests(final Long daysLeft, final boolean sendCallback,
+                                    final CallbackBuilder callbackBuilder) {
         LinkedList<SetValueRequest> ledgerSetValueRequests = new LinkedList<>();
         LinkedList<SetValueRequest> pinSetValueRequests = new LinkedList<>();
         for (LocalDate date : setValueRequests.keySet()) {
@@ -318,11 +321,12 @@ class SystemInformationService {
                 }
             }
         }
-        sendLedgerSetValueRequests(ledgerSetValueRequests, pinSetValueRequests, callbackBuilder);
+        sendLedgerSetValueRequests(ledgerSetValueRequests, pinSetValueRequests, daysLeft, sendCallback, callbackBuilder);
     }
 
     private void sendLedgerSetValueRequests(final LinkedList<SetValueRequest> ledgerRequests,
                                             final LinkedList<SetValueRequest> pinRequests,
+                                            final Long daysLeft, final boolean sendCallback,
                                             final CallbackBuilder callbackBuilder) {
         if (ledgerRequests.size() > 0) {
             ledgerClient.putFormAsyncWith1Param("/services/ledger/setValue",
@@ -331,7 +335,7 @@ class SystemInformationService {
                         MessageWrapper messageWrapper = jsonConverter.fromJson(
                                 JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
-                            sendPinSetValueRequests(pinRequests, callbackBuilder);
+                            sendPinSetValueRequests(pinRequests, daysLeft, sendCallback, callbackBuilder);
                         } else {
                             callbackBuilder.build().reply(body);
                         }
@@ -341,12 +345,13 @@ class SystemInformationService {
                     }
                 });
         } else {
-            sendPinSetValueRequests(pinRequests, callbackBuilder);
+            sendPinSetValueRequests(pinRequests, daysLeft, sendCallback, callbackBuilder);
         }
     }
 
-    private void sendPinSetValueRequests(
-            final LinkedList<SetValueRequest> requests, final CallbackBuilder callbackBuilder) {
+    private void sendPinSetValueRequests(final LinkedList<SetValueRequest> requests,
+                                         final Long daysLeft, final boolean sendCallBack,
+                                         final CallbackBuilder callbackBuilder) {
         if (requests.size() > 0) {
             pinClient.putFormAsyncWith1Param("/services/pin/setValue",
                     "data", jsonConverter.toJson(requests), (code, contentType, body) -> {
@@ -354,7 +359,11 @@ class SystemInformationService {
                     MessageWrapper messageWrapper = jsonConverter.fromJson(
                             JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
                     if (!messageWrapper.isError()) {
-                        sendIncrementDaysCallback(callbackBuilder);
+                        if (sendCallBack) {
+                            sendIncrementDaysCallback(callbackBuilder);
+                        } else {
+                            doInterestProcessingRequest(daysLeft, callbackBuilder);
+                        }
                     } else {
                         callbackBuilder.build().reply(body);
                     }

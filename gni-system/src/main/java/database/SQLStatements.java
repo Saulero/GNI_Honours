@@ -87,6 +87,7 @@ public final class SQLStatements {
     public static final String unblockCreditCard = "UPDATE credit_cards SET incorrect_attempts = 0 WHERE card_number = ?";
     public static final String getCreditCardsWithCredit = "SELECT * FROM credit_cards WHERE NOT credit_limit <=> balance;";
     public static final String getActiveCreditCards = "SELECT * FROM credit_cards WHERE active = 1";
+    public static final String updateAllCreditCardFees = "UPDATE credit_cards SET card_fee = ? WHERE active = 1";
     public static final String transferBankAccount = "UPDATE ledger SET name = ? WHERE account_number = ?";
     public static final String revokeBankAccountAccess = "DELETE FROM accounts WHERE user_id = ? AND account_number = ? AND primary_owner = 0";
     public static final String transferBankAccountAccess = "UPDATE accounts SET user_id = ? WHERE account_number = ? AND primary_owner = 1";

@@ -1753,8 +1753,8 @@ class PinService {
     private void handleSetValueExceptions(
             final SetValueRequest setValueRequest, final CallbackBuilder callbackBuilder) {
         switch (setValueRequest.getKey()) {
-
             case CREDIT_CARD_MONTHLY_FEE:       CREDIT_CARD_MONTHLY_FEE = setValueRequest.getValue();
+                                                updateCreditCardFeesInDb(callbackBuilder);
                 break;
             case CREDIT_CARD_DEFAULT_CREDIT:    CREDIT_CARD_DEFAULT_CREDIT = setValueRequest.getValue();
                 break;
@@ -1770,6 +1770,22 @@ class PinService {
                 break;
         }
         sendSetValueCallback(callbackBuilder);
+    }
+
+    private void updateCreditCardFeesInDb(final CallbackBuilder callbackBuilder) {
+        try {
+            SQLConnection con = databaseConnectionPool.getConnection();
+            PreparedStatement ps = con.getConnection().prepareStatement(updateAllCreditCardFees);
+            ps.setDouble(1, CREDIT_CARD_MONTHLY_FEE);
+            ps.executeUpdate();
+            ps.close();
+            databaseConnectionPool.returnConnection(con);
+            sendSetValueCallback(callbackBuilder);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                    true, 500, "Internal System Error.")));
+        }
     }
 
     private void sendSetValueCallback(final CallbackBuilder callbackBuilder) {
