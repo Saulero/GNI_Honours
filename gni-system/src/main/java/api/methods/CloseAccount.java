@@ -86,7 +86,7 @@ public abstract class CloseAccount {
                         MessageWrapper messageWrapper = api.getJsonConverter().fromJson(
                                 JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
-                            sendCloseAccountCallback((AccountLink) messageWrapper.getData(), api);
+                            sendCloseAccountCallback(api);
                         } else {
                             sendErrorReply(messageWrapper, api);
                         }
@@ -103,8 +103,8 @@ public abstract class CloseAccount {
      * @param reply Used to show which accountNumber is closed.
      * @param api DataBean containing everything in the ApiService
      */
-    private static void sendCloseAccountCallback(final AccountLink reply, final ApiBean api) {
-        System.out.printf("%s Successfully closed account %s\n\n\n\n", PREFIX, reply.getAccountNumber());
+    private static void sendCloseAccountCallback(final ApiBean api) {
+        System.out.printf("%s Successfully closed account\n\n\n\n", PREFIX);
         Map<String, Object> result = new HashMap<>();
         api.getCallbackBuilder().build().reply(new JSONRPC2Response(result, api.getId()).toJSONString());
     }

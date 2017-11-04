@@ -1561,7 +1561,6 @@ class PinService {
         if (activeCards.size() < 1) {
             sendRefillCreditCardCallback(callbackBuilder, false);
         } else {
-            System.out.println("\n\n\nwithdrawing fee for card \n\n\n\n\n");
             CreditCard creditCard = activeCards.get(0);
             Transaction transaction = new Transaction();
             transaction.setSourceAccountNumber(creditCard.getAccountNumber());

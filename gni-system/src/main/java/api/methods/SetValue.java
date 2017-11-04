@@ -26,7 +26,7 @@ public abstract class SetValue {
     public static void setValue(final Map<String, Object> params, final ApiBean api) {
         String cookie = (String) params.get("authToken");
         String key = (String) params.get("key");
-        BigDecimal valueParam = (BigDecimal) params.get("value");
+        Double valueParam = (Double) params.get("value");
         double value = valueParam.doubleValue();
         String date = (String) params.get("date");
 

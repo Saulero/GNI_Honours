@@ -330,16 +330,18 @@ class SystemInformationService {
                                             final CallbackBuilder callbackBuilder) {
         if (ledgerRequests.size() > 0) {
             ledgerClient.putFormAsyncWith1Param("/services/ledger/setValue",
-                "data", jsonConverter.toJson(ledgerRequests), (code, contentType, body) -> {
+                "data", jsonConverter.toJson(ledgerRequests.remove(0)), (code, contentType, body) -> {
                     if (code == HTTP_OK) {
                         MessageWrapper messageWrapper = jsonConverter.fromJson(
                                 JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
                         if (!messageWrapper.isError()) {
-                            sendPinSetValueRequests(pinRequests, daysLeft, sendCallback, callbackBuilder);
+                            sendLedgerSetValueRequests(ledgerRequests, pinRequests, daysLeft, sendCallback, callbackBuilder);
                         } else {
                             callbackBuilder.build().reply(body);
                         }
                     } else {
+                        System.out.println("\n\n\n" + code);
+                        System.out.println(body);
                         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
                                 "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
@@ -354,16 +356,12 @@ class SystemInformationService {
                                          final CallbackBuilder callbackBuilder) {
         if (requests.size() > 0) {
             pinClient.putFormAsyncWith1Param("/services/pin/setValue",
-                    "data", jsonConverter.toJson(requests), (code, contentType, body) -> {
+                    "data", jsonConverter.toJson(requests.remove(0)), (code, contentType, body) -> {
                 if (code == HTTP_OK) {
                     MessageWrapper messageWrapper = jsonConverter.fromJson(
                             JSONParser.removeEscapeCharacters(body), MessageWrapper.class);
                     if (!messageWrapper.isError()) {
-                        if (sendCallBack) {
-                            sendIncrementDaysCallback(callbackBuilder);
-                        } else {
-                            doInterestProcessingRequest(daysLeft, callbackBuilder);
-                        }
+                        sendPinSetValueRequests(requests, daysLeft, sendCallBack, callbackBuilder);
                     } else {
                         callbackBuilder.build().reply(body);
                     }

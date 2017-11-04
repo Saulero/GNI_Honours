@@ -46,17 +46,17 @@ class LedgerService {
     /** Prefix used when printing to indicate the message is coming from the Ledger Service. */
     private static final String PREFIX = "[Ledger]              :";
     /** Interest rate that the bank charges every month to customers that are overdraft. */
-    private double OVERDRAFT_INTEREST_RATE = 0.00797;
+    private Double OVERDRAFT_INTEREST_RATE = 0.00797;
     /** Interest rate for a savings balance of up to the tier 1 cap. */
-    private double INTEREST_RATE_1 = 0.15;
+    private Double INTEREST_RATE_1 = 0.15;
     /** Cap of the tier 1 interest rate. */
     private final int TIER_1_CAP = 25000;
     /** Interest rate for a savings balance from tier 1 cap until tier 2 cap. */
-    private double INTEREST_RATE_2 = 0.15;
+    private Double INTEREST_RATE_2 = 0.15;
     /** Cap of the tier 2 interest rate. */
     private static final int TIER_2_CAP = 75000;
     /** Interest rate for a savings balance of more than tier 2 cap. */
-    private double INTEREST_RATE_3 = 0.20;
+    private Double INTEREST_RATE_3 = 0.20;
     /** Interest rate for a children's account. */
     private static final double CHILD_INTEREST_RATE = 0.02017;
     /** Cap of the children's account interest rate. */
@@ -68,7 +68,7 @@ class LedgerService {
     /** Indicates how much can be transferred with a debit card over the period of one day.*/
     private Double DAILY_WITHDRAW_LIMIT = 250.0;
     /** Maximum allowed overdraft limit. */
-    private double MAX_OVERDRAFT_LIMIT = 5000.0;
+    private Double MAX_OVERDRAFT_LIMIT = 5000.0;
 
     /**
      * Constructor.
@@ -1738,13 +1738,13 @@ class LedgerService {
         switch (setValueRequest.getKey()) {
             case MAX_OVERDRAFT_LIMIT:       MAX_OVERDRAFT_LIMIT = setValueRequest.getValue();
                 break;
-            case INTEREST_RATE_1:           INTEREST_RATE_1 = setValueRequest.getValue();
+            case INTEREST_RATE_1:           INTEREST_RATE_1 = Math.pow((1 + setValueRequest.getValue()), 1f / 12) - 1;
                 break;
-            case INTEREST_RATE_2:           INTEREST_RATE_2 = setValueRequest.getValue();
+            case INTEREST_RATE_2:           INTEREST_RATE_2 = Math.pow((1 + setValueRequest.getValue()), 1f / 12) - 1;
                 break;
-            case INTEREST_RATE_3:           INTEREST_RATE_3 = setValueRequest.getValue();
+            case INTEREST_RATE_3:           INTEREST_RATE_3 = Math.pow((1 + setValueRequest.getValue()), 1f / 12) - 1;
                 break;
-            case OVERDRAFT_INTEREST_RATE:   OVERDRAFT_INTEREST_RATE = setValueRequest.getValue();
+            case OVERDRAFT_INTEREST_RATE:   OVERDRAFT_INTEREST_RATE =  Math.pow((1 + setValueRequest.getValue()), 1f / 12) - 1;
                 break;
             case DAILY_WITHDRAW_LIMIT:      DAILY_WITHDRAW_LIMIT = setValueRequest.getValue();
                 break;
