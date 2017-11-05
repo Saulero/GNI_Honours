@@ -11,6 +11,7 @@ import io.advantageous.qbit.annotation.RequestParam;
 import io.advantageous.qbit.http.client.HttpClient;
 import io.advantageous.qbit.reactive.Callback;
 import io.advantageous.qbit.reactive.CallbackBuilder;
+import pin.NoEffectException;
 import util.JSONParser;
 
 import java.security.InvalidParameterException;
@@ -516,11 +517,31 @@ class UsersService {
         } catch (SQLException e) {
             callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
                     "Error connecting to the Pin database.")));
+        } catch (NoEffectException e) {
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 420,
+                    e.getMessage())));
         }
     }
 
-    private void setFreezeUserAccount(final FreezeAccount freezeAccount) throws SQLException {
+    private void setFreezeUserAccount(final FreezeAccount freezeAccount) throws SQLException,
+                                                                            NoEffectException {
         SQLConnection con = databaseConnectionPool.getConnection();
+        PreparedStatement getCurrentFreezeStatus = con.getConnection().prepareStatement(getFreezeStatus);
+        getCurrentFreezeStatus.setLong(1, freezeAccount.getCustomerId());
+        ResultSet currentFreezeStatus = getCurrentFreezeStatus.executeQuery();
+        boolean statusWillNotChange = true;
+        boolean newFreezeStatus = freezeAccount.getFreeze();
+        while (currentFreezeStatus.next()) {
+            if (!(currentFreezeStatus.getBoolean("frozen") == newFreezeStatus)) {
+                statusWillNotChange = false;
+                break;
+            }
+        }
+        getCurrentFreezeStatus.close();
+        if (statusWillNotChange) {
+            databaseConnectionPool.returnConnection(con);
+            throw new NoEffectException("Freeze call has no effect as account already has this status.");
+        }
         PreparedStatement ps = con.getConnection().prepareStatement(setFreezeStatusUsers);
         ps.setLong(2, freezeAccount.getCustomerId());
         ps.setBoolean(1, freezeAccount.getFreeze());
