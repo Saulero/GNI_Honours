@@ -591,7 +591,7 @@ class LedgerService {
                 if (cardNumber != null) {
                     Double debitAmountSpent = getDebitAmountSpent(currentDate, 0L, cardNumber);
                     boolean debitAllowed = debitAmountSpent >= 0
-                            && (debitAmountSpent + transaction.getTransactionAmount()) < DAILY_WITHDRAW_LIMIT;
+                            && (debitAmountSpent + transaction.getTransactionAmount()) <= DAILY_WITHDRAW_LIMIT;
                     return weeklyAllowed && debitAllowed;
                 } else {
                     System.out.printf("%s CardNumber could not be retrieved from description.", PREFIX);
