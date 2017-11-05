@@ -95,6 +95,7 @@ public final class SQLStatements {
     public static final String getOutgoingTransactions = "SELECT * FROM transactions_out WHERE account_from = ? AND date BETWEEN ? AND ?";
     public static final String getOutgoingDebitTransactions = "SELECT * FROM transactions_out WHERE date BETWEEN ? AND ? AND ( description LIKE ? OR description LIKE ? );";
     public static final String updateTransferLimit = "UPDATE ledger SET transfer_limit = ? WHERE account_number = ?";
+    public static final String getPrimaryOwnerStatus = "SELECT primary_owner FROM accounts WHERE user_id = ? and account_number = ?";
 
     // Create statements used for setting up the database
     public final static String createAccountsTable = "CREATE TABLE IF NOT EXISTS `accounts` ( `user_id` BIGINT(20) NOT NULL, `account_number` TEXT NOT NULL, `primary_owner` BOOLEAN NOT NULL, `frozen` BOOLEAN NOT NULL);";

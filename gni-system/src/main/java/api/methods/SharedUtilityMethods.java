@@ -11,6 +11,7 @@ import util.JSONParser;
 
 import static api.ApiService.MAX_ACCOUNT_NUMBER_LENGTH;
 import static api.ApiService.CHARACTER_LIMIT;
+import static api.ApiService.MIN_ACCOUNT_NUMBER_LENGTH;
 import static java.net.HttpURLConnection.HTTP_OK;
 
 /**
@@ -69,7 +70,8 @@ public abstract class SharedUtilityMethods {
     public static void verifyAccountLinkInput(final AccountLink accountLink)
             throws IncorrectInputException, JsonSyntaxException {
         final String accountNumber = accountLink.getAccountNumber();
-        if (accountNumber == null || accountNumber.length() > MAX_ACCOUNT_NUMBER_LENGTH) {
+        if (accountNumber == null || accountNumber.length() > MAX_ACCOUNT_NUMBER_LENGTH
+                || accountNumber.length() < MIN_ACCOUNT_NUMBER_LENGTH) {
             throw new IncorrectInputException("The following variable was incorrectly specified: accountNumber.");
         }
     }

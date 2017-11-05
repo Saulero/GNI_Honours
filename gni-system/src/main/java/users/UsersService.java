@@ -1212,15 +1212,38 @@ class UsersService {
     private void handleTransferBankAccountExceptions(
             final String accountNumber, final long customerId, final CallbackBuilder callbackBuilder) {
         try {
-            Customer customer = getCustomerData(customerId);
-            customer.setAccount(new Account(accountNumber));
-            doTransferBankAccountRequest(customer, callbackBuilder);
+            if (isPrimaryOwner(customerId, accountNumber)) {
+                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true,
+                        420, "This customer is already the primary owner of the account.")));
+            } else {
+                Customer customer = getCustomerData(customerId);
+                customer.setAccount(new Account(accountNumber));
+                doTransferBankAccountRequest(customer, callbackBuilder);
+            }
         } catch (SQLException e) {
             e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "Error connecting to Users database.")));
         } catch (CustomerDoesNotExistException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418, "One of the parameters has an invalid value.", "The provided customer does not appear to exist.")));
         }
+    }
+
+    private boolean isPrimaryOwner(final Long customerId, final String accountNumber) throws SQLException {
+        SQLConnection databaseConnection = databaseConnectionPool.getConnection();
+        PreparedStatement getPrimaryOwnerQuery = databaseConnection.getConnection().prepareStatement(getPrimaryOwnerStatus);
+        getPrimaryOwnerQuery.setLong(1, customerId);
+        getPrimaryOwnerQuery.setString(2, accountNumber);
+        ResultSet primaryOwnerStatus = getPrimaryOwnerQuery.executeQuery();
+        boolean isPrimaryOwner = false;
+        while (primaryOwnerStatus.next()) {
+            if (primaryOwnerStatus.getBoolean("primary_owner")) {
+                isPrimaryOwner = true;
+                break;
+            }
+        }
+        getPrimaryOwnerQuery.close();
+        databaseConnectionPool.returnConnection(databaseConnection);
+        return isPrimaryOwner;
     }
 
     private void doTransferBankAccountRequest(final Customer customer, final CallbackBuilder callbackBuilder) {
@@ -1247,10 +1270,8 @@ class UsersService {
 
     private void transferAccountAccess(final String accountNumber, final long customerId) throws SQLException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
-        PreparedStatement ps1;
-        PreparedStatement ps2;
-        ps1 = databaseConnection.getConnection().prepareStatement(revokeBankAccountAccess);
-        ps2 = databaseConnection.getConnection().prepareStatement(transferBankAccountAccess);
+        PreparedStatement ps1 = databaseConnection.getConnection().prepareStatement(revokeBankAccountAccess);
+        PreparedStatement ps2 = databaseConnection.getConnection().prepareStatement(transferBankAccountAccess);
         ps1.setLong(1, customerId);
         ps1.setString(2, accountNumber);
         ps2.setLong(1, customerId);

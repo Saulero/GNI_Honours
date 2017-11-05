@@ -40,6 +40,8 @@ public class ApiService {
     public static final String ATMNUMBER = "NL52GNIB3676451168";
     /** Used to check if accountNumber are of the correct length. */
     public static final int MAX_ACCOUNT_NUMBER_LENGTH = 19;
+    /** Used to check if accountNumber are of the correct length. */
+    public static final int MIN_ACCOUNT_NUMBER_LENGTH = 18;
     /** Character limit used to check if a fields value is too long. */
     public static final int CHARACTER_LIMIT = 50;
     /** Character limit used to check if a transaction description is too long. */

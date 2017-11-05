@@ -50,6 +50,8 @@ class AuthenticationService {
     private Gson jsonConverter;
     /** Prefix used when printing to indicate the message is coming from the Authentication Service. */
     private static final String PREFIX = "[Auth]                :";
+    /** Indicates the minimum length a cookie should be. */
+    private static final int MINIMUM_COOKIE_LENGTH = 30;
 
     /**
      * Constructor.
@@ -185,6 +187,9 @@ class AuthenticationService {
      */
     void authenticateRequest(final String cookie, final MethodType methodType)
             throws UserNotAuthorizedException, SQLException, AccountFrozenException {
+        if (cookie.length() < MINIMUM_COOKIE_LENGTH) {
+            throw new UserNotAuthorizedException("Login Token not legitimate or expired.");
+        }
         Long[] cookieData = decodeCookie(cookie);
         long customerId = cookieData[0];
         long cookieToken = cookieData[1];
@@ -706,7 +711,6 @@ class AuthenticationService {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
                     true, 500, "Error connecting to authentication database.")));
         } catch (CustomerDoesNotExistException e) {
-            e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
                     true, 418, "One of the parameters has an invalid value.",
                     "User with username does not appear to exist.")));
