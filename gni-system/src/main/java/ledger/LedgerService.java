@@ -585,7 +585,7 @@ class LedgerService {
             return true;
         } else {
             Double weeklyAmountSpent = getAmountSpent(currentDate, 6L, transaction.getSourceAccountNumber());
-            boolean weeklyAllowed = (weeklyAmountSpent + transaction.getTransactionAmount()) < transferLimit && weeklyAmountSpent >= 0;
+            boolean weeklyAllowed = (weeklyAmountSpent + transaction.getTransactionAmount()) <= transferLimit && weeklyAmountSpent >= 0;
             if (messageWrapper.getMethodType().equals(MethodType.PAY_FROM_ACCOUNT)) {
                 String cardNumber = getCardNumberFromDescription(transaction.getDescription());
                 if (cardNumber != null) {
