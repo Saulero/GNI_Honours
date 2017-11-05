@@ -114,8 +114,6 @@ class TransactionReceiveService {
                         if (!responseWrapper.isError()) {
                             processIncomingTransactionReply((Transaction) responseWrapper.getData(), transactionReplyJson, callbackBuilder);
                         } else {
-                            System.out.println("%s request failed");
-                            System.out.println(transactionReplyJson);
                             callbackBuilder.build().reply(transactionReplyJson);
                         }
                     } else {

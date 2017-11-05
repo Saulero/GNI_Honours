@@ -9,6 +9,7 @@ import static main.util.Checker.checkError;
 import static main.util.Checker.checkSuccess;
 import static main.util.ErrorCodes.INVALID_PARAM_VALUE_ERROR;
 import static main.util.ErrorCodes.INVALID_PIN_ERROR;
+import static main.util.ErrorCodes.NOT_AUTHORIZED_ERROR;
 import static main.util.Methods.*;
 import static main.util.SystemVariableNames.*;
 import static org.hamcrest.Matchers.closeTo;
@@ -27,7 +28,8 @@ public class AdministrativeUserIIIPartII extends BaseTest {
         checkSuccess(result);
 
         //set attempts to 4
-        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), CARD_USAGE_ATTEMPTS, 4, getDateStringNextDay()));
+        String dateStringNextDay = getDateStringNextDay();
+        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), CARD_USAGE_ATTEMPTS, 4, dateStringNextDay));
         checkSuccess(result);
 
         //simulate day
@@ -57,7 +59,7 @@ public class AdministrativeUserIIIPartII extends BaseTest {
         //try to pay normal
         payFromAccountObject.setPinCode(donaldAccount.getPinCode());
         result = client.processRequest(payFromAccount, payFromAccountObject);
-        checkError(result, INVALID_PARAM_VALUE_ERROR);
+        checkError(result, NOT_AUTHORIZED_ERROR);
 
         //unblock card
         result = client.processRequest(unblockCard,
@@ -65,7 +67,8 @@ public class AdministrativeUserIIIPartII extends BaseTest {
         checkSuccess(result);
 
         //try wrong format amount of decimals
-        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), CARD_USAGE_ATTEMPTS, 4.1, getDateStringNextDay()));
+        dateStringNextDay = getDateStringNextDay();
+        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), CARD_USAGE_ATTEMPTS, 4.1, dateStringNextDay));
         checkError(result, INVALID_PARAM_VALUE_ERROR);
     }
 

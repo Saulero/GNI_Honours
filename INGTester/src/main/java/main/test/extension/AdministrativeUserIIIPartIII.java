@@ -25,15 +25,18 @@ public class AdministrativeUserIIIPartIII extends BaseTest {
     @Test
     public void savingsInterest() {
         //change interest rate 1 to 10%
-        String result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), INTEREST_RATE_1, 0.1, getDateStringNextDay()));
+        String dateStringNextDay = getDateStringNextDay();
+        String result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), INTEREST_RATE_1, 0.1, dateStringNextDay));
         checkSuccess(result);
 
         //change interest rate 2 to 10%
-        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), INTEREST_RATE_2, 0.1, getDateStringNextDay()));
+        dateStringNextDay = getDateStringNextDay();
+        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), INTEREST_RATE_2, 0.1, dateStringNextDay));
         checkSuccess(result);
 
         //change interest rate 3 to 10%
-        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), INTEREST_RATE_3, 0.1, getDateStringNextDay()));
+        dateStringNextDay = getDateStringNextDay();
+        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), INTEREST_RATE_3, 0.1, dateStringNextDay));
         checkSuccess(result);
 
         //simulate to first of year

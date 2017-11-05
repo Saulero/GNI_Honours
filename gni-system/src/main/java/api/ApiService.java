@@ -204,7 +204,6 @@ public class ApiService {
             case "setValue":                SetValue.setValue(params, api);
                 break;
             default:
-                System.out.println(request.getMethod());
                 callback.reply(new JSONRPC2Response(JSONRPC2Error.METHOD_NOT_FOUND, request.getID()).toJSONString());
                 break;
         }

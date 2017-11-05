@@ -581,21 +581,25 @@ class LedgerService {
     private boolean spendingLimitNotExceeded(final MessageWrapper messageWrapper, final Double transferLimit,
                                              final LocalDate currentDate) {
         Transaction transaction = (Transaction) messageWrapper.getData();
-        Double weeklyAmountSpent = getAmountSpent(currentDate, 6L, transaction.getSourceAccountNumber());
-        boolean weeklyAllowed = (weeklyAmountSpent + transaction.getTransactionAmount()) < transferLimit && weeklyAmountSpent >= 0;
-        if (messageWrapper.getMethodType().equals(MethodType.PAY_FROM_ACCOUNT)) {
-            String cardNumber = getCardNumberFromDescription(transaction.getDescription());
-            if (cardNumber != null) {
-                Double debitAmountSpent = getDebitAmountSpent(currentDate, 0L, cardNumber);
-                boolean debitAllowed = debitAmountSpent >= 0
-                                && (debitAmountSpent + transaction.getTransactionAmount()) < DAILY_WITHDRAW_LIMIT;
-                return weeklyAllowed && debitAllowed;
-            } else {
-                System.out.printf("%s CardNumber could not be retrieved from description.", PREFIX);
-                return false;
-            }
+        if (transaction.getDestinationAccountNumber().toLowerCase().equals(transaction.getSourceAccountNumber().toLowerCase() + "s")) {
+            return true;
         } else {
-            return weeklyAllowed;
+            Double weeklyAmountSpent = getAmountSpent(currentDate, 6L, transaction.getSourceAccountNumber());
+            boolean weeklyAllowed = (weeklyAmountSpent + transaction.getTransactionAmount()) < transferLimit && weeklyAmountSpent >= 0;
+            if (messageWrapper.getMethodType().equals(MethodType.PAY_FROM_ACCOUNT)) {
+                String cardNumber = getCardNumberFromDescription(transaction.getDescription());
+                if (cardNumber != null) {
+                    Double debitAmountSpent = getDebitAmountSpent(currentDate, 0L, cardNumber);
+                    boolean debitAllowed = debitAmountSpent >= 0
+                            && (debitAmountSpent + transaction.getTransactionAmount()) < DAILY_WITHDRAW_LIMIT;
+                    return weeklyAllowed && debitAllowed;
+                } else {
+                    System.out.printf("%s CardNumber could not be retrieved from description.", PREFIX);
+                    return false;
+                }
+            } else {
+                return weeklyAllowed;
+            }
         }
     }
 
@@ -610,7 +614,9 @@ class LedgerService {
             findOutgoingTransactions.setDate(3, java.sql.Date.valueOf(currentDay));
             ResultSet transactionsDuringPeriod = findOutgoingTransactions.executeQuery();
             while (transactionsDuringPeriod.next()) {
-                moneySpent += transactionsDuringPeriod.getDouble("amount");
+                if (!transactionsDuringPeriod.getString("account_to").toLowerCase().equals(accountNumber + "s")) {
+                    moneySpent += transactionsDuringPeriod.getDouble("amount");
+                }
             }
             findOutgoingTransactions.close();
             db.returnConnection(connection);
@@ -1738,11 +1744,11 @@ class LedgerService {
         switch (setValueRequest.getKey()) {
             case MAX_OVERDRAFT_LIMIT:       MAX_OVERDRAFT_LIMIT = setValueRequest.getValue();
                 break;
-            case INTEREST_RATE_1:           INTEREST_RATE_1 = Math.pow((1 + setValueRequest.getValue()), 1f / 12) - 1;
+            case INTEREST_RATE_1:           INTEREST_RATE_1 = setValueRequest.getValue();
                 break;
-            case INTEREST_RATE_2:           INTEREST_RATE_2 = Math.pow((1 + setValueRequest.getValue()), 1f / 12) - 1;
+            case INTEREST_RATE_2:           INTEREST_RATE_2 = setValueRequest.getValue();
                 break;
-            case INTEREST_RATE_3:           INTEREST_RATE_3 = Math.pow((1 + setValueRequest.getValue()), 1f / 12) - 1;
+            case INTEREST_RATE_3:           INTEREST_RATE_3 = setValueRequest.getValue();
                 break;
             case OVERDRAFT_INTEREST_RATE:   OVERDRAFT_INTEREST_RATE =  Math.pow((1 + setValueRequest.getValue()), 1f / 12) - 1;
                 break;

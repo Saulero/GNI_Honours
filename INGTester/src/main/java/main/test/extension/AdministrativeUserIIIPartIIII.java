@@ -28,7 +28,8 @@ public class AdministrativeUserIIIPartIIII extends BaseTest {
     @Test
     public void dailyLimit() {
         //set daily transfer limit to 50
-        String result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), DAILY_WITHDRAW_LIMIT, 50, getDateStringNextDay()));
+        String dateStringNextDay = getDateStringNextDay();
+        String result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), DAILY_WITHDRAW_LIMIT, 50, dateStringNextDay));
         checkSuccess(result);
 
         //simulate day
@@ -51,7 +52,8 @@ public class AdministrativeUserIIIPartIIII extends BaseTest {
         checkSuccess(result);
 
         //try to setValue with to much decimals
-        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), DAILY_WITHDRAW_LIMIT, 50.111, getDateStringNextDay()));
+        dateStringNextDay = getDateStringNextDay();
+        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), DAILY_WITHDRAW_LIMIT, 50.111, dateStringNextDay));
         checkError(result, INVALID_PARAM_VALUE_ERROR);
     }
 
@@ -66,7 +68,8 @@ public class AdministrativeUserIIIPartIIII extends BaseTest {
         checkSuccess(result);
 
         //set weekly limit to 100
-        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), WEEKLY_TRANSFER_LIMIT, 100, getDateStringNextDay()));
+        String dateStringNextDay = getDateStringNextDay();
+        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), WEEKLY_TRANSFER_LIMIT, 100, dateStringNextDay));
         checkSuccess(result);
 
         //simulate day
