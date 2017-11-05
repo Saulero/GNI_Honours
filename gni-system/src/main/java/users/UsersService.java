@@ -471,7 +471,7 @@ class UsersService {
         transactionDispatchClient.putFormAsyncWith3Params("/services/transactionDispatch/transaction",
                                                         "request", jsonConverter.toJson(messageWrapper),
                                                         "customerId", customerId,
-                                                        "override", false,
+                                                        "override", (customerId.equals("-1")),
                                                         (httpStatusCode, httpContentType, transactionReplyJson) -> {
             if (httpStatusCode == HTTP_OK) {
                 MessageWrapper responseWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(transactionReplyJson), MessageWrapper.class);
