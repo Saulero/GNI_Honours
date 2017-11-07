@@ -622,15 +622,20 @@ class SystemInformationService {
         SetValueRequest setValueRequest = jsonConverter.fromJson(
                 JSONParser.removeEscapeCharacters(request), SetValueRequest.class);
         LocalDate dayOfExecution = setValueRequest.getDate();
-        LinkedList<SetValueRequest> requestsOnDay = setValueRequests.get(dayOfExecution);
-        if (requestsOnDay == null) {
-            requestsOnDay = new LinkedList<>();
+        if (!dayOfExecution.isAfter(systemDate)) {
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
+                    "The Date parameter was incorrectly specified.")));
+        } else {
+            LinkedList<SetValueRequest> requestsOnDay = setValueRequests.get(dayOfExecution);
+            if (requestsOnDay == null) {
+                requestsOnDay = new LinkedList<>();
+            }
+            requestsOnDay.add(setValueRequest);
+            setValueRequests.put(dayOfExecution, requestsOnDay);
+            System.out.printf("%s Successfully added setValue request to queue.\n", PREFIX);
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200,
+                    "Normal Reply")));
         }
-        requestsOnDay.add(setValueRequest);
-        setValueRequests.put(dayOfExecution, requestsOnDay);
-        System.out.printf("%s Successfully added setValue request to queue.\n", PREFIX);
-        callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(false, 200,
-                "Normal Reply")));
     }
 
     /**

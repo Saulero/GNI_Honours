@@ -229,10 +229,6 @@ class AuthenticationService {
         databaseConnectionPool.returnConnection(databaseConnection);
     }
 
-    private void checkFrozenAccount(final MethodType methodType) {
-
-    }
-
     /**
      * Decodes a cookie into an array with the data of the cookie inside of it.
      * @param cookie Cookie String to convert to its data.
@@ -1623,8 +1619,8 @@ class AuthenticationService {
     private void doNewCreditCardRequest(final Long customerId, final String accountNumber,
                                         final CallbackBuilder callbackBuilder) {
         System.out.printf("%s Forwarding new credit card request.\n", PREFIX);
-        pinClient.putFormAsyncWith1Param("/services/pin/creditCard", "accountNumber",
-                accountNumber, (httpStatusCode, httpContentType, replyJson) -> {
+        usersClient.putFormAsyncWith2Params("/services/users/creditCard", "accountNumber",
+                accountNumber, "customerId", customerId.toString(), (httpStatusCode, httpContentType, replyJson) -> {
                     if (httpStatusCode == HTTP_OK) {
                         MessageWrapper messageWrapper = jsonConverter.fromJson(
                                 JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
@@ -1634,15 +1630,14 @@ class AuthenticationService {
                                 creditCard.setUsername(getUserNameFromCustomerId(customerId));
                                 sendNewCreditCardCallback(creditCard, callbackBuilder);
                             } catch (SQLException | CustomerDoesNotExistException e) {
-                                e.printStackTrace();
+                                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                                        true, 500, "An unknown error occurred.",
+                                        "There was a problem with one of the HTTP requests")));
                             }
                         } else {
                             callbackBuilder.build().reply(replyJson);
                         }
                     } else {
-                        System.out.println(httpContentType);
-                        System.out.println(httpStatusCode);
-                        System.out.println(replyJson);
                         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
                                 true, 500, "An unknown error occurred.",
                                 "There was a problem with one of the HTTP requests")));

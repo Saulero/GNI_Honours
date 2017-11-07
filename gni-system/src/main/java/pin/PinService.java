@@ -1276,7 +1276,6 @@ class PinService {
                     "The accountNumber already has a creditCard",
                     "Cannot create new creditCard because there is already a card linked to this accountNumber..")));
         } catch (SQLException e) {
-            e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
                     .createMessageWrapper(true, 500,
                             "An unknown error occurred.",

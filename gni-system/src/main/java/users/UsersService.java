@@ -178,9 +178,14 @@ class UsersService {
      * @return List containing account numbers that belong to the customer.
      * @throws SQLException Indicates customer accounts could not be fetched.
      */
-    List<String> getCustomerAccounts(final long customerId) throws SQLException {
+    List<String> getCustomerAccounts(final long customerId, final boolean primaryOnly) throws SQLException {
         SQLConnection databaseConnection = databaseConnectionPool.getConnection();
-        PreparedStatement getAccountsFromDb = databaseConnection.getConnection().prepareStatement(getAccountNumbers);
+        PreparedStatement getAccountsFromDb;
+        if (primaryOnly) {
+            getAccountsFromDb = databaseConnection.getConnection().prepareStatement(getPrimaryAccountNumbers);
+        } else {
+            getAccountsFromDb = databaseConnection.getConnection().prepareStatement(getAccountNumbers);
+        }
         getAccountsFromDb.setLong(1, customerId);
         ResultSet retrievedAccounts = getAccountsFromDb.executeQuery();
 
@@ -349,7 +354,7 @@ class UsersService {
     //todo write unit test for this method. in fact, update all Junit
     private DataReply processCustomerAccessListRequest(final long customerID) throws SQLException, CustomerDoesNotExistException {
         LinkedList<AccountLink> res = new LinkedList<>();
-        for (String s : this.getCustomerAccounts(customerID)) {
+        for (String s : this.getCustomerAccounts(customerID, false)) {
             res.add(new AccountLink(customerID, s));
         }
         return new DataReply(RequestType.CUSTOMERACCESSLIST, res);
@@ -424,6 +429,42 @@ class UsersService {
                         callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500, "An unknown error occurred.", "There was a problem with one of the HTTP requests")));
                     }
                 });
+    }
+
+    /**
+     * Processes a credit card request by checking if the user requesting the card has access to the account the card
+     * is for and then forwarding the request to the pin service.
+     */
+    @RequestMapping(value = "/creditCard", method = RequestMethod.PUT)
+    public void processNewCreditCard(final Callback<String> callback,
+                                     @RequestParam("accountNumber") final String accountNumber,
+                                     @RequestParam("customerId") final String customerId) {
+        try {
+            CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
+            if (getCustomerAccounts(Long.parseLong(customerId), true).contains(accountNumber)) {
+                pinClient.putFormAsyncWith1Param("/services/pin/creditCard", "accountNumber",
+                        accountNumber, (httpStatusCode, httpContentType, replyJson) -> {
+                            if (httpStatusCode == HTTP_OK) {
+                                MessageWrapper messageWrapper = jsonConverter.fromJson(
+                                        JSONParser.removeEscapeCharacters(replyJson), MessageWrapper.class);
+                                callbackBuilder.build().reply(jsonConverter.toJson(messageWrapper));
+                            } else {
+                                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
+                                        true, 500, "An unknown error occurred.",
+                                        "There was a problem with one of the HTTP requests")));
+                            }
+                });
+            } else {
+                callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
+                        "This customer does not have access to this accountnumber",
+                        "Cannot create new creditCard because this customer does not have the correct access.")));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                            "An unknown error occurred.",
+                            "There was a problem with one of the HTTP requests")));
+        }
     }
 
 
@@ -1317,7 +1358,7 @@ class UsersService {
 
         // check em
         while (rs.next()) {
-            List<String> accounts = getCustomerAccounts(rs.getLong("id"));
+            List<String> accounts = getCustomerAccounts(rs.getLong("id"), false);
             if (accounts.size() != 1) {
                 throw new InvalidParameterException("Child somehow has more than one account, this should not be possible.");
             } else {

@@ -132,7 +132,6 @@ public class CreditCard extends BaseTest {
 
         //request not authorized account request
         result = client.processRequest(requestCreditCard, new RequestCreditCard(AuthToken.getAuthToken(client, "donald", "donald"), dagobertAccount.getiBAN()));
-        System.out.println("Expect fail: " + result);
         checkError(result, NOT_AUTHORIZED_ERROR);
 
         //add dagobert to daisy account

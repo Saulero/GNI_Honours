@@ -10,6 +10,7 @@ import static com.jayway.jsonpath.matchers.JsonPathMatchers.hasJsonPath;
 import static main.util.Checker.checkError;
 import static main.util.Checker.checkSuccess;
 import static main.util.ErrorCodes.INVALID_PARAM_VALUE_ERROR;
+import static main.util.ErrorCodes.NOT_AUTHORIZED_ERROR;
 import static main.util.Methods.*;
 import static org.junit.Assert.assertThat;
 
@@ -201,7 +202,7 @@ public class SpendingLimits extends BaseTest {
 
             transferMoneyObject.setAuthToken(AuthToken.getAuthToken(client, "daisy", "daisy"));
             result = client.processRequest(transferMoney, transferMoneyObject);
-            checkError(result, INVALID_PARAM_VALUE_ERROR);
+            checkError(result, NOT_AUTHORIZED_ERROR);
         }
 
         //after this simulation daisy is allowed to transfer 2000
@@ -212,7 +213,7 @@ public class SpendingLimits extends BaseTest {
         transferMoneyObject.setAmount(2001);
         transferMoneyObject.setAuthToken(AuthToken.getAuthToken(client, "daisy", "daisy"));
         result = client.processRequest(transferMoney, transferMoneyObject);
-        checkError(result, INVALID_PARAM_VALUE_ERROR);
+        checkError(result, NOT_AUTHORIZED_ERROR);
 
         // transfer 2000 again
         transferMoneyObject.setAmount(2000);
