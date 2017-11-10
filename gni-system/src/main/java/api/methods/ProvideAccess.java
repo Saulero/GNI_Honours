@@ -48,7 +48,7 @@ public abstract class ProvideAccess {
     private static void handleAccountLinkExceptions(
             final AccountLink accountLink, final String cookie, final ApiBean api) {
         try {
-            verifyAccountLinkInput(accountLink);
+            verifyAccountLinkInput(accountLink.getAccountNumber());
             doAccountLinkRequest(accountLink, cookie, api);
         } catch (IncorrectInputException e) {
             System.out.printf("%s %s", PREFIX, e.getMessage());

@@ -22,6 +22,11 @@ public class AdministrativeUserIIIPartII extends BaseTest {
      */
     @Test
     public void cardUsageAttempts() {
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
+        donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
+        daisyAuth = AuthToken.getAuthToken(client, "daisy", "daisy");
+        dagobertAuth = AuthToken.getAuthToken(client, "dagobert", "dagobert");
         //make sure enough funds
         String result = client.processRequest(depositIntoAccount,
                 new DepositIntoAccount(donaldAccount.getiBAN(), donaldAccount.getPinCard(), donaldAccount.getPinCode(), 100));
@@ -29,11 +34,11 @@ public class AdministrativeUserIIIPartII extends BaseTest {
 
         //set attempts to 4
         String dateStringNextDay = getDateStringNextDay();
-        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), CARD_USAGE_ATTEMPTS, 4, dateStringNextDay));
+        result = client.processRequest(setValue, new SetValue(adminAuth, CARD_USAGE_ATTEMPTS, 4, dateStringNextDay));
         checkSuccess(result);
 
         //simulate day
-        result = client.processRequest(simulateTime, new SimulateTime(1, AuthToken.getAdminLoginToken(client)));
+        result = client.processRequest(simulateTime, new SimulateTime(1, adminAuth));
         checkSuccess(result);
 
         //try to pay 3 times with wrong pinCode
@@ -63,12 +68,12 @@ public class AdministrativeUserIIIPartII extends BaseTest {
 
         //unblock card
         result = client.processRequest(unblockCard,
-                new UnblockCard(AuthToken.getAuthToken(client, "donald", "donald"), donaldAccount.getiBAN(), donaldAccount.getPinCard()));
+                new UnblockCard(donaldAuth, donaldAccount.getiBAN(), donaldAccount.getPinCard()));
         checkSuccess(result);
 
         //try wrong format amount of decimals
         dateStringNextDay = getDateStringNextDay();
-        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), CARD_USAGE_ATTEMPTS, 4.1, dateStringNextDay));
+        result = client.processRequest(setValue, new SetValue(adminAuth, CARD_USAGE_ATTEMPTS, 4.1, dateStringNextDay));
         checkError(result, INVALID_PARAM_VALUE_ERROR);
     }
 
@@ -77,23 +82,28 @@ public class AdministrativeUserIIIPartII extends BaseTest {
      */
     @Test
     public void maxOverdraftLimit() {
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
+        donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
+        daisyAuth = AuthToken.getAuthToken(client, "daisy", "daisy");
+        dagobertAuth = AuthToken.getAuthToken(client, "dagobert", "dagobert");
         //set max overdraft to 100
         String dateStringNextDay = getDateStringNextDay();
-        String result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), MAX_OVERDRAFT_LIMIT, 100, dateStringNextDay));
+        String result = client.processRequest(setValue, new SetValue(adminAuth, MAX_OVERDRAFT_LIMIT, 100, dateStringNextDay));
         checkSuccess(result);
 
         //simulate day
-        result = client.processRequest(simulateTime, new SimulateTime(1, AuthToken.getAdminLoginToken(client)));
+        result = client.processRequest(simulateTime, new SimulateTime(1, adminAuth));
         checkSuccess(result);
 
         //try to set overdraft to 101
         result = client.processRequest(setOverdraftLimit,
-                new SetOverdraftLimit(AuthToken.getAuthToken(client, "daisy", "daisy"), daisyAccount.getiBAN(), 101));
+                new SetOverdraftLimit(daisyAuth, daisyAccount.getiBAN(), 101));
         checkError(result, INVALID_PARAM_VALUE_ERROR);
 
         //set overdraft to 100
         result = client.processRequest(setOverdraftLimit,
-                new SetOverdraftLimit(AuthToken.getAuthToken(client, "daisy", "daisy"), daisyAccount.getiBAN(), 100));
+                new SetOverdraftLimit(daisyAuth, daisyAccount.getiBAN(), 100));
         checkSuccess(result);
 
         //try to pay 101 from daisy
@@ -114,7 +124,7 @@ public class AdministrativeUserIIIPartII extends BaseTest {
 
         //try wrong format amount of decimals
         dateStringNextDay = getDateStringNextDay();
-        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), MAX_OVERDRAFT_LIMIT, 100.999, dateStringNextDay));
+        result = client.processRequest(setValue, new SetValue(adminAuth, MAX_OVERDRAFT_LIMIT, 100.999, dateStringNextDay));
         checkError(result, INVALID_PARAM_VALUE_ERROR);
     }
 
@@ -123,32 +133,37 @@ public class AdministrativeUserIIIPartII extends BaseTest {
      */
     @Test
     public void overdraftInterest() {
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
+        donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
+        daisyAuth = AuthToken.getAuthToken(client, "daisy", "daisy");
+        dagobertAuth = AuthToken.getAuthToken(client, "dagobert", "dagobert");
         //set max overdraft to 1000
         String dateStringNextDay = getDateStringNextDay();
-        String result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), MAX_OVERDRAFT_LIMIT, 1000, dateStringNextDay));
+        String result = client.processRequest(setValue, new SetValue(adminAuth, MAX_OVERDRAFT_LIMIT, 1000, dateStringNextDay));
         checkSuccess(result);
 
         //set overdraft interest to 0.5
         dateStringNextDay = getDateStringNextDay();
-        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), OVERDRAFT_INTEREST_RATE, 0.5, dateStringNextDay));
+        result = client.processRequest(setValue, new SetValue(adminAuth, OVERDRAFT_INTEREST_RATE, 0.5, dateStringNextDay));
         checkSuccess(result);
 
         //simulate to first of month
-        simulateToFirstOfMonth();
+        simulateToFirstOfMonth(adminAuth);
 
         //set overdraft to 1000
         result = client.processRequest(setOverdraftLimit,
-                new SetOverdraftLimit(AuthToken.getAuthToken(client, "dagobert", "dagobert"), dagobertAccount.getiBAN(), 1000));
+                new SetOverdraftLimit(dagobertAuth, dagobertAccount.getiBAN(), 1000));
         checkSuccess(result);
 
         //make sure dagobert has a balance of -1000 (pay to donald)
         result = client.processRequest(transferMoney,
-                new TransferMoney(AuthToken.getAuthToken(client, "dagobert", "dagobert"),
+                new TransferMoney(dagobertAuth,
                         dagobertAccount.getiBAN(), donaldAccount.getiBAN(), "Donald", 1000, "Loan"));
         checkSuccess(result);
 
         //simulate year
-        result = client.processRequest(simulateTime, new SimulateTime(365, AuthToken.getAdminLoginToken(client)));
+        result = client.processRequest(simulateTime, new SimulateTime(365, adminAuth));
         checkSuccess(result);
 
         //check if balance is +- 1500 (offset of 50 allowed)

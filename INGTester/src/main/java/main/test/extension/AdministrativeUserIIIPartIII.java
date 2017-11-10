@@ -24,23 +24,29 @@ public class AdministrativeUserIIIPartIII extends BaseTest {
      */
     @Test
     public void savingsInterest() {
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
+        donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
+        daisyAuth = AuthToken.getAuthToken(client, "daisy", "daisy");
+        dagobertAuth = AuthToken.getAuthToken(client, "dagobert", "dagobert");
+
         //change interest rate 1 to 10%
         String dateStringNextDay = getDateStringNextDay();
-        String result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), INTEREST_RATE_1, 0.1, dateStringNextDay));
+        String result = client.processRequest(setValue, new SetValue(adminAuth, INTEREST_RATE_1, 0.1, dateStringNextDay));
         checkSuccess(result);
 
         //change interest rate 2 to 10%
         dateStringNextDay = getDateStringNextDay();
-        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), INTEREST_RATE_2, 0.1, dateStringNextDay));
+        result = client.processRequest(setValue, new SetValue(adminAuth, INTEREST_RATE_2, 0.1, dateStringNextDay));
         checkSuccess(result);
 
         //change interest rate 3 to 10%
         dateStringNextDay = getDateStringNextDay();
-        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), INTEREST_RATE_3, 0.1, dateStringNextDay));
+        result = client.processRequest(setValue, new SetValue(adminAuth, INTEREST_RATE_3, 0.1, dateStringNextDay));
         checkSuccess(result);
 
         //simulate to first of year
-        simulateToFirstOfYear();
+        simulateToFirstOfYear(adminAuth);
 
         //reset authTokens
         donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
@@ -90,7 +96,7 @@ public class AdministrativeUserIIIPartIII extends BaseTest {
         checkSuccess(result);
 
         //simulate year
-        simulateToFirstOfYear();
+        simulateToFirstOfYear(adminAuth);
 
         //check donald has balance of -+ 27.5k (1% offset allowed)
         double balance = getBalanceOfSavingsAccount(donaldAccount.getiBAN());

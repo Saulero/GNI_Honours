@@ -25,13 +25,15 @@ public class SpendingLimits extends BaseTest {
      */
     @Test
     public void setWeeklyTransferLimit() {
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
+        donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
         //make sure donald has enough funds
         String result = client.processRequest(depositIntoAccount,
                 new DepositIntoAccount(donaldAccount.getiBAN(), donaldAccount.getPinCard(), donaldAccount.getPinCode(), 10));
         checkSuccess(result);
 
         // set transfer limit to 1
-        donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
         result = client.processRequest(setTransferLimit, new SetTransferLimit(donaldAuth, donaldAccount.getiBAN(), 1));
         checkSuccess(result);
 
@@ -48,7 +50,6 @@ public class SpendingLimits extends BaseTest {
         checkError(result, INVALID_PARAM_VALUE_ERROR);
 
         // set limit to 2
-        donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
         result = client.processRequest(setTransferLimit, new SetTransferLimit(donaldAuth, donaldAccount.getiBAN(), 2));
         checkSuccess(result);
 
@@ -66,8 +67,10 @@ public class SpendingLimits extends BaseTest {
      * Test if the different pay methods stack for the weekly transfer limit
      */
     public void differentPayMethod() {
-        // set limit to 3
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
         donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
+        // set limit to 3
         String result = client.processRequest(setTransferLimit, new SetTransferLimit(donaldAuth, donaldAccount.getiBAN(), 3));
         checkSuccess(result);
 
@@ -75,7 +78,6 @@ public class SpendingLimits extends BaseTest {
         simulateDay();
 
         // transfer 1
-        donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
         TransferMoney transferMoneyObject =
                 new TransferMoney(donaldAuth, donaldAccount.getiBAN(), dagobertAccount.getiBAN(), "Grandpa", 1, "Yet another payment");
         result = client.processRequest(transferMoney, transferMoneyObject);
@@ -91,6 +93,8 @@ public class SpendingLimits extends BaseTest {
      */
     @Test
     public void dailyCardLimit() {
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
         // make sure dagobert has enough funds
         String result = client.processRequest(depositIntoAccount,
                 new DepositIntoAccount(dagobertAccount.getiBAN(), dagobertAccount.getPinCard(), dagobertAccount.getPinCode(), 1000));
@@ -125,6 +129,9 @@ public class SpendingLimits extends BaseTest {
      * Checks if the card limit works per card
      */
     public void separateCardLimit() {
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
+        dagobertAuth = AuthToken.getAuthToken(client, "dagobert", "dagobert");
         // add new card to dagobert account
         String result = client.processRequest(provideAccess, new ProvideAccess(dagobertAuth, dagobertAccount.getiBAN(), "donald"));
         assertThat(result, hasJsonPath("result"));
@@ -144,8 +151,10 @@ public class SpendingLimits extends BaseTest {
      * Checks if day limit is restored
      */
     public void dayPassed() {
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
         // simulate day
-        String result = client.processRequest(simulateTime, new SimulateTime(1, AuthToken.getAdminLoginToken(client)));
+        String result = client.processRequest(simulateTime, new SimulateTime(1, adminAuth));
         checkSuccess(result);
 
         // pay 250 again
@@ -160,8 +169,10 @@ public class SpendingLimits extends BaseTest {
      */
     @Test
     public void weeklyReset() {
-        //set limit to 2500
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
         daisyAuth = AuthToken.getAuthToken(client, "daisy", "daisy");
+        //set limit to 2500
         String result = client.processRequest(setTransferLimit, new SetTransferLimit(daisyAuth, daisyAccount.getiBAN(), 2500));
         checkSuccess(result);
 
@@ -174,19 +185,18 @@ public class SpendingLimits extends BaseTest {
         checkSuccess(result);
 
         // pay 2000, 500 limit remaining
-        daisyAuth = AuthToken.getAuthToken(client, "daisy", "daisy");
         TransferMoney transferMoneyObject =
                 new TransferMoney(daisyAuth, daisyAccount.getiBAN(), dagobertAccount.getiBAN(), "Grandpa", 2000, "Payback loan");
         result = client.processRequest(transferMoney, transferMoneyObject);
         checkSuccess(result);
 
         // simulate one day
-        result = client.processRequest(simulateTime, new SimulateTime(1, AuthToken.getAdminLoginToken(client)));
+        result = client.processRequest(simulateTime, new SimulateTime(1, adminAuth));
         checkSuccess(result);
 
         // pay 500, 0 limit remaining
         transferMoneyObject.setAmount(500);
-        transferMoneyObject.setAuthToken(AuthToken.getAuthToken(client, "daisy", "daisy"));
+        transferMoneyObject.setAuthToken(daisyAuth);
         result = client.processRequest(transferMoney, transferMoneyObject);
         checkSuccess(result);
 
@@ -197,21 +207,21 @@ public class SpendingLimits extends BaseTest {
 
         // simulate 5 days and check if daisy can't pay yet
         for (int i = 0; i < 5; i++) {
-            result = client.processRequest(simulateTime, new SimulateTime(1, AuthToken.getAdminLoginToken(client)));
+            result = client.processRequest(simulateTime, new SimulateTime(1, adminAuth));
             checkSuccess(result);
 
-            transferMoneyObject.setAuthToken(AuthToken.getAuthToken(client, "daisy", "daisy"));
+            transferMoneyObject.setAuthToken(daisyAuth);
             result = client.processRequest(transferMoney, transferMoneyObject);
             checkError(result, NOT_AUTHORIZED_ERROR);
         }
 
         //after this simulation daisy is allowed to transfer 2000
-        result = client.processRequest(simulateTime, new SimulateTime(1, AuthToken.getAdminLoginToken(client)));
+        result = client.processRequest(simulateTime, new SimulateTime(1, adminAuth));
         checkSuccess(result);
 
         // daisy is allowed to transfer 2000 again
         transferMoneyObject.setAmount(2001);
-        transferMoneyObject.setAuthToken(AuthToken.getAuthToken(client, "daisy", "daisy"));
+        transferMoneyObject.setAuthToken(daisyAuth);
         result = client.processRequest(transferMoney, transferMoneyObject);
         checkError(result, NOT_AUTHORIZED_ERROR);
 
@@ -221,8 +231,8 @@ public class SpendingLimits extends BaseTest {
         checkSuccess(result);
 
         //simluate two months to make sure the weekly limit is restored
-        simulateToFirstOfMonth();
-        simulateToFirstOfMonth();
+        simulateToFirstOfMonth(adminAuth);
+        simulateToFirstOfMonth(adminAuth);
     }
 
     /**
@@ -230,6 +240,8 @@ public class SpendingLimits extends BaseTest {
      */
     @Test
     public void dayEffect(){
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
         daisyAuth = AuthToken.getAuthToken(client, "daisy", "daisy");
 
         //make sure daisy has enough funds
@@ -254,7 +266,6 @@ public class SpendingLimits extends BaseTest {
         result = client.processRequest(payFromAccount, payFromAccountObject);
         checkError(result, INVALID_PARAM_VALUE_ERROR);
 
-        daisyAuth = AuthToken.getAuthToken(client, "daisy", "daisy");
         //set limit to 2
         result = client.processRequest(setTransferLimit, new SetTransferLimit(daisyAuth, daisyAccount.getiBAN(), 2));
         checkSuccess(result);

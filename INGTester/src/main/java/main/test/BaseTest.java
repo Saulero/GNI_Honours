@@ -104,7 +104,7 @@ public class BaseTest {
      * @return balance of the account
      */
     public double getBalanceOfAccount(String IBAN) {
-        String result = client.processRequest(getBalance, new GetBalance(AuthToken.getAdminLoginToken(client), IBAN));
+        String result = client.processRequest(getBalance, new GetBalance(adminAuth, IBAN));
         assertThat(result, hasJsonPath("result"));
         assertThat(result, hasNoJsonPath("error"));
         assertThat(result, hasJsonPath("result.balance"));
@@ -118,7 +118,7 @@ public class BaseTest {
      * @return balance of the savings account
      */
     public double getBalanceOfSavingsAccount(String IBAN) {
-        String result = client.processRequest(getBalance, new GetBalance(AuthToken.getAdminLoginToken(client), IBAN));
+        String result = client.processRequest(getBalance, new GetBalance(adminAuth, IBAN));
         assertThat(result, hasJsonPath("result"));
         assertThat(result, hasNoJsonPath("error"));
         assertThat(result, hasJsonPath("result.savingAccountBalance"));
@@ -128,19 +128,19 @@ public class BaseTest {
     /**
      * Simulates to the first next first of the month.
      */
-    public void simulateToFirstOfMonth() {
-        String result = client.processRequest(getDate, new GetDate(AuthToken.getAdminLoginToken(client)));
+    public void simulateToFirstOfMonth(String adminToken) {
+        String result = client.processRequest(getDate, new GetDate(adminToken));
         assertThat(result, hasJsonPath("result"));
         assertThat(result, hasNoJsonPath("error"));
         assertThat(result, hasJsonPath("result.date"));
         Calendar calendar = getCalenderOfString((String) JsonPath.read(result, "result.date"));
 
         //simulate the days
-        result = client.processRequest(simulateTime, new SimulateTime(getDaysTillNextFirstOfMonth(calendar), AuthToken.getAdminLoginToken(client)));
+        result = client.processRequest(simulateTime, new SimulateTime(getDaysTillNextFirstOfMonth(calendar), adminToken));
         checkSuccess(result);
     }
 
-    public void simulateToFirstOfYear() {
+    public void simulateToFirstOfYear(String adminToken) {
         Calendar date = getDate();
         Calendar target = Calendar.getInstance();
         target.setTime(date.getTime());
@@ -149,7 +149,7 @@ public class BaseTest {
         target.set(Calendar.MONTH, 0);
         int days = (int) TimeUnit.DAYS.convert(target.getTimeInMillis() - date.getTimeInMillis(), TimeUnit.MILLISECONDS);
         //simulate the days
-        String result = client.processRequest(simulateTime, new SimulateTime(days, AuthToken.getAdminLoginToken(client)));
+        String result = client.processRequest(simulateTime, new SimulateTime(days, adminToken));
         checkSuccess(result);
     }
 
@@ -157,7 +157,7 @@ public class BaseTest {
      * Simulates a single day using a new retrieved admin auth token.
      */
     public void simulateDay(){
-        String result = client.processRequest(simulateTime, new SimulateTime(1, AuthToken.getAdminLoginToken(client)));
+        String result = client.processRequest(simulateTime, new SimulateTime(1, adminAuth));
         checkSuccess(result);
     }
 
@@ -167,7 +167,7 @@ public class BaseTest {
      * @return calender object
      */
     public Calendar getDate() {
-        String result = client.processRequest(getDate, new GetDate(AuthToken.getAdminLoginToken(client)));
+        String result = client.processRequest(getDate, new GetDate(adminAuth));
         assertThat(result, hasJsonPath("result"));
         assertThat(result, hasNoJsonPath("error"));
         assertThat(result, hasJsonPath("result.date"));

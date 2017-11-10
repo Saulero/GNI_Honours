@@ -31,25 +31,23 @@ public abstract class RevokeAccess {
         // performs an account Link removal and then removes the pincard(s) of said customer.
         // look at documentation for more specifics.
         String accountNumber = (String) params.get("iBAN");
-        String username = (String) params.get("username");
         String cookie = (String) params.get("authToken");
-        AccountLink accountLink = JSONParser.createJsonAccountLink(accountNumber, username, false);
         System.out.printf("%s Sending account link removal request.\n", PREFIX);
-        handleAccountLinkRemovalExceptions(accountLink, cookie, api);
+        handleAccountLinkRemovalExceptions(accountNumber, cookie, api);
     }
 
     /**
      * Tries to parse the accountLink and verifies it contains a correct accountNumber. Then forwards the request to
      * the authenticationService.
-     * @param accountLink {@link AccountLink} that should be removed from the system.
+     * @param accountNumber accountNumber of the link that should be removed from the system.
      * @param cookie Cookie of the User that sent the request.
      * @param api DataBean containing everything in the ApiService
      */
     private static void handleAccountLinkRemovalExceptions(
-            final AccountLink accountLink, final String cookie, final ApiBean api) {
+            final String accountNumber, final String cookie, final ApiBean api) {
         try {
-            verifyAccountLinkInput(accountLink);
-            doAccountLinkRemoval(accountLink, cookie, api);
+            verifyAccountLinkInput(accountNumber);
+            doAccountLinkRemoval(accountNumber, cookie, api);
         } catch (IncorrectInputException e) {
             System.out.printf("%s %s", PREFIX, e.getMessage());
             sendErrorReply(JSONParser.createMessageWrapper(true, 418,
@@ -63,16 +61,16 @@ public abstract class RevokeAccess {
     /**
      * Forwards a String representing an account link that is to be removed from the system to the Authentication
      * Service, and processes the reply if it is successful or sends a rejection to the requesting source if it fails.
-     * @param accountLink {@link AccountLink} that should be removed from the system.
+     * @param accountNumber Number of the link that should be removed from the system.
      * @param cookie Cookie of the User that sent the request.
      * @param api DataBean containing everything in the ApiService
      */
     private static void doAccountLinkRemoval(
-            final AccountLink accountLink, final String cookie, final ApiBean api) {
+            final String accountNumber, final String cookie, final ApiBean api) {
         MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
         data.setCookie(cookie);
         data.setMethodType(MethodType.REVOKE_ACCESS);
-        data.setData(accountLink);
+        data.setData(accountNumber);
 
         api.getAuthenticationClient().putFormAsyncWith1Param("/services/authentication/accountLink/remove",
                 "data", api.getJsonConverter().toJson(data),

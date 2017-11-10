@@ -27,13 +27,18 @@ public class AdministrativeUserIIIPartIIII extends BaseTest {
      */
     @Test
     public void dailyLimit() {
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
+        donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
+        daisyAuth = AuthToken.getAuthToken(client, "daisy", "daisy");
+        dagobertAuth = AuthToken.getAuthToken(client, "dagobert", "dagobert");
         //set daily transfer limit to 50
         String dateStringNextDay = getDateStringNextDay();
-        String result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), DAILY_WITHDRAW_LIMIT, 50, dateStringNextDay));
+        String result = client.processRequest(setValue, new SetValue(adminAuth, DAILY_WITHDRAW_LIMIT, 50, dateStringNextDay));
         checkSuccess(result);
 
         //simulate day
-        result = client.processRequest(simulateTime, new SimulateTime(1, AuthToken.getAdminLoginToken(client)));
+        result = client.processRequest(simulateTime, new SimulateTime(1, adminAuth));
         checkSuccess(result);
 
         //make sure donald has enough funds
@@ -53,7 +58,7 @@ public class AdministrativeUserIIIPartIIII extends BaseTest {
 
         //try to setValue with to much decimals
         dateStringNextDay = getDateStringNextDay();
-        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), DAILY_WITHDRAW_LIMIT, 50.111, dateStringNextDay));
+        result = client.processRequest(setValue, new SetValue(adminAuth, DAILY_WITHDRAW_LIMIT, 50.111, dateStringNextDay));
         checkError(result, INVALID_PARAM_VALUE_ERROR);
     }
 
@@ -62,6 +67,11 @@ public class AdministrativeUserIIIPartIIII extends BaseTest {
      */
     @Test
     public void weeklyLimit() {
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
+        donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
+        daisyAuth = AuthToken.getAuthToken(client, "daisy", "daisy");
+        dagobertAuth = AuthToken.getAuthToken(client, "dagobert", "dagobert");
         //make sure dagobert has enough funds
         String result = client.processRequest(depositIntoAccount,
                 new DepositIntoAccount(dagobertAccount.getiBAN(), dagobertAccount.getPinCard(), dagobertAccount.getPinCode(), 10000));
@@ -69,11 +79,11 @@ public class AdministrativeUserIIIPartIIII extends BaseTest {
 
         //set weekly limit to 100
         String dateStringNextDay = getDateStringNextDay();
-        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), WEEKLY_TRANSFER_LIMIT, 100, dateStringNextDay));
+        result = client.processRequest(setValue, new SetValue(adminAuth, WEEKLY_TRANSFER_LIMIT, 100, dateStringNextDay));
         checkSuccess(result);
 
         //simulate day
-        result = client.processRequest(simulateTime, new SimulateTime(1, AuthToken.getAdminLoginToken(client)));
+        result = client.processRequest(simulateTime, new SimulateTime(1, adminAuth));
         checkSuccess(result);
 
         //make new account
@@ -106,7 +116,7 @@ public class AdministrativeUserIIIPartIIII extends BaseTest {
 
         //pay 1000 with dagobert
         TransferMoney dagoberTransfer =
-                new TransferMoney(AuthToken.getAuthToken(client, "dagobert", "dagobert"), dagobertAccount.getiBAN(), daisyAccount.getiBAN(), "Daisy", 1000, "Something");
+                new TransferMoney(dagobertAuth, dagobertAccount.getiBAN(), daisyAccount.getiBAN(), "Daisy", 1000, "Something");
         result = client.processRequest(transferMoney, dagoberTransfer);
         checkSuccess(result);
 
@@ -116,7 +126,7 @@ public class AdministrativeUserIIIPartIIII extends BaseTest {
         checkError(result, INVALID_PARAM_VALUE_ERROR);
 
         //simulate week
-        result = client.processRequest(simulateTime, new SimulateTime(7, AuthToken.getAdminLoginToken(client)));
+        result = client.processRequest(simulateTime, new SimulateTime(7, adminAuth));
         checkSuccess(result);
 
         //try to pay 101 again
@@ -131,7 +141,7 @@ public class AdministrativeUserIIIPartIIII extends BaseTest {
         checkSuccess(result);
 
         //pay 1000 again with dagobert
-        dagoberTransfer.setAuthToken(AuthToken.getAuthToken(client, "dagobert", "dagobert"));
+        dagoberTransfer.setAuthToken(dagobertAuth);
         result = client.processRequest(transferMoney, dagoberTransfer);
         checkSuccess(result);
     }
@@ -141,26 +151,31 @@ public class AdministrativeUserIIIPartIIII extends BaseTest {
      */
     @Test
     public void invalidUse() {
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
+        donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
+        daisyAuth = AuthToken.getAuthToken(client, "daisy", "daisy");
+        dagobertAuth = AuthToken.getAuthToken(client, "dagobert", "dagobert");
         //today date
         String nextDay = getDateStringNextDay();
         //simulate day
-        String result = client.processRequest(simulateTime, new SimulateTime(1, AuthToken.getAdminLoginToken(client)));
+        String result = client.processRequest(simulateTime, new SimulateTime(1, adminAuth));
         checkSuccess(result);
-        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), WEEKLY_TRANSFER_LIMIT, 100, nextDay));
-        checkError(result, INVALID_PARAM_VALUE_ERROR);
+        result = client.processRequest(setValue, new SetValue(adminAuth, WEEKLY_TRANSFER_LIMIT, 100, nextDay));
+        checkError(result, NOT_AUTHORIZED_ERROR);
 
         //yesterday date
-        result = client.processRequest(simulateTime, new SimulateTime(1, AuthToken.getAdminLoginToken(client)));
+        result = client.processRequest(simulateTime, new SimulateTime(1, adminAuth));
         checkSuccess(result);
-        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), WEEKLY_TRANSFER_LIMIT, 100, nextDay));
+        result = client.processRequest(setValue, new SetValue(adminAuth, WEEKLY_TRANSFER_LIMIT, 100, nextDay));
         checkError(result, INVALID_PARAM_VALUE_ERROR);
 
         //unknown key
-        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), "limit", 100, nextDay));
+        result = client.processRequest(setValue, new SetValue(adminAuth, "limit", 100, nextDay));
         checkError(result, INVALID_PARAM_VALUE_ERROR);
 
         //no admin login
-        result = client.processRequest(setValue, new SetValue(AuthToken.getAuthToken(client, "donald", "donald"), WEEKLY_TRANSFER_LIMIT, 100, nextDay));
+        result = client.processRequest(setValue, new SetValue(donaldAuth, WEEKLY_TRANSFER_LIMIT, 100, nextDay));
         checkError(result, NOT_AUTHORIZED_ERROR);
     }
 

@@ -3,6 +3,7 @@ package main.test.extension;
 import com.jayway.jsonpath.JsonPath;
 import main.model.methods.*;
 import main.test.BaseTest;
+import main.util.AuthToken;
 import org.junit.Test;
 
 import static com.jayway.jsonpath.matchers.JsonPathMatchers.hasJsonPath;
@@ -26,6 +27,11 @@ public class CloseBankAccount extends BaseTest {
      */
     @Test
     public void close() {
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
+        donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
+        daisyAuth = AuthToken.getAuthToken(client, "daisy", "daisy");
+        dagobertAuth = AuthToken.getAuthToken(client, "dagobert", "dagobert");
         //open credit
         String result = client.processRequest(requestCreditCard, new RequestCreditCard(donaldAuth, donaldAccount.getiBAN()));
         assertThat(result, hasJsonPath("result"));

@@ -33,6 +33,11 @@ public class ChildAccount extends BaseTest {
      */
     @Test
     public void childAccount() {
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
+        donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
+        daisyAuth = AuthToken.getAuthToken(client, "daisy", "daisy");
+        dagobertAuth = AuthToken.getAuthToken(client, "dagobert", "dagobert");
         //get date and retrieve birthday of 10 year olds
         Calendar calendar = getDate();
         calendar.add(Calendar.YEAR, -10);
@@ -84,26 +89,26 @@ public class ChildAccount extends BaseTest {
         kwakAccount.setPinCode((String) JsonPath.read(result, "result.pinCode"));
 
         //check kwik access
-        result = client.processRequest(getBalance, new GetBalance(AuthToken.getAuthToken(client, "donald", "donald"), kwikAccount.getiBAN()));
+        result = client.processRequest(getBalance, new GetBalance(donaldAuth, kwikAccount.getiBAN()));
         assertThat(result, hasJsonPath("result"));
         assertThat(result, hasNoJsonPath("error"));
 
         //try dagobert access kwik
-        result = client.processRequest(getBalance, new GetBalance(AuthToken.getAuthToken(client, "dagobert", "dagobert"), kwikAccount.getiBAN()));
+        result = client.processRequest(getBalance, new GetBalance(dagobertAuth, kwikAccount.getiBAN()));
         checkError(result, NOT_AUTHORIZED_ERROR);
 
         //check kwak access donald
-        result = client.processRequest(getBalance, new GetBalance(AuthToken.getAuthToken(client, "donald", "donald"), kwakAccount.getiBAN()));
+        result = client.processRequest(getBalance, new GetBalance(donaldAuth, kwakAccount.getiBAN()));
         assertThat(result, hasJsonPath("result"));
         assertThat(result, hasNoJsonPath("error"));
 
         //check kwak access dagobert
-        result = client.processRequest(getBalance, new GetBalance(AuthToken.getAuthToken(client, "dagobert", "dagobert"), kwakAccount.getiBAN()));
+        result = client.processRequest(getBalance, new GetBalance(dagobertAuth, kwakAccount.getiBAN()));
         assertThat(result, hasJsonPath("result"));
         assertThat(result, hasNoJsonPath("error"));
 
         //simulate till first of next year
-        simulateToFirstOfYear();
+        simulateToFirstOfYear(adminAuth);
 
         //try to pay from kwak 1 to donald (account not allowed to go negative)
         result = client.processRequest(payFromAccount,
@@ -121,7 +126,7 @@ public class ChildAccount extends BaseTest {
         checkSuccess(result);
 
         //simulate year
-        simulateToFirstOfYear();
+        simulateToFirstOfYear(adminAuth);
 
         //check kwak balance (1% offset allowed)
         double balance = getBalanceOfAccount(kwakAccount.getiBAN());
@@ -160,25 +165,25 @@ public class ChildAccount extends BaseTest {
 
         //simulate 8 times until first of next year
         for (int i = 0; i < 8; i++) {
-            simulateToFirstOfYear();
+            simulateToFirstOfYear(adminAuth);
         }
         //check access of kwak of donald
-        result = client.processRequest(getBalance, new GetBalance(AuthToken.getAuthToken(client, "donald", "donald"), kwakAccount.getiBAN()));
+        result = client.processRequest(getBalance, new GetBalance(donaldAuth, kwakAccount.getiBAN()));
         checkError(result, NOT_AUTHORIZED_ERROR);
 
         //check access of kwik of donald
-        result = client.processRequest(getBalance, new GetBalance(AuthToken.getAuthToken(client, "donald", "donald"), kwikAccount.getiBAN()));
+        result = client.processRequest(getBalance, new GetBalance(donaldAuth, kwikAccount.getiBAN()));
         checkError(result, NOT_AUTHORIZED_ERROR);
 
         //check access of kwik of dagobert
-        result = client.processRequest(getBalance, new GetBalance(AuthToken.getAuthToken(client, "dagobert", "dagobert"), kwikAccount.getiBAN()));
+        result = client.processRequest(getBalance, new GetBalance(dagobertAuth, kwikAccount.getiBAN()));
         checkError(result, NOT_AUTHORIZED_ERROR);
 
         //get balance of kwak
         balance = getBalanceOfAccount(kwakAccount.getiBAN());
 
         //simulate year
-        simulateToFirstOfYear();
+        simulateToFirstOfYear(adminAuth);
 
         //check if balance remained unchanged (account should not receive interest anymore)
         assertThat(getBalanceOfAccount(kwakAccount.getiBAN()), equalTo(balance));
@@ -210,6 +215,11 @@ public class ChildAccount extends BaseTest {
      */
     @Test
     public void invalidUse() {
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
+        donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
+        daisyAuth = AuthToken.getAuthToken(client, "daisy", "daisy");
+        dagobertAuth = AuthToken.getAuthToken(client, "dagobert", "dagobert");
         OpenAccountGuardian openAccountGuardian =
                 new OpenAccountGuardian("Kwek", "Duck", "K.", "1990-1-1", "1261561", "Somewhere", "06519159624", "kwik@gmail.com", "kwek", "young", "child", new String[]{"donald"});
         //open child account with non minor

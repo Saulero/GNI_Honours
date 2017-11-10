@@ -100,7 +100,6 @@ public abstract class CloseAccount {
 
     /**
      * Sends te result of the closeAccountRequest back to the request source using a JSONRPC object.
-     * @param reply Used to show which accountNumber is closed.
      * @param api DataBean containing everything in the ApiService
      */
     private static void sendCloseAccountCallback(final ApiBean api) {

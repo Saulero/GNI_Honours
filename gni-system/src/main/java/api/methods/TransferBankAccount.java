@@ -34,7 +34,7 @@ public abstract class TransferBankAccount {
     private static void handleTransferBankAccountExceptions(
             final AccountLink accountLink, final String cookie, final ApiBean api) {
         try {
-            verifyAccountLinkInput(accountLink);
+            verifyAccountLinkInput(accountLink.getAccountNumber());
             doTransferBankAccountRequest(accountLink, cookie, api);
         } catch (IncorrectInputException e) {
             System.out.printf("%s %s", PREFIX, e.getMessage());

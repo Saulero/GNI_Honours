@@ -1492,14 +1492,14 @@ class PinService {
                 Transaction reply = (Transaction) messageWrapper.getData();
                 if (reply.isSuccessful()) {
                     if (closeCard) {
-                        MessageWrapper data = JSONParser.createMessageWrapper(false, 0, "Request");
-                        data.setMethodType(MethodType.PAY_FROM_ACCOUNT);
-                        data.setData(transaction);
-                        transactionReceiveClient.putFormAsyncWith3Params("/services/transactionReceive/transaction",
-                                "request", jsonConverter.toJson(data), "customerId", customerId,
-                                "override", false, (receiveStatusCode, httpContentType, replyJson)
-                                        -> handleReceiveRefillResponse(receiveStatusCode, replyJson, creditCards,
-                                        callbackBuilder));
+                        try {
+                            deactivateCreditCard(creditCards.get(0));
+                            sendRefillCreditCardCallback(callbackBuilder, true);
+                        } catch (SQLException e) {
+                            e.printStackTrace();
+                            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                                    "Unknown error occurred.")));
+                        }
                     } else {
                         CreditCard processedCard = creditCards.remove(0); // remove card that has been processed
                         processedCard.setBalance(processedCard.getLimit());
@@ -1592,38 +1592,6 @@ class PinService {
                         withdrawCreditCardFee(creditCards, 0L, callbackBuilder);
                     } else {
                         sendRefillCreditCardCallback(callbackBuilder, false);
-                    }
-                } else {
-                    System.out.printf("%s Credit card refill unsuccessful, sending rejection.\n", PREFIX);
-                    callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
-                            "Unknown error occurred, possibly not enough funds to refill the credit card.")));
-                }
-            } else {
-                callbackBuilder.build().reply(replyBody);
-            }
-        } else {
-            System.out.printf("%s Credit card refill request failed, sending rejection.\n", PREFIX);
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true,
-                    500, "An unknown error occurred.",
-                    "There was a problem with one of the HTTP requests")));
-        }
-    }
-
-    private void handleReceiveRefillResponse(final int code, final String replyBody, final List<CreditCard> creditCards,
-                                             final CallbackBuilder callbackBuilder) {
-        if (code == HTTP_OK) {
-            MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(replyBody),
-                    MessageWrapper.class);
-            if (!messageWrapper.isError()) {
-                Transaction reply = (Transaction) messageWrapper.getData();
-                if (reply.isSuccessful()) {
-                    try {
-                        deactivateCreditCard(creditCards.get(0));
-                        sendRefillCreditCardCallback(callbackBuilder, true);
-                    } catch (SQLException e) {
-                        e.printStackTrace();
-                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
-                                "Unknown error occurred.")));
                     }
                 } else {
                     System.out.printf("%s Credit card refill unsuccessful, sending rejection.\n", PREFIX);

@@ -24,8 +24,13 @@ public class CreditCard extends BaseTest {
      */
     @Test
     public void requestCloseCheck() {
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
+        donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
+        daisyAuth = AuthToken.getAuthToken(client, "daisy", "daisy");
+        dagobertAuth = AuthToken.getAuthToken(client, "dagobert", "dagobert");
         //check if getBalance returns no credit field
-        String result = client.processRequest(getBalance, new GetBalance(AuthToken.getAuthToken(client, "donald", "donald"), donaldAccount.getiBAN()));
+        String result = client.processRequest(getBalance, new GetBalance(donaldAuth, donaldAccount.getiBAN()));
         assertThat(result, hasJsonPath("result"));
         assertThat(result, hasNoJsonPath("error"));
         assertThat(result, hasJsonPath("result.balance"));
@@ -34,7 +39,7 @@ public class CreditCard extends BaseTest {
         double initBalance = JsonPath.read(result, "result.balance");
 
         //request credit card
-        result = client.processRequest(requestCreditCard, new RequestCreditCard(AuthToken.getAuthToken(client, "donald", "donald"), donaldAccount.getiBAN()));
+        result = client.processRequest(requestCreditCard, new RequestCreditCard(donaldAuth, donaldAccount.getiBAN()));
         assertThat(result, hasJsonPath("result"));
         assertThat(result, hasNoJsonPath("error"));
         assertThat(result, hasJsonPath("result.pinCard"));
@@ -44,11 +49,11 @@ public class CreditCard extends BaseTest {
         assertEquals(true, pinCard.matches("524886\\d{10}"));
 
         //simulate a day in order to let the credit card take effect
-        result = client.processRequest(simulateTime, new SimulateTime(1, AuthToken.getAdminLoginToken(client)));
+        result = client.processRequest(simulateTime, new SimulateTime(1, adminAuth));
         checkSuccess(result);
 
         //check if credit field is present in getBalance
-        result = client.processRequest(getBalance, new GetBalance(AuthToken.getAuthToken(client, "donald", "donald"), donaldAccount.getiBAN()));
+        result = client.processRequest(getBalance, new GetBalance(donaldAuth, donaldAccount.getiBAN()));
         assertThat(result, hasJsonPath("result"));
         assertThat(result, hasNoJsonPath("error"));
         assertThat(result, hasJsonPath("result.balance"));
@@ -56,11 +61,11 @@ public class CreditCard extends BaseTest {
         assertThat(result, hasJsonPath("result.length()", equalTo(2)));
 
         //close credit card
-        result = client.processRequest(closeAccount, new CloseAccount(AuthToken.getAuthToken(client, "donald", "donald"), donaldAccount.getiBAN() + "C"));
+        result = client.processRequest(closeAccount, new CloseAccount(donaldAuth, donaldAccount.getiBAN() + "C"));
         checkSuccess(result);
 
         //balance should remain unchanged
-        result = client.processRequest(getBalance, new GetBalance(AuthToken.getAuthToken(client, "donald", "donald"), donaldAccount.getiBAN()));
+        result = client.processRequest(getBalance, new GetBalance(donaldAuth, donaldAccount.getiBAN()));
         assertThat(result, hasJsonPath("result"));
         assertThat(result, hasNoJsonPath("error"));
         assertThat(result, hasJsonPath("result.balance", equalTo(initBalance)));
@@ -71,12 +76,17 @@ public class CreditCard extends BaseTest {
      */
     @Test
     public void transfer() {
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
+        donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
+        daisyAuth = AuthToken.getAuthToken(client, "daisy", "daisy");
+        dagobertAuth = AuthToken.getAuthToken(client, "dagobert", "dagobert");
         //simulate to first of month
-        simulateToFirstOfMonth();
+        simulateToFirstOfMonth(adminAuth);
 
         //request credit Card for daisy
         String result = client.processRequest(requestCreditCard,
-                new RequestCreditCard(AuthToken.getAuthToken(client, "daisy", "daisy"), daisyAccount.getiBAN()));
+                new RequestCreditCard(daisyAuth, daisyAccount.getiBAN()));
         assertThat(result, hasJsonPath("result"));
         assertThat(result, hasNoJsonPath("error"));
         assertThat(result, hasJsonPath("result.pinCard"));
@@ -85,7 +95,7 @@ public class CreditCard extends BaseTest {
         String pinCode = JsonPath.read(result, "result.pinCode");
 
         //simulate day in order to let the credit card take effect
-        result = client.processRequest(simulateTime, new SimulateTime(1, AuthToken.getAdminLoginToken(client)));
+        result = client.processRequest(simulateTime, new SimulateTime(1, adminAuth));
         checkSuccess(result);
 
         //pay 1.23 to donald
@@ -94,10 +104,10 @@ public class CreditCard extends BaseTest {
         checkSuccess(result);
 
         //simulate to next of first month
-        simulateToFirstOfMonth();
+        simulateToFirstOfMonth(adminAuth);
 
         //check if balance is -(1.23+5.00) and credit 1,000
-        result = client.processRequest(getBalance, new GetBalance(AuthToken.getAuthToken(client, "daisy", "daisy"), daisyAccount.getiBAN()));
+        result = client.processRequest(getBalance, new GetBalance(daisyAuth, daisyAccount.getiBAN()));
         assertThat(result, hasJsonPath("result"));
         assertThat(result, hasNoJsonPath("error"));
         assertThat(result, hasJsonPath("result.balance", equalTo(-6.23)));
@@ -109,11 +119,11 @@ public class CreditCard extends BaseTest {
         checkSuccess(result);
 
         //close creditCard
-        result = client.processRequest(closeAccount, new CloseAccount(AuthToken.getAuthToken(client, "daisy", "daisy"), daisyAccount.getiBAN() + "C"));
+        result = client.processRequest(closeAccount, new CloseAccount(daisyAuth, daisyAccount.getiBAN() + "C"));
         checkSuccess(result);
 
         //check if balance is -6.23-10 and credit field is gone
-        result = client.processRequest(getBalance, new GetBalance(AuthToken.getAuthToken(client, "daisy", "daisy"), daisyAccount.getiBAN()));
+        result = client.processRequest(getBalance, new GetBalance(daisyAuth, daisyAccount.getiBAN()));
         assertThat(result, hasJsonPath("result"));
         assertThat(result, hasNoJsonPath("error"));
         assertThat(result, hasJsonPath("result.balance", equalTo(-16.23)));
@@ -125,39 +135,44 @@ public class CreditCard extends BaseTest {
      */
     @Test
     public void misuse() {
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
+        donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
+        daisyAuth = AuthToken.getAuthToken(client, "daisy", "daisy");
+        dagobertAuth = AuthToken.getAuthToken(client, "dagobert", "dagobert");
         //make sure dagobert has enough funds
         String result = client.processRequest(depositIntoAccount,
                 new DepositIntoAccount(dagobertAccount.getiBAN(), dagobertAccount.getPinCard(), dagobertAccount.getPinCode(), 10000));
         checkSuccess(result);
 
         //request not authorized account request
-        result = client.processRequest(requestCreditCard, new RequestCreditCard(AuthToken.getAuthToken(client, "donald", "donald"), dagobertAccount.getiBAN()));
+        result = client.processRequest(requestCreditCard, new RequestCreditCard(donaldAuth, dagobertAccount.getiBAN()));
         checkError(result, NOT_AUTHORIZED_ERROR);
 
         //add dagobert to daisy account
         result = client.processRequest(provideAccess,
-                new ProvideAccess(AuthToken.getAuthToken(client, "daisy", "daisy"), daisyAccount.getiBAN(), "dagobert"));
+                new ProvideAccess(daisyAuth, daisyAccount.getiBAN(), "dagobert"));
         assertThat(result, hasJsonPath("result"));
         assertThat(result, hasNoJsonPath("error"));
         assertThat(result, hasJsonPath("result.pinCard"));
         assertThat(result, hasJsonPath("result.pinCode"));
 
         //try to request credit card with dagobert credentials
-        result = client.processRequest(requestCreditCard, new RequestCreditCard(AuthToken.getAuthToken(client, "dagobert", "dagobert"), daisyAccount.getiBAN()));
+        result = client.processRequest(requestCreditCard, new RequestCreditCard(dagobertAuth, daisyAccount.getiBAN()));
         checkError(result, NOT_AUTHORIZED_ERROR);
 
         //remove dagobert from daisy account
         result = client.processRequest(revokeAccess,
-                new RevokeAccessSelf(AuthToken.getAuthToken(client, "dagobert", "dagobert"), daisyAccount.getiBAN()));
+                new RevokeAccessSelf(dagobertAuth, daisyAccount.getiBAN()));
         checkSuccess(result);
 
         //request unknown account number
-        result = client.processRequest(requestCreditCard, new RequestCreditCard(AuthToken.getAuthToken(client, "dagobert", "dagobert"), Constants.INVALID_IBAN));
-        checkError(result, INVALID_PARAM_VALUE_ERROR);
+        result = client.processRequest(requestCreditCard, new RequestCreditCard(dagobertAuth, Constants.INVALID_IBAN));
+        checkError(result, NOT_AUTHORIZED_ERROR);
 
         //request credit card dagobert correctly
         result = client.processRequest(requestCreditCard,
-                new RequestCreditCard(AuthToken.getAuthToken(client, "dagobert", "dagobert"), dagobertAccount.getiBAN()));
+                new RequestCreditCard(dagobertAuth, dagobertAccount.getiBAN()));
         assertThat(result, hasJsonPath("result"));
         assertThat(result, hasNoJsonPath("error"));
         assertThat(result, hasJsonPath("result.pinCard"));
@@ -167,17 +182,17 @@ public class CreditCard extends BaseTest {
 
         //request again
         result = client.processRequest(requestCreditCard,
-                new RequestCreditCard(AuthToken.getAuthToken(client, "dagobert", "dagobert"), dagobertAccount.getiBAN()));
+                new RequestCreditCard(dagobertAuth, dagobertAccount.getiBAN()));
         checkError(result);
 
         //try to pay from not activated credit card
         PayFromAccount payFromAccountObject =
                 new PayFromAccount(dagobertAccount.getiBAN() + "C", donaldAccount.getiBAN(), pinCard, pinCode, 1);
         result = client.processRequest(payFromAccount, payFromAccountObject);
-        checkError(result, INVALID_PARAM_VALUE_ERROR);
+        checkError(result, INVALID_PIN_ERROR);
 
         //simulate 1 day
-        result = client.processRequest(simulateTime, new SimulateTime(1, AuthToken.getAdminLoginToken(client)));
+        result = client.processRequest(simulateTime, new SimulateTime(1, adminAuth));
         checkSuccess(result);
 
         //pay with wrong sourceaccount, creditcard combination
@@ -189,7 +204,7 @@ public class CreditCard extends BaseTest {
         payFromAccountObject.setSourceIBAN(dagobertAccount.getiBAN());
         payFromAccountObject.setTargetIBAN(dagobertAccount.getiBAN() + "C");
         result = client.processRequest(payFromAccount, payFromAccountObject);
-        checkError(result, INVALID_PARAM_VALUE_ERROR);
+        checkError(result, NOT_AUTHORIZED_ERROR);
 
         //pay more than 1000 in once
         payFromAccountObject.setSourceIBAN(payFromAccountObject.getTargetIBAN());
@@ -209,7 +224,7 @@ public class CreditCard extends BaseTest {
         checkError(result, INVALID_PARAM_VALUE_ERROR);
 
         //simulate to the first of next month
-        simulateToFirstOfMonth();
+        simulateToFirstOfMonth(adminAuth);
 
         //check if credit is restored
         result = client.processRequest(payFromAccount, payFromAccountObject);
@@ -229,13 +244,13 @@ public class CreditCard extends BaseTest {
 
         //try to request credit card
         result = client.processRequest(requestCreditCard,
-                new RequestCreditCard(AuthToken.getAuthToken(client, "dagobert", "dagobert"), dagobertAccount.getiBAN()));
+                new RequestCreditCard(dagobertAuth, dagobertAccount.getiBAN()));
         checkError(result);
 
         //unblock credit card with wrong account
-        UnblockCard unblockCardObject = new UnblockCard(AuthToken.getAuthToken(client, "dagobert", "dagobert"), donaldAccount.getiBAN(), pinCard);
+        UnblockCard unblockCardObject = new UnblockCard(dagobertAuth, donaldAccount.getiBAN(), pinCard);
         result = client.processRequest(unblockCard, unblockCardObject);
-        checkError(result, NOT_AUTHORIZED_ERROR);
+        checkError(result, INVALID_PARAM_VALUE_ERROR);
 
         //unblock credit card with correct account
         unblockCardObject.setiBAN(dagobertAccount.getiBAN());
@@ -248,7 +263,7 @@ public class CreditCard extends BaseTest {
 
         //invalidate credit card
         result = client.processRequest(invalidateCard,
-                new InvalidateCard(AuthToken.getAuthToken(client, "dagobert", "dagobert"), dagobertAccount.getiBAN(), pinCard, false));
+                new InvalidateCard(dagobertAuth, dagobertAccount.getiBAN(), pinCard, false));
         assertThat(result, hasJsonPath("result"));
         assertThat(result, hasNoJsonPath("error"));
         assertThat(result, hasJsonPath("result.pinCard"));
@@ -258,15 +273,15 @@ public class CreditCard extends BaseTest {
 
         //try to pay with old credit card
         result = client.processRequest(payFromAccount, payFromAccountObject);
-        checkError(result, INVALID_PARAM_VALUE_ERROR);
+        checkError(result, INVALID_PIN_ERROR);
 
         //try to pay with new credit card
         payFromAccountObject.setPinCard(newPinCard);
         result = client.processRequest(payFromAccount, payFromAccountObject);
-        checkError(result, INVALID_PARAM_VALUE_ERROR);
+        checkError(result, INVALID_PIN_ERROR);
 
         //simulate day
-        result = client.processRequest(simulateTime, new SimulateTime(1, AuthToken.getAdminLoginToken(client)));
+        result = client.processRequest(simulateTime, new SimulateTime(1, adminAuth));
         checkSuccess(result);
 
         //pay with new card
@@ -276,12 +291,12 @@ public class CreditCard extends BaseTest {
 
         //close credit card account
         result = client.processRequest(closeAccount,
-                new CloseAccount(AuthToken.getAuthToken(client, "dagobert", "dagobert"), dagobertAccount.getiBAN() + "C"));
+                new CloseAccount(dagobertAuth, dagobertAccount.getiBAN() + "C"));
         checkSuccess(result);
 
         //try to pay with credit card
         result = client.processRequest(payFromAccount, payFromAccountObject);
-        checkError(result, INVALID_PARAM_VALUE_ERROR);
+        checkError(result, INVALID_PIN_ERROR);
     }
 
     /**
@@ -289,6 +304,11 @@ public class CreditCard extends BaseTest {
      */
     @Test
     public void expiration() {
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
+        donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
+        daisyAuth = AuthToken.getAuthToken(client, "daisy", "daisy");
+        dagobertAuth = AuthToken.getAuthToken(client, "dagobert", "dagobert");
         //make sure dagobert has enough funds
         String result = client.processRequest(depositIntoAccount,
                 new DepositIntoAccount(dagobertAccount.getiBAN(), dagobertAccount.getPinCard(), dagobertAccount.getPinCode(), 1000000));
@@ -296,7 +316,7 @@ public class CreditCard extends BaseTest {
 
         //request credit card
         result = client.processRequest(requestCreditCard,
-                new RequestCreditCard(AuthToken.getAuthToken(client, "dagobert", "dagobert"), dagobertAccount.getiBAN()));
+                new RequestCreditCard(dagobertAuth, dagobertAccount.getiBAN()));
         assertThat(result, hasJsonPath("result"));
         assertThat(result, hasNoJsonPath("error"));
         assertThat(result, hasJsonPath("result.pinCard"));
@@ -305,7 +325,7 @@ public class CreditCard extends BaseTest {
         String pinCode = JsonPath.read(result, "result.pinCode");
 
         //simulate 4000 days (roughly 11 years)
-        result = client.processRequest(simulateTime, new SimulateTime(4000, AuthToken.getAdminLoginToken(client)));
+        result = client.processRequest(simulateTime, new SimulateTime(4000, adminAuth));
         checkSuccess(result);
 
         //try to pay with credit card
@@ -314,17 +334,17 @@ public class CreditCard extends BaseTest {
         checkError(result, INVALID_PARAM_VALUE_ERROR);
 
         //get balance
-        result = client.processRequest(getBalance, new GetBalance(AuthToken.getAuthToken(client, "dagobert", "dagobert"), dagobertAccount.getiBAN()));
+        result = client.processRequest(getBalance, new GetBalance(dagobertAuth, dagobertAccount.getiBAN()));
         assertThat(result, hasJsonPath("result"));
         assertThat(result, hasNoJsonPath("error"));
         assertThat(result, hasJsonPath("result.balance"));
         double balance = JsonPath.read(result, "result.balance");
 
         //simulate till next month
-        simulateToFirstOfMonth();
+        simulateToFirstOfMonth(adminAuth);
 
         //balance should be unchanged as a expired credit card should not cost any
-        result = client.processRequest(getBalance, new GetBalance(AuthToken.getAuthToken(client, "dagobert", "dagobert"), dagobertAccount.getiBAN()));
+        result = client.processRequest(getBalance, new GetBalance(dagobertAuth, dagobertAccount.getiBAN()));
         assertThat(result, hasJsonPath("result"));
         assertThat(result, hasNoJsonPath("error"));
         assertThat(result, hasJsonPath("result.balance"));
@@ -332,7 +352,7 @@ public class CreditCard extends BaseTest {
 
         //request new one
         result = client.processRequest(requestCreditCard,
-                new RequestCreditCard(AuthToken.getAuthToken(client, "dagobert", "dagobert"), dagobertAccount.getiBAN()));
+                new RequestCreditCard(dagobertAuth, dagobertAccount.getiBAN()));
         assertThat(result, hasJsonPath("result"));
         assertThat(result, hasNoJsonPath("error"));
         assertThat(result, hasJsonPath("result.pinCard"));
@@ -341,7 +361,7 @@ public class CreditCard extends BaseTest {
         pinCode = JsonPath.read(result, "result.pinCode");
 
         //simulate day
-        result = client.processRequest(simulateTime, new SimulateTime(1, AuthToken.getAdminLoginToken(client)));
+        result = client.processRequest(simulateTime, new SimulateTime(1, adminAuth));
         checkSuccess(result);
 
         //pay with new one
@@ -351,7 +371,7 @@ public class CreditCard extends BaseTest {
 
         //close credit card
         result = client.processRequest(closeAccount,
-                new CloseAccount(AuthToken.getAuthToken(client, "dagobert", "dagobert"), dagobertAccount.getiBAN() + "C"));
+                new CloseAccount(dagobertAuth, dagobertAccount.getiBAN() + "C"));
         checkSuccess(result);
 
     }

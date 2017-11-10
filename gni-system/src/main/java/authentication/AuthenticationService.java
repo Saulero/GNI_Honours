@@ -789,18 +789,16 @@ class AuthenticationService {
     private void handleAccountLinkRemovalExceptions(
             final MessageWrapper messageWrapper, final CallbackBuilder callbackBuilder) {
         try {
-            authenticateRequest(messageWrapper.getCookie(), messageWrapper.getMethodType());
-            AccountLink accountLink = (AccountLink) messageWrapper.getData();
-            accountLink.setCustomerId(getCustomerIdFromUsername(accountLink.getUsername()));
-            doAccountLinkRemoval(accountLink, "" + getCustomerId(messageWrapper.getCookie()), callbackBuilder);
+            String cookie = messageWrapper.getCookie();
+            authenticateRequest(cookie, messageWrapper.getMethodType());
+            String accountNumber = (String) messageWrapper.getData();
+            Long customerId = getCustomerId(cookie);
+            AccountLink accountLink = JSONParser.createJsonAccountLink(accountNumber, customerId);
+            doAccountLinkRemoval(accountLink, "" + customerId, callbackBuilder);
         } catch (SQLException e) {
             e.printStackTrace();
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
                     "Error connecting to authentication database.")));
-        } catch (CustomerDoesNotExistException e) {
-            e.printStackTrace();
-            callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 418,
-                    "One of the parameters has an invalid value.", "User with username does not appear to exist.")));
         } catch (UserNotAuthorizedException | AccountFrozenException e) {
             callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 419,
                     "The user is not authorized to perform this action.", e.getMessage())));

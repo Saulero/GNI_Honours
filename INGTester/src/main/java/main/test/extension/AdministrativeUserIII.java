@@ -31,8 +31,13 @@ public class AdministrativeUserIII extends BaseTest {
      */
     @Test
     public void monthlyFee() {
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
+        donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
+        daisyAuth = AuthToken.getAuthToken(client, "daisy", "daisy");
+        dagobertAuth = AuthToken.getAuthToken(client, "dagobert", "dagobert");
         //simulate to first of month
-        simulateToFirstOfMonth();
+        simulateToFirstOfMonth(adminAuth);
 
         //make sure dagobert has enough funds
         String result = client.processRequest(depositIntoAccount,
@@ -44,23 +49,23 @@ public class AdministrativeUserIII extends BaseTest {
 
         //request credit card
         result = client.processRequest(requestCreditCard,
-                new RequestCreditCard(AuthToken.getAuthToken(client, "dagobert", "dagobert"), dagobertAccount.getiBAN()));
+                new RequestCreditCard(dagobertAuth, dagobertAccount.getiBAN()));
         assertThat(result, hasJsonPath("result"));
         assertThat(result, hasNoJsonPath("error"));
 
         //set monthly fee to take effect next day
         String dateStringNextDay = getDateStringNextDay();
-        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), CREDIT_CARD_MONTHLY_FEE,9.99, dateStringNextDay));
+        result = client.processRequest(setValue, new SetValue(adminAuth, CREDIT_CARD_MONTHLY_FEE,9.99, dateStringNextDay));
         checkSuccess(result);
 
         //simulate till next month
-        simulateToFirstOfMonth();
+        simulateToFirstOfMonth(adminAuth);
 
         //check if balance is balance-9.99
         assertThat(balance - 9.99, equalTo(getBalanceOfAccount(dagobertAccount.getiBAN())));
 
         //set value with to much decimals
-        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), CREDIT_CARD_MONTHLY_FEE,9.999, getDateStringNextDay()));
+        result = client.processRequest(setValue, new SetValue(adminAuth, CREDIT_CARD_MONTHLY_FEE,9.999, getDateStringNextDay()));
         checkError(result, INVALID_PARAM_VALUE_ERROR);
 
     }
@@ -70,6 +75,11 @@ public class AdministrativeUserIII extends BaseTest {
      */
     @Test
     public void monthlyCredit() {
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
+        donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
+        daisyAuth = AuthToken.getAuthToken(client, "daisy", "daisy");
+        dagobertAuth = AuthToken.getAuthToken(client, "dagobert", "dagobert");
         //make sure donald has enough funds
         String result = client.processRequest(depositIntoAccount,
                 new DepositIntoAccount(donaldAccount.getiBAN(), donaldAccount.getPinCard(), donaldAccount.getPinCode(), 100));
@@ -78,16 +88,16 @@ public class AdministrativeUserIII extends BaseTest {
 
         //set limit to 50
         String dateStringNextDay = getDateStringNextDay();
-        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), CREDIT_CARD_DEFAULT_CREDIT, 50, dateStringNextDay));
+        result = client.processRequest(setValue, new SetValue(adminAuth, CREDIT_CARD_DEFAULT_CREDIT, 50, dateStringNextDay));
         checkSuccess(result);
 
         //simulate day
-        result = client.processRequest(simulateTime, new SimulateTime(1, AuthToken.getAdminLoginToken(client)));
+        result = client.processRequest(simulateTime, new SimulateTime(1, adminAuth));
         checkSuccess(result);
 
         //request credit card
         result = client.processRequest(requestCreditCard,
-                new RequestCreditCard(AuthToken.getAuthToken(client, "donald", "donald"), donaldAccount.getiBAN()));
+                new RequestCreditCard(donaldAuth, donaldAccount.getiBAN()));
         assertThat(result, hasJsonPath("result"));
         assertThat(result, hasNoJsonPath("error"));
         assertThat(result, hasJsonPath("result.pinCard"));
@@ -96,7 +106,7 @@ public class AdministrativeUserIII extends BaseTest {
         String pinCode = JsonPath.read(result, "result.pinCode");
 
         //simulate day
-        result = client.processRequest(simulateTime, new SimulateTime(1, AuthToken.getAdminLoginToken(client)));
+        result = client.processRequest(simulateTime, new SimulateTime(1, adminAuth));
         checkSuccess(result);
 
         //try to pay 50.01
@@ -112,7 +122,7 @@ public class AdministrativeUserIII extends BaseTest {
 
         //set value with to much decimals
         dateStringNextDay = getDateStringNextDay();
-        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), CREDIT_CARD_MONTHLY_FEE, 49.999, dateStringNextDay));
+        result = client.processRequest(setValue, new SetValue(adminAuth, CREDIT_CARD_MONTHLY_FEE, 49.999, dateStringNextDay));
         checkError(result, INVALID_PARAM_VALUE_ERROR);
     }
 
@@ -121,17 +131,22 @@ public class AdministrativeUserIII extends BaseTest {
      */
     @Test
     public void expirationLength() {
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
+        donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
+        daisyAuth = AuthToken.getAuthToken(client, "daisy", "daisy");
+        dagobertAuth = AuthToken.getAuthToken(client, "dagobert", "dagobert");
         //set length to 2 years
         String dateStringNextDay = getDateStringNextDay();
-        String result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), CARD_EXPIRATION_LENGTH, 2, dateStringNextDay));
+        String result = client.processRequest(setValue, new SetValue(adminAuth, CARD_EXPIRATION_LENGTH, 2, dateStringNextDay));
         checkSuccess(result);
 
         //simulate day
-        result = client.processRequest(simulateTime, new SimulateTime(1, AuthToken.getAdminLoginToken(client)));
+        result = client.processRequest(simulateTime, new SimulateTime(1, adminAuth));
         checkSuccess(result);
 
         //request additional account and check expiration date of card
-        result = client.processRequest(openAdditionalAccount, new OpenAdditionalAccount(AuthToken.getAuthToken(client, "daisy", "daisy")));
+        result = client.processRequest(openAdditionalAccount, new OpenAdditionalAccount(daisyAuth));
         assertThat(result, hasJsonPath("result"));
         assertThat(result, hasNoJsonPath("error"));
         assertThat(result, hasJsonPath("result.iBAN"));
@@ -143,7 +158,7 @@ public class AdministrativeUserIII extends BaseTest {
 
 
         //request current date
-        result = client.processRequest(getDate, new GetDate(AuthToken.getAdminLoginToken(client)));
+        result = client.processRequest(getDate, new GetDate(adminAuth));
         assertThat(result, hasJsonPath("result"));
         assertThat(result, hasNoJsonPath("error"));
         assertThat(result, hasJsonPath("result.date"));
@@ -151,22 +166,22 @@ public class AdministrativeUserIII extends BaseTest {
         assertEquals(2, expirationCalendar.get(Calendar.YEAR) - currentCalendar.get(Calendar.YEAR));
 
         //request creditCard
-        result = client.processRequest(requestCreditCard, new RequestCreditCard(AuthToken.getAuthToken(client, "daisy", "daisy"), daisyAccount.getiBAN()));
+        result = client.processRequest(requestCreditCard, new RequestCreditCard(daisyAuth, daisyAccount.getiBAN()));
         assertThat(result, hasJsonPath("result"));
         assertThat(result, hasNoJsonPath("error"));
         assertThat(result, hasJsonPath("result.pinCard"));
 
         //close creditCard
-        result = client.processRequest(closeAccount, new CloseAccount(AuthToken.getAuthToken(client, "daisy", "daisy"), daisyAccount.getiBAN() + "C"));
+        result = client.processRequest(closeAccount, new CloseAccount(daisyAuth, daisyAccount.getiBAN() + "C"));
         checkSuccess(result);
 
         //close additional account
-        result = client.processRequest(closeAccount, new CloseAccount(AuthToken.getAuthToken(client, "daisy", "daisy"), newAccount));
+        result = client.processRequest(closeAccount, new CloseAccount(daisyAuth, newAccount));
         checkSuccess(result);
 
         //try to set with to much decimals
         dateStringNextDay = getDateStringNextDay();
-        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), CARD_EXPIRATION_LENGTH, 2.1, dateStringNextDay));
+        result = client.processRequest(setValue, new SetValue(adminAuth, CARD_EXPIRATION_LENGTH, 2.1, dateStringNextDay));
         checkError(result, INVALID_PARAM_VALUE_ERROR);
     }
 
@@ -175,13 +190,18 @@ public class AdministrativeUserIII extends BaseTest {
      */
     @Test
     public void newCardCosts() {
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
+        donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
+        daisyAuth = AuthToken.getAuthToken(client, "daisy", "daisy");
+        dagobertAuth = AuthToken.getAuthToken(client, "dagobert", "dagobert");
         //make sure daisy has enough funds
         String result = client.processRequest(depositIntoAccount,
                 new DepositIntoAccount(daisyAccount.getiBAN(), daisyAccount.getPinCard(), daisyAccount.getPinCode(), 100));
         checkSuccess(result);
 
         //request creditCard
-        result = client.processRequest(requestCreditCard, new RequestCreditCard(AuthToken.getAuthToken(client, "daisy", "daisy"), daisyAccount.getiBAN()));
+        result = client.processRequest(requestCreditCard, new RequestCreditCard(daisyAuth, daisyAccount.getiBAN()));
         assertThat(result, hasJsonPath("result"));
         assertThat(result, hasNoJsonPath("error"));
         assertThat(result, hasJsonPath("result.pinCard"));
@@ -189,18 +209,18 @@ public class AdministrativeUserIII extends BaseTest {
 
         //set new card costs to 1.50
         String dateStringNextDay = getDateStringNextDay();
-        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), NEW_CARD_COST, 1.50, dateStringNextDay));
+        result = client.processRequest(setValue, new SetValue(adminAuth, NEW_CARD_COST, 1.50, dateStringNextDay));
         checkSuccess(result);
 
         //simulate to first of month
-        simulateToFirstOfMonth();
+        simulateToFirstOfMonth(adminAuth);
 
         //get balance
         double balance = getBalanceOfAccount(daisyAccount.getiBAN());
 
         //replace card
         result = client.processRequest(invalidateCard,
-                new InvalidateCard(AuthToken.getAuthToken(client, "daisy", "daisy"), daisyAccount.getiBAN(), daisyAccount.getPinCard(), false));
+                new InvalidateCard(daisyAuth, daisyAccount.getiBAN(), daisyAccount.getPinCard(), false));
         assertThat(result, hasJsonPath("result"));
         assertThat(result, hasNoJsonPath("error"));
 
@@ -210,7 +230,7 @@ public class AdministrativeUserIII extends BaseTest {
 
         //replace credit card
         result = client.processRequest(invalidateCard,
-                new InvalidateCard(AuthToken.getAuthToken(client, "daisy", "daisy"), daisyAccount.getiBAN(), pinCard, false));
+                new InvalidateCard(daisyAuth, daisyAccount.getiBAN(), pinCard, false));
         assertThat(result, hasJsonPath("result"));
         assertThat(result, hasNoJsonPath("error"));
 
@@ -220,12 +240,12 @@ public class AdministrativeUserIII extends BaseTest {
         assertThat(balance - newBalance, equalTo(1.5));
 
         //close credit account
-        result = client.processRequest(closeAccount, new CloseAccount(AuthToken.getAuthToken(client, "daisy", "daisy"), daisyAccount.getiBAN() + "C"));
+        result = client.processRequest(closeAccount, new CloseAccount(daisyAuth, daisyAccount.getiBAN() + "C"));
         checkSuccess(result);
 
         //try to set with to much decimals
         dateStringNextDay = getDateStringNextDay();
-        result = client.processRequest(setValue, new SetValue(AuthToken.getAdminLoginToken(client), NEW_CARD_COST, 2.112, dateStringNextDay));
+        result = client.processRequest(setValue, new SetValue(adminAuth, NEW_CARD_COST, 2.112, dateStringNextDay));
         checkError(result, INVALID_PARAM_VALUE_ERROR);
     }
 

@@ -63,13 +63,12 @@ public abstract class SharedUtilityMethods {
 
     /**
      * Checks if the input for an account link request is correctly formatted and contains correct values.
-     * @param accountLink {@link AccountLink} that should be created in the system.
+     * @param accountNumber  that should be created in the system.
      * @throws IncorrectInputException Thrown when a value is not correctly specified.
      * @throws JsonSyntaxException Thrown when the json string is incorrect and cant be parsed.
      */
-    public static void verifyAccountLinkInput(final AccountLink accountLink)
+    public static void verifyAccountLinkInput(final String accountNumber)
             throws IncorrectInputException, JsonSyntaxException {
-        final String accountNumber = accountLink.getAccountNumber();
         if (accountNumber == null || accountNumber.length() > MAX_ACCOUNT_NUMBER_LENGTH
                 || accountNumber.length() < MIN_ACCOUNT_NUMBER_LENGTH) {
             throw new IncorrectInputException("The following variable was incorrectly specified: accountNumber.");

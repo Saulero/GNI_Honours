@@ -3,6 +3,7 @@ package main.test.extension;
 import com.jayway.jsonpath.JsonPath;
 import main.model.methods.*;
 import main.test.BaseTest;
+import main.util.AuthToken;
 import main.util.Constants;
 import org.junit.Test;
 
@@ -23,6 +24,11 @@ public class AdministrativeUserII extends BaseTest {
      */
     @Test
     public void transferMoney() {
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
+        donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
+        daisyAuth = AuthToken.getAuthToken(client, "daisy", "daisy");
+        dagobertAuth = AuthToken.getAuthToken(client, "dagobert", "dagobert");
         //make sure donald has 1.23 funds
         String result = client.processRequest(depositIntoAccount,
                 new DepositIntoAccount(donaldAccount.getiBAN(), donaldAccount.getPinCard(), donaldAccount.getPinCode(), 1.23));
@@ -90,6 +96,11 @@ public class AdministrativeUserII extends BaseTest {
      */
     @Test
     public void transferAccountAccess() {
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
+        donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
+        daisyAuth = AuthToken.getAuthToken(client, "daisy", "daisy");
+        dagobertAuth = AuthToken.getAuthToken(client, "dagobert", "dagobert");
         // transfer dagobert account to daisy
         String result = client.processRequest(transferBankAccount, new TransferBankAccount(adminAuth, dagobertAccount.getiBAN(), "daisy"));
         checkSuccess(result);
@@ -133,6 +144,11 @@ public class AdministrativeUserII extends BaseTest {
      */
     @Test
     public void wrongTransferAccount() {
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
+        donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
+        daisyAuth = AuthToken.getAuthToken(client, "daisy", "daisy");
+        dagobertAuth = AuthToken.getAuthToken(client, "dagobert", "dagobert");
         //non admin auth
         String result = client.processRequest(transferBankAccount, new TransferBankAccount(donaldAuth, donaldAccount.getiBAN(), "daisy"));
         checkError(result, NOT_AUTHORIZED_ERROR);
@@ -159,6 +175,11 @@ public class AdministrativeUserII extends BaseTest {
      */
     @Test
     public void freezeAccount() {
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
+        donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
+        daisyAuth = AuthToken.getAuthToken(client, "daisy", "daisy");
+        dagobertAuth = AuthToken.getAuthToken(client, "dagobert", "dagobert");
         //make sure donald has enough funds
         String result = client.processRequest(depositIntoAccount,
                 new DepositIntoAccount(donaldAccount.getiBAN(), donaldAccount.getPinCard(), donaldAccount.getPinCode(), 10));
@@ -337,6 +358,11 @@ public class AdministrativeUserII extends BaseTest {
      */
     @Test
     public void frozenCustomer() {
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
+        donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
+        daisyAuth = AuthToken.getAuthToken(client, "daisy", "daisy");
+        dagobertAuth = AuthToken.getAuthToken(client, "dagobert", "dagobert");
         //make sure daisy has enough funds
         String result = client.processRequest(depositIntoAccount,
                 new DepositIntoAccount(daisyAccount.getiBAN(), daisyAccount.getPinCard(), daisyAccount.getPinCode(), 10));
@@ -384,6 +410,11 @@ public class AdministrativeUserII extends BaseTest {
      */
     @Test
     public void freezeInvalidInput() {
+        //log users in.
+        adminAuth = AuthToken.getAdminLoginToken(client);
+        donaldAuth = AuthToken.getAuthToken(client, "donald", "donald");
+        daisyAuth = AuthToken.getAuthToken(client, "daisy", "daisy");
+        dagobertAuth = AuthToken.getAuthToken(client, "dagobert", "dagobert");
         SetFreezeUserAccount setFreezeUserAccountObject = new SetFreezeUserAccount(donaldAuth, "donald", true);
 
         //non admin freeze attempt
