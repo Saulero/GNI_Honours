@@ -1476,12 +1476,12 @@ class PinService {
             transactionDispatchClient.putFormAsyncWith3Params("/services/transactionDispatch/transaction",
                     "request", jsonConverter.toJson(data), "customerId", customerId,
                     "override", !closeCard, //if the card should not be closed this method is being called by an admin.
-                    (code, contentType, replyBody) -> handleDispatchRefillResponse(code, replyBody, transaction,
+                    (code, contentType, replyBody) -> handleDispatchRefillResponse(code, replyBody,
                             creditCards, customerId, closeCard, callbackBuilder));
         }
     }
 
-    private void handleDispatchRefillResponse(final int code, final String replyBody, final Transaction transaction,
+    private void handleDispatchRefillResponse(final int code, final String replyBody,
                                               final List<CreditCard> creditCards, final Long customerId,
                                               final boolean closeCard,
                                               final CallbackBuilder callbackBuilder) {
@@ -1647,7 +1647,6 @@ class PinService {
     public void processRefillCardsRequest(final Callback<String> callback,
                                           @RequestParam("date") final String dateJson) {
         System.out.printf("%s Received refill credit cards request, refilling..\n", PREFIX);
-        LocalDate systemDate = (LocalDate) jsonConverter.fromJson(dateJson, LocalDate.class);
         CallbackBuilder callbackBuilder = CallbackBuilder.newCallbackBuilder().withStringCallback(callback);
         List<CreditCard> cardsToRefill = getCreditCardsToRefill();
         refillCreditCards(cardsToRefill, 0L, false, callbackBuilder);

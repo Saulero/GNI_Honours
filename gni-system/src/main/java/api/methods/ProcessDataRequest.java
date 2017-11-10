@@ -11,6 +11,7 @@ import databeans.RequestType;
 import databeans.Transaction;
 import util.JSONParser;
 
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -115,15 +116,16 @@ public abstract class ProcessDataRequest {
         RequestType requestType = ((DataRequest) dataRequest.getData()).getType();
         switch (requestType) {
             case BALANCE:
-                Double balance = dataReply.getAccountData().getBalance();
-                Double savingBalance = dataReply.getAccountData().getSavingsBalance();
+                DecimalFormat numberFormat = new DecimalFormat("#.00");
+                Double balance = Double.valueOf(numberFormat.format(dataReply.getAccountData().getBalance()));
+                Double savingBalance = Double.valueOf(numberFormat.format(dataReply.getAccountData().getSavingsBalance()));
                 System.out.printf("%s Balance request successful, sending callback.\n\n\n\n", PREFIX);
                 Map<String, Object> balanceResult = new HashMap<>();
                 balanceResult.put("balance", balance);
                 balanceResult.put("savingAccountBalance", savingBalance);
                 Double creditCardBalance = dataReply.getAccountData().getCreditCardBalance();
                 if (creditCardBalance != null) {
-                    balanceResult.put("creditCardBalance", creditCardBalance);
+                    balanceResult.put("credit", Double.valueOf(numberFormat.format(creditCardBalance)));
                 }
                 sendDataRequestResponse(balanceResult, api);
                 break;

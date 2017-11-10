@@ -324,14 +324,16 @@ public class CreditCard extends BaseTest {
         String pinCard = JsonPath.read(result, "result.pinCard");
         String pinCode = JsonPath.read(result, "result.pinCode");
 
-        //simulate 4000 days (roughly 11 years)
-        result = client.processRequest(simulateTime, new SimulateTime(4000, adminAuth));
-        checkSuccess(result);
+        //simulate 4015 days (roughly 11 years)
+        for (int i = 0; i < 11; i++) {
+            result = client.processRequest(simulateTime, new SimulateTime(365, adminAuth));
+            checkSuccess(result);
+        }
 
         //try to pay with credit card
         result = client.processRequest(payFromAccount,
                 new PayFromAccount(dagobertAccount.getiBAN(), donaldAccount.getiBAN(), pinCard, pinCode, 1));
-        checkError(result, INVALID_PARAM_VALUE_ERROR);
+        checkError(result, NOT_AUTHORIZED_ERROR);
 
         //get balance
         result = client.processRequest(getBalance, new GetBalance(dagobertAuth, dagobertAccount.getiBAN()));
