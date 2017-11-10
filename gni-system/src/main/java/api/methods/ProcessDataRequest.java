@@ -118,11 +118,13 @@ public abstract class ProcessDataRequest {
             case BALANCE:
                 DecimalFormat numberFormat = new DecimalFormat("#.00");
                 Double balance = Double.valueOf(numberFormat.format(dataReply.getAccountData().getBalance()));
-                Double savingBalance = Double.valueOf(numberFormat.format(dataReply.getAccountData().getSavingsBalance()));
+                Double savingBalance = dataReply.getAccountData().getSavingsBalance();
                 System.out.printf("%s Balance request successful, sending callback.\n\n\n\n", PREFIX);
                 Map<String, Object> balanceResult = new HashMap<>();
                 balanceResult.put("balance", balance);
-                balanceResult.put("savingAccountBalance", savingBalance);
+                if (dataReply.getAccountData().isSavingsActive()) {
+                    balanceResult.put("savingAccountBalance", Double.valueOf(numberFormat.format(savingBalance)));
+                }
                 Double creditCardBalance = dataReply.getAccountData().getCreditCardBalance();
                 if (creditCardBalance != null) {
                     balanceResult.put("credit", Double.valueOf(numberFormat.format(creditCardBalance)));
