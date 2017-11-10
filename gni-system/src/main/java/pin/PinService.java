@@ -1475,7 +1475,7 @@ class PinService {
             data.setData(transaction);
             transactionDispatchClient.putFormAsyncWith3Params("/services/transactionDispatch/transaction",
                     "request", jsonConverter.toJson(data), "customerId", customerId,
-                    "override", !closeCard, //if the card should not be closed this method is being called by an admin.
+                    "override", true, //admin override
                     (code, contentType, replyBody) -> handleDispatchRefillResponse(code, replyBody,
                             creditCards, customerId, closeCard, callbackBuilder));
         }
