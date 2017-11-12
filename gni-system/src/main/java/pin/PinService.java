@@ -18,6 +18,7 @@ import util.JSONParser;
 import java.security.InvalidParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -570,7 +571,9 @@ class PinService {
                 if (!messageWrapper.isError()) {
                     LocalDate systemDate = (LocalDate) messageWrapper.getData();
                     String sourceAccountNumber = pinTransaction.getSourceAccountNumber();
-                    sourceAccountNumber = sourceAccountNumber.substring(0, sourceAccountNumber.length() - 1); // remove C from accountNumber
+                    if (sourceAccountNumber.toLowerCase().endsWith("c")) {
+                        sourceAccountNumber = sourceAccountNumber.substring(0, sourceAccountNumber.length() - 1); // remove C from accountNumber
+                    }
                     if (systemDate.isBefore(creditCard.getActivationDate())
                             || !creditCard.isActive()) {
                         System.out.printf("%s Card is inactive, sending callback.\n", PREFIX);
@@ -1461,7 +1464,7 @@ class PinService {
     private void refillCreditCards(final List<CreditCard> creditCards, final Long customerId, final boolean closeCard,
                                   final CallbackBuilder callbackBuilder) {
         if (creditCards.size() < 1) {
-            findCreditCardsToWithdrawFee(customerId, callbackBuilder);
+            deactivateExpiredCreditCards(customerId, callbackBuilder);
         } else {
             CreditCard creditCard = creditCards.get(0);
             Transaction transaction = new Transaction();
@@ -1479,6 +1482,38 @@ class PinService {
                     (code, contentType, replyBody) -> handleDispatchRefillResponse(code, replyBody,
                             creditCards, customerId, closeCard, callbackBuilder));
         }
+    }
+
+    private void deactivateExpiredCreditCards(final Long customerId, final CallbackBuilder callbackBuilder) {
+        systemInformationClient.getAsync("/services/systemInfo/date",
+                (httpStatusCode, contentType, body) -> {
+                    if (httpStatusCode == HTTP_OK) {
+                        MessageWrapper messageWrapper = jsonConverter.fromJson(JSONParser.removeEscapeCharacters(body),
+                                MessageWrapper.class);
+                        if (!messageWrapper.isError()) {
+                            LocalDate systemDate = (LocalDate) messageWrapper.getData();
+                            LocalDate validFrom = systemDate.minusYears(CARD_EXPIRATION_LENGTH);
+                            try {
+                                SQLConnection connection = databaseConnectionPool.getConnection();
+                                PreparedStatement getCards = connection.getConnection().prepareStatement(deactivateExpiredCreditCards);
+                                getCards.setDate(1, Date.valueOf(validFrom));
+                                getCards.executeUpdate();
+                                connection.close();
+                                findCreditCardsToWithdrawFee(customerId, callbackBuilder);
+                            } catch (SQLException e) {
+                                e.printStackTrace();
+                                callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 500,
+                                        "Unknown error occurred.")));
+                            }
+                        } else {
+                            callbackBuilder.build().reply(body);
+                        }
+                    } else {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true,
+                                500, "An unknown error occurred.",
+                                "There was a problem with one of the HTTP requests")));
+                    }
+                });
     }
 
     private void handleDispatchRefillResponse(final int code, final String replyBody,

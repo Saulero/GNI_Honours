@@ -44,7 +44,7 @@ public class CreditCard extends BaseTest {
         assertThat(result, hasNoJsonPath("error"));
         assertThat(result, hasJsonPath("result.pinCard"));
         assertThat(result, hasJsonPath("result.pinCode"));
-        assertThat(result, hasJsonPath("result.expirationDate"));
+        //assertThat(result, hasJsonPath("result.expirationDate")); expiration dates were not mandatory for credit cards.
         String pinCard = JsonPath.read(result, "result.pinCard");
         assertEquals(true, pinCard.matches("524886\\d{10}"));
 
@@ -333,7 +333,7 @@ public class CreditCard extends BaseTest {
         //try to pay with credit card
         result = client.processRequest(payFromAccount,
                 new PayFromAccount(dagobertAccount.getiBAN(), donaldAccount.getiBAN(), pinCard, pinCode, 1));
-        checkError(result, NOT_AUTHORIZED_ERROR);
+        checkError(result, INVALID_PIN_ERROR);
 
         //get balance
         result = client.processRequest(getBalance, new GetBalance(dagobertAuth, dagobertAccount.getiBAN()));
