@@ -114,9 +114,9 @@ public class AdministrativeUserIIIPartIIII extends BaseTest {
         result = client.processRequest(transferMoney, transferMoneyObject);
         checkSuccess(result);
 
-        //pay 1000 with dagobert
+        //pay 100 with dagobert
         TransferMoney dagoberTransfer =
-                new TransferMoney(dagobertAuth, dagobertAccount.getiBAN(), daisyAccount.getiBAN(), "Daisy", 1000, "Something");
+                new TransferMoney(dagobertAuth, dagobertAccount.getiBAN(), daisyAccount.getiBAN(), "Daisy", 100, "Something");
         result = client.processRequest(transferMoney, dagoberTransfer);
         checkSuccess(result);
 
@@ -140,7 +140,7 @@ public class AdministrativeUserIIIPartIIII extends BaseTest {
         result = client.processRequest(transferMoney, transferMoneyObject);
         checkSuccess(result);
 
-        //pay 1000 again with dagobert
+        //pay 100 again with dagobert
         dagoberTransfer.setAuthToken(dagobertAuth);
         result = client.processRequest(transferMoney, dagoberTransfer);
         checkSuccess(result);
