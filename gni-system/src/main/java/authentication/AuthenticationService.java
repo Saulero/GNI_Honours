@@ -611,13 +611,20 @@ class AuthenticationService {
                     String password = rs.getString("password");
                     if (password.equals(authData.getPassword())) {
                         // Legitimate info
-                        long newToken = secureRandomNumberGenerator.nextLong();
-                        setNewToken(userId, newToken);
+                        Long validity = rs.getLong("token_validity");
+                        Long token;
+                        if (validity > System.currentTimeMillis()) {
+                            //token still valid, return this token.
+                            token = rs.getLong("token");
+                        } else {
+                            token = secureRandomNumberGenerator.nextLong();
+                            setNewToken(userId, token);
+                        }
                         System.out.printf("%s Successful login for user %s, sending callback.\n", PREFIX,
                                           authData.getUsername());
                         callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(
                                 false, 200, "Normal Reply",
-                                new Authentication(encodeCookie(userId, newToken), AuthenticationType.REPLY))));
+                                new Authentication(encodeCookie(userId, token), AuthenticationType.REPLY))));
                     } else {
                         // Illegitimate info
                         callback.reply(jsonConverter.toJson(JSONParser.createMessageWrapper(true, 422,

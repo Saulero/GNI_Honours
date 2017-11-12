@@ -168,7 +168,7 @@ public class AdministrativeUserIIIPartIIII extends BaseTest {
         result = client.processRequest(simulateTime, new SimulateTime(1, adminAuth));
         checkSuccess(result);
         result = client.processRequest(setValue, new SetValue(adminAuth, WEEKLY_TRANSFER_LIMIT, 100, nextDay));
-        checkError(result, INVALID_PARAM_VALUE_ERROR);
+        checkError(result, NOT_AUTHORIZED_ERROR);
 
         //unknown key
         result = client.processRequest(setValue, new SetValue(adminAuth, "limit", 100, nextDay));

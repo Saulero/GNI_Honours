@@ -212,7 +212,7 @@ public class SpendingLimits extends BaseTest {
 
             transferMoneyObject.setAuthToken(daisyAuth);
             result = client.processRequest(transferMoney, transferMoneyObject);
-            checkError(result, NOT_AUTHORIZED_ERROR);
+            checkError(result, INVALID_PARAM_VALUE_ERROR);
         }
 
         //after this simulation daisy is allowed to transfer 2000
