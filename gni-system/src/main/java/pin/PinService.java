@@ -609,6 +609,11 @@ class PinService {
                                 .createMessageWrapper(true, 418,
                                         "There are not enough funds on the credit card to make the transaction.",
                                         "The balance on the credit card used is not high enough.")));
+                    } else if (pinTransaction.getDestinationAccountNumber().endsWith("C")) {
+                        callbackBuilder.build().reply(jsonConverter.toJson(JSONParser
+                                .createMessageWrapper(true, 419,
+                                        "Can't transfer to credit card.",
+                                        "The pin card used does not have the authorization to perform this request.")));
                     } else {
                         creditCard.processTransaction(pinTransaction);
                         updateCreditCardBalanceInDb(creditCard);

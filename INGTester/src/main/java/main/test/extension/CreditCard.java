@@ -204,7 +204,7 @@ public class CreditCard extends BaseTest {
         payFromAccountObject.setSourceIBAN(dagobertAccount.getiBAN());
         payFromAccountObject.setTargetIBAN(dagobertAccount.getiBAN() + "C");
         result = client.processRequest(payFromAccount, payFromAccountObject);
-        checkError(result, INVALID_PARAM_VALUE_ERROR);
+        checkError(result, NOT_AUTHORIZED_ERROR);
 
         //pay more than 1000 in once
         payFromAccountObject.setSourceIBAN(payFromAccountObject.getTargetIBAN());
